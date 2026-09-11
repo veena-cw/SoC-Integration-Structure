@@ -1,0 +1,5 @@
+RTL/
+├── spi_top.sv              // SPI core top module
+├── spi_master.sv           // SPI Master
+├── spi_slave.sv            // SPI Slave
+└── spi_fifo.sv             // FIFO (used for both TX and RX)

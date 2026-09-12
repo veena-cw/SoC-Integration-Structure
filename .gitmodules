@@ -1,0 +1,3 @@
+[submodule "DSN/ip/compute/cpu/ip/cpu-black-parrot"]
+	path = DSN/ip/compute/cpu/ip/cpu-black-parrot
+	url = https://github.com/black-parrot/black-parrot.git

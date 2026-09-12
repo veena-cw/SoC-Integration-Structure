@@ -1,0 +1,3 @@
+cw025_jishnu@ip-10-0-10-79:~/Documents/black-parrot-axi$ verilator --binary --timing --trace-fst --Wno-fatal   --top-module bp_bedrock_axi4_bridge_bp_compat_tb   -Ibp_common/src/include   -Ibp_be/src/include   -Ibp_me/src/include   -Iexternal/HardFloat/source   -Iexternal/HardFloat/source/RISCV   -Iexternal/basejump_stl/bsg_misc   -Iexternal/basejump_stl/bsg_noc   -Iexternal/basejump_stl/bsg_cache   -Iexternal/basejump_stl   -Iasync_fifo   bp_common/src/include/bp_common_pkg.sv   bp_axi4/rtl/axi4_master.sv   bp_axi4/rtl/bp_bedrock_axi4_bridge.sv   bp_axi4/tb/bp_bedrock_axi4_bridge_bp_compat_tb.sv
+
+//Replace bp_axi4/tb/bp_bedrock_axi4_bridge_bp_compat_tb.sv to bp_bedrock_axi4_bridge_tb if required

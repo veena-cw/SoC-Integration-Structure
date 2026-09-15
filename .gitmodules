@@ -1,3 +1,6 @@
 [submodule "DSN/ip/compute/cpu/ip/cpu-black-parrot"]
 	path = DSN/ip/compute/cpu/ip/cpu-black-parrot
 	url = https://github.com/black-parrot/black-parrot.git
+[submodule "DSN/ip/peripherals/i2c/dsn/ip/DSN/ip/peripherals/i2c/dsn/ip/I2C_PROTOCOL---VERILOG"]
+	path = DSN/ip/peripherals/i2c/dsn/ip/DSN/ip/peripherals/i2c/dsn/ip/I2C_PROTOCOL---VERILOG
+	url = git@github.com:vallala-saikumar/I2C_PROTOCOL---VERILOG.git

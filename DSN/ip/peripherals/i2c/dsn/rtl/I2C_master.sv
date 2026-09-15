@@ -1,9 +1,21 @@
 //`timescale 1ns / 1ps
 
+//==============================================================
+// i2c_master
+//
+// RESET CONVENTION: ACTIVE LOW (rst_n)
+//   rst_n = 0 -> module held in reset
+//   rst_n = 1 -> normal operation
+//
+// The port was renamed from "rst" to "rst_n" so the polarity is
+// visible at every instantiation. top_fifo drives this with
+// (~i2c_rst), since i2c_rst at the top level is active HIGH.
+//==============================================================
+
 module i2c_master (
 
     input  logic       clk,
-    input  logic       rst,
+    input  logic       rst_n,      // ACTIVE LOW
 
     input  logic       start,
     input  logic       rw,
@@ -16,32 +28,36 @@ module i2c_master (
 
     output logic       ready,
     output logic       ack_error,
-    
-    output logic        i2c_irq,//interrupt signal
+
+    output logic       i2c_irq,    // interrupt signal
 
     //==========================================================
     // I2C BUSY STATUS
-    
     //
     // 1 = transaction in progress
     // 0 = I2C master idle
     //==========================================================
 
     output logic       busy,
-    output logic done,
-    
-    
-    output logic fifo_wr_en,
+    output logic       done,
+
+    output logic       fifo_wr_en,
     output logic [7:0] fifo_wr_data,
-    
-    input logic fifo_full
+	
+    input  logic       fifo_full
 );
 
 
-always_ff@(posedge clk or posedge rst)
-if (rst) i2c_irq <= 1'b0;
-else i2c_irq <= (ready || ack_error || done)? 1'b1 : 1'b0;
+    //==========================================================
+    // INTERRUPT
+    //==========================================================
 
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            i2c_irq <= 1'b0;
+        else
+            i2c_irq <= (ready || ack_error || done) ? 1'b1 : 1'b0;
+    end
 
 
     //==========================================================
@@ -124,56 +140,47 @@ else i2c_irq <= (ready || ack_error || done)? 1'b1 : 1'b0;
 
     assign i2c_tick =
             (clk_div == 8'd1);
-            
-                
-//    always_ff @(posedge clk or posedge rst) begin
-    
-//            if (rst) 
-//            fifo_wr_data = 8'b0;
-//            else
-//              fifo_wr_data = data_out;
-              
-//              end
-        
-//always_ff @ (posedge clk or posedge rst) begin
-
-//    if (rst) begin
-
-//      fifo_wr_en <= 1'b0;
-//    end
-//      else 
-//        begin
-//      if (rw &&
-//        !fifo_full) begin
-
-//         fifo_wr_en <= 1'b1;
-
-//      end
-//      else 
-//            fifo_wr_en <= 1'b0;
-//    end 
-//   end
 
 
-always_ff @(posedge clk or posedge rst) begin
-        if (rst) begin
+    //==========================================================
+    // RX FIFO WRITE PULSE
+    //
+    // Single-cycle pulse on the same edge where busy/done/ready
+    // are updated at the end of a READ transaction.
+    //==========================================================
+
+    always_ff @(posedge clk or negedge rst_n) begin
+
+        if (!rst_n) begin
+
             fifo_wr_en   <= 1'b0;
             fifo_wr_data <= 8'b0;
+
         end
         else begin
+
             fifo_wr_en <= 1'b0; // default: single-cycle pulse
 
             if ((state == STOP) && i2c_tick && !i2c_scl &&
                 (rw_reg == 1'b1) && !ack_error) begin
-                // Same edge where busy/done/ready get updated below.
+
                 fifo_wr_en   <= !fifo_full;
                 fifo_wr_data <= data_out;
-            end
-        end
-    end
-    always_ff @(posedge clk or posedge rst) begin
 
-        if (rst) begin
+            end
+
+        end
+
+    end
+
+
+    //==========================================================
+    // CLOCK DIVIDER
+    //==========================================================
+
+    always_ff @(posedge clk or negedge rst_n) begin
+
+        if (!rst_n) begin
 
             clk_div <= 8'd0;
 
@@ -190,14 +197,13 @@ always_ff @(posedge clk or posedge rst) begin
     end
 
 
-    
     //==========================================================
     // MAIN I2C FSM
     //==========================================================
 
-    always_ff @(posedge clk or posedge rst) begin
+    always_ff @(posedge clk or negedge rst_n) begin
 
-        if (rst) begin
+        if (!rst_n) begin
 
             state         <= IDLE;
 
@@ -207,7 +213,7 @@ always_ff @(posedge clk or posedge rst) begin
             ready         <= 1'b1;
             ack_error     <= 1'b0;
             busy          <= 1'b0;
-            done        <=  1'b0;
+            done          <= 1'b0;
 
             bit_cnt       <= 4'd0;
 
@@ -237,7 +243,7 @@ always_ff @(posedge clk or posedge rst) begin
 
                     ready <= 1'b1;
                     busy  <= 1'b0;
-                    done <= 1'b0;
+                    done  <= 1'b0;
 
                     if (start) begin
 
@@ -247,8 +253,6 @@ always_ff @(posedge clk or posedge rst) begin
 
                         shift_reg <= {addr, rw};
 
-                       
-
                         //------------------------------------------
                         // Start new transaction
                         //------------------------------------------
@@ -257,7 +261,7 @@ always_ff @(posedge clk or posedge rst) begin
 
                         ready <= 1'b0;
                         busy  <= 1'b1;
-                        done <= 1'b0;
+                        done  <= 1'b0;
 
                         ack_error <= 1'b0;
 
@@ -276,12 +280,15 @@ always_ff @(posedge clk or posedge rst) begin
                 //==================================================
 
                 START: begin
-                     rw_reg <= rw;
+
+                    rw_reg <= rw;
+
                     if (i2c_tick) begin
 
                         i2c_scl <= 1'b1;
-                         busy <= 1'b1;
-                        done <= 1'b0;
+                        busy    <= 1'b1;
+                        done    <= 1'b0;
+
                         // Generate START
                         sda_drive_low <= 1'b1;
 
@@ -289,8 +296,6 @@ always_ff @(posedge clk or posedge rst) begin
                         bit_cnt <= 4'd7;
 
                         state <= ADDR;
-
-                       
 
                     end
 
@@ -404,7 +409,7 @@ always_ff @(posedge clk or posedge rst) begin
                                 state <= STOP;
 
                                 busy <= 1'b1;
-                                done  <= 1'b0;
+                                done <= 1'b0;
 
                             end
 
@@ -542,6 +547,14 @@ always_ff @(posedge clk or posedge rst) begin
 
                             //--------------------------------------
                             // Sample SDA
+                            //
+                            // NOTE: bit_cnt enters this state at 8
+                            // (set in ACK1), so the first sample
+                            // targets rx_buffer[8], which does not
+                            // exist and is discarded. The slave BFM
+                            // compensates by driving one dummy bit
+                            // first. See the note at the bottom of
+                            // this file.
                             //--------------------------------------
 
                             rx_buffer[bit_cnt] <= i2c_sda;
@@ -638,7 +651,6 @@ always_ff @(posedge clk or posedge rst) begin
                             //--------------------------------------
 
                             state <= STOP;
-                            //done = 1'b1;
 
                         end
 
@@ -695,15 +707,11 @@ always_ff @(posedge clk or posedge rst) begin
 
                             //--------------------------------------
                             // Transaction is now finished.
-                            //
-                            // NO DONE SIGNAL.
-                            //
-                            // busy becomes LOW.
                             //--------------------------------------
 
                             busy  <= 1'b0;
                             ready <= 1'b1;
-                            done <= 1'b1;
+                            done  <= 1'b1;
 
                         end
 
@@ -737,3 +745,29 @@ always_ff @(posedge clk or posedge rst) begin
     end
 
 endmodule
+
+//==============================================================
+// KNOWN ISSUE (unchanged from your original, left as-is):
+//
+// ACK1 loads bit_cnt <= 4'd8 for BOTH the read and write paths.
+// WRITE_DATA compensates by indexing shift_reg[bit_cnt-1], so 8
+// is correct there. READ_DATA indexes rx_buffer[bit_cnt] directly,
+// so its first sample writes rx_buffer[8] - out of range - and is
+// dropped, shifting every subsequent bit up by one.
+//
+// The testbench BFM works around this by driving one dummy bit
+// before the real byte. A proper RTL fix is to load bit_cnt <= 4'd7
+// on the read branch only:
+//
+//     if (rw_reg == 1'b1) begin
+//         bit_cnt <= 4'd7;
+//         state   <= READ_DATA;
+//     end
+//     else begin
+//         bit_cnt   <= 4'd8;
+//         shift_reg <= data_in;
+//         state     <= WRITE_DATA;
+//     end
+//
+// If you apply that, remove the dummy bit from the BFM.
+//==============================================================

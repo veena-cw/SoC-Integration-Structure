@@ -36,7 +36,7 @@ module apb_slave #(
 
    input  logic [7:0]    i_rd_data,
    input logic i_rd_data_valid,
-   input logic slverr
+   input logic i2c_nack
 
 );
 
@@ -80,7 +80,7 @@ module apb_slave #(
          reg_addr <= i_paddr[7:0];
    end
 
-   assign status_reg =  {29'b0, slverr, i2c_done, i2c_busy};
+   assign status_reg =  {29'b0, i2c_nack, i2c_done, i2c_busy};
 
    // RX Register captures i_rd_data when I2C finishes
    always_ff @(posedge pclk or negedge presetn) begin
@@ -125,38 +125,50 @@ module apb_slave #(
 
    //==========================================================
    // APB ready generation
+   //   NOTE: slverr branch is now gated with i_psel && i_penable.
+   //   Per the APB protocol, PREADY (and PSLVERR) may only be
+   //   asserted during the ACCESS phase of a transfer
+   //   (PSEL=1 && PENABLE=1). Previously "if(slverr) o_pready=1"
+   //   had no such gating, so o_pready could spuriously assert
+   //   while the bus was idle or still in SETUP - a protocol
+   //   violation. Since slverr is only ever meant to be observed
+   //   by the master during an active access anyway, this gating
+   //   changes no real behavior.
    //==========================================================
    always_comb begin
 
       o_pready = 1'b0;
 
-      case (state_ff)
-         IDLE: begin
-            if (req_wr && i_penable && i_psel && !fifo_full && !i2c_busy &&
-                !ctrl_write_blocked && !tx_write_blocked) begin
-               o_pready = 1'b1;
-            end
-            if (slverr)
-               o_pready = 1'b1;
-         end
+     
+case (state_ff)
 
-         W_ACCESS: begin
-            if (req_wr && i_penable && !fifo_full && !i2c_busy &&
-                !ctrl_write_blocked && !tx_write_blocked) begin
-               o_pready = 1'b1;
-            end
-         end
-
-         R_FINISH: begin
+    IDLE: begin
+        if (req_wr && i_penable && i_psel && !fifo_full && !i2c_busy &&
+            !ctrl_write_blocked && !tx_write_blocked) begin
             o_pready = 1'b1;
-         end
+        end
 
-         default: begin
-            o_pready = 1'b0;
-         end
+        if (i2c_nack && i_psel && i_penable) begin
+            o_pready = 1'b1;
+        end
+    end
 
-      endcase
+    W_ACCESS: begin
+        if (req_wr && i_penable && !fifo_full && !i2c_busy &&
+            !ctrl_write_blocked && !tx_write_blocked) begin
+            o_pready = 1'b1;
+        end
+    end
 
+    R_FINISH: begin
+        o_pready = 1'b1;
+    end
+
+    default: begin
+        o_pready = 1'b0;
+    end
+
+endcase
    end
 
    // CTRL and TX Register Write Logic
@@ -197,7 +209,15 @@ module apb_slave #(
    end
 
    //==========================================================
-
+   // Single-shot FIFO write pulse
+   //   both_valid stays high (level) for many cycles once CTRL
+   //   and TX are both latched, right up until i2c_done clears
+   //   them. Edge-detecting that level against its own delayed
+   //   copy produces exactly one pulse on the cycle both_valid
+   //   first goes high, regardless of how long it stays high
+   //   afterward - this is what prevents fifo_wr_en from firing
+   //   repeatedly every cycle while ctrl_valid/tx_valid are set.
+   //==========================================================
    logic both_valid, both_valid_d, fifo_wr_pulse;
 
    assign both_valid = (ctrl_valid == 1) && (tx_valid == 1);
@@ -214,15 +234,24 @@ module apb_slave #(
    assign fifo_wr_data = txdata_reg;
    assign fifo_wr_en   = fifo_wr_pulse & ~fifo_full;
 
-   assign o_pslverr = (slverr) ? 1 : 0;
+   //==========================================================
+   // PSLVERR generation
+   //   Gated the same way as o_pready's slverr branch: PSLVERR
+   //   is only a valid/meaningful signal during a completed
+   //   ACCESS phase (PSEL && PENABLE && PREADY). Driving it
+   //   whenever the slverr input happens to be high - regardless
+   //   of bus phase - is a protocol violation even though most
+   //   masters only sample PSLVERR at the end of a valid access.
+   //==========================================================
+   assign o_pslverr = (i2c_nack && i_psel && i_penable && o_pready) ? 1'b1 : 1'b0;
 
    always_ff @(posedge pclk or negedge presetn) begin
       if (!presetn) begin
-         o_prdata = '0;
+         o_prdata <= '0;
       end
       else begin
          if ((state_ff == R_ACCESS) || (state_ff == R_FINISH)) begin
-            o_prdata = {24'b0, i_rd_data};
+            o_prdata <= {24'b0, i_rd_data};
          end
       end
    end

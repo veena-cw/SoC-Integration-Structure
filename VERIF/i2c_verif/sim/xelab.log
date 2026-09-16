@@ -1,0 +1,39 @@
+Vivado Simulator v2025.2
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved.
+Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+Running: /opt/Xilinx/2025.2/Vivado/bin/unwrapped/lnx64.o/xelab test_top -s test_top_sim 
+Multi-threading is on. Using 2 slave threads.
+WARNING: [XSIM 43-3431] One or more environment variables have been detected which affect the operation of the C compiler. These are typically not set in standard installations and are not tested by AMD, however they may be appropriate for your system, so the flow will attempt to continue.  If errors occur, try running xelab with the "-mt off -v 1" switches to see more information from the C compiler. The following environment variables have been detected:
+Starting static elaboration
+Pass Through NonSizing Optimizer
+WARNING: [VRFC 10-3597] non-void function 'predict' called as a task without void casting [/home/cw036_titiksha/Documents/SoC-Integration-Structure/VERIF/i2c_verif/tb/apb_i2c_apb_predictor.sv:120]
+Completed static elaboration
+Starting simulation data flow analysis
+Completed simulation data flow analysis
+Time Resolution for simulation is 1ps
+Compiling package work.$unit_apb_slave_sv_363943020
+Compiling package uvm.uvm_pkg
+Compiling package std.std
+Compiling package work.apb_i2c_apb_item_pkg
+Compiling package work.apb_i2c_ral_block_pkg
+Compiling package work.apb_i2c_ral_pkg
+Compiling package work.apb_i2c_apb_adapter_pkg
+Compiling package work.apb_i2c_apb_predictor_pkg
+Compiling package work.apb_i2c_ral_sequences_pkg
+Compiling package work.apb_i2c_ral_metadata_pkg
+Compiling module work.apb_i2c_reset_if_default
+Compiling module work.apb_i2c_apb_if_default
+Compiling module work.reset_synchronizer
+Compiling module work.apb_slave_default
+Compiling module work.synchronizer(WIDTH=2)
+Compiling module work.wptr_handler(PTR_WIDTH=2)
+Compiling module work.rptr_handler(PTR_WIDTH=2)
+Compiling module work.fifo_mem(DEPTH=4,DATA_WIDTH=32,P...
+Compiling module work.asynchronous_fifo(DEPTH=4)
+Compiling module work.fifo_mem(DEPTH=4,DATA_WIDTH=8,PT...
+Compiling module work.asynchronous_fifo(DEPTH=4,DATA_W...
+Compiling module work.i2c_master
+Compiling module work.two_ff_synchronizer
+Compiling module work.top_fifo_default
+Compiling module work.test_top
+Built simulation snapshot test_top_sim

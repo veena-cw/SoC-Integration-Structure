@@ -1,4 +1,30 @@
-module top_fifo #(
+//==============================================================
+// top_fifo
+//
+// RESET CONVENTIONS (both ACTIVE LOW now):
+//   presetn    - APB / pclk domain
+//   i2c_rst_n  - I2C / i2c_clk domain   <-- was active-HIGH i2c_rst
+//
+// The raw i2c_rst_n pin is NOT used directly by any flop in the
+// I2C domain. It first goes through a reset_synchronizer clocked
+// by i2c_clk, producing i2c_rst_n_sync:
+//
+//   - assertion   : asynchronous (immediate), so the domain is
+//                   safely reset even before i2c_clk is running
+//   - de-assertion: synchronous to i2c_clk, so no flop in this
+//                   domain sees reset release too close to its
+//                   own clock edge (recovery/removal timing)
+//
+// i2c_rst_n_sync drives:
+//   - the TX FIFO read-domain reset  (rrst_n)
+//   - the RX FIFO write-domain reset (wrst_n)
+//   - the i2c command capture register
+//   - i2c_master
+//
+// so the whole I2C domain leaves reset on the same i2c_clk edge.
+//==============================================================
+
+module apb_to_i2c_bridge #(
     parameter DW = 32,
     parameter AW = 32,
     localparam SW = int'($ceil(DW/8))
@@ -99,12 +125,10 @@ localparam I2C_END_ADDR  = 32'h3001_FFFF;
 
     logic i2c_rst_n_sync;
 
-    reset_synchronizer #(
-        .STAGES (2)
-    ) u_i2c_rst_sync (
+    reset_synchronizer u_i2c_rst_sync (
         .clk       (i2c_clk),
-        .rst_n_in  (i2c_rst_n),
-        .rst_n_out (i2c_rst_n_sync)
+        .async_reset_n (i2c_rst_n),
+        .sync_reset_n  (i2c_rst_n_sync)
     );
 
 
@@ -297,23 +321,22 @@ assign t_o_pready  = in_pready;
    // I2C -> APB status crossings (unchanged)
    // Destination domain is pclk, so these stay on presetn.
    //==========================================================
-
-   two_ff_synchronizer ff1 ( .clk (pclk),
+   synchronizer #(.WIDTH(1))  ff1 ( .clk (pclk),
 							.rst_n (presetn),
-							.async_in(busy),
-							.sync_out(i2c_apb_busy));
+							.d_in(busy),
+							.d_out(i2c_apb_busy));
 
 
-   two_ff_synchronizer ff2 ( .clk (pclk),
+   synchronizer #(.WIDTH(1))  ff2 ( .clk (pclk),
 							.rst_n (presetn),
-							.async_in(done),
-							.sync_out(i2c_apb_done));
+							.d_in(done),
+							.d_out(i2c_apb_done));
 
 
-   two_ff_synchronizer ff3 ( .clk (pclk),
+   synchronizer #(.WIDTH(1)) ff3 ( .clk (pclk),
 							.rst_n (presetn),
-							.async_in(ack_error),
-							.sync_out(slverr_sync));
+							.d_in(ack_error),
+							.d_out(slverr_sync));
 
 
 endmodule

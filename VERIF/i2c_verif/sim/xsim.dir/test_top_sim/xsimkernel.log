@@ -1,0 +1,4 @@
+Running: xsim.dir/test_top_sim/xsimk -simmode gui -testplusarg UVM_TESTNAME=apb_i2c_ral_test -wdb test_top_sim.wdb -simrunnum 0 -socket 39435
+Design successfully loaded
+Design Loading Memory Usage: 209536 KB (Peak: 209544 KB)
+Design Loading CPU Usage: 1290 ms

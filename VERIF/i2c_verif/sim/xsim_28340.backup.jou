@@ -1,0 +1,25 @@
+#-----------------------------------------------------------
+# xsim v2025.2 (64-bit)
+# SW Build 6299465 on Fri Nov 14 12:34:56 MST 2025
+# IP Build 6300035 on Fri Nov 14 10:48:45 MST 2025
+# SharedData Build 6298862 on Thu Nov 13 04:50:51 MST 2025
+# Start of session at: Wed Sep 16 10:13:43 2026
+# Process ID         : 28340
+# Current directory  : /home/cw036_titiksha/Documents/SoC-Integration-Structure/VERIF/i2c_verif/sim
+# Command line       : xsim -source {xsim.dir/test_top_sim/xsim_script.tcl}
+# Log file           : /home/cw036_titiksha/Documents/SoC-Integration-Structure/VERIF/i2c_verif/sim/xsim.log
+# Journal file       : /home/cw036_titiksha/Documents/SoC-Integration-Structure/VERIF/i2c_verif/sim/xsim.jou
+# Running On         : ip-10-0-10-79
+# Platform           : Ubuntu
+# Operating System   : Ubuntu 22.04.5 LTS
+# Processor Detail   : AMD EPYC 7R13 Processor
+# CPU Frequency      : 3597.676 MHz
+# CPU Physical cores : 2
+# CPU Logical cores  : 4
+# Host memory        : 16378 MB
+# Swap memory        : 68719 MB
+# Total Virtual      : 85098 MB
+# Available Virtual  : 72380 MB
+#-----------------------------------------------------------
+start_gui
+source xsim.dir/test_top_sim/xsim_script.tcl

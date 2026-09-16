@@ -120,8 +120,8 @@ module apb_slave #(
    logic req_rd;
    logic req_wr;
 
-   assign req_rd = i_psel && !i_pwrite && !i2c_busy && i2c_done;
-   assign req_wr = i_psel &&  i_pwrite && !i2c_busy && !i2c_done;
+   assign req_rd = i_psel && !i_pwrite ;
+   assign req_wr = i_psel &&  i_pwrite ;
 
    //==========================================================
    // APB ready generation
@@ -270,7 +270,7 @@ endcase
                if (req_wr) begin
                   state_ff <= W_ACCESS;
                end
-               else if (req_rd & i_rd_data_valid) begin
+               else if (req_rd && i_rd_data_valid) begin
                   state_ff <= R_ACCESS;
                end
                else begin
@@ -287,10 +287,13 @@ endcase
                // condition separately.
                if (o_pready) begin
                   state_ff <= IDLE;
+               end             
+               else if (req_rd && i_rd_data_valid) begin
+                  state_ff <= R_ACCESS;
                end
-               else begin
+               else
                   state_ff <= W_ACCESS;
-               end
+          
             end
 
             R_ACCESS: begin
@@ -317,4 +320,3 @@ endcase
    end
 
 endmodule
-

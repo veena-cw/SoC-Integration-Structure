@@ -1,0 +1,40 @@
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/DSN/ip/peripherals/i2c/dsn/rtl/apb_slave.sv" into library work
+INFO: [VRFC 10-311] analyzing module apb_slave
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/DSN/ip/peripherals/i2c/dsn/rtl/async.sv" into library work
+INFO: [VRFC 10-311] analyzing module asynchronous_fifo
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/DSN/ip/peripherals/i2c/dsn/rtl/fifo_mem.v" into library work
+INFO: [VRFC 10-311] analyzing module fifo_mem
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/DSN/ip/peripherals/i2c/dsn/rtl/I2C_master.sv" into library work
+INFO: [VRFC 10-311] analyzing module i2c_master
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/DSN/ip/peripherals/i2c/dsn/rtl/reset_synchronizer.sv" into library work
+INFO: [VRFC 10-311] analyzing module reset_synchronizer
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/DSN/ip/peripherals/i2c/dsn/rtl/rptr_handler.v" into library work
+INFO: [VRFC 10-311] analyzing module rptr_handler
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/DSN/ip/peripherals/i2c/dsn/rtl/synchronizer.v" into library work
+INFO: [VRFC 10-311] analyzing module synchronizer
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/DSN/ip/peripherals/i2c/dsn/rtl/top.sv" into library work
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/DSN/ip/peripherals/i2c/dsn/rtl/top_fifo.sv" into library work
+INFO: [VRFC 10-311] analyzing module top_fifo
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/DSN/ip/peripherals/i2c/dsn/rtl/two_ff_synchronizer.sv" into library work
+INFO: [VRFC 10-311] analyzing module two_ff_synchronizer
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/DSN/ip/peripherals/i2c/dsn/rtl/wptr_handler.v" into library work
+INFO: [VRFC 10-311] analyzing module wptr_handler
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/VERIF/i2c_verif/tb/apb_i2c_ral_pkg.sv" into library work
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/VERIF/i2c_verif/tb/apb_i2c_ral_block.sv" into library work
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/VERIF/i2c_verif/tb/apb_i2c_ral_metadata_pkg.sv" into library work
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/VERIF/i2c_verif/tb/apb_i2c_apb_if.sv" into library work
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/VERIF/i2c_verif/tb/apb_i2c_apb_item.sv" into library work
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/VERIF/i2c_verif/tb/apb_i2c_apb_adapter.sv" into library work
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/VERIF/i2c_verif/tb/apb_i2c_apb_predictor.sv" into library work
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/VERIF/i2c_verif/tb/apb_i2c_reset_if.sv" into library work
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/VERIF/i2c_verif/tb/apb_i2c_reset_agent.sv" into library work
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/VERIF/i2c_verif/tb/apb_i2c_scoreboard.sv" into library work
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/VERIF/i2c_verif/tb/apb_i2c_ral_sequences.sv" into library work
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/VERIF/i2c_verif/tb/apb_i2c_apb_sequencer.sv" into library work
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/VERIF/i2c_verif/tb/apb_i2c_apb_driver.sv" into library work
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/VERIF/i2c_verif/tb/apb_i2c_apb_monitor.sv" into library work
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/VERIF/i2c_verif/tb/apb_i2c_apb_agent.sv" into library work
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/VERIF/i2c_verif/tb/apb_i2c_ral_env.sv" into library work
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/VERIF/i2c_verif/tb/apb_i2c_ral_test.sv" into library work
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/cw036_titiksha/Documents/SoC-Integration-Structure/VERIF/i2c_verif/tb/test_top.sv" into library work
+INFO: [VRFC 10-311] analyzing module test_top

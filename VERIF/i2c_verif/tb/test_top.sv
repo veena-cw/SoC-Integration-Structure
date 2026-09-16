@@ -30,7 +30,7 @@ module test_top;
     );
     
     
-    i2c_top #(
+    top_fifo  #(
     .DW (32),
     .AW (32)
   ) dut (
@@ -41,7 +41,7 @@ module test_top;
 
     // I2C / FIFO READ CLOCK DOMAIN
     .i2c_clk    (i2c_clk),
-    .i2c_rst    (RST_vif.rst_n),
+    .i2c_rst_n    (RST_vif.rst_n),
 
     // APB interface
     .t_paddr    (APB_vif.paddr),

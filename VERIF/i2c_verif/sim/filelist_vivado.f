@@ -1,15 +1,23 @@
+# ==========================================
+# RTL
+# ==========================================
 
-../rtl/apb_slave.sv
-../rtl/async.sv
-../rtl/fifo_mem.v
-../rtl/I2C_master.sv
+../../../DSN/ip/peripherals/i2c/dsn/rtl/apb_slave.sv
+../../../DSN/ip/peripherals/i2c/dsn/rtl/async.sv
+../../../DSN/ip/peripherals/i2c/dsn/rtl/fifo_mem.v
+../../../DSN/ip/peripherals/i2c/dsn/rtl/I2C_master.sv
+../../../DSN/ip/peripherals/i2c/dsn/rtl/reset_synchronizer.sv
+../../../DSN/ip/peripherals/i2c/dsn/rtl/rptr_handler.v
+../../../DSN/ip/peripherals/i2c/dsn/rtl/synchronizer.v
+../../../DSN/ip/peripherals/i2c/dsn/rtl/top.sv
+../../../DSN/ip/peripherals/i2c/dsn/rtl/top_fifo.sv
+../../../DSN/ip/peripherals/i2c/dsn/rtl/two_ff_synchronizer.sv
+../../../DSN/ip/peripherals/i2c/dsn/rtl/wptr_handler.v
 
-../rtl/rptr_handler.v
-../rtl/synchronizer.v
-../rtl/two_ff_synchronizer.sv
-../rtl/wptr_handler.v
-../rtl/i2c_top.sv
 
+# ==========================================
+# TB
+# ==========================================
 
 ../tb/apb_i2c_ral_pkg.sv
 ../tb/apb_i2c_ral_block.sv

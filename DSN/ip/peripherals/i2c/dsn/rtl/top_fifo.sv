@@ -2,40 +2,42 @@ module top_fifo #(
     parameter DW = 32,
     parameter AW = 32,
     localparam SW = int'($ceil(DW/8))
-)(  
+)(
 // APB / FIFO WRITE CLOCK DOMAIN
     input  logic pclk,          // 100 MHz
-    input  logic presetn,
+    input  logic presetn,       // ACTIVE LOW
 
     // I2C / FIFO READ CLOCK DOMAIN
     input  logic i2c_clk,       // 50 MHz
-    input logic i2c_rst,
+    input  logic i2c_rst_n,     // ACTIVE LOW  (was: i2c_rst, active high)
+
     input  logic [AW-1:0] t_paddr,
     input  logic          t_pwrite,
     input  logic          t_psel,
     input  logic          t_penable,
     input  logic [DW-1:0] t_pwdata,
-    input  logic [SW-1:0] t_pstrb,    
+    input  logic [SW-1:0] t_pstrb,
 
     output logic [DW-1:0] t_o_prdata,
     output logic          t_o_pslverr,
     output logic          t_o_pready,
-    
+
     output logic i2c_irq,
-    
+
     output logic       i2c_scl,
     inout  logic       i2c_sda
 );
+
   pullup(i2c_sda);
 
-logic i2c_sel ; 
+logic i2c_sel ;
 
 localparam I2C_BASE_ADDR = 32'h3001_0000;
 localparam I2C_END_ADDR  = 32'h3001_FFFF;
 
    assign i2c_sel = (t_paddr >= 32'h3001_0000) &&
                  (t_paddr <= 32'h3001_FFFF);
-     
+
     //logic [7 :0]    i_rd_data;
 
 //-----------------------------------------------------
@@ -59,11 +61,11 @@ localparam I2C_END_ADDR  = 32'h3001_FFFF;
 	logic fifo_rd_en_i2c;
 	logic [7:0] fifo_wr_data_i2c;
 	logic [31:0] fifo_rd_data_i2c;
-	
+
 	logic fifo_full_Rx;
 	logic fifo_empty_Rx;
-//---------------------------------------	
- 
+//---------------------------------------
+
     logic [31:0] i2c_cmd_reg;
     logic        i2c_cmd_valid;
 
@@ -74,18 +76,38 @@ localparam I2C_END_ADDR  = 32'h3001_FFFF;
 
     logic [6:0]  i2c_slave_address;
 
-	
+
 	logic i2c_apb_busy;
 	logic i2c_apb_done;
-   
+
     logic slverr_sync;
-    
+
     logic in_pslverr;
-    
+
     logic in_pready;
          logic [7:0] fifo_rd_data_apb_reg;
-    //logic apb_pslverr;  
+    //logic apb_pslverr;
    logic i_rd_data_valid;
+
+
+    //==========================================================
+    // I2C DOMAIN RESET SYNCHRONIZER
+    //
+    // Async assert, sync de-assert. Every flop in the i2c_clk
+    // domain below uses i2c_rst_n_sync, never the raw pin.
+    //==========================================================
+
+    logic i2c_rst_n_sync;
+
+    reset_synchronizer #(
+        .STAGES (2)
+    ) u_i2c_rst_sync (
+        .clk       (i2c_clk),
+        .rst_n_in  (i2c_rst_n),
+        .rst_n_out (i2c_rst_n_sync)
+    );
+
+
     apb_slave #(
         .DW(DW),
         .AW(AW)
@@ -97,25 +119,24 @@ localparam I2C_END_ADDR  = 32'h3001_FFFF;
         .i_psel      (t_psel),
         .i_penable   (t_penable),
         .i_pwdata    (t_pwdata),
-        .i_pstrb     (t_pstrb),			
+        .i_pstrb     (t_pstrb),
         .o_prdata    (t_o_prdata),
         .o_pslverr   (in_pslverr),
         .o_pready    (in_pready),
-		.i2c_busy  (i2c_apb_busy),
-		.i2c_done   (i2c_apb_done),
+		.i2c_busy    (i2c_apb_busy),
+		.i2c_done    (i2c_apb_done),
         //======================================================
         // HW INTERFACE
         //======================================================
-         .i2c_nack    (slverr_sync),
+        .i2c_nack    (slverr_sync),
         .i_rd_data_valid (i_rd_data_valid),
 
         .fifo_wr_en  (fifo_wr_en_apb),
         .fifo_wr_data(fifo_wr_data_apb),
         .fifo_full   (fifo_full_tx),
-        .i_rd_data (fifo_rd_data_apb_reg)
+        .i_rd_data   (fifo_rd_data_apb_reg)
     );
-    
-    
+
 
 
 asynchronous_fifo  #(
@@ -124,55 +145,56 @@ asynchronous_fifo  #(
     ) fifo_inst_write (
 
         //======================================================
-        // WRITE CLOCK DOMAIN
+        // TX FIFO : written by APB (pclk), read by I2C (i2c_clk)
         //======================================================
 
-        .wclk    (pclk),
+        .wclk      (pclk),
         .wrst_n    (presetn),
-         .rclk    (i2c_clk),
-        .rrst_n    (~i2c_rst),
-        .w_en     (fifo_wr_en_apb),
-        .r_en     (fifo_rd_en_i2c),
+        .rclk      (i2c_clk),
+        .rrst_n    (i2c_rst_n_sync),   // synchronized, active low
+        .w_en      (fifo_wr_en_apb),
+        .r_en      (fifo_rd_en_i2c),
         .data_in   (fifo_wr_data_apb),
-         .data_out   (fifo_rd_data_i2c),
-       
-        .full      (fifo_full_tx),       
+        .data_out  (fifo_rd_data_i2c),
+
+        .full      (fifo_full_tx),
         .empty     (fifo_empty_tx)
 
     );
-  
-         			
+
+
     asynchronous_fifo  #(
         .DEPTH(4),
         .DATA_WIDTH    (8)
     ) fifo_inst_read (
 
         //======================================================
-        // WRITE CLOCK DOMAIN
+        // RX FIFO : written by I2C (i2c_clk), read by APB (pclk)
         //======================================================
 
-        .wclk    (i2c_clk),
-        .wrst_n    (~i2c_rst),
-         .rclk    (pclk),
+        .wclk      (i2c_clk),
+        .wrst_n    (i2c_rst_n_sync),   // synchronized, active low
+        .rclk      (pclk),
         .rrst_n    (presetn),
-		.w_en     (fifo_wr_en_i2c),
-        .r_en     (fifo_rd_en_apb),
+        .w_en      (fifo_wr_en_i2c),
+        .r_en      (fifo_rd_en_apb),
         .data_in   (fifo_wr_data_i2c),
-         .data_out   (fifo_rd_data_apb),
-        .full      (fifo_full_Rx),      
+        .data_out  (fifo_rd_data_apb),
+        .full      (fifo_full_Rx),
         .empty     (fifo_empty_Rx)
 
-    );   
+    );
+
         //======================================================
         // READ CLOCK DOMAIN
         //=====================================================
-        
+        // tx fifo - i2c reads command from apb
         assign fifo_rd_en_i2c = !fifo_empty_tx && !i2c_cmd_valid && !busy;
-         
+        // rx fifo - apb reads received byte from i2c
         assign fifo_rd_en_apb = !fifo_empty_Rx;
 
-         always_ff @(posedge i2c_clk or posedge i2c_rst) begin
-            if (i2c_rst) begin
+         always_ff @(posedge i2c_clk or negedge i2c_rst_n_sync) begin
+            if (!i2c_rst_n_sync) begin           // ACTIVE LOW
                 i2c_cmd_reg   <= '0;
                 i2c_cmd_valid <= 1'b0;
             end
@@ -181,39 +203,42 @@ asynchronous_fifo  #(
                     i2c_cmd_reg   <= fifo_rd_data_i2c;
                     i2c_cmd_valid <= 1'b1;
                 end
-               
+
                 else if (i2c_cmd_valid && !busy) begin
                     i2c_cmd_valid <= 1'b0;
                 end
             end
         end
-        
 
 
+// tx -- 32 bit : slave address / r-w / data bits
 
-    assign i2c_fifo_rw = i2c_cmd_reg[15]; 
-
-
-
+    assign i2c_fifo_rw = i2c_cmd_reg[15];
 
     assign i2c_slave_address =
         i2c_cmd_reg[14:8];
 
     assign i2c_fifo_data =
         i2c_cmd_reg[7:0];
-		
-		
+
+
   logic i2c_start;
 
     assign i2c_start =
              (fifo_rd_en_i2c || fifo_wr_en_i2c)&&
             !busy;
 
+
+    //==========================================================
+    // i2c_master : ACTIVE LOW reset port (rst_n), driven by the
+    // synchronized domain reset.
+    //==========================================================
+
     i2c_master i2cm (
 
         .clk        (i2c_clk),
 
-        .rst        (i2c_rst),
+        .rst_n      (i2c_rst_n_sync),
 
         .start      (i2c_start),
 
@@ -232,20 +257,21 @@ asynchronous_fifo  #(
         .ready      (ready),
 
         .ack_error  (ack_error),
-          .i2c_irq(i2c_irq),
+
+        .i2c_irq    (i2c_irq),
 
         .busy       (busy),
-        
+
         .done       (done),
-		
-		.fifo_wr_en(fifo_wr_en_i2c),
-		
+
+		.fifo_wr_en (fifo_wr_en_i2c),    // RX fifo
+
 		.fifo_wr_data(fifo_wr_data_i2c),
-		
-		.fifo_full(fifo_full_Rx)
+
+		.fifo_full  (fifo_full_Rx)
     );
-    
-    
+
+
 //assign fifo_rd_data_apb_reg = fifo_rd_data_apb;
 
 
@@ -260,34 +286,34 @@ asynchronous_fifo  #(
             i_rd_data_valid <= 1;
         end
     end
-end 
-    
+end
 
 
 assign t_o_pslverr = in_pslverr;
 assign t_o_pready  = in_pready;
- 
+
+
+   //==========================================================
+   // I2C -> APB status crossings (unchanged)
+   // Destination domain is pclk, so these stay on presetn.
+   //==========================================================
+
    two_ff_synchronizer ff1 ( .clk (pclk),
 							.rst_n (presetn),
 							.async_in(busy),
 							.sync_out(i2c_apb_busy));
-							
-    
+
+
    two_ff_synchronizer ff2 ( .clk (pclk),
 							.rst_n (presetn),
 							.async_in(done),
 							.sync_out(i2c_apb_done));
-							
-							
-    
+
+
    two_ff_synchronizer ff3 ( .clk (pclk),
 							.rst_n (presetn),
 							.async_in(ack_error),
 							.sync_out(slverr_sync));
-   
-   
+
+
 endmodule
-
-
-
-

@@ -8,7 +8,7 @@ module bp_bedrock_axi4_bridge
     // ------------------------------------------------------------------
     // BedRock / general parameters
     // ------------------------------------------------------------------
-    parameter int ADDR_WIDTH   = 40,
+    parameter int ADDR_WIDTH   = 32,
     parameter int ID_WIDTH     = 4,
 
     // CPU-side BedRock fill width and AXI-side data width are kept as
@@ -120,7 +120,7 @@ module bp_bedrock_axi4_bridge
   localparam int RESP_FIFO_WIDTH = MEM_REV_HEADER_WIDTH + DATA_WIDTH;
 
   // --------------------------------------------------------------------
-  // BedRock type declarations (adapter-side, AXI clock domain)
+  // BedRock type declarations (bridge-side, AXI clock domain)
   // --------------------------------------------------------------------
   `declare_bp_bedrock_if(
       ADDR_WIDTH,
@@ -130,7 +130,7 @@ module bp_bedrock_axi4_bridge
       LCE_ASSOC
   );
 
-  `bp_cast_i(bp_bedrock_mem_fwd_header_s, adapter_fwd_header);
+  `bp_cast_i(bp_bedrock_mem_fwd_header_s, bridge_fwd_header);
   // No bp_cast_o here: the rev-header value is produced directly as a
   // flat vector from resp_hdr_r in the FSM below (an implicit struct
   // pack, not a `_cast_o` struct the macro would populate), so using
@@ -167,20 +167,20 @@ module bp_bedrock_axi4_bridge
       .empty   (req_fifo_empty)
   );
 
-  // AXI-clock-domain signals into the adapter FSM.
-  logic                            adapter_fwd_v;
-  logic                            adapter_fwd_ready;
-  logic [MEM_FWD_HEADER_WIDTH-1:0] adapter_fwd_header_i;
-  logic [DATA_WIDTH-1:0]           adapter_fwd_data;
+  // AXI-clock-domain signals into the bridge FSM.
+  logic                            bridge_fwd_v;
+  logic                            bridge_fwd_ready;
+  logic [MEM_FWD_HEADER_WIDTH-1:0] bridge_fwd_header_i;
+  logic [DATA_WIDTH-1:0]           bridge_fwd_data;
 
   // Direct FWFT-style passthrough: asynchronous_fifo presents
   // data_out = mem[raddr] combinationally whenever r_en is asserted,
-  // so gating r_en with the adapter's own valid&&ready is sufficient.
+  // so gating r_en with the bridge's own valid&&ready is sufficient.
   // No skid register, no reload bubble.
-  assign adapter_fwd_v        = !req_fifo_empty;
-  assign adapter_fwd_header_i = req_fifo_data_out[REQ_FIFO_WIDTH-1 -: MEM_FWD_HEADER_WIDTH];
-  assign adapter_fwd_data     = req_fifo_data_out[DATA_WIDTH-1:0];
-  assign req_fifo_r_en        = adapter_fwd_v && adapter_fwd_ready;
+  assign bridge_fwd_v        = !req_fifo_empty;
+  assign bridge_fwd_header_i = req_fifo_data_out[REQ_FIFO_WIDTH-1 -: MEM_FWD_HEADER_WIDTH];
+  assign bridge_fwd_data     = req_fifo_data_out[DATA_WIDTH-1:0];
+  assign req_fifo_r_en        = bridge_fwd_v && bridge_fwd_ready;
 
   // ======================================================================
   // RESPONSE PATH: AXI domain -> async FIFO -> CPU domain
@@ -190,17 +190,17 @@ module bp_bedrock_axi4_bridge
   logic                       resp_fifo_w_en, resp_fifo_r_en;
   logic                       resp_fifo_full, resp_fifo_empty;
 
-  logic                            adapter_rev_v;
-  logic                            adapter_rev_ready;
-  logic [MEM_REV_HEADER_WIDTH-1:0] adapter_rev_header_o;
-  logic [DATA_WIDTH-1:0]           adapter_rev_data;
+  logic                            bridge_rev_v;
+  logic                            bridge_rev_ready;
+  logic [MEM_REV_HEADER_WIDTH-1:0] bridge_rev_header_o;
+  logic [DATA_WIDTH-1:0]           bridge_rev_data;
 
-  assign resp_fifo_data_in = {adapter_rev_header_o, adapter_rev_data};
+  assign resp_fifo_data_in = {bridge_rev_header_o, bridge_rev_data};
 
-  // AXI-side backpressure into the adapter FSM: stall it whenever the
+  // AXI-side backpressure into the bridge FSM: stall it whenever the
   // response FIFO is full.
-  assign adapter_rev_ready = !resp_fifo_full;
-  assign resp_fifo_w_en    = adapter_rev_v && adapter_rev_ready;
+  assign bridge_rev_ready = !resp_fifo_full;
+  assign resp_fifo_w_en    = bridge_rev_v && bridge_rev_ready;
 
   asynchronous_fifo #(
       .DEPTH     (FIFO_DEPTH),
@@ -365,11 +365,11 @@ module bp_bedrock_axi4_bridge
 
   // Request classification computed once so every consumer agrees.
   // Only cached e_bedrock_mem_wr / e_bedrock_mem_rd are bridged; any
-  // other msg_type is simply not accepted (adapter_fwd_ready stays low
+  // other msg_type is simply not accepted (bridge_fwd_ready stays low
   // for it in ST_IDLE), which stalls the requester instead of silently
   // dropping the request.
-  wire fwd_is_wr = (adapter_fwd_header_cast_i.msg_type.fwd == e_bedrock_mem_wr);
-  wire fwd_is_rd = (adapter_fwd_header_cast_i.msg_type.fwd == e_bedrock_mem_rd);
+  wire fwd_is_wr = (bridge_fwd_header_cast_i.msg_type.fwd == e_bedrock_mem_wr);
+  wire fwd_is_rd = (bridge_fwd_header_cast_i.msg_type.fwd == e_bedrock_mem_rd);
 
   // ----------------------------------------------------------------------
   // Functions (fully generic in DATA_WIDTH via BYTES_PER_AXI_BEAT)
@@ -443,7 +443,7 @@ module bp_bedrock_axi4_bridge
     case (cur_state)
 
       ST_IDLE: begin
-        if (adapter_fwd_v && adapter_fwd_ready) begin
+        if (bridge_fwd_v && bridge_fwd_ready) begin
           if (fwd_is_wr)
             next_state = ST_WR_AW;
           else if (fwd_is_rd)
@@ -475,10 +475,10 @@ module bp_bedrock_axi4_bridge
           next_state = ST_RD_DATA;
       end
 
-      // adapter_rev_v is forced high throughout ST_WR_RESP (see output
+      // bridge_rev_v is forced high throughout ST_WR_RESP (see output
       // logic below), so the response-FIFO's accept signal alone
-      // (adapter_rev_ready) tells us when this beat has transferred.
-      ST_WR_RESP: next_state = adapter_rev_ready ? ST_IDLE : ST_WR_RESP;
+      // (bridge_rev_ready) tells us when this beat has transferred.
+      ST_WR_RESP: next_state = bridge_rev_ready ? ST_IDLE : ST_WR_RESP;
 
       default: next_state = ST_IDLE;
 
@@ -514,15 +514,15 @@ module bp_bedrock_axi4_bridge
 
     rdata_ready = 1'b0;
 
-    adapter_fwd_ready   = 1'b0;
-    adapter_rev_v       = 1'b0;
-    adapter_rev_header_o = resp_hdr_r;
-    adapter_rev_data    = resp_data_r;
+    bridge_fwd_ready   = 1'b0;
+    bridge_rev_v       = 1'b0;
+    bridge_rev_header_o = resp_hdr_r;
+    bridge_rev_data    = resp_data_r;
 
     case (cur_state)
 
       ST_IDLE: begin
-        adapter_fwd_ready = fwd_is_wr || fwd_is_rd;
+        bridge_fwd_ready = fwd_is_wr || fwd_is_rd;
       end
 
       ST_WR_AW: wr_req = 1'b1;
@@ -533,11 +533,11 @@ module bp_bedrock_axi4_bridge
           wdata       = req_first_data_r;
           wstrb       = beat_strb(req_hdr_r.addr, req_hdr_r.size);
         end else begin
-          wdata_valid = adapter_fwd_v;
-          wdata       = adapter_fwd_data;
+          wdata_valid = bridge_fwd_v;
+          wdata       = bridge_fwd_data;
           wstrb       = '1;
           // Advance the request FIFO only when AXI accepts this beat.
-          adapter_fwd_ready = wdata_ready;
+          bridge_fwd_ready = wdata_ready;
         end
       end
 
@@ -548,19 +548,19 @@ module bp_bedrock_axi4_bridge
       ST_RD_DATA: begin
         // Backpressure the AXI R channel using the response-FIFO's
         // ability to accept this beat.
-        rdata_ready = adapter_rev_ready;
-        adapter_rev_v        = rdata_valid;
-        adapter_rev_header_o = resp_hdr_r;
-        adapter_rev_data     = rdata;
+        rdata_ready = bridge_rev_ready;
+        bridge_rev_v        = rdata_valid;
+        bridge_rev_header_o = resp_hdr_r;
+        bridge_rev_data     = rdata;
       end
 
       ST_WR_RESP: begin
-        adapter_rev_v        = 1'b1;
-        adapter_rev_header_o = resp_hdr_r;
-        adapter_rev_data     = resp_data_r;
+        bridge_rev_v        = 1'b1;
+        bridge_rev_header_o = resp_hdr_r;
+        bridge_rev_data     = resp_data_r;
       end
 
-      default: adapter_fwd_ready = 1'b0;
+      default: bridge_fwd_ready = 1'b0;
 
     endcase
   end
@@ -580,10 +580,10 @@ module bp_bedrock_axi4_bridge
     end else begin
 
       // Accept first BedRock forward flit.
-      if ((cur_state == ST_IDLE) && adapter_fwd_v && adapter_fwd_ready) begin
-        req_hdr_r        <= adapter_fwd_header_cast_i;
-        req_first_data_r <= adapter_fwd_data;
-        beats_total_r    <= num_beats(adapter_fwd_header_cast_i.size);
+      if ((cur_state == ST_IDLE) && bridge_fwd_v && bridge_fwd_ready) begin
+        req_hdr_r        <= bridge_fwd_header_cast_i;
+        req_first_data_r <= bridge_fwd_data;
+        beats_total_r    <= num_beats(bridge_fwd_header_cast_i.size);
         beat_count_r     <= 8'd0;
       end
 

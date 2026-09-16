@@ -25,7 +25,7 @@
 // -----------------------------------------------------------------------------
 module axi4_master #(
     parameter int ADDR_WIDTH = 32,
-    parameter int DATA_WIDTH = 32,
+    parameter int DATA_WIDTH = 128,
     parameter int ID_WIDTH   = 4
 ) (
     input  logic                    aclk,

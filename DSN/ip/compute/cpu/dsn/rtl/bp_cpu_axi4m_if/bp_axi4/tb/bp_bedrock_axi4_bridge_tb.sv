@@ -7,7 +7,7 @@ import bp_common_pkg::*;
 
 module bp_bedrock_axi4_bridge_tb;
 
-  localparam int ADDR_WIDTH     = 40;
+  localparam int ADDR_WIDTH     = 32;
   localparam int CPU_DATA_WIDTH = 128;
   localparam int AXI_DATA_WIDTH = 128;
   localparam int ID_WIDTH       = 4;

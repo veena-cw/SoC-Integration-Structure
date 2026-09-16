@@ -1,0 +1,73 @@
+`include "Interfaces.sv"
+`include "definitions.sv"
+
+module Node #(
+    parameter ROUTER_ID = 1,
+    parameter FLIT_SIZE = 18,
+    parameter PACKET_SIZE = 4
+)(
+    input  logic clk,
+    input  logic rst,
+
+    input logic [FLIT_SIZE-1:0] packet [0:PACKET_SIZE-1],
+
+    ReqAckIO.master out,
+    ReqAckIO.slave  in
+);
+
+    logic [1:0] flit_count;
+
+   typedef enum logic [1:0] {
+    IDLE,
+    SEND,
+    WAIT,
+    DONE
+} state_t;
+
+    state_t state;
+
+    assign out.data = packet[flit_count];
+    assign out.req  = (state == SEND);
+
+    assign in.ack = 1'b0;
+
+    always_ff @(posedge clk or posedge rst) begin
+        if (rst) begin
+            state      <= IDLE;
+            flit_count <= 2'd0;
+        end
+        else begin
+            case (state)
+
+                IDLE: begin
+                    flit_count <= 2'd0;
+                    state <= SEND;
+                end
+
+                SEND: begin
+                    if (out.ack) begin
+                        state <= WAIT;
+                    end
+                end
+
+                WAIT: begin
+    if (!out.ack) begin
+        if (flit_count == PACKET_SIZE-1) begin
+            flit_count <= 2'd0;
+            state <= DONE;
+        end
+        else begin
+            flit_count <= flit_count + 1'b1;
+            state <= SEND;
+        end
+    end
+end
+
+DONE: begin
+    state <= DONE;
+end
+            endcase
+        end
+    end
+
+endmodule

@@ -1,9 +1,10 @@
-# Vivado generated files
+# Vivado / XSIM generated files
 .Xil/
 xsim.dir/
 *.jou
 *.log
 *.pb
+*.str
 *.wdb
 *.vcd
 
@@ -11,7 +12,7 @@ xsim.dir/
 *.covdb
 coverage_report/
 
-# Verilator generated files
+# Verilator
 verilator_obj_dir/
 
 # Temporary files

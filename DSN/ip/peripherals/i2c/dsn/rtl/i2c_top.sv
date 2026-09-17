@@ -24,7 +24,7 @@
 // so the whole I2C domain leaves reset on the same i2c_clk edge.
 //==============================================================
 
-module apb_to_i2c_bridge #(
+module i2c_top #(
     parameter DW = 32,
     parameter AW = 32,
     localparam SW = int'($ceil(DW/8))

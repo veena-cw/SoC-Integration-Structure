@@ -523,9 +523,23 @@ package apb_i2c_ral_sequences_pkg;
   	    function new(string name = "apb_i2c_reg_write_seq"); 
   	    super.new(name); 
   	    endfunction
+  	    
+  	    
+ rand bit [6:0]  slave_addr;
+  rand bit        read_write;
+  rand bit [31:0] tx_data;
+
+  constraint default_c {
+    slave_addr == 7'h50;
+    read_write == 1'b0;
+    tx_data    == 32'h000000A5;
+  }
+  
   virtual task body();
 	uvm_status_e status;
 
+
+  
     uvm_reg_data_t status_value;
     uvm_reg_data_t rx_value;
 
@@ -545,7 +559,7 @@ package apb_i2c_ral_sequences_pkg;
 //==========================================================
     // 1. WAIT UNTIL BUSY = 0
     //==========================================================
-
+/*
     `uvm_info(
       "I2C_RAL",
       "Waiting for I2C BUSY = 0",
@@ -582,7 +596,130 @@ package apb_i2c_ral_sequences_pkg;
       if (busy)
         #100ns;
 
-    end while (busy);
+    end while (busy);*/
+    
+    //==========================================================
+    // 2. WRITE CTRL_REG
+    //==========================================================
+
+    ctrl_value = '0;
+
+    ctrl_value[6:0] = slave_addr;
+    ctrl_value[7]   = read_write;
+
+
+    `uvm_info(
+      "I2C_RAL",
+      $sformatf(
+        "CTRL_REG <= 0x%08h",
+        ctrl_value
+      ),
+      UVM_MEDIUM
+    )
+
+
+    model.CTRL_REG.write(
+      status,
+      ctrl_value,
+      UVM_FRONTDOOR
+    );
+
+
+    if (status != UVM_IS_OK) begin
+      `uvm_error(
+        "I2C_RAL",
+        "CTRL_REG write failed"
+      )
+    end
+
+
+    //==========================================================
+    // 3. WRITE TXDATA_REG
+    //==========================================================
+
+    `uvm_info(
+      "I2C_RAL",
+      $sformatf(
+        "TXDATA_REG <= 0x%08h",
+        tx_data
+      ),
+      UVM_MEDIUM
+    )
+
+
+    model.TXDATA_REG.write(
+      status,
+      tx_data,
+      UVM_FRONTDOOR
+    );
+
+
+    if (status != UVM_IS_OK) begin
+      `uvm_error(
+        "I2C_RAL",
+        "TXDATA_REG write failed"
+      )
+      
+      
+      
+    end
+    
+    
+    //==========================================================
+    // 4. WAIT UNTIL DONE = 1
+    //==========================================================
+
+    `uvm_info(
+      "I2C_RAL",
+      "Waiting for I2C DONE = 1",
+      UVM_MEDIUM
+    )
+
+
+    do begin
+
+      model.STATUS_REG.read(
+        status,
+        status_value,
+        UVM_FRONTDOOR
+      );
+
+
+      busy        = status_value[0];
+      done        = status_value[1];
+      slave_error = status_value[2];
+
+
+      `uvm_info(
+        "I2C_RAL",
+        $sformatf(
+          "STATUS = 0x%08h BUSY=%0b DONE=%0b SLVERR=%0b",
+          status_value,
+          busy,
+          done,
+          slave_error
+        ),
+        UVM_MEDIUM
+      );
+
+
+      if (slave_error) begin
+
+        `uvm_error(
+          "I2C_RAL",
+          "I2C transaction failed: SLAVE_ERROR = 1"
+        )
+
+        break;
+
+      end
+
+
+      if (!done)
+        #100ns;
+
+
+    end while (!done);
   endtask
   
   endclass

@@ -1,82 +1,64 @@
 // SPDX-License-Identifier: GPL-3.0-or-later OR Commercial
 //
-// Synchronous parametrizable FIFO for UART TX / RX paths.
+// Programmable UART baud-rate generator.
 //
-// Single clock domain. DEPTH must be a power of two so the read / write
-// pointers can wrap with one-bit comparisons. WIDTH is the data word
-// width (9 bits to carry the optional 9-bit data mode plus a flag).
+// Produces a 16x oversampling tick `tick_x16_o` that pulses for one
+// `clk_i` cycle every `(divisor_i + 1)` clocks, where the user computes
 //
-// Side-effect: `level_o` is the current occupancy (0..DEPTH). The user
-// (the UART top) compares this to a programmable threshold for RTS
-// flow-control assertion and for the RX FIFO interrupt level.
+//     divisor = round(clk_freq_hz / (16 * baud_rate_hz)) - 1
 //
-// Behavior:
-//   * push fires when wr_en && !full.
-//   * pop  fires when rd_en && !empty.
-//   * simultaneous push and pop on a non-full, non-empty FIFO succeed
-//     and leave the level unchanged.
-//   * push to a full FIFO is silently dropped (the integrator is
-//     expected to gate wr_en on !full or to handle overrun externally).
+// So at clk_freq = 50 MHz and baud = 115_200, divisor = 26 (the actual
+// rate is 50e6 / (27*16) = 115_741, ~0.47% fast — within the 5% the
+// 16x oversampler tolerates per block).
+//
+// A separate 1x baud tick `tick_x1_o` pulses once per 16 oversample
+// ticks; the TX path uses it to clock out one bit per pulse. The RX path
+// only needs the 16x tick — bit centering is done by counting samples.
+//
+// The divisor is sampled at reset and is then re-armable on a non-zero
+// `divisor_load_i` strobe (one cycle). Holding the divisor stable while
+// idle is allowed; changing it mid-frame causes a glitched frame.
+//
+// All counters reset cleanly on `rst_ni = 0`.
 
-module uart_fifo #(
-  parameter int unsigned DEPTH = 16,
-  parameter int unsigned WIDTH = 9
+module uart_baudgen #(
+  parameter int unsigned DIV_WIDTH = 16
 ) (
-  input  logic              clk_i,
-  input  logic              rst_ni,
+  input  logic                  clk_i,
+  input  logic                  rst_ni,
 
-  input  logic              wr_en_i,
-  input  logic [WIDTH-1:0]  wr_data_i,
-  input  logic              rd_en_i,
-  output logic [WIDTH-1:0]  rd_data_o,
+  // Divisor for the 16x oversample. clk_freq / (16 * baud) - 1.
+  input  logic [DIV_WIDTH-1:0]  divisor_i,
+  input  logic                  divisor_load_i,
 
-  output logic              empty_o,
-  output logic              full_o,
-  output logic [$clog2(DEPTH+1)-1:0] level_o
+  output logic                  tick_x16_o,
+  output logic                  tick_x1_o
 );
 
-  localparam int unsigned PTR_W = (DEPTH <= 1) ? 1 : $clog2(DEPTH);
-  localparam int unsigned LVL_W = $clog2(DEPTH + 1);
+  logic [DIV_WIDTH-1:0] cnt_q;
+  logic [DIV_WIDTH-1:0] div_q;
+  logic [3:0]           x16_cnt_q;
 
-  logic [WIDTH-1:0] mem_q [DEPTH];
-  logic [PTR_W-1:0] wr_ptr_q;
-  logic [PTR_W-1:0] rd_ptr_q;
-  logic [LVL_W-1:0] lvl_q;
+  // tick_x16: one-cycle pulse when cnt_q reaches the loaded divisor.
+  assign tick_x16_o = (cnt_q == div_q);
+  assign tick_x1_o  = tick_x16_o && (x16_cnt_q == 4'd15);
 
-  assign empty_o = (lvl_q == '0);
-  assign full_o  = (lvl_q == LVL_W'(DEPTH));
-  assign level_o = lvl_q;
-
-  // Read data is the head of the FIFO; combinational so the consumer
-  // sees it on the cycle they assert rd_en_i.
-  assign rd_data_o = mem_q[rd_ptr_q];
-
-  logic do_push;
-  logic do_pop;
-  assign do_push = wr_en_i && !full_o;
-  assign do_pop  = rd_en_i && !empty_o;
-integer i; //added
   always_ff @(posedge clk_i) begin
     if (!rst_ni) begin
-      wr_ptr_q <= '0;
-      rd_ptr_q <= '0;
-      lvl_q    <= '0;
-      for (i = 0; i < DEPTH; i = i + 1) //added
-            mem_q[i] <= '0;             //added
+      cnt_q     <= '0;
+      div_q     <= '0;
+      x16_cnt_q <= 4'd0;
     end else begin
-      if (do_push) begin
-        mem_q[wr_ptr_q] <= wr_data_i;
-        if (DEPTH == 1) wr_ptr_q <= '0;
-        else            wr_ptr_q <= wr_ptr_q + PTR_W'(1);
+      if (divisor_load_i) begin
+        div_q     <= divisor_i;
+        cnt_q     <= '0;
+        x16_cnt_q <= 4'd0;
+      end else if (tick_x16_o) begin
+        cnt_q     <= '0;
+        x16_cnt_q <= x16_cnt_q + 4'd1;
+      end else begin
+        cnt_q     <= cnt_q + {{(DIV_WIDTH-1){1'b0}}, 1'b1};
       end
-      if (do_pop) begin
-        if (DEPTH == 1) rd_ptr_q <= '0;
-        else            rd_ptr_q <= rd_ptr_q + PTR_W'(1);
-      end
-      // Level: +1 on push-only, -1 on pop-only, unchanged on both or
-      // neither.
-      if (do_push && !do_pop) lvl_q <= lvl_q + LVL_W'(1);
-      else if (!do_push && do_pop) lvl_q <= lvl_q - LVL_W'(1);
     end
   end
 

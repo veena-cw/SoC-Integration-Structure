@@ -2,8 +2,8 @@
 # Asynchronous FIFO
 # ==========================================
 
-./async.sv
-./fifo_mem.v
-./wptr_handler.v
-./rptr_handler.v
-./synchronizer.v
+$REPO_ROOT/DSN/ip/peripherals/i2c/ip/async_fifo/rtl/async.sv
+$REPO_ROOT/DSN/ip/peripherals/i2c/ip/async_fifo/rtl/fifo_mem.v
+$REPO_ROOT/DSN/ip/peripherals/i2c/ip/async_fifo/rtl/wptr_handler.v
+$REPO_ROOT/DSN/ip/peripherals/i2c/ip/async_fifo/rtl/rptr_handler.v
+$REPO_ROOT/DSN/ip/peripherals/i2c/ip/async_fifo/rtl/synchronizer.v

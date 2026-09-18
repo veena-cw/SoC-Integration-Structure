@@ -3,10 +3,10 @@ SIM_DIR      := $(PROJECT_ROOT)/sim
 
 UVM_HOME := /home/cw028_harish/uvm-1.1d
 
-FILELIST := $(SIM_DIR)/filelist_vivado.f
+FILELIST := $(SIM_DIR)/i2c_tb_filelist.f
 
 TOP      := test_top
-TESTNAME ?= apb_i2c_ral_test
+TESTNAME ?= apb_i2c_reg_write_read_test
 
 
 # ==================================================
@@ -53,7 +53,25 @@ vivado: vivado-elab
 		--gui \
 		--testplusarg "UVM_TESTNAME=$(TESTNAME)"
 
-
+vivado-sim: 
+	@echo "=============================="
+	@echo " VIVADO SIMULATION"
+	@echo " TEST = $(TESTNAME)"
+	@echo "=============================="
+	cd $(SIM_DIR) && \
+	xsim $(TOP)_sim \
+		--gui \
+		--testplusarg "UVM_TESTNAME=$(TESTNAME)"
+	
+vivado-nogui: 
+	@echo "=============================="
+	@echo " VIVADO SIMULATION"
+	@echo " TEST = $(TESTNAME)"
+	@echo "=============================="
+	cd $(SIM_DIR) && \
+	xsim $(TOP)_sim \
+		--runall \
+		--testplusarg "UVM_TESTNAME=$(TESTNAME)"	
 # ==================================================
 # Clean
 # ==================================================

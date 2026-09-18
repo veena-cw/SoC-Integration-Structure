@@ -1,4 +1,4 @@
 #!/bin/bash
 
-export REPO_ROOT="$(cd . && pwd)"
+export REPO_ROOT="$(cd ../ && pwd)"
 

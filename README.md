@@ -58,4 +58,4 @@ cd VERIF/i2c_verif/i2c_tb/sim/
 make verilator  TESTNAME=apb_i2c_reg_write_test
 
 5. To get the waveform
-make waveform
+  make waveform

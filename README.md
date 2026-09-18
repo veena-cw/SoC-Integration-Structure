@@ -1,7 +1,9 @@
 CLONE THE REPO (with all submodules)  
 ------------------------------------
 git clone --recurse-submodules git@github.com:veena-cw/SoC-Integration-Structure.git
+
 or
+---
 git clone https://github.com/veena-cw/SoC-Integration-Structure.git
 
 

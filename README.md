@@ -51,11 +51,11 @@ source source_file.sh
 2. echo $REPO_ROOT
 // it should show .../SoC-Integration-Structure
 
-3. Verification [ GO TO THE SIM DIR]
+3. Verification [ GO TO THE SIM DIR] : 
 cd VERIF/i2c_verif/i2c_tb/sim/
 
-4.Run the Make file using the following command
+4.Run the Make file using the following command : 
 make verilator  TESTNAME=apb_i2c_reg_write_test
 
-5. To get the waveform
+5. To get the waveform : 
   make waveform

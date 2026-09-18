@@ -90,4 +90,10 @@ end
         uvm_resource_db#(virtual apb_i2c_apb_if)::set("*", "vif", APB_vif);
         run_test("apb_i2c_reg_reset_test");
     end
+    
+    
+    initial begin
+    #1000;
+    $finish;
+    end
 endmodule

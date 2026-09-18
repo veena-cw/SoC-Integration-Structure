@@ -1,10 +1,14 @@
 PROJECT_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 SIM_DIR      := $(PROJECT_ROOT)/sim
-# REPO_ROOT     = "$REPO_ROOT"
 
-UVM_HOME := /home/cw036_titiksha/uvm-1.1d
+
+UVM_HOME := $(REPO_ROOT)/VERIF/uvm-1.1d
 UVM_SRC  := $(UVM_HOME)/src
 
+
+
+
+UVM_PKG := $(UVM_SRC)/uvm_pkg.sv
 FILELIST := $(SIM_DIR)/i2c_tb_filelist.f
 
 TOP      := test_top
@@ -85,14 +89,28 @@ verilator-sim: verilator-build
 		+UVM_TESTNAME=$(TESTNAME) \
 		2>&1 | tee $(VERILATOR_LOG_DIR)/$(TESTNAME).log
 		
-		
+# ============================================================
+# Waveform
+# ============================================================
 
-#==================================================
-#	Coverage
-#=================================================
-COV_DB       = xsim.covdb
-COV_REPORT   = coverage_report
-XCRG = xcrg
+WAVEFORM := $(SIM_DIR)/dump.vcd
+
+# ============================================================
+# Run simulation + Open GTKWave
+# ============================================================
+
+waveform: verilator-sim
+	@echo "=========================================="
+	@echo "        OPENING GTKWave"
+	@echo "=========================================="
+
+	@if [ -f "$(WAVEFORM)" ]; then \
+		gtkwave "$(WAVEFORM)" & \
+	else \
+		echo "ERROR: Waveform file not found: $(WAVEFORM)"; \
+		exit 1; \
+	fi
+
 
 
 # ==================================================
@@ -167,6 +185,9 @@ clean:
 	rm -rf $(SIM_DIR)/.Xil
 	rm -rf $(SIM_DIR)/$(TOP)_sim*
 	rm -f $(SIM_DIR)/xvlog.pb
+	rm -rf verilator_obj_dir
+	rm -f .verilator_build
+	
 
 
-.PHONY: vivado vivado-compile vivado-elab clean
+.PHONY: vivado vivado-compile vivado-elab verilator-sim verilator-build verilator clean

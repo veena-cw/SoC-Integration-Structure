@@ -1,0 +1,172 @@
+PROJECT_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
+SIM_DIR      := $(PROJECT_ROOT)/sim
+# REPO_ROOT     = "$REPO_ROOT"
+
+UVM_HOME := /home/cw028_harish/uvm-1.1d
+UVM_SRC  := $(UVM_HOME)/src
+
+FILELIST := $(SIM_DIR)/i2c_tb_filelist.f
+
+TOP      := test_top
+TESTNAME ?= apb_i2c_reg_write_read_test
+
+
+
+# ==================================================
+# Verilator
+# ==================================================
+
+VERILATOR_MDIR  := $(SIM_DIR)/verilator_obj_dir
+VERILATOR_EXE   := $(VERILATOR_MDIR)/V$(TOP)
+VERILATOR_STAMP := $(SIM_DIR)/.verilator_build
+
+VERILATOR_LOG_DIR := $(SIM_DIR)/verilator_log
+
+
+# ==================================================
+# VERILATOR
+# ==================================================
+
+verilator: verilator-sim
+
+
+# --------------------------------------------------
+# Verilator Build
+# --------------------------------------------------
+
+verilator-build: $(VERILATOR_STAMP)
+
+
+$(VERILATOR_STAMP): $(FILELIST) $(SOURCE_FILES)
+
+	@echo "========================================"
+	@echo "        VERILATOR BUILD"
+	@echo "========================================"
+
+	@mkdir -p $(VERILATOR_LOG_DIR)
+
+	cd $(SIM_DIR) && \
+	verilator \
+		--binary \
+		--timing \
+		--trace-vcd \
+		--language 1800-2012 \
+		--top-module $(TOP) \
+		-f $(FILELIST) \
+		+define+UVM_NO_DPI \
+		+incdir+$(UVM_SRC) \
+		--Mdir $(VERILATOR_MDIR) \
+		-Wno-WIDTHEXPAND \
+		-Wno-WIDTHTRUNC \
+		-Wno-UNSIGNED \
+		-Wno-PINMISSING \
+		-Wno-IMPLICIT \
+		-Wno-IGNOREDRETURN
+
+	@touch $@
+
+
+# --------------------------------------------------
+# Verilator Simulation
+# --------------------------------------------------
+
+verilator-sim: verilator-build
+
+	@mkdir -p $(VERILATOR_LOG_DIR)
+
+	@echo "========================================"
+	@echo "        VERILATOR SIMULATION"
+	@echo "        TEST = $(TESTNAME)"
+	@echo "        LOG  = verilator_log/$(TESTNAME).log"
+	@echo "========================================"
+
+	cd $(SIM_DIR) && \
+	$(VERILATOR_EXE) \
+		+UVM_TESTNAME=$(TESTNAME) \
+		2>&1 | tee $(VERILATOR_LOG_DIR)/$(TESTNAME).log
+		
+		
+
+#==================================================
+#	Coverage
+#=================================================
+COV_DB       = xsim.covdb
+COV_REPORT   = coverage_report
+XCRG = xcrg
+
+
+# ==================================================
+# Vivado Compile
+# ==================================================
+
+vivado-compile:
+	@echo "=============================="
+	@echo " VIVADO COMPILE"
+	@echo "=============================="
+
+	cd $(SIM_DIR) && \
+	xvlog -sv \
+		-L uvm \
+		-f $(FILELIST)
+
+
+# ==================================================
+# Vivado Elaborate
+# ==================================================
+
+vivado-elab: vivado-compile
+	@echo "=============================="
+	@echo " VIVADO ELABORATE"
+	@echo "=============================="
+
+	cd $(SIM_DIR) && \
+	xelab $(TOP) \
+		-s $(TOP)_sim
+
+
+# ==================================================
+# Vivado Simulation
+# ==================================================
+
+vivado: vivado-elab
+	@echo "=============================="
+	@echo " VIVADO SIMULATION"
+	@echo " TEST = $(TESTNAME)"
+	@echo "=============================="
+
+	cd $(SIM_DIR) && \
+	xsim $(TOP)_sim \
+		--gui \
+		--testplusarg "UVM_TESTNAME=$(TESTNAME)"
+
+vivado-sim: 
+	@echo "=============================="
+	@echo " VIVADO SIMULATION"
+	@echo " TEST = $(TESTNAME)"
+	@echo "=============================="
+	cd $(SIM_DIR) && \
+	xsim $(TOP)_sim \
+		--gui \
+		--testplusarg "UVM_TESTNAME=$(TESTNAME)"
+	
+vivado-nogui: 
+	@echo "=============================="
+	@echo " VIVADO SIMULATION"
+	@echo " TEST = $(TESTNAME)"
+	@echo "=============================="
+	cd $(SIM_DIR) && \
+	xsim $(TOP)_sim \
+		--runall \
+		--testplusarg "UVM_TESTNAME=$(TESTNAME)"	
+# ==================================================
+# Clean
+# ==================================================
+
+clean:
+	rm -rf $(SIM_DIR)/xsim.dir
+	rm -rf $(SIM_DIR)/.Xil
+	rm -rf $(SIM_DIR)/$(TOP)_sim*
+	rm -f $(SIM_DIR)/xvlog.pb
+
+
+.PHONY: vivado vivado-compile vivado-elab clean

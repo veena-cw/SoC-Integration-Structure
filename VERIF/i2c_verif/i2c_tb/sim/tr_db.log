@@ -1,0 +1,6 @@
+  CREATE_STREAM @0 {NAME:rst_seq T:Transactions SCOPE:uvm_test_top.env.reset_agent.seqr STREAM:870}
+  CREATE_STREAM @120000 {NAME:seq T:Transactions SCOPE:uvm_test_top.env.agent.sequencer STREAM:929}
+  CREATE_STREAM @0 {NAME:rst_seq T:Transactions SCOPE:uvm_test_top.env.reset_agent.seqr STREAM:870}
+  CREATE_STREAM @120000 {NAME:seq T:Transactions SCOPE:uvm_test_top.env.agent.sequencer STREAM:929}
+  CREATE_STREAM @0 {NAME:rst_seq T:Transactions SCOPE:uvm_test_top.env.reset_agent.seqr STREAM:870}
+  CREATE_STREAM @120000 {NAME:seq T:Transactions SCOPE:uvm_test_top.env.agent.sequencer STREAM:929}

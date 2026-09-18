@@ -9,3 +9,12 @@ VERIF/i2c_verif/i2c_tb/sim/log/
 VERIF/i2c_verif/i2c_tb/sim/*.log
 VERIF/i2c_verif/i2c_tb/sim/*.jou
 VERIF/i2c_verif/i2c_tb/sim/*.pb
+
+# I2C simulation generated files
+VERIF/i2c_verif/i2c_tb/sim/xsim.dir/
+VERIF/i2c_verif/i2c_tb/sim/verilator_obj_dir/
+VERIF/i2c_verif/i2c_tb/sim/*.log
+VERIF/i2c_verif/i2c_tb/sim/*.jou
+VERIF/i2c_verif/i2c_tb/sim/*.pb
+VERIF/i2c_verif/i2c_tb/sim/*.vcd
+VERIF/i2c_verif/i2c_tb/sim/*.str

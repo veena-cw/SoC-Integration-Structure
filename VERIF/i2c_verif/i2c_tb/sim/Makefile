@@ -2,7 +2,7 @@ PROJECT_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 SIM_DIR      := $(PROJECT_ROOT)/sim
 # REPO_ROOT     = "$REPO_ROOT"
 
-UVM_HOME := /home/cw028_harish/uvm-1.1d
+UVM_HOME := /home/cw036_titiksha/uvm-1.1d
 UVM_SRC  := $(UVM_HOME)/src
 
 FILELIST := $(SIM_DIR)/i2c_tb_filelist.f
@@ -49,7 +49,7 @@ $(VERILATOR_STAMP): $(FILELIST) $(SOURCE_FILES)
 	verilator \
 		--binary \
 		--timing \
-		--trace-vcd \
+		--trace \
 		--language 1800-2012 \
 		--top-module $(TOP) \
 		-f $(FILELIST) \

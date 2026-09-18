@@ -2,8 +2,8 @@
 # UVM
 # ==========================================
 
-+incdir+/home/cw028_harish/uvm-1.1d/src
-/home/cw028_harish/uvm-1.1d/src/uvm_pkg.sv
+# +incdir+/home/cw028_harish/uvm-1.1d/src
+# /home/cw028_harish/uvm-1.1d/src/uvm_pkg.sv
 
 
 

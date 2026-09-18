@@ -38,8 +38,8 @@ git push origin main
 
 
 
-STEPS TO EXECUTE 
-----------------
+STEPS FOR EXECUTION
+--------------------
 1. After Cloning go to Soc-Integration-Structure and source the source_file.sh
 cd SoC-Integration-Structure
 source source_file.sh

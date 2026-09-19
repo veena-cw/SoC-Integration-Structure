@@ -1,28 +1,31 @@
 # ==========================================
-# APB -> I2C BRIDGE RTL
+# AXI4 -> USB Integration RTL
 # ==========================================
 
-$REPO_ROOT/DSN/ip/peripherals/i2c/dsn/rtl/i2c_top.sv
-$REPO_ROOT/DSN/ip/peripherals/i2c/ip/apb_slave/rtl/apb_slave.sv
-
+$REPO_ROOT/DSN/ip/memory_io/usb/dsn/rtl/axi4_usb_slave_top.sv
+$REPO_ROOT/DSN/ip/memory_io/usb/ip/axi_slave/rtl/axi4_slave.sv
 
 # ==========================================
-# I2C
+# usb
 # ==========================================
 
-$REPO_ROOT/DSN/ip/peripherals/i2c/ip/i2c_master/rtl/i2c_master.sv
+$REPO_ROOT/DSN/ip/memory_io/usb/ip/usb/rtl/usbh_host_defs.sv
+$REPO_ROOT/DSN/ip/memory_io/usb/ip/usb/rtl/usbh_fifo.sv
+$REPO_ROOT/DSN/ip/memory_io/usb/ip/usb/rtl/usbh_crc5.sv
+$REPO_ROOT/DSN/ip/memory_io/usb/ip/usb/rtl/usbh_crc16.sv
+$REPO_ROOT/DSN/ip/memory_io/usb/ip/usb/rtl/usbh_sie.sv
+$REPO_ROOT/DSN/ip/memory_io/usb/ip/usb/rtl/usbh_host.sv
 
 
 # ==========================================
 # Reset
 # ==========================================
 
-$REPO_ROOT/DSN/ip/peripherals/i2c/ip/reset_synchronizer/rtl/reset_synchronizer.sv
-
+$REPO_ROOT/DSN/ip/memory_io/usb/ip/reset_synchronizer/rtl/reset_synchronizer.sv
 
 # ==========================================
 # Asynchronous FIFO File List
 # ==========================================
 
 
--f $REPO_ROOT/DSN/ip/peripherals/i2c/ip/async_fifo/rtl/async.f
+-f $REPO_ROOT/DSN/ip/memory_io/usb/ip/async_fifo/rtl/async.f

@@ -559,7 +559,7 @@ package apb_i2c_ral_sequences_pkg;
     //========================================================
     // 1. WAIT UNTIL BUSY = 0
     //========================================================
-
+/*
     `uvm_info("I2C_WRITE",
               "Waiting for BUSY = 0",
               UVM_MEDIUM)
@@ -594,7 +594,7 @@ package apb_i2c_ral_sequences_pkg;
 
     end while (busy);
 
-
+*/
     //========================================================
     // 2. WRITE CTRL_REG
     //========================================================
@@ -662,7 +662,7 @@ package apb_i2c_ral_sequences_pkg;
     //========================================================
     // 4. WAIT UNTIL DONE = 1
     //========================================================
-
+/*
     `uvm_info(
       "I2C_WRITE",
       "Waiting for DONE = 1",
@@ -729,7 +729,7 @@ package apb_i2c_ral_sequences_pkg;
         UVM_MEDIUM
       )
     end
-
+*/
   endtask
 
 endclass

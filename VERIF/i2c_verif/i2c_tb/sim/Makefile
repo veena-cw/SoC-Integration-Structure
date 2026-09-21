@@ -12,7 +12,7 @@ UVM_PKG := $(UVM_SRC)/uvm_pkg.sv
 FILELIST := $(SIM_DIR)/i2c_tb_filelist.f
 
 TOP      := test_top
-TESTNAME ?= apb_i2c_reg_write_read_test
+TESTNAME ?= apb_i2c_reg_write_test
 
 
 

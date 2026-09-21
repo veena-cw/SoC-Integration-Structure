@@ -1,7 +1,7 @@
 # ==================================================
 # UVM
 # ==================================================
-$REPO_ROOT/VERIF/uvm-1.1d/src/uvm_pkg.sv
+# $REPO_ROOT/VERIF/uvm-1.1d/src/uvm_pkg.sv
 
 
 # I2C RTL
@@ -16,6 +16,7 @@ $REPO_ROOT/VERIF/uvm-1.1d/src/uvm_pkg.sv
 
 ../interface/apb_i2c_apb_if.sv
 ../interface/apb_i2c_reset_if.sv
+../interface/apb_i2c_i2c_if.sv
 
 ../agent/apb_i2c_apb_item.sv
 ../agent/apb_i2c_reset_agent.sv
@@ -24,16 +25,20 @@ $REPO_ROOT/VERIF/uvm-1.1d/src/uvm_pkg.sv
 ../agent/apb_i2c_apb_monitor.sv
 ../agent/apb_i2c_apb_agent.sv
 
+../agent/apb_i2c_i2c_item.sv
+../agent/apb_i2c_i2c_bfm.sv
+../agent/apb_i2c_i2c_monitor.sv
+../agent/apb_i2c_i2c_agent.sv
 
 
 ../ral/apb_i2c_apb_adapter.sv
 ../ral/apb_i2c_apb_predictor.sv
-../ral/apb_i2c_ral_sequences.sv
+../ral/ral_sequence/apb_i2c_ral_sequences.sv
 
 ../env/apb_i2c_scoreboard.sv
 ../env/apb_i2c_ral_env.sv
 ../tests/apb_i2c_ral_test.sv
 
 
-
+..//assertion/i2c_assertions.sv
 ../top/test_top.sv

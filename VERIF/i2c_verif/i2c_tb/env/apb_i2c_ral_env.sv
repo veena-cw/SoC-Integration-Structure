@@ -33,6 +33,7 @@ class apb_i2c_ral_env extends uvm_env;
   apb_i2c_apb_agent agent;
   apb_i2c_scoreboard scoreboard; // <--- scoreboard uses mirror/desired/predictor concepts
   apb_i2c_reset_agent reset_agent; // reset agent for stable known state
+  apb_i2c_i2c_agent  i2c_agent;
   function new(string name = "apb_i2c_ral_env", uvm_component parent = null);
     super.new(name, parent);
   endfunction
@@ -44,6 +45,7 @@ class apb_i2c_ral_env extends uvm_env;
     adapter = apb_i2c_apb_adapter::type_id::create("adapter", this);
     predictor = apb_i2c_apb_predictor::type_id::create("predictor", this);
     agent = apb_i2c_apb_agent::type_id::create("agent", this);
+    i2c_agent = apb_i2c_i2c_agent::type_id::create("i2c_agent", this);
     scoreboard = apb_i2c_scoreboard::type_id::create("scoreboard", this);
     reset_agent = apb_i2c_reset_agent::type_id::create("reset_agent", this);
   endfunction
@@ -59,6 +61,7 @@ class apb_i2c_ral_env extends uvm_env;
     agent.monitor.analysis_port.connect(predictor.bus_in);
     // Scoreboard also snoops bus (parallel) to demonstrate mirror/desired checks
     agent.monitor.analysis_port.connect(scoreboard.bus_in);
+    i2c_agent.monitor.analysis_port.connect(scoreboard.i2c_in);
     scoreboard.ral_model = ral_model;
   endfunction
 endclass

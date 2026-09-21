@@ -29,6 +29,9 @@ module test_top;
         .preset_n (RST_vif.rst_n)
     );
     
+    apb_i2c_i2c_if I2C_vif(
+    .clk (i2c_clk),
+    .reset_n(RST_vif.rst_n));
     
     i2c_top  #(
     .DW (32),
@@ -57,9 +60,20 @@ module test_top;
 
     // I2C
     .i2c_irq    (i2c_irq),
-    .i2c_scl    (i2c_scl),
-    .i2c_sda    (i2c_sda)
+    .i2c_scl    (I2C_vif.i2c_scl),
+    .i2c_sda    (I2C_vif.i2c_sda)
   );
+  
+  // assertion binding 
+  bind i2c_master  i2c_assertions i2c_assertions_inst (
+    .clk     (clk),
+    .rst_n     (rst_n),
+    .start   (start),
+    .datain  (datain),
+    .dataout (dataout),
+    .sda     (i2c_sda),
+    .scl     (i2c_scl)
+);
     // Clock generation
     initial begin
         pclk = 0;
@@ -88,6 +102,7 @@ end
     initial begin
         uvm_resource_db#(virtual apb_i2c_reset_if)::set("*", "rst_vif", RST_vif);
         uvm_resource_db#(virtual apb_i2c_apb_if)::set("*", "vif", APB_vif);
+        uvm_resource_db#(virtual apb_i2c_i2c_if)::set("*", "vif", I2C_vif);
         run_test("apb_i2c_reg_reset_test");
     end
     

@@ -155,7 +155,7 @@ class apb_i2c_reg_write_read_test extends apb_i2c_base_test;
     `uvm_info(get_type_name(), "WRITE-READ TEST: frontdoor write then read, check mirrored vs desired", UVM_LOW)
     wseq.model = env.ral_model;
     wseq.start(env.agent.sequencer);
-   // env.scoreboard.check_mirror_desired("after_write_read");
+   env.scoreboard.check_mirror_desired("after_write_read");
     phase.drop_objection(this);
   endtask
 endclass

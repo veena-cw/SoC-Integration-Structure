@@ -74,8 +74,8 @@ module usbh_fifo
     //-----------------------------------------------------------------
    // always_ff @(posedge clk_i or posedge rst_i) begin
       //  if (rst_i) begin
-    always_ff @(posedge clk_i or negedge rst_i_n) begin
-    	if (!rst_i_n) begin
+    always_ff @(posedge clk_i or negedge rst_i) begin
+    	if (!rst_i) begin
             count  <= '0;
             rd_ptr <= '0;
             wr_ptr <= '0;

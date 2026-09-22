@@ -135,42 +135,72 @@ module apb_slave #(
    //   by the master during an active access anyway, this gating
    //   changes no real behavior.
    //==========================================================
-   always_comb begin
+ always_comb begin
 
-      o_pready = 1'b0;
+    o_pready = 1'b0;
 
-     
-case (state_ff)
+    case (state_ff)
 
-    IDLE: begin
-        if (req_wr && i_penable && i_psel && !fifo_full && !i2c_busy &&
-            !ctrl_write_blocked && !tx_write_blocked) begin
-            o_pready = 1'b1;
+        IDLE: begin
+
+            // WRITE
+            if (req_wr &&
+                i_penable &&
+                i_psel &&
+                !fifo_full &&
+                !i2c_busy &&
+                !ctrl_write_blocked &&
+                !tx_write_blocked) begin
+
+                o_pready = 1'b1;
+            end
+
+            // I2C NACK error
+            if (i2c_nack &&
+                i_psel &&
+                i_penable) begin
+
+                o_pready = 1'b1;
+            end
+
         end
 
-        if (i2c_nack && i_psel && i_penable) begin
-            o_pready = 1'b1;
+
+        W_ACCESS: begin
+
+            if (req_wr &&
+                i_penable &&
+                !fifo_full &&
+                !i2c_busy &&
+                !ctrl_write_blocked &&
+                !tx_write_blocked) begin
+
+                o_pready = 1'b1;
+            end
+
         end
-    end
 
-    W_ACCESS: begin
-        if (req_wr && i_penable && !fifo_full && !i2c_busy &&
-            !ctrl_write_blocked && !tx_write_blocked) begin
-            o_pready = 1'b1;
+
+        R_ACCESS: begin
+
+            // READ completes when data is valid
+            if (req_rd &&
+                i_penable &&
+                i_rd_data_valid) begin
+
+                o_pready = 1'b1;
+            end
+
         end
-    end
 
-    R_FINISH: begin
-        o_pready = 1'b1;
-    end
 
-    default: begin
-        o_pready = 1'b0;
-    end
+        default: begin
+            o_pready = 1'b0;
+        end
 
-endcase
-   end
+    endcase
 
+end
    // CTRL and TX Register Write Logic
    // Registers are only latched exactly when the APB transfer they
    // belong to actually completes (o_pready high) - this keeps the

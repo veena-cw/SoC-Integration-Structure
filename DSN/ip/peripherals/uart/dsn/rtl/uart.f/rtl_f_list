@@ -1,6 +1,0 @@
-RTL/
-├── uart_top.sv
-├── uart_baudgen.sv
-├── uart_fifo.sv
-├── uart_tx.sv
-└── uart_rx.sv

@@ -201,23 +201,23 @@ $REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_top/src/v/bp_sacc_scratchpad.sv
 $REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_top/src/v/bp_sacc_tile.sv
 $REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_top/src/v/bp_sacc_tile_node.sv
 $REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_top/src/v/bp_sacc_complex.sv
-$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_core.sv
+$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_top/src/v/bp_core.sv
 $REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_top/src/v/bp_core_lite.sv
 $REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_top/src/v/bp_core_minimal.sv
 $REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_top/src/v/bp_core_complex.sv
-$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_l2e_tile.sv
-$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_l2e_tile_node.sv
-$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_io_complex.sv
-$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_io_link_to_lce.sv
-$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_io_tile.sv
-$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_io_tile_node.sv
-$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_mem_complex.sv
-$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_multicore.sv
-$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_unicore.sv
-$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_unicore_lite.sv
-$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_core_tile.sv
-$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_core_tile_node.sv
-$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_processor.sv
+$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_top/src/v/bp_l2e_tile.sv
+$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_top/src/v/bp_l2e_tile_node.sv
+$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_top/src/v/bp_io_complex.sv
+$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_top/src/v/bp_io_link_to_lce.sv
+$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_top/src/v/bp_io_tile.sv
+$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_top/src/v/bp_io_tile_node.sv
+$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_top/src/v/bp_mem_complex.sv
+$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_top/src/v/bp_multicore.sv
+$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_top/src/v/bp_unicore.sv
+$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_top/src/v/bp_unicore_lite.sv
+$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_top/src/v/bp_core_tile.sv
+$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_top/src/v/bp_core_tile_node.sv
+$REPO_ROOT/DSN/ip/compute/cpu/ip/cpu/rtl/bp_top/src/v/bp_processor.sv
 
 # ==========================================
 # Additional BlackParrot Common

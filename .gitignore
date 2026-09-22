@@ -20,6 +20,7 @@ VERIF/i2c_verif/i2c_tb/sim/*.vcd
 VERIF/i2c_verif/i2c_tb/sim/*.str
 
 
+<<<<<<< Updated upstream
 # USB Host Controller simulation generated files
 VERIF/usb_verif/usbh_host_tb/sim/xsim.dir/
 VERIF/usb_verif/usbh_host_tb/sim/*.log
@@ -28,3 +29,16 @@ VERIF/usb_verif/usbh_host_tb/sim/*.pb
 VERIF/usb_verif/usbh_host_tb/sim/*.vcd
 VERIF/usb_verif/usbh_host_tb/sim/*.str
 VERIF/usb_verif/usbh_host_tb/sim/verilator_obj_dir/
+=======
+# LPDDR5C simulation generated files
+VERIF/lpddr_verif/lpddr5c_tb_l/sim/*.vcd
+VERIF/lpddr_verif/lpddr5c_tb_l/sim/*.wdb
+VERIF/lpddr_verif/lpddr5c_tb_l/sim/*.log
+VERIF/lpddr_verif/lpddr5c_tb_l/sim/*.jou
+VERIF/lpddr_verif/lpddr5c_tb_l/sim/*.pb
+VERIF/lpddr_verif/lpddr5c_tb_l/sim/*.str
+VERIF/lpddr_verif/lpddr5c_tb_l/sim/*backup*
+VERIF/lpddr_verif/lpddr5c_tb_l/sim/xsim.dir/
+VERIF/lpddr_verif/lpddr5c_tb_l/sim/xsim.covdb/
+VERIF/lpddr_verif/lpddr5c_tb_l/sim/verilator_obj_dir/
+>>>>>>> Stashed changes

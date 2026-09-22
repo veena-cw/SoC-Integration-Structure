@@ -1,11 +1,15 @@
 # LPDDR5C simulation generated files
-VERIF/lpddr_verif/lpddr5c_tb_l/sim/*.vcd
-VERIF/lpddr_verif/lpddr5c_tb_l/sim/*.wdb
-VERIF/lpddr_verif/lpddr5c_tb_l/sim/*.log
-VERIF/lpddr_verif/lpddr5c_tb_l/sim/*.jou
-VERIF/lpddr_verif/lpddr5c_tb_l/sim/*.pb
-VERIF/lpddr_verif/lpddr5c_tb_l/sim/*.str
-VERIF/lpddr_verif/lpddr5c_tb_l/sim/*backup*
-VERIF/lpddr_verif/lpddr5c_tb_l/sim/xsim.dir/
-VERIF/lpddr_verif/lpddr5c_tb_l/sim/xsim.covdb/
-VERIF/lpddr_verif/lpddr5c_tb_l/sim/verilator_obj_dir/
+lpddr5c_tb_l/sim/xsim.dir/
+lpddr5c_tb_l/sim/xsim.covdb/
+lpddr5c_tb_l/sim/verilator_obj_dir/
+
+lpddr5c_tb_l/sim/*.vcd
+lpddr5c_tb_l/sim/*.wdb
+lpddr5c_tb_l/sim/*.log
+lpddr5c_tb_l/sim/*.jou
+lpddr5c_tb_l/sim/*.pb
+lpddr5c_tb_l/sim/*.str
+lpddr5c_tb_l/sim/*backup*
+
+lpddr5c_tb_l/xvlog.log
+lpddr5c_tb_l/xvlog.pb

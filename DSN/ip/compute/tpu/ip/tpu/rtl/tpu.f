@@ -1,0 +1,16 @@
+$REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/accumulator_buffer.sv
+$REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/activation_fifo.sv
+$REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/activation_unit.sv
+$REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/decoder.sv
+$REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/fetcher.sv
+$REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/layernorm_unit.sv
+$REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/matrix_controller.sv
+$REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/memory_controller.sv
+$REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/pe.sv
+$REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/sequencer.sv
+$REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/softmax_unit.sv
+$REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/systolic_array.sv
+$REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/tiling_controller.sv
+$REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/tpu_top.sv
+$REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/unified_buffer.sv
+$REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/weight_fifo.sv

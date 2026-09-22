@@ -1,7 +1,0 @@
-Running: xsim.dir/usb_host_sim/xsimk -runall -simmode gui -wdb usb_host_sim.wdb -simrunnum 0 -socket 56943
-Design successfully loaded
-Design Loading Memory Usage: 209620 KB (Peak: 209620 KB)
-Design Loading CPU Usage: 1090 ms
-Simulation completed
-Simulation Memory Usage: 305032 KB (Peak: 348888 KB)
-Simulation CPU Usage: 1110 ms

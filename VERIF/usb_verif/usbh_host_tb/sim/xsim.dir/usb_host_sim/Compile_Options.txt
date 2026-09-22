@@ -1,1 +1,0 @@
-"usbh_top_tb" -s "usb_host_sim" -L "uvm" --timescale "1ns/1ps" 

@@ -18,3 +18,13 @@ VERIF/i2c_verif/i2c_tb/sim/*.jou
 VERIF/i2c_verif/i2c_tb/sim/*.pb
 VERIF/i2c_verif/i2c_tb/sim/*.vcd
 VERIF/i2c_verif/i2c_tb/sim/*.str
+
+
+# USB Host Controller simulation generated files
+VERIF/usb_verif/usbh_host_tb/sim/xsim.dir/
+VERIF/usb_verif/usbh_host_tb/sim/*.log
+VERIF/usb_verif/usbh_host_tb/sim/*.jou
+VERIF/usb_verif/usbh_host_tb/sim/*.pb
+VERIF/usb_verif/usbh_host_tb/sim/*.vcd
+VERIF/usb_verif/usbh_host_tb/sim/*.str
+VERIF/usb_verif/usbh_host_tb/sim/verilator_obj_dir/

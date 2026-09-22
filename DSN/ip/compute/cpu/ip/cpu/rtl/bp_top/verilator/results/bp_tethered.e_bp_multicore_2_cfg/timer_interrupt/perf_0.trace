@@ -1,0 +1,5 @@
+[BSG-STAT][4]:
+[CORE0]:
+	clk   :       27211
+	instr :       22303
+	mIPC  :         819

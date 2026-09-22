@@ -50,4 +50,42 @@ interface apb_i2c_apb_if (
         end
 
     end*/
+    
+    property apb_reset_idle_check;
+  @(posedge pclk)
+  !preset_n |-> (!psel && !penable);
+endproperty
+
+assert property (apb_reset_idle_check)
+  else `uvm_error("APB_ASSERT",
+                  "APB is not IDLE after reset: PSEL/PENABLE must be LOW");
+                  
+                  
+   property apb_setup_check;
+  @(posedge pclk) disable iff (!preset_n)
+  (!psel && !penable) |-> ##1
+    (psel && !penable);
+endproperty
+
+assert property (apb_setup_check)
+  else `uvm_error("APB_ASSERT",
+                  "APB SETUP phase violation: PSEL must be HIGH and PENABLE LOW");
+                  
+  property apb_access_check;
+  @(posedge pclk) disable iff(!preset_n)
+  (psel && !penable) |=> (psel && penable);
+endproperty
+
+assert property (apb_access_check)
+  else `uvm_error("APB_ASSERT",
+                  "APB ACCESS violation: PSEL must remain HIGH and PENABLE must become HIGH");
+                  
+ property apb_access_check;
+  @(posedge pclk) disable iff(!preset_n)
+  (psel && !penable) |=> (psel && penable);
+endproperty
+
+assert property (apb_access_check)
+  else `uvm_error("APB_ASSERT",
+                  "APB ACCESS violation: PSEL must remain HIGH and PENABLE must become HIGH");                                                 
 endinterface

@@ -1,0 +1,7 @@
+csi2_smoke_test
+csi2_reset_tx_test
+csi2_reset_rx_test
+csi2_ecc1_test
+csi2_ecc2_test
+csi2_crc_test
+csi2_short_packet_test

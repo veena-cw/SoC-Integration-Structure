@@ -1,0 +1,4 @@
+uart_base_test
+uart_reg_access_test
+uart_apb_transaction_test
+uart_smoke_test

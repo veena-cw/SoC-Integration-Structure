@@ -19,7 +19,8 @@
 // IP: PLIC v1.0
 // Base Address: 0x00000000
 // Bus-independent RAL model
-
+ import uvm_pkg::*;
+  `include "uvm_macros.svh"
 package plic_ral_pkg;
   import uvm_pkg::*;
   `include "uvm_macros.svh"

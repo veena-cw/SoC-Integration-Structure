@@ -1,7 +1,7 @@
 # ==========================================
 # ethernet Integration RTL
 # ==========================================
-$REPO_ROOT/DSN/ip/memory_io/ethernet/dsn/rtl/eth_top.f
+
 $REPO_ROOT/DSN/ip/memory_io/ethernet/dsn/rtl/eth_top.sv
 
 # ==========================================

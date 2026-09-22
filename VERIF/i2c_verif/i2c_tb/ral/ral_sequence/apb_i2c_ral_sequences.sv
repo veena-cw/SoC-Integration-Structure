@@ -593,16 +593,16 @@ package apb_i2c_ral_sequences_pkg;
         #100ns;
 
     end while (busy);
-
 */
+
     //========================================================
     // 2. WRITE CTRL_REG
     //========================================================
 
     ctrl_value = '0;
 
-    ctrl_value[6:0] = slave_addr;
-    ctrl_value[7]   = read_write;
+    ctrl_value[14:8] = slave_addr;
+    ctrl_value[15]   = read_write;
 
 
     `uvm_info(
@@ -830,8 +830,8 @@ class apb_i2c_reg_read_seq extends apb_i2c_ral_base_seq;
 
     ctrl_value = '0;
 
-    ctrl_value[6:0] = slave_addr;
-    ctrl_value[7]   = read_write;
+    ctrl_value[14:8] = slave_addr;
+    ctrl_value[15]   = read_write;
 
 
     `uvm_info(

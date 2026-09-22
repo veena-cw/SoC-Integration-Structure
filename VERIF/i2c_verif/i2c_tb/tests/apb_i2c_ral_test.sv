@@ -276,7 +276,7 @@ class apb_i2c_reg_write_test extends apb_i2c_base_test;
     do_reset();
     `uvm_info(get_type_name(), "WRITE TEST: frontdoor write, check mirrored vs desired", UVM_LOW)
     wseq.model = env.ral_model;
-    wseq.slave_addr = 7'h50;
+    wseq.slave_addr = 7'h55;
   wseq.read_write = 1'b0;
   wseq.tx_data    = 32'h000000A5;
 

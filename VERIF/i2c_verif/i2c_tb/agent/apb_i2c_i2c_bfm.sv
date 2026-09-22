@@ -30,7 +30,7 @@ bit tick =0;
 int count=0; 
 bit start_detected;
 bit [7:0] mem [7:0]; 
-bit [7:0] slave_addr = 7'h50;//configure 
+bit [7:0] slave_addr = 7'h55;//configure 
 bit [7:0] slv_addr_rcv; 
 bit [7:0] slv_data_rcv;
 bit [7:0] slv_data_send;
@@ -195,7 +195,7 @@ begin
 end
 
  end
-
+  vif.pointer_reg = slv_addr_rcv;
 endtask
 
 
@@ -304,7 +304,7 @@ task send_data();
 
     bit scl_last;
    int i=7;	
-
+  vif.temp_reg = $urandom;
  scl_last = vif.i2c_scl;
  repeat(8) begin
 

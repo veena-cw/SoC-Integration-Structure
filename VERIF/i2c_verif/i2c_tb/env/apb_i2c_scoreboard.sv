@@ -523,7 +523,7 @@ class apb_i2c_scoreboard extends uvm_component;
 
         mismatch_cnt++;
 
-        return;
+        return 0;
 
       end
 
@@ -577,8 +577,8 @@ class apb_i2c_scoreboard extends uvm_component;
 
         mismatch_cnt++;
 
-        return;
-
+        return 0;
+ 
       end
 
 

@@ -16,6 +16,7 @@
 //=================================================================================
 
 // Generated APB Interface for APB_to_I2C_Controller (verification only, no RTL)
+import uvm_pkg::*;
 interface apb_i2c_apb_if (
     input logic pclk,
     input logic preset_n
@@ -63,8 +64,8 @@ assert property (apb_reset_idle_check)
                   
    property apb_setup_check;
   @(posedge pclk) disable iff (!preset_n)
-  (!psel && !penable) |-> ##1
-    (psel && !penable);
+  (!psel && penable==1'b0) |-> ##1
+    (psel && penable==1'b0);
 endproperty
 
 assert property (apb_setup_check)
@@ -73,19 +74,20 @@ assert property (apb_setup_check)
                   
   property apb_access_check;
   @(posedge pclk) disable iff(!preset_n)
-  (psel && !penable) |=> (psel && penable);
+  (psel && penable==1'b0) |=> (psel && penable);
 endproperty
 
 assert property (apb_access_check)
   else `uvm_error("APB_ASSERT",
                   "APB ACCESS violation: PSEL must remain HIGH and PENABLE must become HIGH");
                   
- property apb_access_check;
-  @(posedge pclk) disable iff(!preset_n)
-  (psel && !penable) |=> (psel && penable);
+property apb_access_stable_check;
+  @(posedge pclk)
+  (psel && penable && !pready) |=> 
+    (psel && penable);
 endproperty
 
-assert property (apb_access_check)
+assert property (apb_access_stable_check)
   else `uvm_error("APB_ASSERT",
-                  "APB ACCESS violation: PSEL must remain HIGH and PENABLE must become HIGH");                                                 
+                  "APB ACCESS violation: PSEL/PENABLE changed before PREADY");                                                 
 endinterface

@@ -26,7 +26,7 @@ package apb_i2c_apb_predictor_pkg;
   `include "uvm_macros.svh"
   import apb_i2c_apb_item_pkg::*;
   class apb_i2c_apb_predictor extends uvm_reg_predictor #(apb_i2c_apb_item);
-    `uvm_object_utils(apb_i2c_apb_predictor)
+    `uvm_component_utils(apb_i2c_apb_predictor)
     function new(string name = "apb_i2c_apb_predictor", uvm_component parent = null);
       super.new(name, parent);
     endfunction

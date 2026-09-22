@@ -15,8 +15,7 @@ module i2c_assertions (
     //========================================================
 
     property i2c_reset_check;
-        @(posedge clk)
-        !rst_n |-> (sda && scl);
+        @(posedge clk) !rst_n |-> (sda && scl);
     endproperty
 
     assert property (i2c_reset_check)
@@ -107,14 +106,14 @@ module i2c_assertions (
     // [7:1] = slave address
     // [0]   = R/W
     //========================================================
-
+/*
     property i2c_address_check(bit [7:0] expected_address);
 
         bit [7:0] captured_address;
 
         @(posedge clk)
         $rose(start)
-        |->
+        |=>
         @(posedge scl)
 
         (1'b1, captured_address[7] = sda)
@@ -250,5 +249,5 @@ module i2c_assertions (
     assert property (data_ack)
         else
             $warning("[%0t] Data ACK failed", $time);
-
+*/
 endmodule

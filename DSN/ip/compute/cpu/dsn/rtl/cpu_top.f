@@ -5,18 +5,10 @@
 
 
 # ============================================================
-# Async FIFO include directory
-# Required because bp_bedrock_axi4_bridge.sv contains:
-# `include "async.sv"
+# Asynchronous FIFO
 # ============================================================
 +incdir+$REPO_ROOT/DSN/ip/compute/cpu/ip/async_fifo/rtl
-
-
-# ============================================================
-# Async FIFO RTL
-# ============================================================
-$REPO_ROOT/DSN/ip/compute/cpu/ip/async_fifo/rtl/async.sv
-
+-f $REPO_ROOT/DSN/ip/compute/cpu/ip/async_fifo/rtl/async_fifo.f
 
 
 # ============================================================

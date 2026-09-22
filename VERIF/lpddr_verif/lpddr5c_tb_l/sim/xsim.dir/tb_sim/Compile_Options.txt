@@ -1,0 +1,1 @@
+"lpddr_tb_top" -L "uvm" --timescale "1ns/1ps" --override_timeunit --override_timeprecision --debug "typical" -s "tb_sim" 

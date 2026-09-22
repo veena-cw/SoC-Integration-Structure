@@ -1,0 +1,11 @@
+# LPDDR5C simulation generated files
+VERIF/lpddr_verif/lpddr5c_tb_l/sim/*.vcd
+VERIF/lpddr_verif/lpddr5c_tb_l/sim/*.wdb
+VERIF/lpddr_verif/lpddr5c_tb_l/sim/*.log
+VERIF/lpddr_verif/lpddr5c_tb_l/sim/*.jou
+VERIF/lpddr_verif/lpddr5c_tb_l/sim/*.pb
+VERIF/lpddr_verif/lpddr5c_tb_l/sim/*.str
+VERIF/lpddr_verif/lpddr5c_tb_l/sim/*backup*
+VERIF/lpddr_verif/lpddr5c_tb_l/sim/xsim.dir/
+VERIF/lpddr_verif/lpddr5c_tb_l/sim/xsim.covdb/
+VERIF/lpddr_verif/lpddr5c_tb_l/sim/verilator_obj_dir/

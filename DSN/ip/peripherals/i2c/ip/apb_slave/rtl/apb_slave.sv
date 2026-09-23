@@ -134,8 +134,20 @@ module apb_slave #(
    //   violation. Since slverr is only ever meant to be observed
    //   by the master during an active access anyway, this gating
    //   changes no real behavior.
+   //
+   //   FIX (read hang): CTRL/STATUS/TXDATA/RXDATA are plain
+   //   registers that are valid on every cycle - they do not
+   //   depend on i_rd_data_valid (that flag only marks a fresh
+   //   I2C byte arriving into rxdata_reg, it is unrelated to the
+   //   APB read handshake). Previously a read only left IDLE when
+   //   i_rd_data_valid happened to be high, so a STATUS/CTRL/
+   //   TXDATA/RXDATA read could stall forever waiting on an I2C
+   //   event that may never come. Added a dedicated read branch
+   //   in IDLE (mirrors the write branch) so any register read
+   //   completes in the same cycle, same as a write.
    //==========================================================
- always_comb begin
+   
+   always_comb begin
 
     o_pready = 1'b0;
 
@@ -151,6 +163,16 @@ module apb_slave #(
                 !i2c_busy &&
                 !ctrl_write_blocked &&
                 !tx_write_blocked) begin
+
+                o_pready = 1'b1;
+            end
+
+            // READ - register reads (CTRL/STATUS/TXDATA/RXDATA)
+            // complete in the same cycle, they don't wait on
+            // i_rd_data_valid.
+            if (req_rd &&
+                i_penable &&
+                i_psel) begin
 
                 o_pready = 1'b1;
             end
@@ -201,6 +223,43 @@ module apb_slave #(
     endcase
 
 end
+   /*always_comb begin
+
+      o_pready = 1'b0;
+
+     
+case (state_ff)
+
+    IDLE: begin
+        if (req_wr && i_penable && i_psel && !fifo_full && !i2c_busy &&
+            !ctrl_write_blocked && !tx_write_blocked) begin
+            o_pready = 1'b1;
+        end
+
+        if (i2c_nack && i_psel && i_penable) begin
+            o_pready = 1'b1;
+        end
+    end
+
+    W_ACCESS: begin
+        if (req_wr && i_penable && !fifo_full && !i2c_busy &&
+            !ctrl_write_blocked && !tx_write_blocked) begin
+            o_pready = 1'b1;
+        end
+    end
+    
+
+    R_FINISH: begin
+        o_pready = 1'b1;
+    end
+
+    default: begin
+        o_pready = 1'b0;
+    end
+i_pwdata
+endcase
+   end */
+
    // CTRL and TX Register Write Logic
    // Registers are only latched exactly when the APB transfer they
    // belong to actually completes (o_pready high) - this keeps the
@@ -275,15 +334,25 @@ end
    //==========================================================
    assign o_pslverr = (i2c_nack && i_psel && i_penable && o_pready) ? 1'b1 : 1'b0;
 
-   always_ff @(posedge pclk or negedge presetn) begin
-      if (!presetn) begin
-         o_prdata <= '0;
-      end
-      else begin
-         if ((state_ff == R_ACCESS) || (state_ff == R_FINISH)) begin
-            o_prdata <= {24'b0, i_rd_data};
-         end
-      end
+   //==========================================================
+   // o_prdata mux
+   //   FIX: previously hardwired to {24'b0, i_rd_data} regardless
+   //   of which register was addressed, so CTRL/STATUS/TXDATA
+   //   reads returned the raw I2C RX byte instead of the actual
+   //   register contents. Now muxed by reg_addr, combinational so
+   //   it lines up with the same-cycle o_pready above. RXDATA
+   //   still returns rxdata_reg, which is latched separately by
+   //   i2c_done - this does not change how/when rxdata_reg itself
+   //   is updated.
+   //==========================================================
+   always_comb begin
+      case (reg_addr)
+         CTRL_OFFSET:   o_prdata = ctrl_reg;
+         STATUS_OFFSET: o_prdata = status_reg;
+         TXDATA_OFFSET: o_prdata = txdata_reg;
+         RXDATA_OFFSET: o_prdata = rxdata_reg;
+         default:       o_prdata = '0;
+      endcase
    end
 
 

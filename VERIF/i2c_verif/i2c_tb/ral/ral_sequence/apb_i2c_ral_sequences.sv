@@ -530,7 +530,7 @@ package apb_i2c_ral_sequences_pkg;
   constraint default_c {
     slave_addr == 7'h50;
     read_write == 1'b0;
-    tx_data    == 32'h000000A5;
+    tx_data    ==    32'h0000_0102;
   }
 
 
@@ -599,27 +599,29 @@ package apb_i2c_ral_sequences_pkg;
     // 2. WRITE CTRL_REG
     //========================================================
 
-    ctrl_value = '0;
+	   /* ctrl_value = '0;
 
-    ctrl_value[14:8] = slave_addr;
-    ctrl_value[15]   = read_write;
+	    ctrl_value[7:0] = slave_addr;
+	    ctrl_value[8]   = read_write;
+*/
+
+     ctrl_value = 32'h0000_0102;
+
+	    `uvm_info(
+	      "I2C_WRITE",
+	      $sformatf(
+		"CTRL_REG <= 0x%08h",
+		32'h0000_0102
+	      ),
+	      UVM_MEDIUM
+	    )
 
 
-    `uvm_info(
-      "I2C_WRITE",
-      $sformatf(
-        "CTRL_REG <= 0x%08h",
-        ctrl_value
-      ),
-      UVM_MEDIUM
-    )
-
-
-    model.CTRL_REG.write(
-      status,
-      ctrl_value,
-      UVM_FRONTDOOR
-    );
+	    model.CTRL_REG.write(
+	      status,
+	      ctrl_value,
+	      UVM_FRONTDOOR
+	    );
 
 
     if (status != UVM_IS_OK) begin
@@ -646,7 +648,7 @@ package apb_i2c_ral_sequences_pkg;
 
     model.TXDATA_REG.write(
       status,
-      ctrl_value,
+      32'h0000_0102,
       UVM_FRONTDOOR
     );
 
@@ -830,8 +832,8 @@ class apb_i2c_reg_read_seq extends apb_i2c_ral_base_seq;
 
     ctrl_value = '0;
 
-    ctrl_value[14:8] = slave_addr;
-    ctrl_value[15]   = read_write;
+    ctrl_value[7:0] = slave_addr;
+    ctrl_value[8]   = read_write;
 
 
     `uvm_info(
@@ -843,10 +845,39 @@ class apb_i2c_reg_read_seq extends apb_i2c_ral_base_seq;
       UVM_MEDIUM
     )
 
-
+ model.STATUS_REG.read(
+        status,
+        status_value,
+        UVM_FRONTDOOR
+      );
     model.CTRL_REG.write(
       status,
-      ctrl_value,
+      32'h0000_8102,
+      UVM_FRONTDOOR
+    );
+
+
+    if (status != UVM_IS_OK) begin
+      `uvm_fatal(
+        "I2C_READ",
+        "CTRL_REG write failed"
+      )
+    end
+     model.RXDATA_REG.read(
+      status,
+      rx_value,
+      UVM_FRONTDOOR
+    );
+      if (status != UVM_IS_OK) begin
+      `uvm_fatal(
+        "I2C_READ",
+        "CTRL_REG write failed"
+      )
+    end
+    
+    model.CTRL_REG.read(
+      status,
+      rx_value,
       UVM_FRONTDOOR
     );
 
@@ -858,7 +889,17 @@ class apb_i2c_reg_read_seq extends apb_i2c_ral_base_seq;
       )
     end
 
-
+ model.TXDATA_REG.write(
+      status,
+       32'h0000_8102,
+      UVM_FRONTDOOR
+    );
+if (status != UVM_IS_OK) begin
+      `uvm_fatal(
+        "I2C_READ",
+        "CTRL_REG write failed"
+      )
+    end
     //========================================================
     // 3. WAIT UNTIL DONE = 1
     //========================================================

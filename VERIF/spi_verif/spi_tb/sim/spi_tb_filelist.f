@@ -42,6 +42,9 @@ $REPO_ROOT/DSN/ip/peripherals/spi/ip/spi/rtl/spi_master.sv
 ../tests/spi_base_test.sv
 ../tests/spi_full_duplex_vseq.sv
 ../tests/spi_full_duplex_test.sv
+../tests/spi_m1_full_duplex_msb.sv
+../tests/spi_m2_full_duplex_msb.sv
+../tests/spi_m3_full_duplex_msb.sv
 
 
 ../top/top.sv

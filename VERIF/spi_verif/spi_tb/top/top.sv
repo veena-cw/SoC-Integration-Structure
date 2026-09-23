@@ -1,7 +1,7 @@
 `include "uvm_macros.svh"
-  import uvm_pkg::*;
+ 
 module top;
-
+import uvm_pkg::*;
 
   //import spi_pkg::*;
 

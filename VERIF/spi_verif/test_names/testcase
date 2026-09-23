@@ -1,1 +1,4 @@
 spi_full_duplex_test.sv
+spi_m1_full_duplex_msb.sv
+spi_m2_full_duplex_msb.sv
+spi_m3_full_duplex_msb.sv

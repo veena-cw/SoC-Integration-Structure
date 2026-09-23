@@ -2,6 +2,8 @@
 //It represents something the slave monitor observed on the real SPI bus
 //This becomes the actual result used by the scorboard.
 //what happened on SPI pins
+import uvm_pkg::*;
+`include "uvm_macros.svh"
 class spi_bus_word extends uvm_sequence_item;
 
     bit [7:0] mosi_word;

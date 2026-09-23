@@ -1,0 +1,4 @@
+# Verilator simulation generated files
+spi_tb/sim/.verilator_build
+spi_tb/sim/verilator_log/
+spi_tb/sim/verilator_obj_dir/

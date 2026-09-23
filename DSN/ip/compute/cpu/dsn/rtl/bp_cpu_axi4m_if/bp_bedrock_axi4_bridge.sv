@@ -426,7 +426,7 @@ module bp_bedrock_axi4_bridge
   // 1. State register
   // ----------------------------------------------------------------------
 
-  always_ff @(posedge axi_clk_i or posedge axi_reset_i) begin
+  always_ff @(posedge axi_clk_i or negedge axi_reset_i) begin
     if (axi_reset_i)
       cur_state <= ST_IDLE;
     else
@@ -569,7 +569,7 @@ module bp_bedrock_axi4_bridge
   // 4. Datapath / control registers
   // ----------------------------------------------------------------------
 
-  always_ff @(posedge axi_clk_i or posedge axi_reset_i) begin
+  always_ff @(posedge axi_clk_i or negedge axi_reset_i) begin
     if (axi_reset_i) begin
       req_hdr_r        <= '0;
       req_first_data_r <= '0;

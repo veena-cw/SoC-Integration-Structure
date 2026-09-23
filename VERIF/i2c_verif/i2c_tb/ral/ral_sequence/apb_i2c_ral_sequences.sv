@@ -646,7 +646,7 @@ package apb_i2c_ral_sequences_pkg;
 
     model.TXDATA_REG.write(
       status,
-      tx_data,
+      ctrl_value,
       UVM_FRONTDOOR
     );
 

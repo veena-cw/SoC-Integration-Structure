@@ -747,27 +747,3 @@ module i2c_master (
 
 endmodule
 
-//==============================================================
-// KNOWN ISSUE (pre-existing, deliberately NOT changed here):
-//
-// ACK1 loads bit_cnt <= 4'd8 for BOTH read and write paths.
-// WRITE_DATA compensates by indexing shift_reg[bit_cnt-1], so 8
-// is correct there. READ_DATA indexes rx_buffer[bit_cnt]
-// directly, so its first sample writes rx_buffer[8] - which does
-// not exist - and every real bit lands one position too high.
-//
-// Your testbench BFM works around this with a leading dummy bit.
-// The RTL-side fix is to split the bit_cnt load:
-//
-//     if (rw_reg == 1'b1) begin
-//         bit_cnt <= 4'd7;
-//         state   <= READ_DATA;
-//     end
-//     else begin
-//         bit_cnt   <= 4'd8;
-//         shift_reg <= data_in;
-//         state     <= WRITE_DATA;
-//     end
-//
-// Apply that AND remove the BFM dummy bit together, or neither.
-//==============================================================

@@ -253,6 +253,9 @@ module cpu_tb_top
      ,.dma_data_i(dma_data_from_dut)
      ,.dma_data_v_i(dma_data_v_from_dut)
      ,.dma_data_yumi_o(dma_data_yumi)
+     ,.host_mem_write_i(host_mem_write)
+     ,.host_mem_addr_i(incoming_vif.mem_fwd_addr)
+     ,.host_mem_data_i(incoming_vif.mem_fwd_data)
      );
 
   // Observe only the processor-to-DRAM DMA interface. These are accepted

@@ -427,7 +427,7 @@ module bp_bedrock_axi4_bridge
   // ----------------------------------------------------------------------
 
   always_ff @(posedge axi_clk_i or negedge axi_reset_i) begin
-    if (axi_reset_i)
+    if (!axi_reset_i)
       cur_state <= ST_IDLE;
     else
       cur_state <= next_state;

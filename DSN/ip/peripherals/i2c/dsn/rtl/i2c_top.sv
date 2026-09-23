@@ -1,29 +1,3 @@
-//==============================================================
-// top_fifo
-//
-// RESET CONVENTIONS (both ACTIVE LOW now):
-//   presetn    - APB / pclk domain
-//   i2c_rst_n  - I2C / i2c_clk domain   <-- was active-HIGH i2c_rst
-//
-// The raw i2c_rst_n pin is NOT used directly by any flop in the
-// I2C domain. It first goes through a reset_synchronizer clocked
-// by i2c_clk, producing i2c_rst_n_sync:
-//
-//   - assertion   : asynchronous (immediate), so the domain is
-//                   safely reset even before i2c_clk is running
-//   - de-assertion: synchronous to i2c_clk, so no flop in this
-//                   domain sees reset release too close to its
-//                   own clock edge (recovery/removal timing)
-//
-// i2c_rst_n_sync drives:
-//   - the TX FIFO read-domain reset  (rrst_n)
-//   - the RX FIFO write-domain reset (wrst_n)
-//   - the i2c command capture register
-//   - i2c_master
-//
-// so the whole I2C domain leaves reset on the same i2c_clk edge.
-//==============================================================
-
 module i2c_top #(
     parameter DW = 32,
     parameter AW = 32,
@@ -248,7 +222,12 @@ asynchronous_fifo  #(
 
   logic i2c_start;
 
-   assign i2c_start = i2c_cmd_valid && !busy;
+//    assign i2c_start =
+//             (fifo_rd_en_i2c || fifo_wr_en_i2c)&& !busy;
+
+assign i2c_start =
+(i2c_cmd_valid && !busy) || (fifo_wr_en_i2c && !busy);
+
 
     //==========================================================
     // i2c_master : ACTIVE LOW reset port (rst_n), driven by the

@@ -1,1 +1,4 @@
-
+export CALIPTRA_WORKSPACE=$REPO_ROOT/DSN/ip/caliptra
+export CALIPTRA_ROOT=$CALIPTRA_WORKSPACE/rtl
+export CALIPTRA_PRIM_ROOT=$CALIPTRA_ROOT/src/caliptra_prim_generic
+export CALIPTRA_PRIM_MODULE_PREFIX=caliptra_prim_generic

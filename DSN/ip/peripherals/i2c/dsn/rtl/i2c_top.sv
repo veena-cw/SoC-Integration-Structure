@@ -248,10 +248,7 @@ asynchronous_fifo  #(
 
   logic i2c_start;
 
-    assign i2c_start =
-             (fifo_rd_en_i2c || fifo_wr_en_i2c)&&
-            !busy;
-
+   assign i2c_start = i2c_cmd_valid && !busy;
 
     //==========================================================
     // i2c_master : ACTIVE LOW reset port (rst_n), driven by the

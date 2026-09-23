@@ -2,19 +2,17 @@
 # APB -> UART BRIDGE RTL
 # ==========================================
 
-$REPO_ROOT/DSN/ip/peripherals/uart/dsn/rtl/uart_top.sv
-$REPO_ROOT/DSN/ip/peripherals/uart/ip/apb_slave/rtl/apb_slave.sv
-
+$REPO_ROOT/DSN/ip/peripherals/uart/dsn/rtl/uart_apb_top.sv
 
 # ==========================================
 # UART
 # ==========================================
 
-$REPO_ROOT/DSN/ip/peripherals/uart/ip/rtl/baud_gen.sv
-$REPO_ROOT/DSN/ip/peripherals/uart/ip/rtl/uart_fifo.sv
-$REPO_ROOT/DSN/ip/peripherals/uart/ip/rtl/uart_tx.sv
-$REPO_ROOT/DSN/ip/peripherals/uart/ip/rtl/uart_rx.sv
-$REPO_ROOT/DSN/ip/peripherals/uart/ip/rtl/uart_top.sv
+$REPO_ROOT/DSN/ip/peripherals/uart/ip/uart/rtl/baud_gen.sv
+$REPO_ROOT/DSN/ip/peripherals/uart/ip/uart/rtl/uart_fifo.sv
+$REPO_ROOT/DSN/ip/peripherals/uart/ip/uart/rtl/uart_tx.sv
+$REPO_ROOT/DSN/ip/peripherals/uart/ip/uart/rtl/uart_rx.sv
+$REPO_ROOT/DSN/ip/peripherals/uart/ip/uart/rtl/uart_top.sv
 
 
 # ==========================================

@@ -115,8 +115,8 @@ module cpu_top
       .bp_params_p(bp_params_p)
   ) u_bp (
       .clk_i   (clk_i),
-      .rt_clk_i(!rt_clk_i),//Converted posedge reset of CPU to negedge reset at top module
-      .reset_i (reset_i),
+      .rt_clk_i(rt_clk_i),
+      .reset_i (!reset_i),//Converted posedge reset of CPU to negedge reset at top module
 
       .my_did_i  (my_did_i),
       .host_did_i(host_did_i),

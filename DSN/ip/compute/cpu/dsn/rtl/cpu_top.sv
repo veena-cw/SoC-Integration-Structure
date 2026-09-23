@@ -4,7 +4,7 @@
 `include "bsg_noc_links.svh"
 
 
-module bp_bedrock_axi4_soc_top
+module cpu_top
   import bp_common_pkg::*;
 #(
     parameter bp_params_e bp_params_p = e_bp_default_cfg

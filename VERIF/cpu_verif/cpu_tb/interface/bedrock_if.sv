@@ -30,7 +30,7 @@ interface bedrock_if #(
 
   clocking drv_cb @(posedge clk);
     output mem_fwd_addr, mem_fwd_msg_type, mem_fwd_size, mem_fwd_data, mem_fwd_v;
-    input  mem_fwd_ready_and;
+    input  reset, mem_fwd_ready_and;
     output mem_rev_ready_and;
     input  mem_rev_addr, mem_rev_msg_type, mem_rev_size, mem_rev_data, mem_rev_v;
   endclocking

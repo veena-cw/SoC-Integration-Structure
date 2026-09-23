@@ -16,6 +16,14 @@ class bp_base_test extends uvm_test;
     env = bp_env::type_id::create("env", this);
   endfunction
 
+  // Keep reset generation in one place and use the active reset agent before
+  // starting each test's BedRock/NBF sequence.
+  task apply_cpu_reset();
+    cpu_reset_seq reset_seq;
+    reset_seq = cpu_reset_seq::type_id::create("reset_seq");
+    reset_seq.start(env.reset_agt.reset_sqr);
+  endtask
+
 endclass
 
 // Test ID: BP-DV-003 | Feature: ALU Operations
@@ -30,6 +38,7 @@ class bp_dv_003_alu_test extends bp_base_test;
     alu_test_seq seq;
     phase.raise_objection(this);
 
+    apply_cpu_reset();
     seq = alu_test_seq::type_id::create("seq");
     seq.start(env.bedrock_agt.bedrock_sqr);
     wait (env.sb.finished);
@@ -50,6 +59,7 @@ class bp_dv_004_immediate_test extends bp_base_test;
     immediate_test_seq seq;
     phase.raise_objection(this);
 
+    apply_cpu_reset();
     seq = immediate_test_seq::type_id::create("seq");
     seq.start(env.bedrock_agt.bedrock_sqr);
     wait (env.sb.finished);
@@ -70,6 +80,7 @@ class bp_dv_005_shift_test extends bp_base_test;
     shift_test_seq seq;
     phase.raise_objection(this);
 
+    apply_cpu_reset();
     seq = shift_test_seq::type_id::create("seq");
     seq.start(env.bedrock_agt.bedrock_sqr);
     wait (env.sb.finished);
@@ -90,7 +101,72 @@ class bp_dv_006_muldiv_test extends bp_base_test;
     muldiv_test_seq seq;
     phase.raise_objection(this);
 
+    apply_cpu_reset();
     seq = muldiv_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+    wait (env.sb.finished);
+    phase.drop_objection(this);
+  endtask
+
+endclass
+
+// Supplemental load/add/store smoke test retained for compatibility. The
+// formal BP-DV-007 row is the conditional-branches test below.
+class bp_dv_007_load_add_store_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_007_load_add_store_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    load_add_store_test_seq seq;
+    phase.raise_objection(this);
+
+    apply_cpu_reset();
+    seq = load_add_store_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+    wait (env.sb.finished);
+    phase.drop_objection(this);
+  endtask
+
+endclass
+
+// Test ID: BP-DV-007 | Feature: conditional branches
+class bp_dv_007_branch_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_007_branch_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    branch_test_seq seq;
+    phase.raise_objection(this);
+
+    apply_cpu_reset();
+    seq = branch_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+    wait (env.sb.finished);
+    phase.drop_objection(this);
+  endtask
+
+endclass
+
+// Test ID: BP-DV-008 | Feature: JAL/JALR jumps and link registers
+class bp_dv_008_jump_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_008_jump_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    jump_test_seq seq;
+    phase.raise_objection(this);
+
+    apply_cpu_reset();
+    seq = jump_test_seq::type_id::create("seq");
     seq.start(env.bedrock_agt.bedrock_sqr);
     wait (env.sb.finished);
     phase.drop_objection(this);
@@ -110,6 +186,7 @@ class bp_i2c_write_read_test extends bp_base_test;
     i2c_write_read_seq seq;
     phase.raise_objection(this);
 
+    apply_cpu_reset();
     seq = i2c_write_read_seq::type_id::create("seq");
     seq.start(env.bedrock_agt.bedrock_sqr);
 

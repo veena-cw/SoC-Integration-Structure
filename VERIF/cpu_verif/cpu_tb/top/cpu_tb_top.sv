@@ -90,7 +90,9 @@ module cpu_tb_top
   `declare_bp_bedrock_if(paddr_width_p, lce_id_width_p, cce_id_width_p, did_width_p, lce_assoc_p);
 
   bit clk;
-  bit reset;
+  wire reset;
+  cpu_reset_if reset_vif();
+  assign reset = reset_vif.reset;
   always #5 clk = ~clk;
   // Match bp_top/test/tb/bp_tethered/wrapper.sv.  The processor uses a
   // slower real-time clock for the core-side control path; tying rt_clk_i to
@@ -104,12 +106,6 @@ module cpu_tb_top
     ,.val_i('1)
     ,.clk_r_o(rt_clk)
     );
-  initial begin
-    reset = 1'b1;
-    repeat (10) @(posedge clk);
-    reset = 1'b0;
-  end
-
   // two flattened-field TB interfaces (unchanged from before)
   bedrock_if #(.ADDR_WIDTH(64), .DATA_WIDTH(64)) incoming_vif (.clk(clk), .reset(reset));
   bedrock_if #(.ADDR_WIDTH(64), .DATA_WIDTH(64)) outgoing_vif (.clk(clk), .reset(reset));
@@ -147,6 +143,11 @@ module cpu_tb_top
   logic [num_cce_p-1:0][l2_dmas_p-1:0] dma_data_ready_from_dut;
   logic [num_cce_p-1:0][l2_dmas_p-1:0][l2_fill_width_p-1:0] dma_data_from_dut;
   logic [num_cce_p-1:0][l2_dmas_p-1:0] dma_data_v_from_dut, dma_data_yumi;
+  logic [num_cce_p-1:0][l2_dmas_p-1:0][daddr_width_p-1:0] dma_log_last_addr;
+  logic [num_cce_p-1:0][l2_dmas_p-1:0] dma_log_last_write, dma_log_pkt_seen;
+  logic [num_cce_p-1:0][l2_dmas_p-1:0][l2_fill_width_p-1:0] dma_log_last_read_data;
+  logic [num_cce_p-1:0][l2_dmas_p-1:0][l2_fill_width_p-1:0] dma_log_last_write_data;
+  logic [num_cce_p-1:0][l2_dmas_p-1:0] dma_log_read_data_seen, dma_log_write_data_seen;
   logic host_mem_write;
   bp_uvm_name_warning_catcher name_warning_catcher;
 
@@ -256,48 +257,66 @@ module cpu_tb_top
      ,.host_mem_addr_i(incoming_vif.mem_fwd_addr)
      ,.host_mem_data_i(incoming_vif.mem_fwd_data)
      );
-/*
-  // Temporary handshake visibility while the integration is being debugged.
-  always @(posedge clk) begin
-    if (!reset) begin
-      if (cfg_mem_fwd_v && cfg_mem_fwd_ready)
-        $display("TB CFG_WRITE t=%0t addr=%h data=%h", $time,
-                 cfg_mem_fwd_header.addr, cfg_mem_fwd_data);
-      if (outgoing_vif.mem_fwd_v && outgoing_vif.mem_fwd_ready_and)
-        $display("DUT HOST_FWD t=%0t msg=%0d addr=%h data=%h", $time,
-                 outgoing_vif.mem_fwd_msg_type, outgoing_vif.mem_fwd_addr,
-                 outgoing_vif.mem_fwd_data);
-      if (incoming_vif.mem_fwd_v && incoming_vif.mem_fwd_ready_and)
-        $display("TB->DUT MEM_FWD t=%0t msg=%0d addr=%h size=%0d data=%h",
-                 $time, incoming_vif.mem_fwd_msg_type, incoming_vif.mem_fwd_addr,
-                 incoming_vif.mem_fwd_size, incoming_vif.mem_fwd_data);
-      if (host_mem_write)
-        $display("TB DRAM HOST_WRITE t=%0t addr=%h data=%h",
-                 $time, incoming_vif.mem_fwd_addr, incoming_vif.mem_fwd_data);
-      if (incoming_vif.mem_rev_v && incoming_vif.mem_rev_ready_and)
-        $display("DUT->TB MEM_REV t=%0t msg=%0d addr=%h size=%0d data=%h",
-                 $time, incoming_vif.mem_rev_msg_type, incoming_vif.mem_rev_addr,
-                 incoming_vif.mem_rev_size, incoming_vif.mem_rev_data);
 
+  // Observe only the processor-to-DRAM DMA interface. These are accepted
+  // external-memory requests; cache hits do not create a DRAM request, and a
+  // CPU store may appear here later as a cache-line writeback.
+  always @(posedge clk) begin : dram_dma_interface_log
+    if (reset) begin
+      dma_log_pkt_seen       <= '0;
+      dma_log_read_data_seen <= '0;
+      dma_log_write_data_seen <= '0;
+      dma_log_last_addr      <= '0;
+      dma_log_last_write     <= '0;
+      dma_log_last_read_data <= '0;
+      dma_log_last_write_data <= '0;
+    end
+    else begin
       for (int cce = 0; cce < num_cce_p; cce++) begin
         for (int dma = 0; dma < l2_dmas_p; dma++) begin
-          if (dma_pkt_v[cce][dma] && dma_pkt_yumi[cce][dma])
-            $display("DUT DMA_PKT t=%0t cce=%0d dma=%0d %s addr=%h",
-                     $time, cce, dma,
-                     dma_pkt[cce][dma].write_not_read ? "WRITE" : "READ",
-                     dma_pkt[cce][dma].addr);
-          if (dma_data_v_to_dut[cce][dma] && dma_data_ready_from_dut[cce][dma])
-            $display("DRAM->DUT DMA_DATA t=%0t cce=%0d dma=%0d data=%h",
-                     $time, cce, dma, dma_data_to_dut[cce][dma]);
-          if (dma_data_v_from_dut[cce][dma] && dma_data_yumi[cce][dma])
-            $display("DUT->DRAM DMA_DATA t=%0t cce=%0d dma=%0d data=%h",
-                     $time, cce, dma, dma_data_from_dut[cce][dma]);
+          // Print a request only when its address or direction changes from
+          // the last accepted request on this DMA channel.
+          if (dma_pkt_v[cce][dma] && dma_pkt_yumi[cce][dma]
+              && (!dma_log_pkt_seen[cce][dma]
+                  || dma_pkt[cce][dma].addr !== dma_log_last_addr[cce][dma]
+                  || dma_pkt[cce][dma].write_not_read !== dma_log_last_write[cce][dma])) begin
+            if (dma_pkt[cce][dma].write_not_read)
+              $display("CPU DRAM WRITE request cce=%0d dma=%0d addr=%h time=%0t",
+                       cce, dma, dma_pkt[cce][dma].addr, $time);
+            else
+              $display("CPU DRAM READ request cce=%0d dma=%0d addr=%h time=%0t",
+                       cce, dma, dma_pkt[cce][dma].addr, $time);
+
+            dma_log_last_addr[cce][dma]  <= dma_pkt[cce][dma].addr;
+            dma_log_last_write[cce][dma] <= dma_pkt[cce][dma].write_not_read;
+            dma_log_pkt_seen[cce][dma]   <= 1'b1;
+          end
+
+          // DMA payload is a separate channel. Suppress repeated identical
+          // data beats; print the first accepted beat and each changed value.
+          if (dma_data_v_to_dut[cce][dma] && dma_data_ready_from_dut[cce][dma]
+              && (!dma_log_read_data_seen[cce][dma]
+                  || dma_data_to_dut[cce][dma] !== dma_log_last_read_data[cce][dma])) begin
+            $display("CPU DRAM READ data cce=%0d dma=%0d data=%h time=%0t",
+                     cce, dma, dma_data_to_dut[cce][dma], $time);
+            dma_log_last_read_data[cce][dma] <= dma_data_to_dut[cce][dma];
+            dma_log_read_data_seen[cce][dma] <= 1'b1;
+          end
+
+          if (dma_data_v_from_dut[cce][dma] && dma_data_yumi[cce][dma]
+              && (!dma_log_write_data_seen[cce][dma]
+                  || dma_data_from_dut[cce][dma] !== dma_log_last_write_data[cce][dma])) begin
+            $display("CPU DRAM WRITE data cce=%0d dma=%0d data=%h time=%0t",
+                     cce, dma, dma_data_from_dut[cce][dma], $time);
+            dma_log_last_write_data[cce][dma] <= dma_data_from_dut[cce][dma];
+            dma_log_write_data_seen[cce][dma] <= 1'b1;
+          end
         end
       end
     end
   end
 
-*/
+
   // Observe the catch-up integer result. This stage has the forwarded source
   // operands for dependent instructions; the early reservation can still
   // contain stale operands while a producer is completing.
@@ -591,127 +610,13 @@ module cpu_tb_top
     end
   end
 
-/*
-  // Temporary backend/frontend redirect visibility.  This is useful for
-  // distinguishing a real branch target from a redirect caused by an NPC
-  // mismatch.  It also shows the PC stored in the backend reservation before
-  // the integer pipe produces its branch packet.
-  int redirect_dbg_count;
-  always @(posedge clk) begin
-    if (!reset && cfg_done
-        && (dut.u.unicore.unicore_lite.core_minimal.be.calculator.pipe_int_early.v_o
-            || dut.u.unicore.unicore_lite.core_minimal.be.br_pkt.v
-            || (dut.u.unicore.unicore_lite.core_minimal.be.director.fe_cmd_v_li
-                && (dut.u.unicore.unicore_lite.core_minimal.be.director.fe_cmd_li.opcode != 0))
-            || (dut.u.unicore.unicore_lite.core_minimal.fe.redirect_v_li
-                && (dut.u.unicore.unicore_lite.core_minimal.fe.redirect_npc_li != 64'h0000_0000_8000_0000)))) begin
-      redirect_dbg_count++;
-      if (redirect_dbg_count <= 100)
-        $display("TB REDIRECT t=%0t pipe_v=%0b pipe_pc=%h pipe_instr=%h j=%0b jr=%0b br=%0b pipe_npc=%h pipe_taken=%0b br_pkt_v=%0b br_pkt_branch=%0b br_pkt_taken=%0b br_pkt_npc=%h expected_npc=%h commit_npc_w_v=%0b commit_pc=%h commit_npc=%h commit_instr=%h commit_exc=%0b commit_irq=%0b commit_resume=%0b commit_ic_miss=%0b commit_itlb_miss=%0b commit_dcache_miss=%0b cmd_v=%0b cmd_opcode=%0d cmd_npc=%h fe_redirect_v=%0b fe_redirect_pc=%h fe_redirect_npc=%h",
-                 $time,
-                 dut.u.unicore.unicore_lite.core_minimal.be.calculator.pipe_int_early.v_o,
-                 dut.u.unicore.unicore_lite.core_minimal.be.calculator.pipe_int_early.pc,
-                 dut.u.unicore.unicore_lite.core_minimal.be.calculator.pipe_int_early.instr,
-                 dut.u.unicore.unicore_lite.core_minimal.be.calculator.pipe_int_early.decode.j_v,
-                 dut.u.unicore.unicore_lite.core_minimal.be.calculator.pipe_int_early.decode.jr_v,
-                 dut.u.unicore.unicore_lite.core_minimal.be.calculator.pipe_int_early.decode.br_v,
-                 dut.u.unicore.unicore_lite.core_minimal.be.calculator.pipe_int_early.npc_o,
-                 dut.u.unicore.unicore_lite.core_minimal.be.calculator.pipe_int_early.btaken_o,
-                 dut.u.unicore.unicore_lite.core_minimal.be.br_pkt.v,
-                 dut.u.unicore.unicore_lite.core_minimal.be.br_pkt.branch,
-                 dut.u.unicore.unicore_lite.core_minimal.be.br_pkt.btaken,
-                 dut.u.unicore.unicore_lite.core_minimal.be.br_pkt.npc,
-                 dut.u.unicore.unicore_lite.core_minimal.be.expected_npc_lo,
-                 dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.npc_w_v,
-                 dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.pc,
-                 dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.npc,
-                 dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr,
-                 dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.exception,
-                 dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt._interrupt,
-                 dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.resume,
-                 dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.icache_miss,
-                 dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.itlb_miss,
-                 dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.dcache_miss,
-                 dut.u.unicore.unicore_lite.core_minimal.be.director.fe_cmd_v_li,
-                 dut.u.unicore.unicore_lite.core_minimal.be.director.fe_cmd_li.opcode,
-                 dut.u.unicore.unicore_lite.core_minimal.be.director.fe_cmd_li.npc,
-                 dut.u.unicore.unicore_lite.core_minimal.fe.redirect_v_li,
-                 dut.u.unicore.unicore_lite.core_minimal.fe.redirect_pc_li,
-                 dut.u.unicore.unicore_lite.core_minimal.fe.redirect_npc_li);
-    end
-  end
-
-  // Temporary I-cache UCE handshake monitor.  The underflow is generated by
-  // the UCE credit counter, so these signals show whether a complete forward
-  // request was issued before a complete reverse response was consumed.
-  int uce_dbg_count;
-  always @(posedge clk) begin
-    if (!reset
-        && (dut.u.unicore.unicore_lite.icache_uce.fsm_fwd_v_lo
-            || dut.u.unicore.unicore_lite.icache_uce.fsm_rev_v_li
-            || dut.u.unicore.unicore_lite.icache_uce.fsm_rev_yumi_lo
-            || dut.u.unicore.unicore_lite.icache_uce.mem_fwd_v_o
-            || dut.u.unicore.unicore_lite.icache_uce.mem_rev_v_i)) begin
-      uce_dbg_count++;
-      if (uce_dbg_count <= 80)
-        $display("TB ICache UCE t=%0t credit=%0d cache_v=%0b cache_done=%0b cache_addr=%h cache_type=%0d fwd_v=%0b fwd_addr=%h fwd_msg=%0d fwd_size=%0d fwd_last=%0b rev_v=%0b rev_addr=%h rev_msg=%0d rev_data=%h rev_yumi=%0b rev_last=%0b mem_fwd_v=%0b mem_rev_v=%0b",
-                 $time,
-                 dut.u.unicore.unicore_lite.icache_uce.credit_counter.count_o,
-                 dut.u.unicore.unicore_lite.icache_uce.cache_req_v_r,
-                 dut.u.unicore.unicore_lite.icache_uce.cache_req_done,
-                 dut.u.unicore.unicore_lite.icache_uce.cache_req_r.addr,
-                 dut.u.unicore.unicore_lite.icache_uce.cache_req_r.msg_type,
-                 dut.u.unicore.unicore_lite.icache_uce.fsm_fwd_v_lo,
-                 dut.u.unicore.unicore_lite.icache_uce.fsm_fwd_addr_lo,
-                 dut.u.unicore.unicore_lite.icache_uce.fsm_fwd_header_lo.msg_type,
-                 dut.u.unicore.unicore_lite.icache_uce.fsm_fwd_header_lo.size,
-                 dut.u.unicore.unicore_lite.icache_uce.fsm_fwd_last_lo,
-                 dut.u.unicore.unicore_lite.icache_uce.fsm_rev_v_li,
-                 dut.u.unicore.unicore_lite.icache_uce.fsm_rev_addr_li,
-                 dut.u.unicore.unicore_lite.icache_uce.fsm_rev_header_li.msg_type,
-                 dut.u.unicore.unicore_lite.icache_uce.fsm_rev_data_li,
-                 dut.u.unicore.unicore_lite.icache_uce.fsm_rev_yumi_lo,
-                 dut.u.unicore.unicore_lite.icache_uce.fsm_rev_last_li,
-                 dut.u.unicore.unicore_lite.icache_uce.mem_fwd_v_o,
-                 dut.u.unicore.unicore_lite.icache_uce.mem_rev_v_i);
-    end
-  end
-
-  // Temporary front-end visibility.  This confirms whether an I$ response
-  // becomes a hit, is assembled into instructions, and is accepted by the
-  // fetch queue after the cache line fill.
-  int fe_dbg_count;
-  always @(posedge clk) begin
-    if (!reset
-        && (dut.u.unicore.unicore_lite.core_minimal.fe.if2_hit_v_lo
-            || dut.u.unicore.unicore_lite.core_minimal.fe.if2_miss_v_lo
-            || dut.u.unicore.unicore_lite.core_minimal.fe.assembled_v_lo
-            || dut.u.unicore.unicore_lite.core_minimal.fe.fetch_v_lo)) begin
-      fe_dbg_count++;
-      if (fe_dbg_count <= 100)
-        $display("TB FE t=%0t next_pc=%h ic_v=%0b ic_yumi=%0b if2_hit=%0b if2_miss=%0b if2_pc=%h if2_data=%h assembled_v=%0b assembled_pc=%h assembled_instr=%h fetch_v=%0b fetch_pc=%h fetch_instr=%h fetch_count=%0d fetch_yumi=%0b",
-                 $time,
-                 dut.u.unicore.unicore_lite.core_minimal.fe.next_pc_lo,
-                 dut.u.unicore.unicore_lite.core_minimal.fe.icache_v_li,
-                 dut.u.unicore.unicore_lite.core_minimal.fe.icache_yumi_lo,
-                 dut.u.unicore.unicore_lite.core_minimal.fe.if2_hit_v_lo,
-                 dut.u.unicore.unicore_lite.core_minimal.fe.if2_miss_v_lo,
-                 dut.u.unicore.unicore_lite.core_minimal.fe.if2_pc_lo,
-                 dut.u.unicore.unicore_lite.core_minimal.fe.if2_data_lo,
-                 dut.u.unicore.unicore_lite.core_minimal.fe.assembled_v_lo,
-                 dut.u.unicore.unicore_lite.core_minimal.fe.assembled_pc_lo,
-                 dut.u.unicore.unicore_lite.core_minimal.fe.assembled_instr_lo,
-                 dut.u.unicore.unicore_lite.core_minimal.fe.fetch_v_lo,
-                 dut.u.unicore.unicore_lite.core_minimal.fe.fetch_pc_lo,
-                 dut.u.unicore.unicore_lite.core_minimal.fe.fetch_instr_lo,
-                 dut.u.unicore.unicore_lite.core_minimal.fe.fetch_count_lo,
-                 dut.u.unicore.unicore_lite.core_minimal.fe.fetch_yumi_li);
-    end
-  end
-*/
   initial begin
     name_warning_catcher = new();
     uvm_report_cb::add(null, name_warning_catcher);
+    uvm_resource_db#(virtual cpu_reset_if)::set(
+      "uvm_test_top.env.reset_agt.reset_drv", "vif", reset_vif);
+    uvm_resource_db#(virtual cpu_reset_if)::set(
+      "uvm_test_top.env.reset_agt.reset_mon", "vif", reset_vif);
     uvm_resource_db#(virtual bedrock_if)::set(
       "uvm_test_top.env.bedrock_agt.bedrock_drv", "vif", incoming_vif);
     uvm_resource_db#(virtual bedrock_if)::set(
@@ -724,6 +629,7 @@ module cpu_tb_top
    // Waveform dump for debugging with GTKWave or another VCD viewer.
   initial begin
     $dumpfile("cpu_tb_top.vcd");
+    $dumpvars(0, reset_vif);
     $dumpvars(0, incoming_vif);
     $dumpvars(0, outgoing_vif);
     $dumpvars(0, dma_pkt);

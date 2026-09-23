@@ -17,6 +17,9 @@ class nbf_load_seq extends uvm_sequence #(bedrock_txn);
 
   string nbf_path = "bp_dv_003_alu.nbf";
   bit    require_alu;
+  bit    require_load_store;
+  bit    require_jump;
+  bit    require_branch;
   bit    preload_only;
 
   function new(string name = "nbf_load_seq");
@@ -34,6 +37,17 @@ class nbf_load_seq extends uvm_sequence #(bedrock_txn);
     bit [63:0] addr, data;
     int n_loaded;
     int n_alu;
+    int n_load;
+    int n_store;
+    int n_jump;
+    int n_branch;
+
+    n_loaded = 0;
+    n_alu = 0;
+    n_load = 0;
+    n_store = 0;
+    n_jump = 0;
+    n_branch = 0;
 
     // DRAM is preloaded by bp_nonsynth_dram before reset. Keep an override for
     // experiments that explicitly want to stream the image through UVM.
@@ -53,6 +67,16 @@ class nbf_load_seq extends uvm_sequence #(bedrock_txn);
         // data word. Check both halves for RV64 register or immediate ALU ops.
         if (is_rv64_integer_alu(data[31:0]))  n_alu++;
         if (is_rv64_integer_alu(data[63:32])) n_alu++;
+        if (data[6:0] == 7'b0000011)   n_load++;
+        if (data[38:32] == 7'b0000011) n_load++;
+        if (data[6:0] == 7'b0100011)   n_store++;
+        if (data[38:32] == 7'b0100011) n_store++;
+        if (data[6:0] == 7'b1101111)   n_jump++;
+        if (data[38:32] == 7'b1101111) n_jump++;
+        if (data[6:0] == 7'b1100111)   n_jump++;
+        if (data[38:32] == 7'b1100111) n_jump++;
+        if (data[6:0] == 7'b1100011)   n_branch++;
+        if (data[38:32] == 7'b1100011) n_branch++;
 
         if (!preload_only) begin
           t = bedrock_txn::type_id::create("t");
@@ -75,6 +99,35 @@ class nbf_load_seq extends uvm_sequence #(bedrock_txn);
         `uvm_fatal("ALU_CHECK", $sformatf("no RV64 integer ALU instruction found in %0s", nbf_path))
       else
         `uvm_info("ALU_CHECK", $sformatf("found %0d RV64 integer ALU instruction(s) in %0s", n_alu, nbf_path), UVM_LOW)
+    end
+
+    if (require_load_store) begin
+      if ((n_load == 0) || (n_store == 0))
+        `uvm_fatal("LOAD_STORE_CHECK",
+                   $sformatf("expected RV64 load and store instructions in %0s; found loads=%0d stores=%0d",
+                             nbf_path, n_load, n_store))
+      else
+        `uvm_info("LOAD_STORE_CHECK",
+                  $sformatf("found RV64 load instructions=%0d store instructions=%0d in %0s",
+                            n_load, n_store, nbf_path), UVM_LOW)
+    end
+
+    if (require_jump) begin
+      if (n_jump == 0)
+        `uvm_fatal("JUMP_CHECK", $sformatf("no RV64 JAL/JALR instruction found in %0s", nbf_path))
+      else
+        `uvm_info("JUMP_CHECK",
+                  $sformatf("found %0d RV64 JAL/JALR instruction(s) in %0s", n_jump, nbf_path),
+                  UVM_LOW)
+    end
+
+    if (require_branch) begin
+      if (n_branch == 0)
+        `uvm_fatal("BRANCH_CHECK", $sformatf("no RV64 conditional branch instruction found in %0s", nbf_path))
+      else
+        `uvm_info("BRANCH_CHECK",
+                  $sformatf("found %0d RV64 conditional branch instruction(s) in %0s", n_branch, nbf_path),
+                  UVM_LOW)
     end
 
     `uvm_info("NBF_LOAD", $sformatf("checked %0d beats from %0s (%s)",

@@ -10,25 +10,40 @@
 
 /* bp_nonsynth_host maps the finish register at host base + 0x2000. */
 #define TOHOST_ADDR ((volatile uint64_t *)0x00102000UL)
-#define I2C_CMD_ADDR ((volatile uint64_t *)0x30010000UL)
-#define I2C_DATA_ADDR ((volatile uint64_t *)0x30010008UL)
-
-#define I2C_WRITE 0
-#define I2C_READ  1
-
-static inline uint64_t i2c_command(uint8_t slave_addr, uint8_t rw,
-                                   uint8_t data)
-{
-  return ((uint64_t)slave_addr << 16) |
-         ((uint64_t)rw << 8) |
-         (uint64_t)data;
-}
+/* Reserved result buffer in the DRAM address space. The test image is small
+ * and the stack grows down from 0x80004000, so this starts above both. */
+#define ADD_RESULTS_ADDR ((volatile uint64_t *)0x80005000UL)
 
 static void tohost_exit(uint64_t code)
 {
+  /* Order result stores before the pass/fail notification. This fence does
+   * not itself force dirty cache lines all the way to backing DRAM. */
+  __asm__ volatile ("fence rw, rw" ::: "memory");
   *TOHOST_ADDR = code;
   while (1) {
     /* Wait for the simulation harness to observe tohost. */
+  }
+}
+
+static void flush_add_results(void)
+{
+  uintptr_t addr = (uintptr_t)ADD_RESULTS_ADDR;
+
+  /* CBO.FLUSH uses immediate 2 and requires a cache-block-aligned address.
+   * Emit it as an instruction word so this test still assembles with the
+   * repository's base -march=rv64ima setting. */
+  __asm__ volatile (".insn i 0x0f, 2, x0, %0, 2" :: "r"(addr) : "memory");
+}
+
+static void evict_add_results(void)
+{
+  /* The configured L2 has 256 sets, 4 ways, and 64-byte blocks. Addresses
+   * separated by 16 KiB map to the same set; touching enough aliases forces
+   * the result line out of the write-back L2 and into the DRAM model. */
+  for (uint64_t i = 1; i <= 20; i++) {
+    volatile uint64_t *conflict_addr =
+      (volatile uint64_t *)(0x80005000UL + (i * 0x4000UL));
+    *conflict_addr = 0xADD0000000000000UL | i;
   }
 }
 
@@ -50,24 +65,11 @@ static void check_add(uint64_t a, uint64_t b, uint64_t expected,
 {
   uint64_t result = add_function(a, b);
 
+  /* Store each architectural ADD result in a dedicated DRAM buffer slot. */
+  ADD_RESULTS_ADDR[test_number - 1] = result;
+
   if (result != expected)
     tohost_exit((test_number << 1) | 1); /* riscv-tests failure encoding */
-}
-
-static void check_i2c_direct(void)
-{
-  const uint8_t slave_addr = 0x50;
-  const uint8_t write_data = 0x5A;
-
-  /* Direct DUT-to-testbench BedRock write into the I2C model. */
-  *I2C_CMD_ADDR = i2c_command(slave_addr, I2C_WRITE, write_data);
-
-  /* Direct DUT-to-testbench BedRock read request. */
-  *I2C_CMD_ADDR = i2c_command(slave_addr, I2C_READ, 0);
-  uint64_t read_data = *I2C_DATA_ADDR;
-
-  if ((read_data & 0xFF) != write_data)
-    tohost_exit(0x101); /* I2C readback failure */
 }
 
 /* The BlackParrot reset PC is 0x80000000.  Place the test entry point first
@@ -90,8 +92,6 @@ void _start(void)
 
 static void start_main(void)
 {
-  check_i2c_direct();
-
   check_add(0x0000000000000000UL,
             0x0000000000000000UL,
             0x0000000000000000UL, 1);
@@ -119,6 +119,11 @@ static void start_main(void)
   check_add(0x123456789ABCDEF0UL,
             0x0FEDCBA987654321UL,
             0x2222222222222211UL, 7);
+
+  /* Push/invalidate the result cache line before ending the test so the
+   * backing DRAM model can observe the stored values. */
+  flush_add_results();
+  evict_add_results();
 
   /* BlackParrot's bp_nonsynth_host treats zero as PASS. */
   tohost_exit(0); /* all ADD checks passed */

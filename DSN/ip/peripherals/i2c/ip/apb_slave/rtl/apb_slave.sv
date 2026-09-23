@@ -199,6 +199,9 @@ module apb_slave #(
 
                 o_pready = 1'b1;
             end
+            
+             if (req_rd && i_penable) 
+                o_pready = 1'b1;
 
         end
 
@@ -334,28 +337,17 @@ endcase
    //==========================================================
    assign o_pslverr = (i2c_nack && i_psel && i_penable && o_pready) ? 1'b1 : 1'b0;
 
-   //==========================================================
-   // o_prdata mux
-   //   FIX: previously hardwired to {24'b0, i_rd_data} regardless
-   //   of which register was addressed, so CTRL/STATUS/TXDATA
-   //   reads returned the raw I2C RX byte instead of the actual
-   //   register contents. Now muxed by reg_addr, combinational so
-   //   it lines up with the same-cycle o_pready above. RXDATA
-   //   still returns rxdata_reg, which is latched separately by
-   //   i2c_done - this does not change how/when rxdata_reg itself
-   //   is updated.
-   //==========================================================
-   always_comb begin
-      case (reg_addr)
-         CTRL_OFFSET:   o_prdata = ctrl_reg;
-         STATUS_OFFSET: o_prdata = status_reg;
-         TXDATA_OFFSET: o_prdata = txdata_reg;
-         RXDATA_OFFSET: o_prdata = rxdata_reg;
-         default:       o_prdata = '0;
-      endcase
+   always_ff @(posedge pclk or negedge presetn) begin
+      if (!presetn) begin
+         o_prdata <= '0;
+      end
+      else begin
+         if ((state_ff == R_ACCESS) || (state_ff == R_FINISH)) begin
+            o_prdata <= {24'b0, i_rd_data};
+         end
+      end
    end
-
-
+   
    always_ff @(posedge pclk or negedge presetn) begin
 
       if (!presetn) begin

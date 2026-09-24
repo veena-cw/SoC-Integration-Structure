@@ -125,7 +125,7 @@ module uart_tx (
             parity_en_q   <= parity_en_i;
             parity_mode_q <= parity_mode_i;
             stop_2_q      <= stop_2_i;
-            parity_bit_q  <= compute_parity(data_i, data_bits_i, parity_mode_i);
+            parity_bit_q  <= compute_parity(data_i, data_bits_i, parity_mode_i,tick_x1_i);
             bit_idx_q     <= 4'd0;
             state_q       <= S_START;
           end

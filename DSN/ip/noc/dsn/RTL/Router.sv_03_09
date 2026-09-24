@@ -1,0 +1,322 @@
+// Code your design here
+`include "definitions.sv"
+`include "Round_Robin_Arbitration.sv"
+`include "Routing_table.sv"
+`include "Switch.sv"
+`include "Switching_Unit.sv"
+`include "Routing_Unit.sv"
+
+
+module Router #(
+  
+    parameter FLIT_SIZE = 18,
+    parameter MAX_PACKET_SIZE = 64,
+    parameter NOC_LENGTH = 4,
+    parameter NOC_WIDTH = 4,
+	parameter NUM_MASTERs = 5,
+    parameter ROUTER_ID = 0,
+    parameter NUM_INGRESS_PORTS = 5,
+    parameter NUM_EGRESS_PORTS = 9,
+    parameter AXI4_ADDR_WIDTH = 128,
+    parameter AXI4_DATA_WIDTH = 32,
+    parameter AXI4_ID_WIDTH   = 4
+    // parameter AXI4_ADDR_WIDTH   = 40,
+    //parameter AXI4_DATA_WIDTH   = 128
+
+) (
+    input logic clk,
+    input logic rst,
+
+    input logic [NUM_INGRESS_PORTS-1:0] rr_req_valid,
+    input logic [NUM_INGRESS_PORTS*AXI4_ADDR_WIDTH-1:0] rr_req_addr,
+    input logic [NUM_INGRESS_PORTS*AXI4_DATA_WIDTH-1:0] rr_req_data,
+
+    ReqAckIO in_ports  [0:NUM_INGRESS_PORTS-1],
+    ReqAckIO out_ports [0:NUM_INGRESS_PORTS-1],
+    output logic [3:0] rr_dest_sel,
+
+    output logic rr_lpddr_valid,
+    output logic [AXI4_ADDR_WIDTH-1:0] rr_lpddr_addr,
+    output logic [AXI4_DATA_WIDTH-1:0] rr_lpddr_data,
+
+    output logic rr_sram_valid,
+    output logic [AXI4_ADDR_WIDTH-1:0] rr_sram_addr,
+    output logic [AXI4_DATA_WIDTH-1:0] rr_sram_data,
+
+    output logic rr_pcie_valid,
+    output logic [AXI4_ADDR_WIDTH-1:0] rr_pcie_addr,
+    output logic [AXI4_DATA_WIDTH-1:0] rr_pcie_data,
+
+    output logic rr_ucie_valid,
+    output logic [AXI4_ADDR_WIDTH-1:0] rr_ucie_addr,
+    output logic [AXI4_DATA_WIDTH-1:0] rr_ucie_data,
+
+    output logic rr_eth_valid,
+    output logic [AXI4_ADDR_WIDTH-1:0] rr_eth_addr,
+    output logic [AXI4_DATA_WIDTH-1:0] rr_eth_data,
+
+    output logic rr_usb_valid,
+    output logic [AXI4_ADDR_WIDTH-1:0] rr_usb_addr,
+    output logic [AXI4_DATA_WIDTH-1:0] rr_usb_data,
+
+    output logic rr_sdemmc_valid,
+    output logic [AXI4_ADDR_WIDTH-1:0] rr_sdemmc_addr,
+    output logic [AXI4_DATA_WIDTH-1:0] rr_sdemmc_data,
+
+    output logic rr_caliptra_valid,
+    output logic [AXI4_ADDR_WIDTH-1:0] rr_caliptra_addr,
+    output logic [AXI4_DATA_WIDTH-1:0] rr_caliptra_data,
+
+    output logic rr_spi_valid,
+    output logic [AXI4_ADDR_WIDTH-1:0] rr_spi_addr,
+    output logic [AXI4_DATA_WIDTH-1:0] rr_spi_data,
+
+    output logic rr_i2c_valid,
+    output logic [AXI4_ADDR_WIDTH-1:0] rr_i2c_addr,
+    output logic [AXI4_DATA_WIDTH-1:0] rr_i2c_data,
+
+    output logic rr_uart_valid,
+    output logic [AXI4_ADDR_WIDTH-1:0] rr_uart_addr,
+    output logic [AXI4_DATA_WIDTH-1:0] rr_uart_data,
+
+    output logic rr_gpio_valid,
+    output logic [AXI4_ADDR_WIDTH-1:0] rr_gpio_addr,
+    output logic [AXI4_DATA_WIDTH-1:0] rr_gpio_data,
+
+    output logic rr_mipi_valid,
+    output logic [AXI4_ADDR_WIDTH-1:0] rr_mipi_addr,
+    output logic [AXI4_DATA_WIDTH-1:0] rr_mipi_data,
+
+    output logic rr_nvme_valid,
+    output logic [AXI4_ADDR_WIDTH-1:0] rr_nvme_addr,
+    output logic [AXI4_DATA_WIDTH-1:0] rr_nvme_data
+);
+   
+    localparam  X_ADDRESS_WIDTH   = $clog2(NOC_WIDTH);
+    localparam  Y_ADDRESS_WIDTH   = $clog2(NOC_LENGTH);
+    localparam  EGRESS_PORT_WIDTH = $clog2(NUM_EGRESS_PORTS);
+    localparam  TOTAL_ADDRESS_WIDTH = X_ADDRESS_WIDTH + Y_ADDRESS_WIDTH;
+    // Number of ingress ports connected to the NoC
+    //localparam NUM_INGRESS_PORTS = 5;
+
+    // Number of egress ports connected to the NoC
+    //localparam NUM_EGRESS_PORTS = 9;
+
+    // AXI4 Paramaters
+    
+
+
+
+localparam NPU_BASE       = 32'h1000_0000;
+localparam NPU_LIMIT      = 32'h100F_FFFF;
+localparam PCIe_BASE      = 32'h1010_0000;
+localparam PCIe_LIMIT     = 32'h101F_FFFF;
+localparam UCIe_BASE      = 32'h1020_0000; 
+localparam UCIe_LIMIT     = 32'h102F_FFFF;
+localparam ETH_BASE       = 32'h1030_0000; 
+localparam ETH_LIMIT      = 32'h103F_FFFF;
+localparam USB_BASE       = 32'h1040_0000; 
+localparam USB_LIMIT      = 32'h104F_FFFF;
+localparam SDeMMC_BASE    = 32'h1050_0000; 
+localparam SDeMMC_LIMIT   = 32'h105F_FFFF;
+localparam PLIC_BASE      = 32'h1060_0000;
+localparam PLIC_LIMIT     = 32'h106F_FFFF;
+
+
+localparam SEC_BASE       = 32'h2000_0000; 
+localparam SEC_LIMIT      = 32'h2000_FFFF;
+localparam MBOX_BASE      = 32'h2001_0000; 
+localparam MBOX_LIMIT     = 32'h2001_FFFF;
+
+localparam PMU_BASE       = 32'h2002_0000; 
+localparam PMU_LIMIT      = 32'h2002_FFFF;
+localparam PLL_BASE       = 32'h2003_0000; 
+localparam PLL_LIMIT      = 32'h2003_FFFF;
+
+localparam SPI_BASE       = 32'h3000_0000; 
+localparam SPI_LIMIT      = 32'h3000_FFFF;
+localparam I2C_BASE       = 32'h3001_0000; 
+localparam I2C_LIMIT      = 32'h3001_FFFF;
+localparam UART_BASE      = 32'h3002_0000; 
+localparam UART_LIMIT     = 32'h3002_FFFF;
+localparam GPIO_BASE      = 32'h3003_0000; 
+localparam GPIO_LIMIT     = 32'h3003_FFFF;
+localparam MIPI_BASE      = 32'h3004_0000; 
+localparam MIPI_LIMIT     = 32'h3004_FFFF;
+localparam HDMI_BASE      = 32'h3005_0000; 
+localparam HDMI_LIMIT     = 32'h3005_FFFF;
+localparam TIMER_BASE     = 32'h3006_0000; 
+localparam TIMER_LIMIT    = 32'h3006_FFFF;
+localparam DEBUG_BASE     = 32'h3007_0000; 
+localparam DEBUG_LIMIT    = 32'h3007_FFFF;
+
+localparam REM_MEM_BASE   = 32'h4000_0000; 
+localparam REM_MEM_LIMIT  = 32'h4000_FFFF;
+localparam REM_IP_BASE    = 32'h4800_0000; 
+localparam REM_IP_LIMIT   = 32'h4800_FFFF;
+
+
+noc_router #(
+    .ADDR_WIDTH  (AXI4_ADDR_WIDTH),
+    .DATA_WIDTH  (AXI4_DATA_WIDTH),
+    .DEST_WIDTH  (4),
+    .NUM_MASTERS (NUM_INGRESS_PORTS)
+) u_noc_router (
+
+    .clk       (clk),
+    .rst_n     (~rst),
+
+    .req_valid (rr_req_valid),
+    .req_addr  (rr_req_addr),
+    .req_data  (rr_req_data),
+
+    .dest_sel  (rr_dest_sel),
+
+    .lpddr_valid (rr_lpddr_valid),
+    .lpddr_addr  (rr_lpddr_addr),
+    .lpddr_data  (rr_lpddr_data),
+
+    .sram_valid  (rr_sram_valid),
+    .sram_addr   (rr_sram_addr),
+    .sram_data   (rr_sram_data),
+
+    .PCIe_valid  (rr_pcie_valid),
+    .PCIe_addr   (rr_pcie_addr),
+    .PCIe_data   (rr_pcie_data),
+
+    .UCIe_valid  (rr_ucie_valid),
+    .UCIe_addr   (rr_ucie_addr),
+    .UCIe_data   (rr_ucie_data),
+
+    .ETHERNET_valid (rr_eth_valid),
+    .ETHERNET_addr  (rr_eth_addr),
+    .ETHERNET_data  (rr_eth_data),
+
+    .USB_valid (rr_usb_valid),
+    .USB_addr  (rr_usb_addr),
+    .USB_data  (rr_usb_data),
+
+    .SDeMMC_valid (rr_sdemmc_valid),
+    .SDeMMC_addr  (rr_sdemmc_addr),
+    .SDeMMC_data  (rr_sdemmc_data),
+
+    .CALIPTRA_valid (rr_caliptra_valid),
+    .CALIPTRA_addr  (rr_caliptra_addr),
+    .CALIPTRA_data  (rr_caliptra_data),
+
+    .SPI_valid (rr_spi_valid),
+    .SPI_addr  (rr_spi_addr),
+    .SPI_data  (rr_spi_data),
+
+    .I2C_valid (rr_i2c_valid),
+    .I2C_addr  (rr_i2c_addr),
+    .I2C_data  (rr_i2c_data),
+
+    .UART_valid (rr_uart_valid),
+    .UART_addr  (rr_uart_addr),
+    .UART_data  (rr_uart_data),
+
+    .GPIO_valid (rr_gpio_valid),
+    .GPIO_addr  (rr_gpio_addr),
+    .GPIO_data  (rr_gpio_data),
+
+    .MIPI_valid (rr_mipi_valid),
+    .MIPI_addr  (rr_mipi_addr),
+    .MIPI_data  (rr_mipi_data),
+
+    .NVMe_valid (rr_nvme_valid),
+    .NVMe_addr  (rr_nvme_addr),
+    .NVMe_data  (rr_nvme_data)
+);
+
+function automatic [DEST_WIDTH-1:0]
+    decode_addr(input logic [31:0] addr);
+
+    begin
+        // Default destination
+        decode_addr = ERROR_PORT;
+
+        if ((addr >= SPI_BASE) && (addr <= SPI_LIMIT))
+            decode_addr = APB_PORT;
+
+        else if ((addr >= I2C_BASE) && (addr <= I2C_LIMIT))
+            decode_addr = APB_PORT;
+
+        else if ((addr >= UART_BASE) && (addr <= UART_LIMIT))
+            decode_addr = APB_PORT;
+
+        else if ((addr >= GPIO_BASE) && (addr <= GPIO_LIMIT))
+            decode_addr = APB_PORT;
+
+        else if ((addr >= MIPI_BASE) && (addr <= MIPI_LIMIT))
+            decode_addr = APB_PORT;
+
+        else if ((addr >= TIMER_BASE) && (addr <= TIMER_LIMIT))
+            decode_addr = APB_PORT;
+
+        else if ((addr >= DEBUG_BASE) && (addr <= DEBUG_LIMIT))
+            decode_addr = APB_PORT;
+
+        else if ((addr >= SDeMMC_BASE) && (addr <= SDeMMC_LIMIT))
+            decode_addr = SDeMMC_PORT;
+
+        else if ((addr >= PCIe_BASE) && (addr <= PCIe_LIMIT))
+            decode_addr = PCIe_PORT;
+
+        else if ((addr >= UCIe_BASE) && (addr <= UCIe_LIMIT))
+            decode_addr = UCIe_PORT;
+
+        else if ((addr >= ETH_BASE) && (addr <= ETH_LIMIT))
+            decode_addr = ETHERNET_PORT;
+
+        else if ((addr >= USB_BASE) && (addr <= USB_LIMIT))
+            decode_addr = USB_PORT;
+
+        else
+            decode_addr = LPDDR_PORT;
+    end
+
+endfunction
+
+endfunction
+
+  always_comb begin
+    egress_port_id = decode_addr(flit_addr); //flit address from AXI4 AW/AR header
+ end
+	
+
+    wire [0:4][TOTAL_ADDRESS_WIDTH-1:0] buffer_dests;
+    wire [0:4][2:0] buffer_port_out_dests;
+
+
+    ReqAckIO buffer_out_rack[5]();
+    ReqGntIO buf_switch_io[5]();
+    generate
+        genvar i;
+
+        for(i = 0; i < 5; i++) begin : genearte_buffers
+            
+            Buffer_Unit  #(.DATA_WIDTH(FLIT_SIZE), .MAX_PACKET_SIZE(MAX_PACKET_SIZE), .ADDRESS_SIZE(TOTAL_ADDRESS_WIDTH))
+                            buffer_unit (.clk(clk), .rst(rst), .in(in_ports[i]), .out(buffer_out_rack[i]), .swicth_allocator_io(buf_switch_io[i]), .dest(buffer_dests[i]));
+        end
+    endgenerate
+
+
+    Routing_Unit #(.NOC_LENGTH(NOC_LENGTH), .NOC_WIDTH(NOC_WIDTH), .ROUTER_ID(ROUTER_ID))
+                    routing_unit (.dest_local(buffer_dests[0]), .dest_west(buffer_dests[1]), .dest_north(buffer_dests[2]), 
+                                    .dest_east(buffer_dests[3]), .dest_south(buffer_dests[4]), .port_local(buffer_port_out_dests[0]),
+                                    .port_west(buffer_port_out_dests[1]), .port_north(buffer_port_out_dests[2]),
+                                    .port_east(buffer_port_out_dests[3]), .port_south(buffer_port_out_dests[4]));
+    
+
+    Switch_Allocator switch_allocator (.clk(clk), .rst(rst), 
+                                        .buffers_rg({buf_switch_io[0], buf_switch_io[1], buf_switch_io[2], buf_switch_io[3], buf_switch_io[4]}),
+                                        .buffers_dport(buffer_port_out_dests)); 
+
+
+    Switch #(.DATA_WIDTH(FLIT_SIZE)) 
+            switch (.buffer_grants({buf_switch_io[4].grant, buf_switch_io[3].grant, buf_switch_io[2].grant, buf_switch_io[1].grant, buf_switch_io[0].grant}), 
+                    .dests(buffer_port_out_dests), .buffers_rack_io({buffer_out_rack[0], buffer_out_rack[1], buffer_out_rack[2], buffer_out_rack[3], buffer_out_rack[4]}),
+                    .outs_rack_io(out_ports));
+
+endmodule

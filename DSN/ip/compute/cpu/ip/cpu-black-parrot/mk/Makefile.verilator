@@ -1,0 +1,123 @@
+
+include $(BP_MK_DIR)/Makefile.paths
+
+# Max number of threads to run verilated model with
+VERILATOR_THREADS ?= 4
+## Tool options
+VV_BUILD_OPTS += -O2
+VV_BUILD_OPTS += --x-assign fast --x-initial fast
+VV_BUILD_OPTS += -j $(VERILATOR_THREADS)
+VV_BUILD_OPTS += --timescale 1ps/1ps
+VV_BUILD_OPTS += --top-module testbench
+VV_BUILD_OPTS += $(CURDIR)/waiver.vlt
+VV_BUILD_OPTS += -f flist.vcs
+VV_BUILD_OPTS += -o ../simsc
+VV_BUILD_OPTS += --stats --stats-vars
+VV_BUILD_OPTS += --autoflush
+
+VV_BUILD_OPTS += +define+BSG_NO_TIMESCALE
+VV_BUILD_OPTS += --no-assert
+
+ifeq ($(COVERAGE),1)
+VV_BUILD_OPTS += --coverage
+endif
+
+ifeq ($(DROMAJO_COSIM),1)
+VV_BUILD_OPTS += -LDFLAGS "-ldromajo_cosim"
+VV_BUILD_OPTS += $(BP_DIR)/bp_be/test/common/dromajo_cosim.cpp
+endif
+ifeq ($(SPIKE_COSIM),1)
+VV_BUILD_OPTS += -LDFLAGS "-lriscv"
+VV_BUILD_OPTS += $(BP_DIR)/bp_be/test/common/spike_cosim.cpp
+endif
+
+# Debugs and produces stack trace
+#VV_BUILD_OPTS += --debug --gdbbt
+
+ifeq ($(TRACE),1)
+VV_BUILD_OPTS += --trace-fst
+VV_BUILD_OPTS += --trace-structs
+VV_BUILD_OPTS += --trace-depth 15
+VV_BUILD_OPTS += +define+BSG_NONSYNTH_WAVEFORM_TRACER_ENABLE
+VV_BUILD_OPTS += +define+BSG_NONSYNTH_WAVEFORM_TRACER_DEPTH=0
+VV_BUILD_OPTS += +define+BSG_NONSYNTH_WAVEFORM_TRACER_HIER=testbench.wrapper
+VV_BUILD_OPTS += +define+BSG_NONSYNTH_WAVEFORM_TRACER_FST
+endif
+
+%/flist.vcs:
+	@$(MKDIR) -p $(@D)
+	@$(CAT) $(END_PATH)/flist.vcs >> $@
+	@$(CAT) $(TB_PATH)/flist.vcs >> $@
+	@$(SED) -i "/^#/d" $@
+
+LINT_FILE ?= $(DUT_PATH)/lint
+lint.verilator: ## lints the design
+lint.verilator: $(LINT_FILE)
+$(LINT_FILE): VV_BUILD_OPTS += --cc --lint-only --timing
+$(LINT_FILE): $(addprefix $(DUT_PATH)/,$(BUILD_COLLATERAL))
+	@$(call bsg_fn_declare_log_rpt,$(DUT_TAG))
+	@$(CD) $(DUT_PATH); \
+		$(VERILATOR) $(VV_BUILD_OPTS) $(HDL_PARAMS) $(HDL_DEFINES) 2>&1 | $(TEE) -i $(LOG_FILE)
+	@$(call bsg_fn_sentinal_search,$(LOG_FILE),$(ERR_FILE),"Verilator: Built")
+
+BUILD_FILE ?= $(DUT_PATH)/simsc
+build.verilator: ## builds a simsc
+build.verilator: $(BUILD_FILE)
+$(BUILD_FILE): VV_BUILD_OPTS += --Wno-fatal --Wno-lint --Wno-style -Wno-UNOPTFLAT
+$(BUILD_FILE): VV_BUILD_OPTS += --binary
+$(BUILD_FILE): $(addprefix $(DUT_PATH)/,$(BUILD_COLLATERAL))
+	@$(call bsg_fn_declare_log_rpt,$(DUT_TAG))
+	@$(CD) $(DUT_PATH); \
+		$(VERILATOR) $(VV_BUILD_OPTS) $(HDL_PARAMS) $(HDL_DEFINES) 2>&1 | $(TEE) -i $(LOG_FILE)
+	@$(call bsg_fn_sentinal_search,$(LOG_FILE),$(ERR_FILE),"Verilator: Built")
+
+VV_RUN_OPTS =
+
+DUMP_FILE ?= dump.fst
+ifeq ($(TRACE),1)
+VV_RUN_OPTS += +bsg_trace=$(DUMP_FILE)
+endif
+
+ifeq ($(COVERAGE),1)
+VV_RUN_OPTS += +verilator+coverage+file+coverage.dat
+endif
+
+SIM_FILE ?= $(SIM_PATH)/$(SIM_PROG)
+sim.verilator: ## runs a simulation
+sim.verilator: $(SIM_FILE)
+$(SIM_FILE): $(addprefix $(SIM_PATH)/,$(RUN_COLLATERAL))
+$(SIM_FILE): $(BUILD_FILE)
+	@$(call bsg_fn_declare_log_rpt,$(SIM_TAG))
+	@$(CD) $(SIM_PATH); \
+		$< $(VV_RUN_OPTS) $(HDL_PLUSARGS) 2>&1 | $(TEE) -i $(LOG_FILE)
+	@$(call bsg_fn_fail_search,$(LOG_FILE),$(ERR_FILE))
+	@$(call bsg_fn_pass_search,$(LOG_FILE),$(ERR_FILE))
+	@$(call bsg_fn_sentinal_search,$(LOG_FILE),$(ERR_FILE),"finish called from file")
+	@$(call bsg_fn_stat_search,$(LOG_FILE),$(RPT_FILE))
+
+ENABLE_SURFER ?= $(if $(shell which surfer 2> /dev/null),1,0)
+ifeq ($(ENABLE_SURFER),1)
+VV_WAVE_BIN ?= $(SURFER)
+VV_WAVE_OPTS ?= -f
+else
+VV_WAVE_BIN ?= $(GTKWAVE)
+VV_WAVE_OPTS ?= -f
+endif
+
+wave.verilator: ## opens a waveform
+wave.verilator: $(SIM_PATH)/$(DUMP_FILE)
+	@$(VV_WAVE_BIN) $(VV_WAVE_OPTS) $<
+
+ALL_COVDBS := $(subst $(DUT_PATH)/,,$(wildcard $(DUT_PATH)/*/coverage.dat))
+COVDIR := $(DUT_PATH)/coverage
+merge.verilator: ## merges coverage data into a single directory
+	@$(MKDIR) -p $(COVDIR)
+	@$(CD) $(DUT_PATH); \
+		$(VERILATOR)_coverage --write $(COVDIR)/merged.dat $(ALL_COVDBS); \
+		$(VERILATOR)_coverage --write-info $(COVDIR)/merged.info $(COVDIR)/merged.dat;
+	@$(CD) $(COVDIR); \
+		$(VERILATOR)_coverage --annotate annotated merged.dat; \
+		$(GENHTML) merged.info --output-directory html
+	@$(ECHO) "Coverage report generated in $(DUT_PATH)/coverage/html"
+	@$(ECHO) "View with web browser such as Firefox"
+

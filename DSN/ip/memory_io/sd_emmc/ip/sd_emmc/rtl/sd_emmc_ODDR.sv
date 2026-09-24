@@ -139,7 +139,7 @@ module ODDR_p(
 
   // SAME_EDGE: both D1 and D2 are sampled on the rising edge of clock,
   // internally re-timed so D2 aligns with D1 at the output mux
-  always_ff @(posedge clock) begin
+  always_ff @(posedge clock or posedge reset) begin
     if (reset) begin
       q1_reg <= 8'b0;
       q2_reg <= 8'b0;

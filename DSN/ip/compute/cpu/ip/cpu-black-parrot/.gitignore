@@ -1,0 +1,15 @@
+results/
+logs/
+reports/
+DVEfiles/
+*.tr
+*.pyc
+work/
+install/
+stack.info.*
+*.swp
+.simvision/
+bsg_cadenv/
+obj_dir/
+session.dump.vpd.tcl
+.vscode/

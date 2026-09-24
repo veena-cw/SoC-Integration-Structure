@@ -13,7 +13,7 @@ module sd_crc_16(BITVAL, ENABLE, BITSTRB, CLEAR, CRC);
    always_ff @(posedge BITSTRB or posedge CLEAR) begin
       if (CLEAR) begin
          CRC <= 0;   
-         CRC_REG = 0;                               // Init before calculation
+         CRC_REG <= 0;                               // Init before calculation
          end
       else begin
          if (ENABLE == 1) begin

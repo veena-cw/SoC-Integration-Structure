@@ -156,7 +156,7 @@ module IDDR_p(
     );
 
   // Q1 captures in_ddr on the rising edge of clock
-  always_ff @(posedge clock) begin
+  always_ff @(posedge clock or posedge reset) begin
     if (reset)
       iddr_Q1 <= 8'b0;
     else
@@ -164,7 +164,7 @@ module IDDR_p(
   end
 
   // Q2 captures in_ddr on the falling edge of clock (OPPOSITE_EDGE)
-  always_ff @(negedge clock) begin
+  always_ff @(negedge clock or posedge reset) begin
     if (reset)
       iddr_Q2 <= 8'b0;
     else

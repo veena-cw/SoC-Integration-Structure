@@ -12,7 +12,7 @@ module  sd_emmc_controller_dma (
             input logic blk_gap_req,
 
             // Data serial
-            input logic xfer_compl,oop
+            input logic xfer_compl,
             input logic is_we_en,
             output logic start_write,
             input logic ser_next_blk,
@@ -30,7 +30,7 @@ module  sd_emmc_controller_dma (
             // M_AXI
             output logic m_axi_wvalid,
             input logic m_axi_wready,
-            output logic [0:0] m_axi_awid,
+            output logic  m_axi_awid,//
             output logic [31:0] m_axi_awaddr,
             output logic  m_axi_awlock,
             output logic [3:0] m_axi_awcache,
@@ -54,18 +54,17 @@ module  sd_emmc_controller_dma (
             output logic [2:0] m_axi_awsize,
             output logic [31:0] m_axi_wdata,
             output logic m_axi_wlast,
-            input logic [0:0] m_axi_bid,
+            input logic  m_axi_bid,
             input logic [1:0] m_axi_bresp,
             input logic  m_axi_bvalid,
             output logic m_axi_bready,
-            output logic [0:0] m_axi_arid,
+            output logic  m_axi_arid,
             output logic  m_axi_arlock,
             output logic [3 : 0] m_axi_arcache,
             output logic [2 : 0] m_axi_arprot,
             output logic [3:0] m_axi_arqos,
-            input logic [0:0] m_axi_rid,
-            input logic [1:0] m_axi_rresp
-        );
+            input logic  m_axi_rid,
+            input logic [1:0] m_axi_rresp);
 
 reg [3:0] state;
 reg [16:0] data_cycle;
@@ -242,7 +241,7 @@ localparam [2:0] ST_STOP = 3'b000, //State Stop DMA. ADMA2 stays in this state i
                      end
           CARD2MEM_ACT: begin
                       we_counter_reset <= 1'b1;
-                      case (addr_accepted)/
+                      case (addr_accepted)
                           1'b0: begin 
                                   if (m_axi_awvalid && m_axi_awready) begin
                                     m_axi_awvalid <= 1'b0;
@@ -316,6 +315,7 @@ localparam [2:0] ST_STOP = 3'b000, //State Stop DMA. ADMA2 stays in this state i
                                 fifo_rst <= 1'b1;
                             end
                         end
+            
         endcase
         // abort the state when timeout on data serializer
         if (write_timeout == 2'b11) begin
@@ -475,6 +475,7 @@ localparam [2:0] ST_STOP = 3'b000, //State Stop DMA. ADMA2 stays in this state i
                           rd_dat_words <= descriptor_line[31:16];
                       end
                     end
+            
           endcase
           if (dat_int_rst)
             dma_interrupts <= 0;

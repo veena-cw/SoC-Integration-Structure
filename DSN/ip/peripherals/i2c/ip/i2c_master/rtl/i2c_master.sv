@@ -1,18 +1,3 @@
-//`timescale 1ns / 1ps
-
-//==============================================================
-// i2c_master
-//
-// RESET CONVENTION: ACTIVE LOW (rst_n)
-//   rst_n = 0 -> held in reset
-//   rst_n = 1 -> normal operation
-//
-// All four always_ff blocks below use
-//   @(posedge clk or negedge rst_n) / if (!rst_n)
-//
-// top_fifo drives this with the SYNCHRONIZED i2c domain reset
-// (i2c_rst_n_sync), not the raw pin.
-//==============================================================
 
 module i2c_master (
 
@@ -417,17 +402,11 @@ module i2c_master (
 
                             else begin
 
-                                //----------------------------------
-                                // ACK received
-                                //----------------------------------
-
-                                bit_cnt <= 4'd8;
-
-                                //----------------------------------
-                                // READ
-                                //----------------------------------
+                                
 
                                 if (rw_reg == 1'b1) begin
+
+                                    bit_cnt <= 4'd7;
 
                                     state <= READ_DATA;
 
@@ -438,6 +417,8 @@ module i2c_master (
                                 //----------------------------------
 
                                 else begin
+
+                                    bit_cnt <= 4'd8;
 
                                     shift_reg <= data_in;
 
@@ -514,13 +495,6 @@ module i2c_master (
                 end
 
 
-                //==================================================
-                // READ DATA
-                //
-                // Master releases SDA.
-                // Slave drives SDA.
-                // Master samples SDA.
-                //==================================================
 
                 READ_DATA: begin
 
@@ -547,16 +521,7 @@ module i2c_master (
 
                         else begin
 
-                            //--------------------------------------
-                            // Sample SDA
-                            //
-                            // NOTE: bit_cnt arrives here as 8 (set
-                            // in ACK1), so the first sample targets
-                            // rx_buffer[8] - out of range - and is
-                            // dropped. The slave BFM compensates by
-                            // driving one dummy bit first. See the
-                            // note at the bottom of this file.
-                            //--------------------------------------
+                     
 
                             rx_buffer[bit_cnt] <= i2c_sda;
 
@@ -587,18 +552,7 @@ module i2c_master (
                 end
 
 
-                //==================================================
-                // MASTER ACK / NACK
-                //
-                // WRITE:
-                //     Slave sends ACK/NACK
-                //
-                // READ:
-                //     Master sends NACK after one byte
-                //
-                // For a single-byte read, master releases SDA,
-                // therefore SDA becomes HIGH = NACK.
-                //==================================================
+              
 
                 MASTER_ACK: begin
 

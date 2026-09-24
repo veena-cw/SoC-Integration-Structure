@@ -32,6 +32,13 @@ module bp_nonsynth_dram
    , input [num_dma_p-1:0][dma_data_width_p-1:0]            dma_data_i
    , input [num_dma_p-1:0]                                  dma_data_v_i
    , output logic [num_dma_p-1:0]                           dma_data_yumi_o
+
+   // Testbench boot-image writes. These writes share the same associative
+   // memory as the DMA path, so an NBF loader can initialize instruction/data
+   // memory before the core fetches it.
+   , input                                                  host_mem_write_i
+   , input [63:0]                                           host_mem_addr_i
+   , input [63:0]                                           host_mem_data_i
    );
 
   localparam tag_width_lp = `BSG_SAFE_CLOG2(num_dma_p);
@@ -93,10 +100,13 @@ module bp_nonsynth_dram
      );
 
   localparam mem_size_p = 2**25;
+  localparam longint unsigned alu_results_base_lp = 64'h8000_5000;
   logic [7:0] mem [int];
   logic [(dma_data_width_p>>3)-1:0][7:0] mem_wdata, mem_rdata;
+  logic [dma_data_width_p-1:0] mem_wdata_flat;
   logic [`BSG_SAFE_CLOG2(mem_size_p)-1:0] mem_raddr, mem_waddr;
   logic mem_write, mem_read;
+  assign mem_wdata_flat = mem_wdata;
   wire [dma_addr_width_p-1:0] base_addr = {
       dma_pkt_lo.addr[dma_addr_width_p-1:word_offset_lp+count_width_lp],
       {dma_burst_len_p>1{count_lo}},
@@ -111,10 +121,69 @@ module bp_nonsynth_dram
         $readmemh(mem_file, mem);
       end
 
+  // Preload the UVM-selected NBF image before the processor is released.
+  // The UVM sequence still sends the same writes through the BedRock input,
+  // but preloading prevents an instruction-cache DMA read from observing a
+  // partially streamed image.
+  string nbf_file;
+  initial
+    if ($value$plusargs("NBF_FILE=%s", nbf_file))
+      begin
+        int nbf_fd;
+        string nbf_line;
+        longint unsigned nbf_addr, nbf_data;
+        int nbf_count;
+
+        nbf_fd = $fopen(nbf_file, "r");
+        if (nbf_fd == 0)
+          $fatal(1, "Could not open NBF image for DRAM preload: %s", nbf_file);
+
+        while (!$feof(nbf_fd)) begin
+          if ($fgets(nbf_line, nbf_fd) != 0
+              && $sscanf(nbf_line, "%h %h", nbf_addr, nbf_data) == 2) begin
+            for (int i = 0; i < 8; i++)
+              mem[nbf_addr[$clog2(mem_size_p)-1:0]+i] = nbf_data[8*i +: 8];
+            nbf_count++;
+          end
+        end
+        $fclose(nbf_fd);
+        $display("BSG-INFO: Preloaded %0d NBF beats into DRAM from %s", nbf_count, nbf_file);
+      end
+
   always_ff @(posedge clk_i)
-    for (int i = 0; i < dma_data_width_p/8; i++)
+    begin
+      for (int i = 0; i < dma_data_width_p/8; i++)
         // assoc arrays cannot use nonblocking assignments (IEEE 1800-2023 6.21)
         if (mem_write) mem[mem_waddr+i] = mem_wdata[i];
+
+      // Log result values only when an L2 writeback actually reaches the
+      // backing DRAM model. A normal cached store may not reach this point
+      // until its cache line is evicted.
+      if (mem_write) begin
+        for (int result_idx = 0; result_idx < 25; result_idx++) begin
+          longint unsigned result_addr;
+          int result_byte_offset;
+
+          result_addr = alu_results_base_lp + (result_idx * 8);
+          if ((result_addr >= base_addr)
+              && ((result_addr + 8) <= (base_addr + (dma_data_width_p/8)))) begin
+            result_byte_offset = result_addr - base_addr;
+            $display("DRAM ALU_RESULT slot=%0d addr=%h data=%h time=%0t",
+                     result_idx, result_addr,
+                     mem_wdata_flat[(result_byte_offset*8) +: 64], $time);
+          end
+        end
+      end
+    end
+
+  // Capture UVM clocking-block outputs after the driving posedge. This avoids
+  // the reset-release NBA race that can otherwise lose the first NBF beat.
+  // Repeated captures while valid is held are harmless because the write is
+  // idempotent.
+  always @(negedge clk_i)
+    if (host_mem_write_i)
+      for (int i = 0; i < 8; i++)
+        mem[host_mem_addr_i[$clog2(mem_size_p)-1:0]+i] = host_mem_data_i[8*i +: 8];
 
   always_ff @(posedge clk_i)
     for (int i = 0; i < dma_data_width_p/8; i++)
@@ -146,6 +215,10 @@ module bp_nonsynth_dram
       case (state_r)
         e_ready:
           begin
+            // Start every DMA burst at word zero. Without this clear, the
+            // next request inherits the previous burst index and can return
+            // only a partial cache line.
+            clear_li = dma_pkt_v_lo;
             mem_read = dma_pkt_v_lo & !dma_pkt_lo.write_not_read;
             mem_raddr = base_addr;
 
@@ -188,4 +261,3 @@ module bp_nonsynth_dram
       state_r <= state_n;
 
 endmodule
-

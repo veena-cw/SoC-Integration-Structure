@@ -49,8 +49,8 @@ class nbf_load_seq extends uvm_sequence #(bedrock_txn);
     n_jump = 0;
     n_branch = 0;
 
-    // DRAM is preloaded by bp_nonsynth_dram before reset. Keep an override for
-    // experiments that explicitly want to stream the image through UVM.
+    // The UVM sequence is the sole NBF loader; accepted writes are mirrored
+    // into the DRAM model through the host-memory sideband port.
     preload_only = 1'b1;
     void'($value$plusargs("NBF_PRELOAD_ONLY=%d", preload_only));
 

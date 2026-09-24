@@ -88,15 +88,7 @@ module apb_slave #(
       else if(i2c_done) rxdata_reg <= i_rd_data;
    end
 
-   //==========================================================
-   // Pending-write blockers
-   //   ctrl_valid/tx_valid stay high from the moment a write is
-   //   accepted until i2c_done clears them. While that flag is
-   //   still set for the register the master is currently
-   //   addressing, o_pready must NOT go high for it - otherwise
-   //   a new write silently clobbers a value I2C hasn't
-   //   consumed yet.
-   //==========================================================
+  
    logic ctrl_valid;
    logic tx_valid;
 
@@ -105,47 +97,13 @@ module apb_slave #(
    assign ctrl_write_blocked = (i_paddr[7:0] == CTRL_OFFSET)   && ctrl_valid;
    assign tx_write_blocked   = (i_paddr[7:0] == TXDATA_OFFSET) && tx_valid;
 
-   //==========================================================
-   // APB request decode
-   //   req_wr / req_rd MUST be combinational. APB requires PSEL
-   //   in SETUP (PENABLE=0) and PENABLE to assert in the very
-   //   next cycle for ACCESS, with PREADY evaluated
-   //   combinationally in that same ACCESS cycle. Registering
-   //   req_wr/req_rd delays them by a cycle relative to
-   //   i_penable, desyncing the FSM transition (and o_pready)
-   //   from the actual APB phase - which is what let a new
-   //   transfer start before the previous CTRL/TX write had
-   //   been consumed.
-   //==========================================================
    logic req_rd;
    logic req_wr;
 
    assign req_rd = i_psel && !i_pwrite ;
    assign req_wr = i_psel &&  i_pwrite ;
 
-   //==========================================================
-   // APB ready generation
-   //   NOTE: slverr branch is now gated with i_psel && i_penable.
-   //   Per the APB protocol, PREADY (and PSLVERR) may only be
-   //   asserted during the ACCESS phase of a transfer
-   //   (PSEL=1 && PENABLE=1). Previously "if(slverr) o_pready=1"
-   //   had no such gating, so o_pready could spuriously assert
-   //   while the bus was idle or still in SETUP - a protocol
-   //   violation. Since slverr is only ever meant to be observed
-   //   by the master during an active access anyway, this gating
-   //   changes no real behavior.
-   //
-   //   FIX (read hang): CTRL/STATUS/TXDATA/RXDATA are plain
-   //   registers that are valid on every cycle - they do not
-   //   depend on i_rd_data_valid (that flag only marks a fresh
-   //   I2C byte arriving into rxdata_reg, it is unrelated to the
-   //   APB read handshake). Previously a read only left IDLE when
-   //   i_rd_data_valid happened to be high, so a STATUS/CTRL/
-   //   TXDATA/RXDATA read could stall forever waiting on an I2C
-   //   event that may never come. Added a dedicated read branch
-   //   in IDLE (mirrors the write branch) so any register read
-   //   completes in the same cycle, same as a write.
-   //==========================================================
+   
    
    always_comb begin
 
@@ -226,49 +184,7 @@ module apb_slave #(
     endcase
 
 end
-   /*always_comb begin
-
-      o_pready = 1'b0;
-
-     
-case (state_ff)
-
-    IDLE: begin
-        if (req_wr && i_penable && i_psel && !fifo_full && !i2c_busy &&
-            !ctrl_write_blocked && !tx_write_blocked) begin
-            o_pready = 1'b1;
-        end
-
-        if (i2c_nack && i_psel && i_penable) begin
-            o_pready = 1'b1;
-        end
-    end
-
-    W_ACCESS: begin
-        if (req_wr && i_penable && !fifo_full && !i2c_busy &&
-            !ctrl_write_blocked && !tx_write_blocked) begin
-            o_pready = 1'b1;
-        end
-    end
-    
-
-    R_FINISH: begin
-        o_pready = 1'b1;
-    end
-
-    default: begin
-        o_pready = 1'b0;
-    end
-i_pwdata
-endcase
-   end */
-
-   // CTRL and TX Register Write Logic
-   // Registers are only latched exactly when the APB transfer they
-   // belong to actually completes (o_pready high) - this keeps the
-   // write and the ready signal perfectly in sync, so a new CTRL/TX
-   // value can never land before the previous one has been cleared
-   // by i2c_done (o_pready is held low for that address until then).
+  
    always_ff @(posedge pclk or negedge presetn) begin
       if(!presetn) begin
          ctrl_reg   <= 32'h0000_A000; // Default: slave addr 0x50 in [14:8]
@@ -300,16 +216,6 @@ endcase
       end
    end
 
-   //==========================================================
-   // Single-shot FIFO write pulse
-   //   both_valid stays high (level) for many cycles once CTRL
-   //   and TX are both latched, right up until i2c_done clears
-   //   them. Edge-detecting that level against its own delayed
-   //   copy produces exactly one pulse on the cycle both_valid
-   //   first goes high, regardless of how long it stays high
-   //   afterward - this is what prevents fifo_wr_en from firing
-   //   repeatedly every cycle while ctrl_valid/tx_valid are set.
-   //==========================================================
    logic both_valid, both_valid_d, fifo_wr_pulse;
 
    assign both_valid = (ctrl_valid == 1) && (tx_valid == 1);
@@ -326,28 +232,23 @@ endcase
    assign fifo_wr_data = txdata_reg;
    assign fifo_wr_en   = fifo_wr_pulse & ~fifo_full;
 
-   //==========================================================
-   // PSLVERR generation
-   //   Gated the same way as o_pready's slverr branch: PSLVERR
-   //   is only a valid/meaningful signal during a completed
-   //   ACCESS phase (PSEL && PENABLE && PREADY). Driving it
-   //   whenever the slverr input happens to be high - regardless
-   //   of bus phase - is a protocol violation even though most
-   //   masters only sample PSLVERR at the end of a valid access.
-   //==========================================================
+   
    assign o_pslverr = (i2c_nack && i_psel && i_penable && o_pready) ? 1'b1 : 1'b0;
 
-   always_ff @(posedge pclk or negedge presetn) begin
-      if (!presetn) begin
-         o_prdata <= '0;
-      end
-      else begin
-         if ((state_ff == R_ACCESS) || (state_ff == R_FINISH)) begin
-            o_prdata <= {24'b0, i_rd_data};
-         end
+   always_comb begin
+      o_prdata = '0;
+
+      if (req_rd) begin
+         case (reg_addr)
+            CTRL_OFFSET:   o_prdata = ctrl_reg;
+            STATUS_OFFSET: o_prdata = status_reg;
+            TXDATA_OFFSET: o_prdata = txdata_reg;
+            RXDATA_OFFSET: o_prdata = rxdata_reg;
+            default:       o_prdata = '0;
+         endcase
       end
    end
-   
+
    always_ff @(posedge pclk or negedge presetn) begin
 
       if (!presetn) begin

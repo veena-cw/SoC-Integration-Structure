@@ -781,6 +781,19 @@ class apb_i2c_reg_read_seq extends apb_i2c_ral_base_seq;
     // 1. WAIT UNTIL BUSY = 0
     //========================================================
 
+
+model.RXDATA_REG.read(
+      status,
+      rx_value,
+      UVM_FRONTDOOR
+    );
+      if (status != UVM_IS_OK) begin
+      `uvm_fatal(
+        "I2C_READ",
+        "CTRL_REG write failed"
+      )
+    end
+    
     `uvm_info(
       "I2C_READ",
       "Waiting for BUSY = 0",

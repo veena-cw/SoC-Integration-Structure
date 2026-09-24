@@ -40,5 +40,5 @@
 ../tests/apb_i2c_ral_test.sv
 
 
-..//assertion/i2c_assertions.sv
+../assertion/i2c_assertions.sv
 ../top/test_top.sv

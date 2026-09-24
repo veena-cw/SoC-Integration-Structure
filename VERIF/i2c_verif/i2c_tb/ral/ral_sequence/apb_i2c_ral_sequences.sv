@@ -527,11 +527,11 @@ package apb_i2c_ral_sequences_pkg;
   rand bit        read_write;
   rand bit [31:0] tx_data;
 
-  constraint default_c {
+  /*constraint default_c {
     slave_addr == 7'h50;
     read_write == 1'b0;
-    tx_data    ==    32'h0000_0102;
-  }
+    tx_data[15:8]    == {read_write,slave_addr};
+  }*/
 
 
   function new(string name = "apb_i2c_reg_write_seq");
@@ -559,7 +559,7 @@ package apb_i2c_ral_sequences_pkg;
     //========================================================
     // 1. WAIT UNTIL BUSY = 0
     //========================================================
-/*
+
     `uvm_info("I2C_WRITE",
               "Waiting for BUSY = 0",
               UVM_MEDIUM)
@@ -593,19 +593,18 @@ package apb_i2c_ral_sequences_pkg;
         #100ns;
 
     end while (busy);
-*/
+
 
     //========================================================
     // 2. WRITE CTRL_REG
     //========================================================
 
-	   /* ctrl_value = '0;
+	    ctrl_value = '0;
 
-	    ctrl_value[7:0] = slave_addr;
-	    ctrl_value[8]   = read_write;
-*/
+	    ctrl_value[6:0] = slave_addr;
+	    ctrl_value[7]   = read_write;
 
-     ctrl_value = 32'h0000_0102;
+     //ctrl_value = 32'h0000_0102;
 
 	    `uvm_info(
 	      "I2C_WRITE",
@@ -635,7 +634,7 @@ package apb_i2c_ral_sequences_pkg;
     //========================================================
     // 3. WRITE TXDATA_REG
     //========================================================
-
+   // tx_data = {16'h0000,read_write,slave_addr,tx_data[7:0]};
     `uvm_info(
       "I2C_WRITE",
       $sformatf(
@@ -648,7 +647,7 @@ package apb_i2c_ral_sequences_pkg;
 
     model.TXDATA_REG.write(
       status,
-      32'h0000_0102,
+      tx_data,
       UVM_FRONTDOOR
     );
 
@@ -664,7 +663,7 @@ package apb_i2c_ral_sequences_pkg;
     //========================================================
     // 4. WAIT UNTIL DONE = 1
     //========================================================
-/*
+
     `uvm_info(
       "I2C_WRITE",
       "Waiting for DONE = 1",
@@ -731,7 +730,7 @@ package apb_i2c_ral_sequences_pkg;
         UVM_MEDIUM
       )
     end
-*/
+
   endtask
 
 endclass
@@ -742,14 +741,15 @@ class apb_i2c_reg_read_seq extends apb_i2c_ral_base_seq;
 
   rand bit [6:0] slave_addr;
   rand bit       read_write;
-
+  rand bit [31:0] tx_data;
   bit [7:0] rx_data;
 
-
+/*
   constraint default_c {
-    slave_addr == 7'h50;
+    slave_addr == 7'h55;
     read_write == 1'b1;
-  }
+    tx_data[15:8] == {read_write,slave_addr};
+  }*/
 
 
   function new(string name = "apb_i2c_reg_read_seq");
@@ -858,14 +858,10 @@ model.RXDATA_REG.read(
       UVM_MEDIUM
     )
 
- model.STATUS_REG.read(
-        status,
-        status_value,
-        UVM_FRONTDOOR
-      );
+
     model.CTRL_REG.write(
       status,
-      32'h0000_8102,
+     ctrl_value,
       UVM_FRONTDOOR
     );
 
@@ -876,45 +872,39 @@ model.RXDATA_REG.read(
         "CTRL_REG write failed"
       )
     end
-     model.RXDATA_REG.read(
+     
+     //========================================================
+    // 3. WRITE TXDATA_REG
+    //========================================================
+   // tx_data = {16'h0000,read_write,slave_addr,8'h00};
+    `uvm_info(
+      "I2C_WRITE",
+      $sformatf(
+        "TXDATA_REG <= 0x%08h",
+        tx_data
+      ),
+      UVM_MEDIUM
+    )
+
+
+    model.TXDATA_REG.write(
       status,
-      rx_value,
+      tx_data,
       UVM_FRONTDOOR
     );
-      if (status != UVM_IS_OK) begin
+
+
+    if (status != UVM_IS_OK) begin
       `uvm_fatal(
-        "I2C_READ",
-        "CTRL_REG write failed"
+        "I2C_WRITE",
+        "TXDATA_REG write failed"
       )
     end
     
-    model.CTRL_REG.read(
-      status,
-      rx_value,
-      UVM_FRONTDOOR
-    );
 
 
-    if (status != UVM_IS_OK) begin
-      `uvm_fatal(
-        "I2C_READ",
-        "CTRL_REG write failed"
-      )
-    end
-
- model.TXDATA_REG.write(
-      status,
-       32'h0000_8102,
-      UVM_FRONTDOOR
-    );
-if (status != UVM_IS_OK) begin
-      `uvm_fatal(
-        "I2C_READ",
-        "CTRL_REG write failed"
-      )
-    end
     //========================================================
-    // 3. WAIT UNTIL DONE = 1
+    // 4. WAIT UNTIL DONE = 1
     //========================================================
 
     `uvm_info(
@@ -980,7 +970,7 @@ if (status != UVM_IS_OK) begin
 
 
     //========================================================
-    // 4. READ RXDATA_REG
+    // 5. READ RXDATA_REG
     //========================================================
 
     model.RXDATA_REG.read(

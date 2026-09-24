@@ -324,7 +324,7 @@ begin
                              i,
                              vif.i2c_sda);
       	
-    	vif.sda_drive_low = ~slv_data_rcv[i];
+    	vif.sda_drive_low = ~vif.temp_reg[i];
 
   i--; 
    end  
@@ -384,6 +384,7 @@ $display("---------------[%0t]---ACK sent----------",$time);
  
  bit scl_pos_edge = 1'b0;
  bit m_data_recvd =0;
+ vif.sda_drive_low = 0;
  repeat(1) begin
  scl_last = vif.i2c_scl;
 while(!scl_pos_edge)
@@ -412,7 +413,7 @@ task  wait_for_stop();
 
 stop_detected = 1'b0;
  scl_last = vif.i2c_scl;
- //sda_last = vif.i2c_sda;
+ sda_last = vif.i2c_sda;
  $display("[%0t]-------wating for stop---------------",$time);
  
 while(!stop_detected)

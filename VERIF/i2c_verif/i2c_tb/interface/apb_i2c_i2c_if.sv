@@ -36,4 +36,9 @@ logic done;
 
 
 // assertion 
+
+
+// SDA pullup/pulldown
+
+ assign i2c_sda = sda_drive_low ? 1'b0 : 1'bz;
 endinterface 

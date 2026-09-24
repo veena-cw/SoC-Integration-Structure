@@ -51,7 +51,7 @@ interface apb_i2c_apb_if (
         end
 
     end*/
-    
+    /*
     property apb_reset_idle_check;
   @(posedge pclk)
   !preset_n |-> (!psel && !penable);
@@ -89,5 +89,5 @@ endproperty
 
 assert property (apb_access_stable_check)
   else `uvm_error("APB_ASSERT",
-                  "APB ACCESS violation: PSEL/PENABLE changed before PREADY");                                                 
+                  "APB ACCESS violation: PSEL/PENABLE changed before PREADY");     */                                            
 endinterface

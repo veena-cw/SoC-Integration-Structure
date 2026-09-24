@@ -72,6 +72,7 @@ module i2c_assertions (
     endproperty
 
     assert property (i2c_stop_check)
+    $display("assertion - stop detected");
         else $error("[%0t] Invalid I2C STOP condition", $time);
 
     cover property (i2c_stop_check);
@@ -106,7 +107,7 @@ module i2c_assertions (
     // [7:1] = slave address
     // [0]   = R/W
     //========================================================
-/*
+
     property i2c_address_check(bit [7:0] expected_address);
 
         bit [7:0] captured_address;
@@ -129,7 +130,7 @@ module i2c_assertions (
 
     endproperty
 
-    assert property (i2c_address_check(8'h02))
+    assert property (i2c_address_check(8'h055))
         else
             $warning("[%0t] I2C ADDRESS CHECK FAILED: expected=%h",
                      $time, 8'h02);
@@ -222,7 +223,7 @@ module i2c_assertions (
 
     endproperty
 
-    assert property (i2c_write_data_check(8'h55))
+    assert property (i2c_write_data_check(8'ha5))
         else
             $error("[%0t] I2C WRITE DATA mismatch. Expected=55",
                    $time);
@@ -249,5 +250,5 @@ module i2c_assertions (
     assert property (data_ack)
         else
             $warning("[%0t] Data ACK failed", $time);
-*/
+
 endmodule

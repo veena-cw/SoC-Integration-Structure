@@ -1,7 +1,4 @@
-
-
- 
-module i2c_master (
+ module i2c_master (
 
     input  logic       clk,
 

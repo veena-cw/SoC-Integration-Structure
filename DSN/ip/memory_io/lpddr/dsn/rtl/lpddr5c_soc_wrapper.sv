@@ -3,7 +3,7 @@ module lpddr5c_soc_wrapper #(
     parameter DATA_WIDTH     = 128,
     parameter ID_WIDTH       = 4,
     parameter DFI_DATA_WIDTH = 64,
-    parameter NUM_CHANNELS   = 2
+    parameter NUM_CHANNELS   = 1
 )(
     //============================================================
     // AXI Clock / Reset - 400 MHz

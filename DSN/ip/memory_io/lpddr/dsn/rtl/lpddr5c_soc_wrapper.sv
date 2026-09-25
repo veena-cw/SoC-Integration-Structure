@@ -73,6 +73,7 @@ module lpddr5c_soc_wrapper #(
     output wire [DFI_DATA_WIDTH*NUM_CHANNELS-1:0] dfi_cke,
     output wire [DFI_DATA_WIDTH*NUM_CHANNELS-1:0] dfi_ca,
     output wire dfi_rw,
+     output wire [ADDR_WIDTH-1:0]        dfi_addr,
 
     input wire [DFI_DATA_WIDTH*NUM_CHANNELS-1:0] dfi_rddata,
     input wire dfi_rddata_valid,
@@ -179,6 +180,7 @@ module lpddr5c_soc_wrapper #(
         .dfi_cke       (dfi_cke),
         .dfi_ca        (dfi_ca),
         .dfi_rw        (dfi_rw),
+        .dfi_addr      (dfi_addr),
         .dfi_rddata    (dfi_rddata),
         .dfi_rddata_valid(dfi_rddata_valid),
         .dfi_wrdata    (dfi_wrdata),

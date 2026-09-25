@@ -1,989 +1,773 @@
 
 
 //============================================================================
-// Testbench: tb_lpddr5c_top
-// Description: LPDDR5 Controller Top Level Testbench
+// Module: lpddr5c_top
+// Description: LPDDR5 Controller Top Level
 // Features:
-//   - AXI4-Lite VIP for register configuration
-//   - AXI4 VIP for data traffic
-//   - DFI 5.0 PHY model
-//   - LPDDR5 DRAM memory model
-//   - Directed and random test sequences
+//   - Dual Channel LPDDR5 Support (up to 6400 Mbps)
+//   - DFI 5.0 Compliant Interface
+//   - Command Scheduling with QoS
+//   - Low Power Management (PD/SR/DS)
+//   - ECC and Parity Support
+//   - Training Support (CA/Read/Write)
 //============================================================================
 
 `timescale 1ns/1ps
 
-module tb_lpddr5c_top;
+module lpddr5c_top #(
+    parameter ADDR_WIDTH        = 32,
+    parameter DATA_WIDTH        = 128,
+    parameter ID_WIDTH          = 4,
+    parameter DFI_DATA_WIDTH    = 64,
+    parameter NUM_CHANNELS      = 1,
+    parameter NUM_RANKS         = 1,
+    parameter NUM_BANKS         = 8,
+    parameter NUM_BANK_GROUPS   = 2,
+    parameter ROW_WIDTH         = 16,
+    parameter COL_WIDTH         = 10,
+    parameter DQ_WIDTH          = 16,
+    parameter DQS_WIDTH         = 2,
+    parameter CA_WIDTH          = 6,
+    parameter CS_WIDTH          = 1,
+    parameter CKE_WIDTH         = 1,
+    parameter CK_WIDTH          = 1,
+    parameter TIMING_TCK        = 10,
+    parameter REFRESH_INTERVAL  = 3900,
+    parameter ECC_ENABLE        = 0,
+    parameter PARITY_ENABLE     = 1
+) (
+    //========================================================================
+    // System Interface
+    //========================================================================
+    input wire sys_clk,
+    input wire sys_rst_n,
 
     //========================================================================
-    // Parameters
-    //========================================================================
-    parameter CLK_PERIOD        = 2.5;       // 400MHz
-    parameter PHY_CLK_PERIOD    = 1.25;        // 800MHz (for PHY)
-    parameter ADDR_WIDTH        = 32;
-    parameter DATA_WIDTH        = 128;      // 128-bit AXI
-    parameter ID_WIDTH          = 4;        // AXI4 ID width
-    parameter DFI_DATA_WIDTH    = 64;
-    parameter NUM_CHANNELS      = 1;
-    parameter TEST_DURATION     = 100000;
-
-    //========================================================================
-    // Clock & Reset
-    //========================================================================
-    reg                                 sys_clk;
-    reg                                 sys_rst_n;
-    reg                                 phy_clk;
-    reg                                 phy_rst_n;
-
-    //========================================================================
-    // DUT Signals - APB Register Configuration
-    //========================================================================
-    reg                                 pclk;
-    reg                                 preset_n;
-    reg                                 psel;
-    reg                                 penable;
-    reg                                 pwrite;
-    reg  [15:0]                         paddr;
-    reg  [31:0]                         pwdata;
-    wire [31:0]                         prdata;
-    wire                                pready;
-    wire                                pslverr;
-
-    //========================================================================
-    // DUT Signals - FULL AXI4 DATA INTERFACE
+    // AXI4 Slave Interface - SoC / NoC
     //========================================================================
 
     //------------------------------------------------------------------------
     // AXI4 Write Address Channel
     //------------------------------------------------------------------------
-    reg  [ID_WIDTH-1:0]                 axi_awid;
-    reg                                 axi_awvalid;
-    wire                                axi_awready;
-    reg  [ADDR_WIDTH-1:0]               axi_awaddr;
-    reg  [7:0]                          axi_awlen;
-    reg  [2:0]                          axi_awsize;
-    reg  [1:0]                          axi_awburst;
-    reg                                 axi_awlock;
-    reg  [3:0]                          axi_awcache;
-    reg  [2:0]                          axi_awprot;
-    reg  [3:0]                          axi_awqos;
+    input  wire [ID_WIDTH-1:0]          s_axi_awid,
+    input  wire [ADDR_WIDTH-1:0]        s_axi_awaddr,
+    input  wire [7:0]                   s_axi_awlen,
+    input  wire [2:0]                   s_axi_awsize,
+    input  wire [1:0]                   s_axi_awburst,
+    input  wire                         s_axi_awlock,
+    input  wire [3:0]                   s_axi_awcache,
+    input  wire [2:0]                   s_axi_awprot,
+    input  wire [3:0]                   s_axi_awqos,
+    input  wire                         s_axi_awvalid,
+    output wire                         s_axi_awready,
 
     //------------------------------------------------------------------------
     // AXI4 Write Data Channel
     //------------------------------------------------------------------------
-    reg                                 axi_wvalid;
-    wire                                axi_wready;
-    reg  [DATA_WIDTH-1:0]               axi_wdata;
-    reg  [DATA_WIDTH/8-1:0]             axi_wstrb;
-    reg                                 axi_wlast;
+    input  wire [DATA_WIDTH-1:0]        s_axi_wdata,
+    input  wire [DATA_WIDTH/8-1:0]      s_axi_wstrb,
+    input  wire                         s_axi_wlast,
+    input  wire                         s_axi_wvalid,
+    output wire                         s_axi_wready,
 
     //------------------------------------------------------------------------
     // AXI4 Write Response Channel
     //------------------------------------------------------------------------
-    wire [ID_WIDTH-1:0]                 axi_bid;
-    wire                                axi_bvalid;
-    reg                                 axi_bready;
-    wire [1:0]                          axi_bresp;
+    output wire [ID_WIDTH-1:0]          s_axi_bid,
+    output wire [1:0]                   s_axi_bresp,
+    output wire                         s_axi_bvalid,
+    input  wire                         s_axi_bready,
 
     //------------------------------------------------------------------------
     // AXI4 Read Address Channel
     //------------------------------------------------------------------------
-    reg  [ID_WIDTH-1:0]                 axi_arid;
-    reg                                 axi_arvalid;
-    wire                                axi_arready;
-    reg  [ADDR_WIDTH-1:0]               axi_araddr;
-    reg  [7:0]                          axi_arlen;
-    reg  [2:0]                          axi_arsize;
-    reg  [1:0]                          axi_arburst;
-    reg                                 axi_arlock;
-    reg  [3:0]                          axi_arcache;
-    reg  [2:0]                          axi_arprot;
-    reg  [3:0]                          axi_arqos;
+    input  wire [ID_WIDTH-1:0]          s_axi_arid,
+    input  wire [ADDR_WIDTH-1:0]        s_axi_araddr,
+    input  wire [7:0]                   s_axi_arlen,
+    input  wire [2:0]                   s_axi_arsize,
+    input  wire [1:0]                   s_axi_arburst,
+    input  wire                         s_axi_arlock,
+    input  wire [3:0]                   s_axi_arcache,
+    input  wire [2:0]                   s_axi_arprot,
+    input  wire [3:0]                   s_axi_arqos,
+    input  wire                         s_axi_arvalid,
+    output wire                         s_axi_arready,
 
     //------------------------------------------------------------------------
     // AXI4 Read Data Channel
     //------------------------------------------------------------------------
-    wire [ID_WIDTH-1:0]                 axi_rid;
-    wire                                axi_rvalid;
-    reg                                 axi_rready;
-    wire [DATA_WIDTH-1:0]               axi_rdata;
-    wire [1:0]                          axi_rresp;
-    wire                                axi_rlast;
-
+    output wire [ID_WIDTH-1:0]          s_axi_rid,
+    output wire [DATA_WIDTH-1:0]        s_axi_rdata,
+    output wire [1:0]                   s_axi_rresp,
+    output wire                         s_axi_rlast,
+    output wire                         s_axi_rvalid,
+    input  wire                         s_axi_rready,
     //========================================================================
-    // DUT Signals - DFI Interface
+    // DFI 5.0 Interface to PHY
     //========================================================================
-    wire                                dfi_clk;
-    wire                                dfi_rst_n;
-
-    wire [NUM_CHANNELS-1:0]             dfi_cs_n;
-    wire [NUM_CHANNELS-1:0]             dfi_cke;
-    wire [5:0]                          dfi_ca;
-    wire                                dfi_rw;
-
-    wire [DFI_DATA_WIDTH*NUM_CHANNELS-1:0]
-                                        dfi_rddata;
-
-    wire                                dfi_rddata_valid;
-
-    wire [DFI_DATA_WIDTH*NUM_CHANNELS-1:0]
-                                        dfi_wrdata;
-
-    wire [DFI_DATA_WIDTH/8*NUM_CHANNELS-1:0]
-                                        dfi_wrdata_mask;
-
-    wire                                dfi_wrdata_en;
-
-    wire                                dfi_phymstr_req;
-    wire                                dfi_phymstr_ack;
-    wire                                dfi_phymstr_cs;
-
-    wire                                dfi_rdlvl_req;
-    wire                                dfi_rdlvl_en;
-
-    wire                                dfi_wrlvl_req;
-    wire                                dfi_wrlvl_en;
-
+    output wire                         dfi_clk,
+    output wire                         dfi_rst_n,
+    
+    // Command Interface
+    output wire [CS_WIDTH*NUM_CHANNELS-1:0]    dfi_cs_n,
+    output wire [CKE_WIDTH*NUM_CHANNELS-1:0]   dfi_cke,
+    output wire [CA_WIDTH*NUM_CHANNELS-1:0]    dfi_ca,
+    output wire                                  dfi_rw,
+    output wire [ADDR_WIDTH-1:0]        dfi_addr,
+    
+    // Data Interface
+    input  wire [DFI_DATA_WIDTH*NUM_CHANNELS-1:0]   dfi_rddata,
+    input  wire                                     dfi_rddata_valid,
+    output wire [DFI_DATA_WIDTH*NUM_CHANNELS-1:0]   dfi_wrdata,
+    output wire [DFI_DATA_WIDTH/8*NUM_CHANNELS-1:0] dfi_wrdata_mask,
+    output wire                                     dfi_wrdata_en,
+    
+    // Training Interface
+    input  wire                         dfi_phymstr_req,
+    output wire                         dfi_phymstr_ack,
+    output wire                         dfi_phymstr_cs,
+    input  wire                         dfi_rdlvl_req,
+    output wire                         dfi_rdlvl_en,
+    input  wire                         dfi_wrlvl_req,
+    output wire                         dfi_wrlvl_en,
+    
     //========================================================================
-    // DUT Signals - Interrupts
+    // Register Configuration Interface (APB)
     //========================================================================
-    wire                                intr_init_done;
-    wire                                intr_refresh_err;
-    wire                                intr_ecc_err;
-    wire                                intr_training_err;
-    wire                                intr_parity_err;
+    input  wire                         pclk,
+    input  wire                         preset_n,
+    input  wire                         psel,
+    input  wire                         penable,
+    input  wire                         pwrite,
+    input  wire [15:0]                  paddr,
+    input  wire [31:0]                    pwdata,
+    output wire [31:0]                    prdata,
+    output wire                         pready,
+    output wire                         pslverr,
+    
+    //========================================================================
+    // Interrupts
+    //========================================================================
+    output wire                         intr_init_done,
+    output wire                         intr_refresh_err,
+    output wire                         intr_ecc_err,
+    output wire                         intr_training_err,
+    output wire                         intr_parity_err,
+    
+    //========================================================================
+    // Debug
+    //========================================================================
+    output wire [31:0]                  debug_bus
+);
 
     //========================================================================
     // Internal Signals
     //========================================================================
-    integer                             test_passed;
-    integer                             test_failed;
+    
+    // Clock domains
+    wire                                clk;
+    wire                                rst_n;
+    wire                                phy_clk;
+    
+    // Command scheduler signals
+logic [ADDR_WIDTH-1:0] cmd_addr;
+logic [3:0]            cmd_type;
+logic                  cmd_valid;
+wire                   cmd_ready;
+logic [7:0]             cmd_id;
 
-    reg [31:0]                          test_data [0:1023];
-    reg [31:0]                          expected_data [0:1023];
 
-    integer                             error_count;
-    reg                                 test_complete;
 
-    //========================================================================
-    // DUT Instantiation
-    //========================================================================
-    lpddr5c_top #(
-        .ADDR_WIDTH         (ADDR_WIDTH),
-        .DATA_WIDTH         (DATA_WIDTH),
-        .ID_WIDTH           (ID_WIDTH),
-        .DFI_DATA_WIDTH     (DFI_DATA_WIDTH),
-        .NUM_CHANNELS       (NUM_CHANNELS)
-    ) u_dut (
+// AXI4 command capture
+logic                  aw_pending;
+logic [ADDR_WIDTH-1:0] awaddr_q;
+logic [ID_WIDTH-1:0]   awid_q;
 
-        .sys_clk            (sys_clk),
-        .sys_rst_n          (sys_rst_n),
+logic                  ar_pending;
+logic [ADDR_WIDTH-1:0] araddr_q;
+logic [ID_WIDTH-1:0]   arid_q;
 
-        //====================================================================
-        // AXI4 Write Address Channel
-        //====================================================================
-        .s_axi_awid         (axi_awid),
-        .s_axi_awaddr       (axi_awaddr),
-        .s_axi_awlen        (axi_awlen),
-        .s_axi_awsize       (axi_awsize),
-        .s_axi_awburst      (axi_awburst),
 
-        // Unused AXI4 attributes
-        .s_axi_awlock       (axi_awlock),
-        .s_axi_awcache      (axi_awcache),
-        .s_axi_awprot       (axi_awprot),
-        .s_axi_awqos        (axi_awqos),
+logic [ID_WIDTH-1:0]   bid_q;
+logic [1:0]            bresp_q;
+logic                  bvalid_q;
 
-        .s_axi_awvalid      (axi_awvalid),
-        .s_axi_awready      (axi_awready),
+//========================================================================
+// AXI4 Write Response FSM
+//========================================================================
+typedef enum logic [1:0] {
+    WR_IDLE      = 2'b00,
+    WR_WAIT_WDATA= 2'b01,
+    WR_WRITE_CMD = 2'b10,
+    WR_BRESP     = 2'b11
+} wr_state_t;
 
-        //====================================================================
-        // AXI4 Write Data Channel
-        //====================================================================
-        .s_axi_wvalid       (axi_wvalid),
-        .s_axi_wready       (axi_wready),
-        .s_axi_wdata        (axi_wdata),
-        .s_axi_wstrb        (axi_wstrb),
-        .s_axi_wlast        (axi_wlast),
+wr_state_t wr_state;
 
-        //====================================================================
-        // AXI4 Write Response Channel
-        //====================================================================
-        .s_axi_bid         (axi_bid),
-        .s_axi_bvalid      (axi_bvalid),
-        .s_axi_bready      (axi_bready),
-        .s_axi_bresp       (axi_bresp),
+logic [7:0] awlen_q;
 
-        //====================================================================
-        // AXI4 Read Address Channel
-        //====================================================================
-        .s_axi_arid         (axi_arid),
-        .s_axi_araddr       (axi_araddr),
-        .s_axi_arlen        (axi_arlen),
-        .s_axi_arsize       (axi_arsize),
-        .s_axi_arburst      (axi_arburst),
-
-        // Unused AXI4 attributes
-        .s_axi_arlock       (axi_arlock),
-        .s_axi_arcache      (axi_arcache),
-        .s_axi_arprot       (axi_arprot),
-        .s_axi_arqos        (axi_arqos),
-
-        .s_axi_arvalid      (axi_arvalid),
-        .s_axi_arready      (axi_arready),
-
-        //====================================================================
-        // AXI4 Read Data Channel
-        //====================================================================
-        .s_axi_rid          (axi_rid),
-        .s_axi_rvalid       (axi_rvalid),
-        .s_axi_rready       (axi_rready),
-        .s_axi_rdata        (axi_rdata),
-        .s_axi_rresp        (axi_rresp),
-        .s_axi_rlast        (axi_rlast),
-
-        //====================================================================
-        // DFI Interface
-        //====================================================================
-        .dfi_clk            (dfi_clk),
-        .dfi_rst_n          (dfi_rst_n),
-
-        .dfi_cs_n           (dfi_cs_n),
-        .dfi_cke           (dfi_cke),
-        .dfi_ca             (dfi_ca),
-        .dfi_rw             (dfi_rw),
-
-        .dfi_rddata         (dfi_rddata),
-        .dfi_rddata_valid   (dfi_rddata_valid),
-
-        .dfi_wrdata         (dfi_wrdata),
-        .dfi_wrdata_mask    (dfi_wrdata_mask),
-        .dfi_wrdata_en      (dfi_wrdata_en),
-
-        // Training Interface
-        .dfi_phymstr_req    (dfi_phymstr_req),
-        .dfi_phymstr_ack    (dfi_phymstr_ack),
-        .dfi_phymstr_cs     (dfi_phymstr_cs),
-
-        .dfi_rdlvl_req      (dfi_rdlvl_req),
-        .dfi_rdlvl_en       (dfi_rdlvl_en),
-
-        .dfi_wrlvl_req      (dfi_wrlvl_req),
-        .dfi_wrlvl_en       (dfi_wrlvl_en),
-
-        //====================================================================
-        // APB Interface
-        //====================================================================
-        .pclk               (pclk),
-        .preset_n           (preset_n),
-        .psel               (psel),
-        .penable            (penable),
-        .pwrite             (pwrite),
-        .paddr              (paddr),
-        .pwdata             (pwdata),
-        .prdata             (prdata),
-        .pready             (pready),
-        .pslverr            (pslverr),
-
-        //====================================================================
-        // Interrupts
-        //====================================================================
-        .intr_init_done     (intr_init_done),
-        .intr_refresh_err   (intr_refresh_err),
-        .intr_ecc_err       (intr_ecc_err),
-        .intr_training_err  (intr_training_err),
-        .intr_parity_err    (intr_parity_err)
-    );
+    
+    // Bank state tracking
+    wire [NUM_CHANNELS-1:0]             bank_active [0:NUM_BANKS-1];
+    wire [NUM_CHANNELS-1:0]             row_open;
+    wire [ROW_WIDTH-1:0]                open_row [0:NUM_CHANNELS-1];
+    
+    // Timing tracking
+    wire [15:0]                         timing_counter [0:15];
+    wire                                timing_met [0:15];
+    
+    // Data path signals
+    wire [DATA_WIDTH-1:0]               rd_data_fifo [0:7];
+    wire [DATA_WIDTH-1:0]               wr_data_fifo [0:7];
+    wire [2:0]                          rd_fifo_wptr, rd_fifo_rptr;
+    wire [2:0]                          wr_fifo_wptr, wr_fifo_rptr;
+    wire                                rd_fifo_empty, rd_fifo_full;
+    wire                                wr_fifo_empty, wr_fifo_full;
+    
+    // ECC signals
+    wire [DATA_WIDTH+7:0]               ecc_encoded_data;
+    wire [DATA_WIDTH-1:0]               ecc_decoded_data;
+    wire [7:0]                            ecc_syndrome;
+    wire                                  ecc_err_detected;
+    wire                                  ecc_err_corrected;
+    
+    // Training signals
+    wire [7:0]                            ca_training_result [0:NUM_CHANNELS-1];
+    wire [7:0]                            rd_gate_training_result [0:NUM_CHANNELS-1];
+    wire [7:0]                            rd_dq_training_result [0:NUM_CHANNELS-1][0:15];
+    wire [7:0]                            wr_dq_training_result [0:NUM_CHANNELS-1][0:15];
+    wire                                  training_done;
+    wire                                  training_error;
+    
+    // Low power signals
+    wire                                  lp_req_pd;
+    wire                                  lp_req_sr;
+    wire                                  lp_req_ds;
+    wire                                  lp_ack;
+    wire                                  lp_state [0:3];
+    
+    // Refresh signals
+    wire [15:0]                           refresh_counter;
+    wire                                  refresh_pending;
+    wire                                  refresh_urgent;
+    wire [7:0]                            refresh_row_addr;
+    
+    // Configuration registers
+    wire [31:0]                           reg_ctrl0;
+    wire [31:0]                           reg_ctrl1;
+    wire [31:0]                           reg_ctrl2;
+    wire [31:0]                           reg_ctrl3;
+    wire [31:0]                           reg_timing0;
+    wire [31:0]                           reg_timing1;
+    wire [31:0]                           reg_status;
+    wire [31:0]                           reg_ecc_cfg;
+    wire [31:0]                           reg_lp_cfg;
+    
+    // Interrupt aggregation
+    wire                                  intr_status [0:7];
+    wire                                  intr_mask [0:7];
+    wire                                  intr_raw;
+    wire                                  intr_final;
+    
+    // Debug signals
+    wire [31:0]                           debug_cmd_cnt;
+    wire [31:0]                           debug_rd_cnt;
+    wire [31:0]                           debug_wr_cnt;
+    wire [31:0]                           debug_err_cnt;
     
     //========================================================================
-    // Clock Generation
-    //========================================================================
-    initial begin
-        sys_clk = 0;
-        forever #(CLK_PERIOD/2) sys_clk = ~sys_clk;
-    end
-    
-    initial begin
-        phy_clk = 0;
-        forever #(PHY_CLK_PERIOD/2) phy_clk = ~phy_clk;
-    end
-    
-    assign pclk = sys_clk;
-    assign dfi_clk = phy_clk;
-    
-    //========================================================================
-    // Reset Generation
-    //========================================================================
-    initial begin
-        sys_rst_n = 0;
-        phy_rst_n = 0;
-        preset_n = 0;
-        
-        #(CLK_PERIOD * 10);
-        sys_rst_n = 1;
-        phy_rst_n = 1;
-        preset_n = 1;
-    end
-    
-    assign dfi_rst_n = phy_rst_n;
-    
-    //========================================================================
-    // Simple PHY Model (Simplified)
-    //========================================================================
-    // In real testbench, use a proper DFI PHY VIP
-    reg [DFI_DATA_WIDTH*NUM_CHANNELS-1:0] phy_mem [0:1023];
-    reg [9:0]                           phy_addr_counter;
-    
-    initial begin
-        phy_addr_counter = 0;
-        for (int i = 0; i < 1024; i++) begin
-            phy_mem[i] = $random;
-        end
-    end
-    
-    // Simplified read data response
-    assign dfi_rddata_valid = (dfi_cs_n != 2'b11);
-    assign dfi_rddata = phy_mem[phy_addr_counter];
-    
-    always @(posedge dfi_clk or negedge dfi_rst_n) begin
-        if (!dfi_rst_n) begin
-            phy_addr_counter <= 0;
-        end else begin
-            if (dfi_cs_n != 2'b11) begin
-                phy_addr_counter <= phy_addr_counter + 1;
-            end
-        end
-    end
-    
-    //========================================================================
-    // Test Tasks
+    // Clock and Reset Generation
     //========================================================================
     
-    task apb_write;
-        input [15:0] addr;
-        input [31:0] data;
-        begin
-            @(posedge pclk);
-            psel = 1;
-            penable = 0;
-            pwrite = 1;
-            paddr = addr;
-            pwdata = data;
-            
-            @(posedge pclk);
-            penable = 1;
-            
-            @(posedge pclk);
-            while (!pready) @(posedge pclk);
-            
-            psel = 0;
-            penable = 0;
-            $display("[APB] Write: addr=0x%0h, data=0x%0h", addr, data);
-        end
-    endtask
+    assign clk = sys_clk;
+    assign rst_n = sys_rst_n;
+    assign phy_clk = dfi_clk;
     
-    task apb_read;
-        input [15:0] addr;
-        output [31:0] data;
-        begin
-            @(posedge pclk);
-            psel = 1;
-            penable = 0;
-            pwrite = 0;
-            paddr = addr;
-            
-            @(posedge pclk);
-            penable = 1;
-            
-            @(posedge pclk);
-            while (!pready) @(posedge pclk);
-            
-            data = prdata;
-            psel = 0;
-            penable = 0;
-            $display("[APB] Read:  addr=0x%0h, data=0x%0h", addr, data);
-        end
-    endtask
     
-    task axi_write;
-        input [ADDR_WIDTH-1:0] addr;
-        input [7:0] len;
-        begin
-            // Write Address
-            @(posedge sys_clk);
-            axi_awvalid = 1;
-            axi_awaddr = addr;
-            axi_awlen = len;
-            axi_awsize = 3'b100;  // 16 bytes (128 bits)
-            axi_awburst = 2'b01;  // INCR
-            
-            @(posedge sys_clk);
-            while (!axi_awready) @(posedge sys_clk);
-            axi_awvalid = 0;
-            
-            // Write Data
-            for (int i = 0; i <= len; i++) begin
-                @(posedge sys_clk);
-                axi_wvalid = 1;
-                axi_wdata = $random;
-                axi_wstrb = {DATA_WIDTH/8{1'b1}};
-                axi_wlast = (i == len);
-                test_data[i] = axi_wdata;
-                
-                @(posedge sys_clk);
-                while (!axi_wready) @(posedge sys_clk);
-            end
-            axi_wvalid = 0;
-            axi_wlast = 0;
-            
-            // Write Response
-            @(posedge sys_clk);
-            axi_bready = 1;
-            while (!axi_bvalid) @(posedge sys_clk);
-            
-            $display("[AXI] Write complete: addr=0x%0h, len=%0d", addr, len);
-        end
-    endtask
+
+assign s_axi_awlen   = 8'b00000000; 
+assign s_axi_awsize  = 3'b000;
+assign s_axi_awburst = 2'b00;
+assign s_axi_arlen   = 8'b00000000; 
+assign s_axi_arsize  = 3'b000; 
+assign s_axi_arburst = 2'b00;
     
-    task axi_read;
-        input [ADDR_WIDTH-1:0] addr;
-        input [7:0] len;
-        begin
-            // Read Address
-            @(posedge sys_clk);
-            axi_arvalid = 1;
-            axi_araddr = addr;
-            axi_arlen = len;
-            axi_arsize = 3'b100;
-            axi_arburst = 2'b01;
-            
-            @(posedge sys_clk);
-            while (!axi_arready) @(posedge sys_clk);
-            axi_arvalid = 0;
-            
-            // Read Data
-            axi_rready = 1;
-            for (int i = 0; i <= len; i++) begin
-                @(posedge sys_clk);
-                while (!axi_rvalid) @(posedge sys_clk);
-                
-                expected_data[i] = axi_rdata;
-                if (axi_rdata != test_data[i]) begin
-                    $display("[ERROR] Data mismatch at beat %0d: exp=0x%0h, act=0x%0h", 
-                             i, test_data[i], axi_rdata);
-                    error_count++;
-                end
-                
-                if (axi_rlast != (i == len)) begin
-                    $display("[ERROR] RLAST mismatch at beat %0d", i);
-                    error_count++;
-                end
-            end
-            axi_rready = 0;
-            
-            $display("[AXI] Read complete: addr=0x%0h, len=%0d", addr, len);
-        end
-    endtask
+//assign s_axi_awid    = '0;
+assign s_axi_awlock  = 1'b0;
+assign s_axi_awcache = 4'b0000;
+assign s_axi_awprot  = 3'b000;
+assign s_axi_awqos   = 4'b0000;
+
+//assign s_axi_arid    = '0;
+assign s_axi_arlock  = 1'b0;
+assign s_axi_arcache = 4'b0000;
+assign s_axi_arprot  = 3'b000;
+assign s_axi_arqos   = 4'b0000;
     
     
     
     
-    
- //========================================================================
-// Step 2 Test: AXI Write Address -> Command Scheduler
+//========================================================================
+// AXI4 -> Command Scheduler Interface
 //========================================================================
 
-task axi_aw_command_test;
-    input [ADDR_WIDTH-1:0] addr;
-    input [ID_WIDTH-1:0]   id;
-    begin
+//// Accept one AXI command at a time.
+//// Give WRITE address channel priority over READ address channel.
+//assign s_axi_awready = !aw_pending && !ar_pending;
+//assign s_axi_arready = !aw_pending && !ar_pending && !s_axi_awvalid;
 
-        $display("");
-        $display("[AXI STEP 2] Sending WRITE ADDRESS");
-        $display("[AXI] AWADDR = 0x%0h", addr);
-        $display("[AXI] AWID   = 0x%0h", id);
+assign s_axi_awready = (wr_state == WR_IDLE) &&
+                       !ar_pending &&
+                       !bvalid_q;
 
- // Drive AXI AW channel
-// Drive signals before the active clock edge
-@(negedge sys_clk);
+assign s_axi_arready = (wr_state == WR_IDLE) &&
+                       !aw_pending &&
+                       !bvalid_q &&
+                       !s_axi_awvalid;
 
-axi_awid    = id;
-axi_awaddr  = addr;
-axi_awlen   = 8'd0;
-axi_awsize  = 3'b100;
-axi_awburst = 2'b01;
-axi_awvalid = 1'b1;
-
-// Wait for actual AXI AW handshake
-while (!(axi_awvalid && axi_awready))
-    @(posedge sys_clk);
-
-// Keep VALID high through the handshake edge.
-// Deassert it after the edge.
-@(negedge sys_clk);
-axi_awvalid = 1'b0;
-
-$display("[AXI] AW handshake completed");
-        // Wait for command to reach scheduler
-        // Wait for command to reach scheduler
-while (!u_dut.cmd_valid)
-    @(posedge sys_clk);
-        $display("[CMD] cmd_valid = %b", u_dut.cmd_valid);
-        $display("[CMD] cmd_addr  = 0x%0h", u_dut.cmd_addr);
-        $display("[CMD] cmd_type  = 0x%0h", u_dut.cmd_type);
-        $display("[CMD] cmd_id    = 0x%0h", u_dut.cmd_id);
-
-        // Check WRITE command
-        if (u_dut.cmd_type == 4'b0010 &&
-            u_dut.cmd_addr == addr &&
-            u_dut.cmd_id[ID_WIDTH-1:0] == id) begin
-
-            $display("[PASS] AXI AW -> CMD_WRITE");
-            test_passed++;
-
-        end
-        else begin
-
-            $display("[FAIL] AXI AW -> CMD_WRITE");
-            test_failed++;
-
-        end
-
-// Wait until scheduler accepts command
-while (!(u_dut.cmd_valid && u_dut.cmd_ready))
-    @(posedge sys_clk);
-
-$display("[AXI STEP 2] WRITE command accepted by scheduler");
-    end
-endtask
 
 
 //========================================================================
-// Step 2 Test: AXI Read Address -> Command Scheduler
+// AXI4 Write Transaction FSM
 //========================================================================
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        wr_state   <= WR_IDLE;
 
-task axi_ar_command_test;
-    input [ADDR_WIDTH-1:0] addr;
-    input [ID_WIDTH-1:0]   id;
-    begin
+        aw_pending <= 1'b0;
+        awaddr_q   <= '0;
+        awid_q     <= '0;
 
-        $display("");
-        $display("[AXI STEP 2] Sending READ ADDRESS");
-        $display("[AXI] ARADDR = 0x%0h", addr);
-        $display("[AXI] ARID   = 0x%0h", id);
+        ar_pending <= 1'b0;
+        araddr_q   <= '0;
+        arid_q     <= '0;
 
- // Drive AXI AR channel
-// Drive signals before the active clock edge
-@(negedge sys_clk);
-
-axi_arid    = id;
-axi_araddr  = addr;
-axi_arlen   = 8'd0;
-axi_arsize  = 3'b100;
-axi_arburst = 2'b01;
-axi_arvalid = 1'b1;
-
-// Wait for actual AXI AR handshake
-while (!(axi_arvalid && axi_arready))
-    @(posedge sys_clk);
-
-// Deassert VALID after the handshake edge
-@(negedge sys_clk);
-axi_arvalid = 1'b0;
-
-$display("[AXI] AR handshake completed");
-// Wait for command
-while (!u_dut.cmd_valid)
-    @(posedge sys_clk);
-
-        $display("[CMD] cmd_valid = %b", u_dut.cmd_valid);
-        $display("[CMD] cmd_addr  = 0x%0h", u_dut.cmd_addr);
-        $display("[CMD] cmd_type  = 0x%0h", u_dut.cmd_type);
-        $display("[CMD] cmd_id    = 0x%0h", u_dut.cmd_id);
-
-        // Check READ command
-        if (u_dut.cmd_type == 4'b0001 &&
-            u_dut.cmd_addr == addr &&
-            u_dut.cmd_id[ID_WIDTH-1:0] == id) begin
-
-            $display("[PASS] AXI AR -> CMD_READ");
-            test_passed++;
-
-        end
-        else begin
-
-            $display("[FAIL] AXI AR -> CMD_READ");
-            test_failed++;
-
-        end
-
-// Wait until scheduler accepts command
-while (!(u_dut.cmd_valid && u_dut.cmd_ready))
-    @(posedge sys_clk);
-
-$display("[AXI STEP 2] READ command accepted by scheduler");
-
-    end
-endtask   
-    
-    
-task axi_b_response_test;
-    input [ADDR_WIDTH-1:0] addr;
-    input [ID_WIDTH-1:0]   id;
-    integer b_timeout;
-
-begin
-
-    $display("");
-    $display("[AXI STEP 3] Testing WRITE RESPONSE");
-    $display("[AXI] AWADDR = 0x%0h", addr);
-    $display("[AXI] AWID   = 0x%0h", id);
-
-    // ------------------------------------------------------------
-    // Write Address Channel
-    // ------------------------------------------------------------
-    @(negedge sys_clk);
-
-    axi_awid    = id;
-    axi_awaddr  = addr;
-    axi_awlen   = 8'd0;
-    axi_awsize  = 3'b100;
-    axi_awburst = 2'b01;
-    axi_awvalid = 1'b1;
-
-    // Wait for AW handshake
-    while (!(axi_awvalid && axi_awready))
-        @(posedge sys_clk);
-
-    @(negedge sys_clk);
-    axi_awvalid = 1'b0;
-
-    $display("[AXI] AW handshake completed");
-
-//    // ------------------------------------------------------------
-//    // Wait for WRITE command to be accepted by scheduler
-//    // ------------------------------------------------------------
-//    while (!(u_dut.cmd_valid && u_dut.cmd_ready))
-//        @(posedge sys_clk);
-
-//    $display("[AXI] WRITE command accepted by scheduler");
-
-//    // ------------------------------------------------------------
-//    // Write Data Channel
-//    // ------------------------------------------------------------
-//    @(negedge sys_clk);
-
-//    axi_wdata  = 128'h1234_5678_ABCD_EF00;
-//    axi_wstrb  = {DATA_WIDTH/8{1'b1}};
-//    axi_wlast  = 1'b1;
-//    axi_wvalid = 1'b1;
-
-//    // Wait for W handshake
-//    while (!(axi_wvalid && axi_wready))
-//        @(posedge sys_clk);
-
-//    @(negedge sys_clk);
-//    axi_wvalid = 1'b0;
-//    axi_wlast  = 1'b0;
-
-//    $display("[AXI] W handshake completed");
-
-$display("[AXI] AW handshake completed");
-
-// Send WRITE DATA
-axi_wdata  = 128'h1234_5678_9ABC_DEF0;
-axi_wstrb  = 16'hFFFF;
-axi_wlast  = 1'b1;
-axi_wvalid = 1'b1;
-
-@(posedge sys_clk);                    // <-- ADD this line
-while (!(axi_wvalid && axi_wready))
-    @(posedge sys_clk);
-
-$display("[AXI] W handshake completed");
-
-@(negedge sys_clk);                    // <-- change from plain assignment to negedge-timed deassert
-axi_wvalid = 1'b0;
-axi_wlast  = 1'b0;
-
-// Now wait for WRITE command
-while (!(u_dut.cmd_valid && u_dut.cmd_ready))
-    @(posedge sys_clk);
-
-$display("[AXI] WRITE command accepted by scheduler");
-
-
-
-    // ------------------------------------------------------------
-    // Write Response Channel
-    // ------------------------------------------------------------
-    axi_bready = 1'b1;
-
-//    // Wait for BVALID
-//    while (!axi_bvalid)
-//        @(posedge sys_clk);
-
-//    $display("[AXI] BVALID = %b", axi_bvalid);
-//    $display("[AXI] BID    = 0x%0h", axi_bid);
-//    $display("[AXI] BRESP  = 0x%0h", axi_bresp);
-
-//    // Check BID and BRESP
-//    if ((axi_bid == id) &&
-//        (axi_bresp == 2'b00)) begin
-
-//        $display("[PASS] AXI B response: BID/BRESP correct");
-//        test_passed++;
-
-//    end
-//    else begin
-
-//        $display("[FAIL] AXI B response: BID/BRESP incorrect");
-//        test_failed++;
-
-//    end
-
-// Wait for BVALID with timeout
-b_timeout = 0;
-
-while ((axi_bvalid !== 1'b1) && (b_timeout < 100)) begin
-    @(posedge sys_clk);
-    b_timeout++;
-end
-
-if (axi_bvalid !== 1'b1) begin
-    $display("[FAIL] AXI B response timeout: BVALID not asserted");
-    test_failed++;
-end
-else begin
-    $display("[AXI] BVALID = %b", axi_bvalid);
-    $display("[AXI] BID    = 0x%0h", axi_bid);
-    $display("[AXI] BRESP  = 0x%0h", axi_bresp);
-
-    // Check BID and BRESP
-    if ((axi_bid == id) &&
-        (axi_bresp == 2'b00)) begin
-
-        $display("[PASS] AXI B response: BID/BRESP correct");
-        test_passed++;
-
+        bid_q      <= '0;
+        bresp_q    <= 2'b00;
+        bvalid_q   <= 1'b0;
     end
     else begin
 
-        $display("[FAIL] AXI B response: BID/BRESP incorrect");
-        test_failed++;
+        case (wr_state)
 
-    end
-end
+            //============================================================
+            // IDLE
+            //============================================================
+            WR_IDLE: begin
 
-    // Complete B handshake
-    @(posedge sys_clk);
+                if (s_axi_awvalid && s_axi_awready) begin
+                    aw_pending <= 1'b1;
+                    awaddr_q   <= s_axi_awaddr;
+                    awid_q     <= s_axi_awid;
 
-    if (axi_bvalid && axi_bready)
-        $display("[AXI] B handshake completed");
+                    wr_state   <= WR_WAIT_WDATA;
 
-    axi_bready = 1'b0;
+                    $display("[%0t] TOP: AW CAPTURED addr=%h id=%h",
+                             $time, s_axi_awaddr, s_axi_awid);
+                end
 
-end
-endtask
-    
-    
-    //========================================================================
-    // Main Test Sequence
-    //========================================================================
-    initial begin
-        // Initialize
-        test_passed = 0;
-        test_failed = 0;
-        error_count = 0;
-        test_complete = 0;
-        
-        // Initialize AXI/APB signals
-        //axi_awvalid = 0;
-       // axi_wvalid = 0;
-        //axi_bready = 0;
-        //  axi_arvalid = 0;
-        //axi_rready = 0;
-        
-        
-      // Initialize AXI signals
-axi_awid    = '0;
-axi_awvalid = 1'b0;
-axi_awaddr  = '0;
-axi_awlen   = 8'd0;
-axi_awsize  = 3'b100;       // 16 bytes = 128 bits
-axi_awburst = 2'b01;        // INCR
-axi_awlock  = 1'b0;
-axi_awcache = 4'b0000;
-axi_awprot  = 3'b000;
-axi_awqos   = 4'b0000;
-
-axi_wvalid  = 1'b0;
-axi_wdata   = '0;
-axi_wstrb   = '0;
-axi_wlast   = 1'b0;
-
-axi_bready  = 1'b0;
-
-axi_arid    = '0;
-axi_arvalid = 1'b0;
-axi_araddr  = '0;
-axi_arlen   = 8'd0;
-axi_arsize  = 3'b100;
-axi_arburst = 2'b01;
-axi_arlock  = 1'b0;
-axi_arcache = 4'b0000;
-axi_arprot  = 3'b000;
-axi_arqos   = 4'b0000;
-
-axi_rready  = 1'b0;  
-        
-        
-        psel = 0;
-        penable = 0;
-        pwrite = 0;
-        
-        // Wait for reset
-        @(posedge sys_rst_n);
-        repeat (20) @(posedge sys_clk);
-        
-        $display("========================================");
-        $display("LPDDR5 Controller Testbench Starting");
-        $display("========================================");
-        
-        //====================================================================
-        // Test 1: Basic Register Access
-        //====================================================================
-        $display("\n[TEST 1] Basic Register Access");
-        begin
-            reg [31:0] rdata;
-            
-            // Write CTRL0
-            apb_write(16'h0000, 32'h0000_0001);
-            
-            // Read back
-            apb_read(16'h0000, rdata);
-            
-            if (rdata[0] == 1'b1) begin
-                $display("[PASS] Register read/write test");
-                test_passed++;
-            end else begin
-                $display("[FAIL] Register read/write test");
-                test_failed++;
+                else if (s_axi_arvalid && s_axi_arready) begin
+                    ar_pending <= 1'b1;
+                    araddr_q   <= s_axi_araddr;
+                    arid_q     <= s_axi_arid;
+                end
             end
-        end
-        
-        //====================================================================
-        // Test 2: Timing Register Configuration
-        //====================================================================
-        $display("\n[TEST 2] Timing Register Configuration");
-        begin
-            // Configure timing for LPDDR5-6400
-            apb_write(16'h0010, 32'h1E_12_12_0C);  // tRC=30, tRAS=18, tRP=12, tRCD=12
-            apb_write(16'h0014, 32'h04_02_04_02);  // tWTR, tCCD
-            apb_write(16'h0018, 32'h10_08_04_08);  // tWR, tRTP, tRRD
-            apb_write(16'h0020, 32'h04B0_015E);    // tREFI, tRFC
-            
-            $display("[PASS] Timing register configuration");
-            test_passed++;
-        end
-        
-        //====================================================================
-        // Test 3: Mode Register Configuration
-        //====================================================================
-        $display("\n[TEST 3] Mode Register Configuration");
-        begin
-            apb_write(16'h0004, 32'h0000_0018);  // CL=24, CWL=18
-            apb_write(16'h000C, 32'h0000_0010);  // BL=16
-            
-            $display("[PASS] Mode register configuration");
-            test_passed++;
-        end
-        
-        //====================================================================
-        // Test 4: Wait for Initialization (simplified)
-        //====================================================================
-        $display("\n[TEST 4] Initialization Check");
-        begin
-            // In real testbench, wait for training and init done
-            repeat (100) @(posedge sys_clk);
-            
-            $display("[PASS] Initialization sequence");
-            test_passed++;
-        end
-        
-        //====================================================================
-        // Test 5: Simple AXI Write/Read (simplified)
-        //====================================================================
-        $display("\n[TEST 5] AXI Write/Read (Simplified)");
-        begin
-            // This is a simplified test - in real testbench,
-            // you'd need a proper DRAM model and full AXI transaction
-            
-            $display("[INFO] Full AXI test requires complete DRAM model");
-            $display("[PASS] AXI interface test (simplified)");
-            test_passed++;
-        end
-        
-        
 
 
-        
-//====================================================================
-// Test 6: AXI Write Response
-//====================================================================
-$display("\n[TEST 6] AXI Write Response");
-begin
+            //============================================================
+            // WAIT FOR COMPLETE WRITE DATA
+            //============================================================
+            WR_WAIT_WDATA: begin
 
-    axi_b_response_test(
-        32'h0000_2000,
-        4'h7
+                if (s_axi_wvalid && s_axi_wready && s_axi_wlast) begin
+
+                    $display("[%0t] TOP: WDATA COMPLETE",
+                             $time);
+
+                    wr_state <= WR_WRITE_CMD;
+                end
+            end
+
+
+            //============================================================
+            // ISSUE LPDDR WRITE COMMAND
+            //============================================================
+            WR_WRITE_CMD: begin
+
+                if (cmd_valid && cmd_ready) begin
+
+                    aw_pending <= 1'b0;
+
+                    $display("[%0t] TOP: LPDDR WRITE CMD ACCEPTED",
+                             $time);
+
+                    bid_q      <= awid_q;
+                    bresp_q    <= 2'b00;       // OKAY
+                    bvalid_q   <= 1'b1;
+
+                    wr_state   <= WR_BRESP;
+                end
+            end
+
+
+            //============================================================
+            // AXI WRITE RESPONSE
+            //============================================================
+            WR_BRESP: begin
+
+                if (bvalid_q && s_axi_bready) begin
+
+                    bvalid_q <= 1'b0;
+                    wr_state <= WR_IDLE;
+
+                    $display("[%0t] TOP: AXI B RESPONSE ACCEPTED BID=%h BRESP=%h",
+                             $time, bid_q, bresp_q);
+                end
+            end
+
+
+            default: begin
+                wr_state <= WR_IDLE;
+            end
+
+        endcase
+    end
+end
+
+
+// AXI Write Response outputs
+assign s_axi_bid    = bid_q;
+assign s_axi_bresp  = bresp_q;
+assign s_axi_bvalid = bvalid_q;
+
+
+//========================================================================
+// Generate command for command scheduler
+//========================================================================
+always_comb begin
+
+    // Defaults
+    cmd_addr  = '0;
+    cmd_type  = 4'b0000;
+    cmd_valid = 1'b0;
+    cmd_id    = 8'h00;
+
+    //============================================================
+    // WRITE command
+    // Only issue after complete WDATA burst is received
+    //============================================================
+    if (wr_state == WR_WRITE_CMD) begin
+
+        cmd_addr  = awaddr_q;
+        cmd_type  = 4'b0010;
+        cmd_valid = 1'b1;
+
+        // AXI ID = 4 bits
+        // Scheduler ID = 8 bits
+        cmd_id    = {{(8-ID_WIDTH){1'b0}}, awid_q};
+    end
+
+    //============================================================
+    // READ command
+    //============================================================
+    else if (ar_pending) begin
+
+        cmd_addr  = araddr_q;
+        cmd_type  = 4'b0001;
+        cmd_valid = 1'b1;
+
+        cmd_id    = {{(8-ID_WIDTH){1'b0}}, arid_q};
+    end
+
+end
+
+    
+    // Clock domain crossing synchronizers will be instantiated per module
+    
+    //========================================================================
+    // Register Configuration Block (APB Interface)
+    //========================================================================
+    
+    lpddr5c_reg_cfg u_reg_cfg (
+        .pclk           (pclk),
+        .preset_n       (preset_n),
+        .psel           (psel),
+        .penable        (penable),
+        .pwrite         (pwrite),
+        .paddr          (paddr),
+        .pwdata         (pwdata),
+        .prdata         (prdata),
+        .pready         (pready),
+        .pslverr        (pslverr),
+        
+        // Register outputs
+        .reg_ctrl0      (reg_ctrl0),
+        .reg_ctrl1      (reg_ctrl1),
+        .reg_ctrl2      (reg_ctrl2),
+        .reg_ctrl3      (reg_ctrl3),
+        .reg_timing0    (reg_timing0),
+        .reg_timing1    (reg_timing1),
+        .reg_ecc_cfg    (reg_ecc_cfg),
+        .reg_lp_cfg     (reg_lp_cfg),
+        
+        // Status inputs
+        .reg_status     (reg_status),
+        .training_done  (training_done),
+        .training_error (training_error),
+        .lp_state       (lp_state[0]),
+        .refresh_pending(refresh_pending)
     );
-
-end   
-
-//============================================================
-// TEST 7: Command Scheduler Handshake
-//============================================================
-
     
-        //====================================================================
-        // Test Summary
-        //====================================================================
-        $display("\n========================================");
-        $display("Test Summary:");
-        $display("  Passed: %0d", test_passed);
-        $display("  Failed: %0d", test_failed);
-        $display("  Errors: %0d", error_count);
-        $display("========================================");
+    //========================================================================
+    // Command Scheduler
+    //========================================================================
+    
+    lpddr5c_cmd_scheduler #(
+        .ADDR_WIDTH     (ADDR_WIDTH),
+        .NUM_CHANNELS   (NUM_CHANNELS),
+        .NUM_BANKS      (NUM_BANKS),
+        .NUM_BANK_GROUPS(NUM_BANK_GROUPS),
+        .ROW_WIDTH      (ROW_WIDTH),
+        .COL_WIDTH      (COL_WIDTH)
+    ) u_cmd_scheduler (
+        .clk            (clk),
+        .rst_n          (rst_n),
         
-        if (test_failed == 0 && error_count == 0) begin
-            $display("\n[SUCCESS] All tests passed!");
-        end else begin
-            $display("\n[FAILURE] Some tests failed!");
-        end
+        // Configuration
+        .timing_params  (reg_timing0),
+        .sched_policy   (reg_ctrl0[3:0]),
         
-        test_complete = 1;
-        #(CLK_PERIOD * 100);
-        $finish;
-    end
+        // Command input
+        .cmd_addr       (cmd_addr),
+        .cmd_type       (cmd_type),
+        .cmd_valid      (cmd_valid),
+        .cmd_ready      (cmd_ready),
+        .cmd_id         (cmd_id),
+        
+        // Refresh interface
+        .refresh_req    (refresh_pending),
+        .refresh_ack    (),
+        
+        // Bank state
+        .bank_active    (bank_active),
+        .row_open       (row_open),
+        .open_row       (open_row),
+        
+        // DFI command output
+        .dfi_cs_n       (dfi_cs_n),
+        .dfi_cke        (dfi_cke),
+        .dfi_ca         (dfi_ca),
+        .dfi_rw         (dfi_rw),
+        .dfi_addr       (dfi_addr)
+    );
     
     //========================================================================
-    // Timeout Watchdog
+    // Read/Write Data Path
     //========================================================================
-    initial begin
-        #(TEST_DURATION);
-        if (!test_complete) begin
-            $display("\n[TIMEOUT] Testbench timed out!");
-            $finish;
-        end
-    end
     
-    //========================================================================
-    // VCD Waveform Dump
-    //========================================================================
-    initial begin
-        $dumpfile("waves/tb_lpddr5c_top.vcd");
-        $dumpvars(0, tb_lpddr5c_top);
-    end
+    lpddr5c_data_path #(
+    .DATA_WIDTH      (DATA_WIDTH),
+    .DFI_DATA_WIDTH  (DFI_DATA_WIDTH),
+    .NUM_CHANNELS    (NUM_CHANNELS),
+    .FIFO_DEPTH      (8),
+    .ECC_ENABLE      (ECC_ENABLE)
+) u_data_path (
+    .sys_clk          (clk),
+    .sys_rst_n        (rst_n),
+    .phy_clk          (phy_clk),
+    .phy_rst_n        (rst_n),
 
-endmodule // tb_lpddr5c_top
+    //====================================================================
+    // AXI Read interface
+    // Existing internal port names remain axi_*
+    // Top-level interface is s_axi_*
+    //====================================================================
+    .axi_rvalid       (s_axi_rvalid),
+    .axi_rready       (s_axi_rready),
+    .axi_rdata        (s_axi_rdata),
+    .axi_rresp        (s_axi_rresp),
+    .axi_rlast        (s_axi_rlast),
+
+    //====================================================================
+    // AXI Write interface
+    //====================================================================
+    .axi_wvalid       (s_axi_wvalid),
+    .axi_wready       (s_axi_wready),
+    .axi_wdata        (s_axi_wdata),
+    .axi_wstrb        (s_axi_wstrb),
+    .axi_wlast        (s_axi_wlast),
+
+    //====================================================================
+    // DFI interface
+    //====================================================================
+    .dfi_rddata       (dfi_rddata),
+    .dfi_rddata_valid (dfi_rddata_valid),
+    .dfi_wrdata       (dfi_wrdata),
+    .dfi_wrdata_mask  (dfi_wrdata_mask),
+    .dfi_wrdata_en    (dfi_wrdata_en),
+
+    //====================================================================
+    // ECC signals -- unchanged
+    //====================================================================
+    .ecc_cfg          (reg_ecc_cfg),
+    .ecc_err_detected (ecc_err_detected),
+    .ecc_err_corrected(ecc_err_corrected),
+
+    //====================================================================
+    // FIFO status -- unchanged
+    //====================================================================
+    .rd_fifo_empty    (),
+    .rd_fifo_full     (),
+    .wr_fifo_empty    (),
+    .wr_fifo_full     ()
+);
+    
+    //========================================================================
+    // Training Control
+    //========================================================================
+    
+    lpddr5c_training_ctrl #(
+        .NUM_CHANNELS   (NUM_CHANNELS),
+        .DQ_WIDTH       (DQ_WIDTH),
+        .CA_WIDTH       (CA_WIDTH)
+    ) u_training_ctrl (
+        .clk            (clk),
+        .rst_n          (rst_n),
+        
+        // Control
+        .train_start    (reg_ctrl0[4]),
+        .train_mode     (reg_ctrl0[7:5]),
+        .train_done     (training_done),
+        .train_error    (training_error),
+        
+        // DFI training interface
+        .dfi_phymstr_req(dfi_phymstr_req),
+        .dfi_phymstr_ack(dfi_phymstr_ack),
+        .dfi_phymstr_cs (dfi_phymstr_cs),
+        .dfi_rdlvl_req  (dfi_rdlvl_req),
+        .dfi_rdlvl_en   (dfi_rdlvl_en),
+        .dfi_wrlvl_req  (dfi_wrlvl_req),
+        .dfi_wrlvl_en   (dfi_wrlvl_en),
+        
+        // Training results
+        .ca_training_result(ca_training_result),
+        .rd_gate_training_result(rd_gate_training_result),
+        .rd_dq_training_result(rd_dq_training_result),
+        .wr_dq_training_result(wr_dq_training_result)
+    );
+    
+    //========================================================================
+    // Low Power Management
+    //========================================================================
+    
+    lpddr5c_lp_mgmt #(
+        .NUM_CHANNELS   (NUM_CHANNELS)
+    ) u_lp_mgmt (
+        .clk            (clk),
+        .rst_n          (rst_n),
+        
+        // Configuration
+        .lp_cfg         (reg_lp_cfg),
+        
+        // Control
+        .lp_req_pd      (lp_req_pd),
+        .lp_req_sr      (lp_req_sr),
+        .lp_req_ds      (lp_req_ds),
+        .lp_ack         (lp_ack),
+        .lp_state       (lp_state[0]),
+        
+        // Status
+        .idle_count     (),
+        .sr_entry_count (),
+        .pd_entry_count ()
+    );
+    
+    //========================================================================
+    // Refresh Control
+    //========================================================================
+    
+    lpddr5c_refresh_ctrl u_refresh_ctrl (
+        .clk            (clk),
+        .rst_n          (rst_n),
+        
+        // Configuration
+        .trefi          (reg_timing0[15:0]),
+        .trfc           (reg_timing0[31:16]),
+        
+        // Control
+        .refresh_en     (reg_ctrl0[8]),
+        .refresh_pending(refresh_pending),
+        .refresh_urgent (refresh_urgent),
+        
+        // Status
+        .refresh_counter(refresh_counter),
+        .refresh_row_addr(refresh_row_addr)
+    );
+    
+    //========================================================================
+    // ECC & Parity Generation/Check
+    //========================================================================
+    
+    generate
+        if (ECC_ENABLE) begin : gen_ecc
+            lpddr5c_ecc u_ecc (
+                .clk            (clk),
+                .rst_n          (rst_n),
+                
+                .ecc_en         (reg_ecc_cfg[0]),
+                .data_in        (),
+                .data_out       (),
+                .ecc_in         (),
+                .ecc_out        (),
+                
+                .err_detected   (ecc_err_detected),
+                .err_corrected  (ecc_err_corrected),
+                .err_location   ()
+            );
+        end
+    endgenerate
+    
+    //========================================================================
+    // Interrupt Aggregation
+    //========================================================================
+    
+    assign intr_status[0] = training_done;
+    assign intr_status[1] = training_error;
+    assign intr_status[2] = refresh_urgent;
+    assign intr_status[3] = ecc_err_detected;
+    assign intr_status[4] = |pslverr;  // APB error
+    assign intr_status[5] = 1'b0;  // Reserved
+    assign intr_status[6] = 1'b0;  // Reserved
+    assign intr_status[7] = 1'b0;  // Reserved
+    
+    assign intr_init_done   = training_done;
+    assign intr_refresh_err = refresh_urgent;
+    assign intr_ecc_err     = ecc_err_detected;
+    assign intr_training_err= training_error;
+    assign intr_parity_err  = 1'b0;  // TODO: Connect parity error
+    
+    //========================================================================
+    // Debug Bus
+    //========================================================================
+    
+    assign debug_bus = {
+        training_done,
+        training_error,
+        refresh_pending,
+        ecc_err_detected,
+        lp_state[0],
+        3'b0,
+        refresh_counter[7:0]
+    };
+
+endmodule // lpddr5c_top
+
+
+
+
+
+
+
+
+
+

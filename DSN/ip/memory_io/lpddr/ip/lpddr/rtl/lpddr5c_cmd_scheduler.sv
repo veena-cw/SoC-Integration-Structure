@@ -15,7 +15,7 @@
 module lpddr5c_cmd_scheduler #(
     parameter ADDR_WIDTH        = 32,
     parameter DATA_WIDTH        = 128,
-    parameter NUM_CHANNELS      = 2,
+    parameter NUM_CHANNELS      = 1,
     parameter NUM_RANKS         = 1,
     parameter NUM_BANKS         = 8,
     parameter NUM_BANK_GROUPS   = 2,
@@ -69,7 +69,8 @@ module lpddr5c_cmd_scheduler #(
     output logic [NUM_RANKS-1:0]          dfi_cs_n,
     output logic [NUM_CHANNELS-1:0]       dfi_cke,
     output logic [5:0]                    dfi_ca,
-    output logic                         dfi_rw
+    output logic                         dfi_rw,
+    output logic [ADDR_WIDTH-1:0]        dfi_addr
 );
 
     //========================================================================
@@ -138,6 +139,8 @@ module lpddr5c_cmd_scheduler #(
     assign tWR   = 8'd16;   // Default: 16 cycles
     assign tXSR  = 8'd100;  // Default: 100 cycles
     assign tXP   = 8'd8;    // Default: 8 cycles
+    
+    assign dfi_addr  = cmd_addr;
     
     //========================================================================
     // Command Queue

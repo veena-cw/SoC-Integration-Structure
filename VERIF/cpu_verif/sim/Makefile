@@ -28,6 +28,9 @@ export CCACHE_DISABLE := 1
 
 RISCV_PREFIX ?= riscv64-unknown-elf-
 VERILATOR    ?= /opt/verilator-5.048/bin/verilator
+VERILATOR_COVERAGE ?= /opt/verilator-5.048/bin/verilator_coverage
+RISCV_MARCH  ?= rv64ima
+RISCV_OPT    ?= -O0
 
 TEST         ?= bp_base_test
 TOP          ?= cpu_tb_top
@@ -66,6 +69,37 @@ TEST_ID      ?= 5
 else ifeq ($(TEST),bp_dv_006_muldiv_test)
 TCNAME       ?= muldiv_function
 TEST_ID      ?= 6
+else ifeq ($(TEST),bp_dv_007_branch_test)
+TCNAME       ?= branch_function
+TEST_ID      ?= 7
+else ifeq ($(TEST),bp_dv_008_jump_test)
+TCNAME       ?= jump_function
+TEST_ID      ?= 8
+else ifeq ($(TEST),bp_dv_007_load_add_store_test)
+TCNAME       ?= load_add_store
+TEST_ID      ?= 9
+else ifeq ($(TEST),bp_dv_010_memory_widths_test)
+TCNAME       ?= width_function
+TEST_ID      ?= 10
+else ifeq ($(TEST),bp_dv_012_cache_miss_test)
+TCNAME       ?= cache_miss_function
+TEST_ID      ?= 12
+else ifeq ($(TEST),bp_dv_013_atomic_test)
+TCNAME       ?= atomic_function
+TEST_ID      ?= 13
+else ifeq ($(TEST),bp_dv_015_illegal_trap_test)
+TCNAME       ?= illegal_trap_function
+TEST_ID      ?= 15
+else ifeq ($(TEST),bp_dv_016_ecall_ebreak_test)
+TCNAME       ?= ecall_ebreak_function
+TEST_ID      ?= 16
+else ifeq ($(TEST),bp_dv_017_multicore_shared_memory_test)
+TCNAME       ?= multicore_shared_memory
+TEST_ID      ?= 17
+else ifeq ($(TEST),bp_dv_019_compressed_test)
+TCNAME       ?= compressed_function
+TEST_ID      ?= 19
+RISCV_MARCH  := rv64imac
 else ifeq ($(TEST),bp_i2c_write_read_test)
 TCNAME       ?= i2c_write_read
 TEST_ID      ?= 27
@@ -80,6 +114,11 @@ LOG_DIR      := $(SIM_DIR)/logs
 COMPILE_LOG  := $(LOG_DIR)/compile.log
 SIM_LOG      := $(LOG_DIR)/simulation.log
 REGR_DIR     := $(LOG_DIR)/regression
+COVERAGE_DIR := $(LOG_DIR)/coverage
+COVERAGE_MERGED := $(COVERAGE_DIR)/coverage.dat
+COVERAGE_INFO := $(COVERAGE_DIR)/coverage.info
+COVERAGE_SUMMARY := $(COVERAGE_DIR)/summary.txt
+COVERAGE_HTML_DIR := $(COVERAGE_DIR)/html
 
 # BSG memory models print one informational line for every large memory
 # instance. Filter only those messages from simulator output; keep UVM,
@@ -112,6 +151,7 @@ VERILATOR_FLAGS = \
 	--timescale 1ns/1ps \
 	--trace \
 	--trace-depth 99 \
+	--coverage \
 	--error-limit 100 \
 	--converge-limit 10000000 \
 	-j 4
@@ -159,7 +199,7 @@ VERILATOR_SRCS = -f $(TB_FILELIST)
 # Targets
 ###############################################################################
 
-.PHONY: all compile sim run regression wave check_uvm sim_info clean help
+.PHONY: all compile sim run regression coverage_report wave check_uvm sim_info clean help
 
 all: compile sim
 
@@ -175,11 +215,11 @@ $(TCNAME).elf: $(C_DIR)/$(TCNAME).c $(C_DIR)/link.ld
 	@echo " Compiling RISC-V C test"
 	@echo "=================================================="
 	set -o pipefail; $(RISCV_PREFIX)gcc \
-		-march=rv64ima \
+		-march=$(RISCV_MARCH) \
 		-mabi=lp64 \
 		-mcmodel=medany \
 		-nostdlib \
-		-O0 \
+		$(RISCV_OPT) \
 		-T $(C_DIR)/link.ld \
 		$< -o $@ 2>&1 | tee -a $(COMPILE_LOG)
 
@@ -265,6 +305,12 @@ sim: $(TCNAME).nbf check_uvm
 	set -o pipefail; $(VERILATOR_EXE) \
 		$(UVM_RUN_ARGS) \
 		2>&1 | $(SIM_DISPLAY_FILTER) | tee -a $(SIM_LOG)
+	@if [ -f coverage.dat ]; then \
+		mkdir -p $(COVERAGE_DIR); \
+		mv -f coverage.dat $(COVERAGE_DIR)/$(TCNAME).dat; \
+	else \
+		echo "WARNING: Verilator did not produce coverage.dat"; \
+	fi
 
 # Alias.
 run: sim
@@ -276,8 +322,27 @@ run: sim
 # Regression rows contain: UVM test class, BP test ID, and boot image (.nbf).
 REGR_FILE ?= $(SIM_DIR)/../testlist/testlist.f
 
+# Merge per-test Verilator coverage.dat files and generate both LCOV and HTML
+# reports. This is RTL code coverage; bp_coverage.sv separately reports the
+# test-plan/protocol functional coverage.
+coverage_report:
+	@mkdir -p $(COVERAGE_DIR)
+	@files=$$(find "$(COVERAGE_DIR)" -maxdepth 1 -type f -name '*.dat' ! -name 'coverage.dat' -print); \
+	if [ -z "$$files" ]; then \
+		echo "ERROR: no per-test coverage files found in $(COVERAGE_DIR)"; \
+		exit 1; \
+	fi; \
+	echo "Merging Verilator coverage from:"; \
+	printf '%s\n' $$files; \
+	$(VERILATOR_COVERAGE) --write "$(COVERAGE_MERGED)" $$files; \
+	$(VERILATOR_COVERAGE) --write-info "$(COVERAGE_INFO)" $$files; \
+	lcov --summary "$(COVERAGE_INFO)" | tee "$(COVERAGE_SUMMARY)"; \
+	genhtml "$(COVERAGE_INFO)" --output-directory "$(COVERAGE_HTML_DIR)" --title "CPU Verilator code coverage" --quiet
+
 regression: check_uvm
-	@mkdir -p $(REGR_DIR)
+	@mkdir -p $(REGR_DIR) $(COVERAGE_DIR)
+	@rm -f "$(COVERAGE_DIR)"/*.dat "$(COVERAGE_MERGED)" "$(COVERAGE_INFO)" "$(COVERAGE_SUMMARY)"
+	@rm -rf "$(COVERAGE_HTML_DIR)"
 	@if [ ! -f "$(VERILATOR_EXE)" ]; then \
 		echo "ERROR: Verilator executable not found:"; \
 		echo "  $(VERILATOR_EXE)"; \
@@ -327,7 +392,14 @@ regression: check_uvm
 		else \
 			echo ">>> PASS: $$t (NBF=$$nbf)"; \
 		fi; \
+		if [ -f coverage.dat ]; then \
+			mv -f coverage.dat "$(COVERAGE_DIR)/$$tcname.dat"; \
+		else \
+			echo ">>> FAIL: no coverage.dat generated for $$tcname"; \
+			fail=1; \
+		fi; \
 	done < "$(REGR_FILE)"; \
+	$(MAKE) --no-print-directory coverage_report || fail=1; \
 	echo "=================================================="; \
 	if [ $$fail -eq 0 ]; then \
 		echo "REGRESSION PASSED"; \
@@ -373,6 +445,7 @@ sim_info:
 	@echo " VERILATOR_BUILD_DIR  = $(VERILATOR_BUILD_DIR)"
 	@echo " VERILATOR_EXE        = $(VERILATOR_EXE)"
 	@echo " NBF                  = $(SIM_DIR)/$(TCNAME).nbf"
+	@echo " COVERAGE_DIR         = $(COVERAGE_DIR)"
 	@echo "=================================================="
 	@echo ""
 
@@ -414,6 +487,9 @@ help:
 	@echo ""
 	@echo "REGRESSION"
 	@echo "  make regression"
+	@echo "      Also merges RTL code coverage and writes logs/coverage/"
+	@echo "  make coverage_report"
+	@echo "      Merge existing per-test coverage.dat files"
 	@echo ""
 	@echo "WAVEFORM"
 	@echo "  make wave"

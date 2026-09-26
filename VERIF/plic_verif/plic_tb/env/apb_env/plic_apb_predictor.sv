@@ -26,7 +26,7 @@ package plic_apb_predictor_pkg;
   `include "uvm_macros.svh"
   import plic_apb_item_pkg::*;
   class plic_apb_predictor extends uvm_reg_predictor #(plic_apb_item);
-    `uvm_object_utils(plic_apb_predictor)
+    `uvm_component_utils(plic_apb_predictor)
     function new(string name = "plic_apb_predictor", uvm_component parent = null);
       super.new(name, parent);
     endfunction

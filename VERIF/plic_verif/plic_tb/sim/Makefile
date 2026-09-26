@@ -9,10 +9,10 @@ UVM_SRC  := $(UVM_HOME)/src
 
 
 UVM_PKG := $(UVM_SRC)/uvm_pkg.sv
-FILELIST := $(SIM_DIR)/apb_filelist.f
-#FILELIST := $(SIM_DIR)/ahb_filelist.f
+#FILELIST := $(SIM_DIR)/apb_filelist.f
+FILELIST := $(SIM_DIR)/ahb_filelist.f
 
-TOP      := plic_apb_test_top
+TOP      := plic_ahb_test_top
 TESTNAME ?= plic_base_test
 
 

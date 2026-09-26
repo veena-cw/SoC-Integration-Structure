@@ -36,20 +36,27 @@ class plic_ahb_lite_monitor extends uvm_monitor;
   endfunction
   task run_phase(uvm_phase phase);
     forever begin
-      @(posedge vif.hclk);
-      if (vif.hready && (vif.htrans == 2'b10 || vif.htrans == 2'b11)) begin
+      //@(posedge vif.hclk);
+      if (vif.hready && (vif.htrans == 2'b10 || vif.htrans == 2'b11) && (vif.hsel == 1'b1)) begin
         plic_ahb_lite_item tr;
         tr = plic_ahb_lite_item::type_id::create("tr");
         tr.addr   = vif.haddr;
         tr.write  = vif.hwrite;
-        tr.wdata  = vif.hwdata;
-        tr.rdata  = vif.hrdata;
         tr.hsize  = vif.hsize;
         tr.hburst = vif.hburst;
         tr.htrans = vif.htrans;
-        tr.hready = vif.hready;
+         @(posedge vif.hclk);
+        while (vif.hready == 1'b0) begin
+          @(posedge vif.hclk);
+        end
+        //tr.hready = vif.hready;
+        tr.wdata  = vif.hwdata;
+        tr.rdata  = vif.hrdata;
         tr.hresp  = vif.hresp;
         analysis_port.write(tr);
+      end
+      else begin
+        @(posedge vif.hclk);
       end
     end
   endtask

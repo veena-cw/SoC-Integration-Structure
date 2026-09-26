@@ -30,7 +30,7 @@ module plic_apb_test_top;
         .preset_n (RST_vif.rst_n)
     );
 //==========================================================     // DUT     //==========================================================    
- apb4_plic_top #(.PADDR_SIZE(32),
+ plic_apb_test_top #(.PADDR_SIZE(32),
  .PDATA_SIZE (32),.SOURCES (16),
  .TARGETS(4),.PRIORITIES (8),
  .MAX_PENDING_COUNT(8),.HAS_THRESHOLD (1), 

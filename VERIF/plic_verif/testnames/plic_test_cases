@@ -1,6 +1,6 @@
 plic_base_test
 plic_ral_test
-plic-reg_reset_test
+plic_reg_reset_test
 plic_reg_write_read_test
 plic_reg_walk_one_test
 plic_reg_mirror_predict_test

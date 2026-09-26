@@ -1,3 +1,4 @@
+-f /home/cw016_lakshmi/plic_ahb/rtl/filelist_ahb.f
 $REPO_ROOT/VERIF/uvm-1.1d/src/uvm_pkg.sv
 $REPO_ROOT/VERIF/plic_verif/plic_tb/ral/plic_ral_pkg.sv
 $REPO_ROOT/VERIF/plic_verif/plic_tb/ral/plic_ral_block.sv

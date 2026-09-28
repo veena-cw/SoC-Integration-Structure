@@ -23,6 +23,7 @@ import apb_i2c_apb_item_pkg::*;
 class apb_i2c_i2c_monitor extends uvm_monitor;
   `uvm_component_utils(apb_i2c_i2c_monitor)
   virtual apb_i2c_i2c_if vif;
+     apb_i2c_i2c_item tr;
   uvm_analysis_port #(apb_i2c_i2c_item) analysis_port;
   function new(string name = "apb_i2c_apb_monitor", uvm_component parent = null);
     super.new(name, parent);
@@ -37,17 +38,18 @@ class apb_i2c_i2c_monitor extends uvm_monitor;
   task run_phase(uvm_phase phase);
     forever begin
       @(posedge vif.clk);
-      if (vif.done) begin
-        apb_i2c_i2c_item tr;
+     wait(vif.done)
+     
         tr = apb_i2c_i2c_item::type_id::create("tr");
         tr.addr   = vif.slave_address;
         tr.write  = vif.write;
-        tr.wdata  = vif.wdata;
-        tr.rdata  = vif.rdata;
+        tr.wdata  = vif.temp_reg;
+        tr.rdata  = vif.pointer_reg;
         tr.strb   = vif.strb;
         tr.slverr = vif.slverr;
         analysis_port.write(tr);
-      end
+    
+      wait(!vif.done);
     end
   endtask
 endclass

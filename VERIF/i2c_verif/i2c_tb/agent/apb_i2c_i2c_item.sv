@@ -23,7 +23,7 @@ package apb_i2c_i2c_item_pkg;
 
   class apb_i2c_i2c_item extends uvm_sequence_item;
 
-    `uvm_object_utils(apb_i2c_i2c_item)
+   // `uvm_object_utils(apb_i2c_i2c_item)
 
     logic [31:0] addr;
     logic [31:0] wdata;
@@ -39,6 +39,20 @@ package apb_i2c_i2c_item_pkg;
       aborted_by_reset = 1'b0;
     endfunction
 
+
+
+
+ `uvm_object_utils_begin(apb_i2c_i2c_item)
+
+        `uvm_field_int(addr,             UVM_ALL_ON)
+        `uvm_field_int(wdata,            UVM_ALL_ON)
+        `uvm_field_int(rdata,            UVM_ALL_ON)
+        `uvm_field_int(write,            UVM_ALL_ON)
+        `uvm_field_int(strb,             UVM_ALL_ON)
+        `uvm_field_int(slverr,           UVM_ALL_ON)
+        `uvm_field_int(aborted_by_reset, UVM_ALL_ON)
+
+    `uvm_object_utils_end
   endclass
 
 endpackage

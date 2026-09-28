@@ -117,80 +117,17 @@ package apb_i2c_ral_sequences_pkg;
           f = fields[j];
           acc = f.get_access();
           if (acc == "RW") begin
-           `uvm_info("RAL_ACCESS",
-    $sformatf(
-      "ABOUT TO WRITE: REG=%s FIELD=%s expected=%02h",
-      rg.get_name(),
-      f.get_name(),
-      expected
-    ),
-    UVM_NONE
-  )
-         if (acc == "RW") begin
-
-  expected = $urandom_range(
-                0,
-                (1 << f.get_n_bits()) - 1
-              );
-
-  `uvm_info("RAL_ACCESS",
-    $sformatf(
-      "ABOUT TO WRITE: REG=%s FIELD=%s WIDTH=%0d expected=%02h",
-      rg.get_name(),
-      f.get_name(),
-      f.get_n_bits(),
-      expected
-    ),
-    UVM_NONE
-  )
-
-  f.write(status, expected, UVM_FRONTDOOR);
-
-  if (status != UVM_IS_OK) begin
-
-    `uvm_error(
-      get_type_name(),
-      $sformatf(
-        "ACCESS WRITE FAILED: %s.%s",
-        rg.get_name(),
-        f.get_name()
-      )
-    )
-
-  end
-  else begin
-
-    f.read(status, actual, UVM_FRONTDOOR);
-
-    if (status != UVM_IS_OK) begin
-
-      `uvm_error(
-        get_type_name(),
-        $sformatf(
-          "ACCESS READ FAILED: %s.%s",
-          rg.get_name(),
-          f.get_name()
-        )
-      )
-
-    end
-    else if (actual !== expected) begin
-
-      `uvm_error(
-        get_type_name(),
-        $sformatf(
-          "ACCESS READBACK MISMATCH: %s.%s expected=0x%0h actual=0x%0h",
-          rg.get_name(),
-          f.get_name(),
-          expected,
-          actual
-        )
-      )
-
-    end
-
-  end
-end
+            expected = $urandom;
+            f.write(status, expected, UVM_FRONTDOOR);
+            if (status != UVM_IS_OK) begin
+              `uvm_error(get_type_name(), $sformatf("ACCESS WRITE FAILED: %s.%s", rg.get_name(), f.get_name()))
+            end else begin
+              f.read(status, actual, UVM_FRONTDOOR);
+              if (status != UVM_IS_OK)
+                `uvm_error(get_type_name(), $sformatf("ACCESS READ FAILED: %s.%s", rg.get_name(), f.get_name()))
+              else if (actual !== expected)
+                `uvm_error(get_type_name(), $sformatf("ACCESS READBACK MISMATCH: %s.%s expected=0x%0h actual=0x%0h", rg.get_name(), f.get_name(), expected, actual))
+            end
           end else if (acc == "RO") begin
             f.read(status, actual, UVM_FRONTDOOR);
             if (status != UVM_IS_OK)
@@ -793,6 +730,35 @@ end
         UVM_MEDIUM
       )
     end
+    
+     model.STATUS_REG.read(
+        status,
+        status_value,
+        UVM_FRONTDOOR
+      );
+
+
+      if (status != UVM_IS_OK) begin
+        `uvm_fatal(
+          "I2C_READ",
+          "STATUS_REG read failed"
+        )
+      end
+      
+       model.STATUS_REG.read(
+        status,
+        status_value,
+        UVM_FRONTDOOR
+      );
+
+
+      if (status != UVM_IS_OK) begin
+        `uvm_fatal(
+          "I2C_READ",
+          "STATUS_REG read failed"
+        )
+      end
+      
 
   endtask
 
@@ -845,17 +811,7 @@ class apb_i2c_reg_read_seq extends apb_i2c_ral_base_seq;
     //========================================================
 
 
-model.RXDATA_REG.read(
-      status,
-      rx_value,
-      UVM_FRONTDOOR
-    );
-      if (status != UVM_IS_OK) begin
-      `uvm_fatal(
-        "I2C_READ",
-        "CTRL_REG write failed"
-      )
-    end
+
     
     `uvm_info(
       "I2C_READ",
@@ -908,8 +864,8 @@ model.RXDATA_REG.read(
 
     ctrl_value = '0;
 
-    ctrl_value[6:0] = slave_addr;
-    ctrl_value[7]   = read_write;
+    ctrl_value[7:0] = slave_addr;
+    ctrl_value[8]   = read_write;
 
 
     `uvm_info(
@@ -1073,7 +1029,33 @@ model.RXDATA_REG.read(
       UVM_MEDIUM
     );
 
+model.STATUS_REG.read(
+        status,
+        status_value,
+        UVM_FRONTDOOR
+      );
 
+
+      if (status != UVM_IS_OK) begin
+        `uvm_fatal(
+          "I2C_WRITE",
+          "STATUS_REG read failed"
+        )
+      end
+      
+      model.STATUS_REG.read(
+        status,
+        status_value,
+        UVM_FRONTDOOR
+      );
+
+
+      if (status != UVM_IS_OK) begin
+        `uvm_fatal(
+          "I2C_WRITE",
+          "STATUS_REG read failed"
+        )
+      end
   endtask
 
 endclass

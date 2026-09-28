@@ -124,7 +124,7 @@ package apb_i2c_ral_pkg;
       //   access      = field access type "RO"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      I2C_DONE.configure(this, 1, 1, "RO", 1, 0, 1, 1, 1);
+      I2C_DONE.configure(this, 1, 1, "RC", 1, 0, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       SLAVE_ERROR = uvm_reg_field::type_id::create("SLAVE_ERROR");
       // Configure the field:
@@ -133,7 +133,7 @@ package apb_i2c_ral_pkg;
       //   access      = field access type "RO"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      SLAVE_ERROR.configure(this, 1, 2, "RO", 1, 0, 1, 1, 1);
+      SLAVE_ERROR.configure(this, 1, 2, "RC", 1, 0, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       RESERVED = uvm_reg_field::type_id::create("RESERVED");
       // Configure the field:

@@ -55,10 +55,12 @@ $(VERILATOR_STAMP): $(FILELIST) $(SOURCE_FILES)
 		--timing \
 		--trace \
 		--language 1800-2012 \
+		--build-jobs 4 \
 		--top-module $(TOP) \
+		$(UVM_SRC)/uvm_pkg.sv \
+		+incdir+$(UVM_SRC) \
 		-f $(FILELIST) \
 		+define+UVM_NO_DPI \
-		+incdir+$(UVM_SRC) \
 		--Mdir $(VERILATOR_MDIR) \
 		-Wno-WIDTHEXPAND \
 		-Wno-WIDTHTRUNC \

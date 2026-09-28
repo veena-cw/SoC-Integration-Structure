@@ -15,8 +15,7 @@ module i2c_assertions (
     //========================================================
 
     property i2c_reset_check;
-        @(posedge clk)
-        !rst_n |-> (sda && scl);
+        @(posedge clk) !rst_n |-> (sda && scl);
     endproperty
 
     assert property (i2c_reset_check)
@@ -73,6 +72,7 @@ module i2c_assertions (
     endproperty
 
     assert property (i2c_stop_check)
+    $display("assertion - stop detected");
         else $error("[%0t] Invalid I2C STOP condition", $time);
 
     cover property (i2c_stop_check);
@@ -114,7 +114,7 @@ module i2c_assertions (
 
         @(posedge clk)
         $rose(start)
-        |->
+        |=>
         @(posedge scl)
 
         (1'b1, captured_address[7] = sda)
@@ -130,7 +130,7 @@ module i2c_assertions (
 
     endproperty
 
-    assert property (i2c_address_check(8'h02))
+    assert property (i2c_address_check(8'h055))
         else
             $warning("[%0t] I2C ADDRESS CHECK FAILED: expected=%h",
                      $time, 8'h02);
@@ -223,7 +223,7 @@ module i2c_assertions (
 
     endproperty
 
-    assert property (i2c_write_data_check(8'h55))
+    assert property (i2c_write_data_check(8'ha5))
         else
             $error("[%0t] I2C WRITE DATA mismatch. Expected=55",
                    $time);

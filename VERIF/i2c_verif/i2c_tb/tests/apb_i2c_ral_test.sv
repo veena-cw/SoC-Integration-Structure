@@ -276,9 +276,9 @@ class apb_i2c_reg_write_test extends apb_i2c_base_test;
     do_reset();
     `uvm_info(get_type_name(), "WRITE TEST: frontdoor write, check mirrored vs desired", UVM_LOW)
     wseq.model = env.ral_model;
-    wseq.slave_addr = 7'h50;
+   wseq.slave_addr = 7'h55;
   wseq.read_write = 1'b0;
-  wseq.tx_data    = 32'h000000A5;
+  wseq.tx_data    = 32'h000055A5;
 
     wseq.start(env.agent.sequencer);
    // env.scoreboard.check_mirror_desired("after_write_read");
@@ -304,8 +304,9 @@ class apb_i2c_reg_read_test extends apb_i2c_base_test;
     do_reset();
     `uvm_info(get_type_name(), "READ TEST: frontdoor read, check mirrored vs desired", UVM_LOW)
     rseq.model = env.ral_model;
-    rseq.slave_addr = 7'h50;
+    rseq.slave_addr = 7'h55;
   rseq.read_write = 1'b1;
+  rseq.tx_data    = 32'h0000d500;
 
     rseq.start(env.agent.sequencer);
    // env.scoreboard.check_mirror_desired("after_write_read");

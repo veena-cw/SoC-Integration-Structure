@@ -16,6 +16,7 @@
 //=================================================================================
 
 // Generated APB Interface for APB_to_I2C_Controller (verification only, no RTL)
+import uvm_pkg::*;
 interface apb_i2c_apb_if (
     input logic pclk,
     input logic preset_n
@@ -50,4 +51,43 @@ interface apb_i2c_apb_if (
         end
 
     end*/
+    /*
+    property apb_reset_idle_check;
+  @(posedge pclk)
+  !preset_n |-> (!psel && !penable);
+endproperty
+
+assert property (apb_reset_idle_check)
+  else `uvm_error("APB_ASSERT",
+                  "APB is not IDLE after reset: PSEL/PENABLE must be LOW");
+                  
+                  
+   property apb_setup_check;
+  @(posedge pclk) disable iff (!preset_n)
+  (!psel && penable==1'b0) |-> ##1
+    (psel && penable==1'b0);
+endproperty
+
+assert property (apb_setup_check)
+  else `uvm_error("APB_ASSERT",
+                  "APB SETUP phase violation: PSEL must be HIGH and PENABLE LOW");
+                  
+  property apb_access_check;
+  @(posedge pclk) disable iff(!preset_n)
+  (psel && penable==1'b0) |=> (psel && penable);
+endproperty
+
+assert property (apb_access_check)
+  else `uvm_error("APB_ASSERT",
+                  "APB ACCESS violation: PSEL must remain HIGH and PENABLE must become HIGH");
+                  
+property apb_access_stable_check;
+  @(posedge pclk)
+  (psel && penable && !pready) |=> 
+    (psel && penable);
+endproperty
+
+assert property (apb_access_stable_check)
+  else `uvm_error("APB_ASSERT",
+                  "APB ACCESS violation: PSEL/PENABLE changed before PREADY");     */                                            
 endinterface

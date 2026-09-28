@@ -1,114 +1,3 @@
-//==================================================================================
-//  Copyright (c) 2024 Chipweave Technologies Private Limited. All rights reserved.
-//  THIS PROGRAM IS AN UNPUBLISHED WORK FULLY PROTECTED BY
-//  COPYRIGHT LAWS AND IS CONSIDERED A TRADE SECRET BELONGING
-//  TO THE CHIPWEAVE TECHNOLOGIES PRIVATE LIMITED.
-//
-//  Chipweave Technologies Confidential
-//==================================================================================
-//  Project           				: 
-//  Module            				: 
-//  Primary Unit Owner                         	: 
-//  Secondary Contact                           : 
-//  Source [SystemVerilog|Verilog|VHDL|Other]   : 
-//=================================================================================
-//  Description: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-//=================================================================================
-
-// Generated generic scoreboard for APB_to_I2C_Controller (APB)
-// Register-specific names are intentionally absent from scoreboard semantic logic.
-/*
-`include "uvm_macros.svh"
-import uvm_pkg::*;
-import apb_i2c_apb_item_pkg::*;
-import apb_i2c_ral_block_pkg::*;
-import apb_i2c_ral_metadata_pkg::*;
-`uvm_analysis_imp_decl(_apb)
-`uvm_analysis_imp_decl(_i2c)
-
-class apb_i2c_scoreboard extends uvm_component;
-  `uvm_component_utils(apb_i2c_scoreboard)
-  apb_i2c_ral_block ral_model;
-  uvm_analysis_imp_apb #(apb_i2c_apb_item, apb_i2c_scoreboard) bus_in;
-   uvm_analysis_imp_i2c	 #(apb_i2c_i2c_item, apb_i2c_scoreboard) i2c_in ;
-  int match_cnt;
-  int mismatch_cnt;
-  int write_cnt;
-  int read_cnt;
-
-  function new(string name = "apb_i2c_scoreboard", uvm_component parent = null);
-    super.new(name, parent);
-    bus_in = new("bus_in", this);
-     i2c_in = new("i2c_in", this);
-  endfunction
-
-  function bit reg_readable(uvm_reg rg);
-    uvm_reg_field fs[$];
-    rg.get_fields(fs);
-    foreach (fs[i]) if (fs[i].get_access() != "WO") return 1;
-    return 0;
-  endfunction
-
-  virtual function void write_apb(apb_i2c_apb_item tr);
-    if (tr == null) return;
-    if (tr.pwrite) write_cnt++; else read_cnt++;
-    `uvm_info("SCOREBOARD", $sformatf("SNOOP bus tr: %s", tr.convert2string()), UVM_HIGH)
-  endfunction
-  
-  
-  virtual function void write_i2c(apb_i2c_i2c_item tr);
-   
-  endfunction
-
-  task check_reset_values();
-    uvm_reg regs[$];
-    uvm_reg_data_t exp, mir;
-    uvm_reg rg;
-    ral_model.get_registers(regs);
-    foreach (regs[i]) begin
-      rg = regs[i];
-      if (is_dont_compare(rg.get_name())) continue;
-      if (is_volatile(rg.get_name())) continue;
-      if (has_read_side_effect(rg.get_name()) || has_write_side_effect(rg.get_name())) continue;
-      if (!reg_readable(rg)) continue;
-      exp = rg.get_reset();
-      mir = rg.get_mirrored_value();
-      if (mir !== exp) begin
-        mismatch_cnt++;
-        `uvm_error("SCOREBOARD", $sformatf("RESET MISMATCH %s: mirrored=0x%0h reset=0x%0h", rg.get_name(), mir, exp))
-      end else begin
-        match_cnt++;
-      end
-    end
-  endtask
-
-  function void check_mirror_desired(string ctx = "");
-    uvm_reg regs[$];
-    uvm_reg rg;
-    ral_model.get_registers(regs);
-    foreach (regs[i]) begin
-      rg = regs[i];
-      `uvm_info("SCOREBOARD", $sformatf("CHECK [%s] %s desired=0x%08h mirrored=0x%08h reset=0x%08h", ctx, rg.get_name(), rg.get(), rg.get_mirrored_value(), rg.get_reset()), UVM_HIGH)
-    end
-  endfunction
-
-  function void report_phase(uvm_phase phase);
-    super.report_phase(phase);
-    `uvm_info("SCOREBOARD", $sformatf("Scoreboard report: %0d writes, %0d reads, %0d matched, %0d mismatched", write_cnt, read_cnt, match_cnt, mismatch_cnt), UVM_LOW)
-  endfunction
-endclass*/
-
-//==================================================================================
-//  Copyright (c) 2024 Chipweave Technologies Private Limited. All rights reserved.
-//  THIS PROGRAM IS AN UNPUBLISHED WORK FULLY PROTECTED BY
-//  COPYRIGHT LAWS AND IS CONSIDERED A TRADE SECRET BELONGING
-//  TO THE CHIPWEAVE TECHNOLOGIES PRIVATE LIMITED.
-//
-//  Chipweave Technologies Confidential
-//==================================================================================
-
-// Generated generic scoreboard for APB_to_I2C_Controller (APB)
-// Register-specific names are intentionally absent from scoreboard semantic logic.
 
 `include "uvm_macros.svh"
 import uvm_pkg::*;
@@ -145,7 +34,7 @@ class apb_i2c_scoreboard extends uvm_component;
 
 
   //==========================================================================
-  // EXISTING COUNTERS
+  // COUNTERS
   //==========================================================================
 
   int match_cnt;
@@ -155,40 +44,32 @@ class apb_i2c_scoreboard extends uvm_component;
 
 
   //==========================================================================
-  // I2C TRANSACTION INFORMATION
+  // QUEUES
+  //
+  // APB queue:
+  //
+  //   TXDATA write -> I2C WRITE expected transaction
+  //   RXDATA read  -> I2C READ expected transaction
+  //
+  // I2C queue:
+  //
+  //   Complete actual I2C transaction
   //==========================================================================
 
-  bit [6:0] i2c_slave_addr;
-  bit       i2c_rw;
-
-  bit [7:0] actual_i2c_write_data;
-  bit [7:0] actual_i2c_read_data;
-
-  bit       i2c_write_seen;
-  bit       i2c_read_seen;
+  apb_i2c_apb_item apb_queue[$];
+  apb_i2c_i2c_item i2c_queue[$];
 
 
   //==========================================================================
-  // STATUS INFORMATION
+  // CURRENT CONTROL / STATUS
   //==========================================================================
 
+  bit i2c_rw;
+
+  bit status_busy;
   bit status_done;
   bit status_slave_error;
-  bit status_busy;
-
-
-  //==========================================================================
-  // APB INFORMATION
-  //==========================================================================
-
-  bit [31:0] apb_tx_data;
-  bit [7:0]  apb_rx_data;
-
-  bit ctrl_seen;
-  bit txdata_seen;
-  bit rxdata_seen;
-  bit status_seen;
-
+  bit   rxdata_pushed;
 
   //==========================================================================
   // CONSTRUCTOR
@@ -206,42 +87,22 @@ class apb_i2c_scoreboard extends uvm_component;
 
 
   //==========================================================================
-  // EXISTING FUNCTION
-  //==========================================================================
-
-  function bit reg_readable(uvm_reg rg);
-
-    uvm_reg_field fs[$];
-
-    rg.get_fields(fs);
-
-    foreach (fs[i])
-      if (fs[i].get_access() != "WO")
-        return 1;
-
-    return 0;
-
-  endfunction
-
-
-  //==========================================================================
   // APB MONITOR
-  //
-  // Observe APB transaction and update the RAL mirror.
-  // Also extract STATUS DONE/SLAVE_ERROR.
   //==========================================================================
 
   virtual function void write_apb(apb_i2c_apb_item tr);
 
+    apb_i2c_apb_item tr_copy;
     uvm_reg rg;
+
 
     if (tr == null)
       return;
 
 
-    //======================================================================
-    // Existing counters
-    //======================================================================
+    //========================================================================
+    // Counters
+    //========================================================================
 
     if (tr.pwrite)
       write_cnt++;
@@ -250,180 +111,281 @@ class apb_i2c_scoreboard extends uvm_component;
 
 
     `uvm_info("SCOREBOARD",
-              $sformatf("SNOOP bus tr: %s",
-                        tr.convert2string()),
+              $sformatf(
+                "APB transaction: %s",
+                tr.convert2string()),
               UVM_HIGH)
 
 
-    //======================================================================
-    // Find register from APB address
-    //======================================================================
+    //========================================================================
+    // Find RAL register
+    //========================================================================
 
     rg = ral_model.default_map.get_reg_by_offset(tr.paddr);
 
+
     if (rg == null) begin
 
-      `uvm_warning("SCOREBOARD",
-                   $sformatf(
-                   "No RAL register found for APB address 0x%0h",
-                   tr.paddr))
+      `uvm_warning(
+        "SCOREBOARD",
+        $sformatf(
+          "No RAL register found for APB address 0x%08h",
+          tr.paddr))
 
       return;
 
     end
 
 
-    //======================================================================
+    //========================================================================
     // APB WRITE
-    //
-    // Update RAL mirror from observed APB write.
-    //======================================================================
+    //========================================================================
 
     if (tr.pwrite) begin
 
+
+      //----------------------------------------------------------------------
+      // Update RAL mirror from actual APB write
+      //----------------------------------------------------------------------
+
       rg.predict(tr.pwdata);
 
-      `uvm_info("SCOREBOARD",
-                $sformatf(
-                "RAL WRITE: %s <= 0x%08h",
-                rg.get_name(),
-                tr.pwdata),
-                UVM_MEDIUM)
+
+      `uvm_info(
+        "RAL_PREDICT",
+        $sformatf(
+          "WRITE PREDICT: %s <= 0x%08h",
+          rg.get_name(),
+          tr.pwdata),
+        UVM_HIGH)
 
 
-      //============================================================
-      // CTRL register
-      //============================================================
+      //======================================================================
+      // CTRL_REG
+      //
+      // IMPORTANT:
+      // Do not depend on the RAL mirror here.
+      // Use the actual APB write data.
+      //======================================================================
 
       if (rg.get_name() == "CTRL_REG") begin
 
-        ctrl_seen = 1'b1;
+        // Replace READ_WRITE_BIT with actual field position
+        i2c_rw = tr.pwdata[8];
+	  rxdata_pushed = 1'b0;
 
-        i2c_slave_addr = ral_model.CTRL_REG.SLAVE_ADDR.get_mirrored_value();
-
-
-        i2c_rw = ral_model.CTRL_REG.READ_WRITE.get_mirrored_value();
-
-
-        `uvm_info("SCOREBOARD",
-                  $sformatf(
-                  "CTRL: SLAVE_ADDR=0x%02h RW=%0b",
-                  i2c_slave_addr,
-                  i2c_rw),
-                  UVM_MEDIUM)
+        `uvm_info(
+          "CTRL_DEBUG",
+          $sformatf(
+            "CTRL WRITE: PWDATA=0x%08h READ_WRITE=%0b",
+            tr.pwdata,
+            i2c_rw),
+          UVM_MEDIUM)
 
       end
 
 
-      //============================================================
-      // TXDATA register
-      //============================================================
+      //======================================================================
+      // TXDATA_REG
+      //
+      // Push only when:
+      //
+      //   BUSY       = 0
+      //   READ_WRITE = 0
+      //
+      // READ_WRITE=0 means I2C WRITE.
+      //======================================================================
 
       if (rg.get_name() == "TXDATA_REG") begin
 
-        txdata_seen = 1'b1;
 
-        apb_tx_data = ral_model.TXDATA_REG.TRANSMIT_DATA.get_mirrored_value();
+        //--------------------------------------------------------------------
+        // Get current BUSY from RAL mirror.
+        //
+        // If BUSY is generated by DUT and you have a fresh STATUS read,
+        // status_busy will already contain the latest actual DUT value.
+        //--------------------------------------------------------------------
 
-        `uvm_info("SCOREBOARD",
-                  $sformatf(
-                  "TXDATA: 0x%08h",
-                  apb_tx_data),
-                  UVM_MEDIUM)
-
-      end
-
-    end
-
-
-    //======================================================================
-    // APB READ
-    //
-    // Update RAL mirror from actual APB PRDATA.
-    //======================================================================
-
-    else begin
-
-      rg.predict(tr.prdata);
-
-      `uvm_info("SCOREBOARD",
-                $sformatf(
-                "RAL READ: %s => 0x%08h",
-                rg.get_name(),
-                tr.prdata),
-                UVM_MEDIUM)
+        `uvm_info(
+          "TXDATA_DEBUG",
+          $sformatf(
+            "TXDATA CHECK: BUSY=%0b READ_WRITE=%0b PWRITE=%0b PADDR=0x%08h PWDATA=0x%08h",
+            status_busy,
+            i2c_rw,
+            tr.pwrite,
+            tr.paddr,
+            tr.pwdata),
+          UVM_LOW)
 
 
-      //============================================================
-      // STATUS register
-      //============================================================
+        //--------------------------------------------------------------------
+        // Only push for I2C WRITE
+        //--------------------------------------------------------------------
 
-      if (rg.get_name() == "STATUS_REG") begin
-
-        status_seen = 1'b1;
-
-       status_busy = ral_model.STATUS_REG.I2C_BUSY.get_mirrored_value();
-
-	status_done = ral_model.STATUS_REG.I2C_DONE.get_mirrored_value();
-
-	status_slave_error = ral_model.STATUS_REG.SLAVE_ERROR.get_mirrored_value();
+        if (!status_busy && (i2c_rw == 1'b0)) begin
 
 
-        `uvm_info("SCOREBOARD",
-                  $sformatf(
-                  "STATUS: BUSY=%0b DONE=%0b SLAVE_ERROR=%0b",
-                  status_busy,
-                  status_done,
-                  status_slave_error),
-                  UVM_MEDIUM)
+          tr_copy =
+            apb_i2c_apb_item::type_id::create("apb_tx_copy");
 
 
-        //==========================================================
-        // Transaction completed successfully
-        //==========================================================
+          tr_copy.copy(tr);
 
-        if (status_done && !status_slave_error) begin
 
-          `uvm_info("SCOREBOARD",
-                    "I2C transaction DONE and SLAVE_ERROR=0",
-                    UVM_LOW)
+          apb_queue.push_back(tr_copy);
 
-          check_i2c_transaction();
+
+          `uvm_info(
+            "APB_QUEUE",
+            $sformatf(
+              "TXDATA PUSHED: BUSY=%0b READ_WRITE=%0b QUEUE_SIZE=%0d DATA=0x%08h",
+              status_busy,
+              i2c_rw,
+              apb_queue.size(),
+              tr.pwdata),
+            UVM_MEDIUM)
 
         end
         else begin
 
-          `uvm_info("SCOREBOARD",
-                    $sformatf(
-                    "I2C comparison skipped: DONE=%0b SLAVE_ERROR=%0b",
-                    status_done,
-                    status_slave_error),
-                    UVM_MEDIUM)
+          `uvm_info(
+            "APB_QUEUE",
+            $sformatf(
+              "TXDATA NOT PUSHED: BUSY=%0b READ_WRITE=%0b",
+              status_busy,
+              i2c_rw),
+            UVM_MEDIUM)
 
         end
 
       end
 
+    end
 
-      //============================================================
-      // RXDATA register
-      //============================================================
+
+    //========================================================================
+    // APB READ
+    //========================================================================
+
+    else begin
+
+
+      //----------------------------------------------------------------------
+      // IMPORTANT:
+      //
+      // tr.prdata is the actual value returned by the DUT.
+      // Use it directly.
+      //----------------------------------------------------------------------
+
+      `uvm_info(
+        "RAL_READ",
+        $sformatf(
+          "APB READ: %s PRDATA=0x%08h",
+          rg.get_name(),
+          tr.prdata),
+        UVM_HIGH)
+
+
+      //----------------------------------------------------------------------
+      // Predict actual DUT read value into RAL mirror
+      //----------------------------------------------------------------------
+
+      rg.predict(tr.prdata);
+
+
+      //======================================================================
+      // STATUS_REG
+      //
+      // Use tr.prdata directly.
+      // Do NOT read get_mirrored_value() again for the current transaction.
+      //======================================================================
+
+      if (rg.get_name() == "STATUS_REG") begin
+
+
+        // Replace these bit positions with actual RAL field positions.
+        status_busy =
+          tr.prdata[0];
+
+        status_done =
+          tr.prdata[1];
+
+        status_slave_error =
+          tr.prdata[2];
+
+
+        `uvm_info(
+          "STATUS_DEBUG",
+          $sformatf(
+            "STATUS READ: PRDATA=0x%08h BUSY=%0b DONE=%0b SLAVE_ERROR=%0b",
+            tr.prdata,
+            status_busy,
+            status_done,
+            status_slave_error),
+          UVM_MEDIUM)
+
+      end
+
+
+      //======================================================================
+      // RXDATA_REG
+      //
+      // RXDATA belongs to an I2C READ.
+      //
+      // Push only when:
+      //
+      //     DONE       = 1
+      //     SLAVE_ERROR = 0
+      //======================================================================
 
       if (rg.get_name() == "RXDATA_REG") begin
 
-        rxdata_seen = 1'b1;
 
-        apb_rx_data = ral_model.RXDATA_REG.RECEIVE_DATA.get_mirrored_value();
+        if (status_done && !status_slave_error && !rxdata_pushed) begin
 
-        `uvm_info("SCOREBOARD",
-                  $sformatf(
-                  "RXDATA: 0x%02h",
-                  apb_rx_data),
-                  UVM_MEDIUM)
+
+          tr_copy =
+            apb_i2c_apb_item::type_id::create("apb_rx_copy");
+
+
+          tr_copy.copy(tr);
+
+
+          apb_queue.push_back(tr_copy);
+	 rxdata_pushed = 1'b1;
+
+          `uvm_info(
+            "APB_QUEUE",
+            $sformatf(
+              "RXDATA PUSHED: PRDATA=0x%08h QUEUE_SIZE=%0d",
+              tr.prdata,
+              apb_queue.size()),
+            UVM_MEDIUM)
+
+        end
+        else begin
+
+
+          `uvm_info(
+            "APB_QUEUE",
+            $sformatf(
+              "RXDATA NOT PUSHED: DONE=%0b SLAVE_ERROR=%0b",
+              status_done,
+              status_slave_error),
+            UVM_MEDIUM)
+
+        end
 
       end
 
     end
+
+
+    //========================================================================
+    // Try queue comparison
+    //========================================================================
+
+    check_queues();
 
   endfunction
 
@@ -431,217 +393,309 @@ class apb_i2c_scoreboard extends uvm_component;
   //==========================================================================
   // I2C MONITOR
   //
-  // Capture actual I2C transaction.
-  //
-  // NOTE:
-  // Replace tr.addr / tr.rw / tr.data with the actual fields
-  // in your apb_i2c_i2c_item.
+  // Every complete I2C transaction is pushed into I2C queue.
   //==========================================================================
 
   virtual function void write_i2c(apb_i2c_i2c_item tr);
+
+    apb_i2c_i2c_item tr_copy;
+
 
     if (tr == null)
       return;
 
 
-    `uvm_info("SCOREBOARD",
-              $sformatf(
-              "SNOOP I2C tr: %s",
-              tr.convert2string()),
-              UVM_HIGH)
+    `uvm_info(
+      "I2C_MONITOR",
+      $sformatf(
+        "I2C transaction received: %s",
+        tr.convert2string()),
+      UVM_HIGH)
 
 
-    //======================================================================
-    // I2C WRITE
-    //======================================================================
+    //========================================================================
+    // Make independent copy
+    //========================================================================
 
-    if (tr.write == 1'b0) begin
-
-      i2c_write_seen = 1'b1;
-
-      actual_i2c_write_data = tr.wdata[7:0];
-
-      `uvm_info("SCOREBOARD",
-                $sformatf(
-                "I2C WRITE: ADDR=0x%02h DATA=0x%02h",
-                tr.addr,
-                actual_i2c_write_data),
-                UVM_MEDIUM)
-
-    end
+    tr_copy =
+      apb_i2c_i2c_item::type_id::create("i2c_copy");
 
 
-    //======================================================================
-    // I2C READ
-    //======================================================================
+    tr_copy.copy(tr);
 
-    else begin
 
-      i2c_read_seen = 1'b1;
+    //========================================================================
+    // Push complete transaction
+    //========================================================================
 
-      actual_i2c_read_data = tr.rdata[7:0];
+    i2c_queue.push_back(tr_copy);
 
-      `uvm_info("SCOREBOARD",
-                $sformatf(
-                "I2C READ: ADDR=0x%02h DATA=0x%02h",
-                tr.addr,
-                actual_i2c_read_data),
-                UVM_MEDIUM)
 
-    end
+    `uvm_info(
+      "I2C_QUEUE",
+      $sformatf(
+        "I2C PUSHED: QUEUE_SIZE=%0d %s",
+        i2c_queue.size(),
+        tr_copy.convert2string()),
+      UVM_MEDIUM)
+
+
+    //========================================================================
+    // Try comparison
+    //========================================================================
+
+    check_queues();
 
   endfunction
 
 
   //==========================================================================
-  // CHECK I2C TRANSACTION
+  // CHECK QUEUES
   //
-  // Called only when:
+  // I2C WRITE:
   //
-  // STATUS.DONE       == 1
-  // STATUS.SLAVE_ERROR == 0
+  //       APB pwdata == I2C rdata
   //
+  //
+  // I2C READ:
+  //
+  //       APB prdata == I2C wdata
   //==========================================================================
 
-  function  check_i2c_transaction();
+  function void check_queues();
 
-    bit rw;
+    apb_i2c_apb_item apb_tr;
+    apb_i2c_i2c_item i2c_tr;
 
-   i2c_rw = ral_model.CTRL_REG.READ_WRITE.get_mirrored_value();
+
+    //========================================================================
+    // Nothing to compare until both queues have an entry
+    //========================================================================
+
+    if (apb_queue.size() == 0)
+      return;
+
+    if (i2c_queue.size() == 0)
+      return;
 
 
-    //======================================================================
+    `uvm_info(
+      "QUEUE_CHECK",
+      $sformatf(
+        "Both queues valid: APB=%0d I2C=%0d",
+        apb_queue.size(),
+        i2c_queue.size()),
+      UVM_MEDIUM)
+
+
+    //========================================================================
+    // Look at first entries
+    //
+    // Use [0] first rather than immediately popping.
+    // This prevents losing transactions if the transaction type is wrong.
+    //========================================================================
+
+    apb_tr = apb_queue[0];
+    i2c_tr = i2c_queue[0];
+
+
+    //========================================================================
     // I2C WRITE
-    //======================================================================
+    //
+    // write=0 -> I2C WRITE
+    //
+    // APB must be WRITE.
+    //
+    // Compare:
+    //
+    //       APB pwdata == I2C rdata
+    //========================================================================
 
-    if (rw == 1'b0) begin
+    if (i2c_tr.write == 1'b0) begin
 
-      if (!i2c_write_seen) begin
 
-        `uvm_error("SCOREBOARD",
-                   "DONE=1 but no I2C WRITE transaction received")
+      `uvm_info(
+        "QUEUE_CHECK",
+        "Checking I2C WRITE",
+        UVM_MEDIUM)
+
+
+      if (!apb_tr.pwrite) begin
+
+        `uvm_error(
+          "SCOREBOARD",
+          $sformatf(
+            "I2C WRITE expects APB WRITE, but APB transaction is READ. APB=%s I2C=%s",
+            apb_tr.convert2string(),
+            i2c_tr.convert2string()))
 
         mismatch_cnt++;
 
+        // Do not pop.
         return;
 
       end
 
 
-      //============================================================
-      // Expected data comes from TXDATA_REG RAL field
-      //============================================================
+      //======================================================================
+      // Compare data
+      //======================================================================
 
-      apb_tx_data =
-    ral_model.TXDATA_REG.TRANSMIT_DATA.get_mirrored_value();
+      if (apb_tr.pwdata[7:0] === i2c_tr.rdata[7:0]) begin
 
-
-      // TXDATA is 32-bit but I2C transfer is 8-bit
-      if (actual_i2c_write_data == apb_tx_data[7:0]) begin
 
         match_cnt++;
 
-        `uvm_info("SCOREBOARD",
-                  $sformatf(
-                  "I2C WRITE PASS: TXDATA=0x%02h I2C_DATA=0x%02h",
-                  apb_tx_data[7:0],
-                  actual_i2c_write_data),
-                  UVM_LOW)
+
+        `uvm_info(
+          "SCOREBOARD",
+          $sformatf(
+            "I2C WRITE PASS: APB pwdata=0x%02h I2C rdata=0x%02h",
+            apb_tr.pwdata[7:0],
+            i2c_tr.rdata[7:0]),
+          UVM_LOW)
+
 
       end
       else begin
 
+
         mismatch_cnt++;
 
-        `uvm_error("SCOREBOARD",
-                   $sformatf(
-                   "I2C WRITE FAIL: TXDATA=0x%02h I2C_DATA=0x%02h",
-                   apb_tx_data[7:0],
-                   actual_i2c_write_data))
+
+        `uvm_error(
+          "SCOREBOARD",
+          $sformatf(
+            "I2C WRITE FAIL: APB pwdata=0x%02h I2C rdata=0x%02h",
+            apb_tr.pwdata[7:0],
+            i2c_tr.rdata[7:0]))
 
       end
+
+
+      //======================================================================
+      // Remove matched pair
+      //======================================================================
+
+      void'(apb_queue.pop_front());
+      void'(i2c_queue.pop_front());
 
     end
 
 
-    //======================================================================
+    //========================================================================
     // I2C READ
-    //======================================================================
+    //
+    // write=1 -> I2C READ
+    //
+    // APB must be READ.
+    //
+    // Compare:
+    //
+    //       APB prdata == I2C wdata
+    //========================================================================
 
     else begin
 
-      if (!i2c_read_seen) begin
 
-        `uvm_error("SCOREBOARD",
-                   "DONE=1 but no I2C READ transaction received")
+      `uvm_info(
+        "QUEUE_CHECK",
+        "Checking I2C READ",
+        UVM_MEDIUM)
+
+
+      if (apb_tr.pwrite) begin
+
+        `uvm_error(
+          "SCOREBOARD",
+          $sformatf(
+            "I2C READ expects APB READ, but APB transaction is WRITE. APB=%s I2C=%s",
+            apb_tr.convert2string(),
+            i2c_tr.convert2string()))
 
         mismatch_cnt++;
 
+        // Do not pop.
         return;
 
       end
 
 
-      //============================================================
-      // RXDATA register should contain I2C received data
-      //============================================================
+      //======================================================================
+      // Compare data
+      //======================================================================
 
-      apb_rx_data =
-    ral_model.RXDATA_REG.RECEIVE_DATA.get_mirrored_value();
+      if (apb_tr.prdata[7:0] === i2c_tr.wdata[7:0]) begin
 
-
-      if (actual_i2c_read_data == apb_rx_data) begin
 
         match_cnt++;
 
-        `uvm_info("SCOREBOARD",
-                  $sformatf(
-                  "I2C READ PASS: I2C_DATA=0x%02h RXDATA=0x%02h",
-                  actual_i2c_read_data,
-                  apb_rx_data),
-                  UVM_LOW)
+
+        `uvm_info(
+          "SCOREBOARD",
+          $sformatf(
+            "I2C READ PASS: APB prdata=0x%02h I2C wdata=0x%02h",
+            apb_tr.prdata[7:0],
+            i2c_tr.wdata[7:0]),
+          UVM_LOW)
+
 
       end
       else begin
 
+
         mismatch_cnt++;
 
-        `uvm_error("SCOREBOARD",
-                   $sformatf(
-                   "I2C READ FAIL: I2C_DATA=0x%02h RXDATA=0x%02h",
-                   actual_i2c_read_data,
-                   apb_rx_data))
+
+        `uvm_error(
+          "SCOREBOARD",
+          $sformatf(
+            "I2C READ FAIL: APB prdata=0x%02h I2C wdata=0x%02h",
+            apb_tr.prdata[7:0],
+            i2c_tr.wdata[7:0]))
 
       end
+
+
+      //======================================================================
+      // Remove matched pair
+      //======================================================================
+
+      void'(apb_queue.pop_front());
+      void'(i2c_queue.pop_front());
 
     end
 
 
-    //======================================================================
-    // Clear transaction flags after comparison
-    //======================================================================
+    //========================================================================
+    // Queue status
+    //========================================================================
 
-    i2c_write_seen = 1'b0;
-    i2c_read_seen  = 1'b0;
+    `uvm_info(
+      "QUEUE_CHECK",
+      $sformatf(
+        "After comparison: APB_QUEUE=%0d I2C_QUEUE=%0d",
+        apb_queue.size(),
+        i2c_queue.size()),
+      UVM_MEDIUM)
 
   endfunction
 
 
   //==========================================================================
-  // EXISTING RESET CHECK
+  // RESET CHECK
   //==========================================================================
 
   task check_reset_values();
 
     uvm_reg regs[$];
-
     uvm_reg_data_t exp;
     uvm_reg_data_t mir;
-
     uvm_reg rg;
 
 
     ral_model.get_registers(regs);
+
 
     foreach (regs[i]) begin
 
@@ -651,19 +705,21 @@ class apb_i2c_scoreboard extends uvm_component;
       if (is_dont_compare(rg.get_name()))
         continue;
 
+
       if (is_volatile(rg.get_name()))
         continue;
+
 
       if (has_read_side_effect(rg.get_name()) ||
           has_write_side_effect(rg.get_name()))
         continue;
+
 
       if (!reg_readable(rg))
         continue;
 
 
       exp = rg.get_reset();
-
       mir = rg.get_mirrored_value();
 
 
@@ -671,13 +727,14 @@ class apb_i2c_scoreboard extends uvm_component;
 
         mismatch_cnt++;
 
+
         `uvm_error(
           "SCOREBOARD",
           $sformatf(
-          "RESET MISMATCH %s: mirrored=0x%0h reset=0x%0h",
-          rg.get_name(),
-          mir,
-          exp))
+            "RESET MISMATCH %s: mirrored=0x%0h reset=0x%0h",
+            rg.get_name(),
+            mir,
+            exp))
 
       end
       else begin
@@ -692,7 +749,29 @@ class apb_i2c_scoreboard extends uvm_component;
 
 
   //==========================================================================
-  // EXISTING MIRROR CHECK
+  // REGISTER READABLE
+  //==========================================================================
+
+  function bit reg_readable(uvm_reg rg);
+
+    uvm_reg_field fs[$];
+
+
+    rg.get_fields(fs);
+
+
+    foreach (fs[i])
+      if (fs[i].get_access() != "WO")
+        return 1;
+
+
+    return 0;
+
+  endfunction
+
+
+  //==========================================================================
+  // MIRROR CHECK
   //==========================================================================
 
   function void check_mirror_desired(string ctx = "");
@@ -700,21 +779,24 @@ class apb_i2c_scoreboard extends uvm_component;
     uvm_reg regs[$];
     uvm_reg rg;
 
+
     ral_model.get_registers(regs);
+
 
     foreach (regs[i]) begin
 
       rg = regs[i];
 
+
       `uvm_info(
         "SCOREBOARD",
         $sformatf(
-        "CHECK [%s] %s desired=0x%08h mirrored=0x%08h reset=0x%08h",
-        ctx,
-        rg.get_name(),
-        rg.get(),
-        rg.get_mirrored_value(),
-        rg.get_reset()),
+          "CHECK [%s] %s desired=0x%08h mirrored=0x%08h reset=0x%08h",
+          ctx,
+          rg.get_name(),
+          rg.get(),
+          rg.get_mirrored_value(),
+          rg.get_reset()),
         UVM_HIGH)
 
     end
@@ -730,16 +812,21 @@ class apb_i2c_scoreboard extends uvm_component;
 
     super.report_phase(phase);
 
+
     `uvm_info(
       "SCOREBOARD",
       $sformatf(
-      "Scoreboard report: %0d writes, %0d reads, %0d matched, %0d mismatched",
-      write_cnt,
-      read_cnt,
-      match_cnt,
-      mismatch_cnt),
+        "Scoreboard report: APB writes=%0d reads=%0d matches=%0d mismatches=%0d APB_QUEUE=%0d I2C_QUEUE=%0d",
+        write_cnt,
+        read_cnt,
+        match_cnt,
+        mismatch_cnt,
+        apb_queue.size(),
+        i2c_queue.size()),
       UVM_LOW)
 
   endfunction
 
+
 endclass
+

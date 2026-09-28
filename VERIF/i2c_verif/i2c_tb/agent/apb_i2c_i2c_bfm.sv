@@ -30,7 +30,7 @@ bit tick =0;
 int count=0; 
 bit start_detected;
 bit [7:0] mem [7:0]; 
-bit [7:0] slave_addr = 7'h50;//configure 
+bit [7:0] slave_addr = 7'h55;//configure 
 bit [7:0] slv_addr_rcv; 
 bit [7:0] slv_data_rcv;
 bit [7:0] slv_data_send;
@@ -58,8 +58,8 @@ logic sda_drive_low;
 
 
   task run_phase(uvm_phase phase);
-
- 
+   stop_detected = 1'b0;
+   vif.done = 1'b0;
    vif.sda_drive_low=1'b0;
    forever begin
   wait_for_start();
@@ -92,6 +92,8 @@ bit scl_last,sda_last;
 $display("-------waiting for slave---------------");
 
 start_detected = 1'b0;
+stop_detected = 1'b0;
+   vif.done = 1'b0;
 while(!start_detected)
 begin
  @(vif.driver_cb);
@@ -108,63 +110,7 @@ begin
     
 end
 endtask
-/*
-task wait_for_start();
 
-    start_detected = 1'b0;
-
-    $display("[%0t] ------- Waiting for START -------", $time);
-
-    forever begin
-
-        @(negedge vif.i2c_sda);
-
-        if (vif.i2c_scl === 1'b1) begin
-
-            start_detected = 1'b1;
-
-            $display("[%0t] ------- START detected -------",
-                     $time);
-
-            return;
-
-        end
-
-    end
-
-endtask
-*//*
-task wait_for_start();
-
-    forever begin
-
-        @(negedge vif.i2c_sda);
-
-        // Give bus resolution/update a delta cycle
-        #0;
-
-        if (vif.i2c_scl === 1'b1) begin
-
-            $display("[%0t] =======================", $time);
-            $display("[%0t] START DETECTED", $time);
-            $display("[%0t] SCL = %b", $time, vif.i2c_scl);
-            $display("[%0t] SDA = %b", $time, vif.i2c_sda);
-            $display("[%0t] =======================", $time);
-
-            return;
-
-        end
-        else begin
-
-            $display("[%0t] SDA falling, but SCL LOW -> NOT START",
-                     $time);
-        end
-
-    end
-
-endtask
-
-*/
 task receive_address();
  bit scl_last;
  int i=7;
@@ -195,7 +141,7 @@ begin
 end
 
  end
-
+  vif.slave_address = slv_addr_rcv;
 endtask
 
 
@@ -205,7 +151,8 @@ task send_ack_nack();
    int i=0;	
  if(slv_addr_rcv[7:1] == slave_addr)
 	slv_detected =1;
-
+	
+    vif.write = slv_addr_rcv[0];
  scl_last = vif.i2c_scl;
  repeat(1) begin
 
@@ -297,43 +244,113 @@ end
    $display("---------------------0x%0h--------------------",slv_data_rcv);
      
  end
-
+vif.pointer_reg =slv_data_rcv;
 endtask
 
 task send_data();
 
-    bit scl_last;
-   int i=7;	
+    int i;
+    bit [7:0] data_to_send;
 
- scl_last = vif.i2c_scl;
- repeat(8) begin
+    data_to_send = $random;
+    vif.temp_reg = data_to_send;
+
+    $display("================================================");
+    $display("[%0t] SLAVE SEND DATA START", $time);
+    $display("[%0t] Data = 0x%02h  Binary = %08b",
+             $time, data_to_send, data_to_send);
+    $display("================================================");
+
+    // Make sure SDA is initially released
+    vif.sda_drive_low = 1'b0;
+
+    // -------------------------------------------------
+    // IMPORTANT:
+    // After address ACK, SCL should be LOW.
+    // Drive the FIRST bit immediately.
+    // Do NOT blindly wait for another negedge.
+    // -------------------------------------------------
+
+    if (vif.i2c_scl === 1'b0) begin
+
+        // Drive MSB immediately
+        vif.sda_drive_low = ~data_to_send[7];
+
+        $display("[%0t] SEND bit[7] = %b | drive_low=%b | SDA=%b | SCL=%b",
+                 $time,
+                 data_to_send[7],
+                 vif.sda_drive_low,
+                 vif.i2c_sda,
+                 vif.i2c_scl);
+
+    end
+    else begin
+
+        // If SCL is HIGH, wait until it goes LOW
+        @(negedge vif.i2c_scl);
+
+        vif.sda_drive_low = ~data_to_send[7];
+
+        $display("[%0t] SEND bit[7] = %b | drive_low=%b | SDA=%b | SCL=%b",
+                 $time,
+                 data_to_send[7],
+                 vif.sda_drive_low,
+                 vif.i2c_sda,
+                 vif.i2c_scl);
+    end
 
 
+    // -------------------------------------------------
+    // Send remaining bits: 6 -> 0
+    // -------------------------------------------------
 
-scl_neg_edge = 1'b0;
-scl_pos_edge = 1'b0;
-while(!scl_neg_edge)
-begin
- @(vif.driver_cb);
-   if((vif.i2c_scl == 0) & scl_last==1'b1)
-   begin 
-   scl_neg_edge = 1'b1; 
+    for (i = 6; i >= 0; i--) begin
 
-       $display("sending  [%0t] Bit %0d = %b",
-                             $time,
-                             i,
-                             vif.i2c_sda);
-      	
-    	vif.sda_drive_low = ~slv_data_rcv[i];
+        // Wait until current bit has been sampled
+        // and SCL goes LOW for the next bit.
+        @(negedge vif.i2c_scl);
 
-  i--; 
-   end  
-      scl_last = vif.i2c_scl;  
-end
+        // I2C:
+        // data = 0 -> pull SDA LOW
+        // data = 1 -> release SDA
+        vif.sda_drive_low = ~data_to_send[i];
 
-scl_neg_edge = 1'b0; 
+        $display("[%0t] SEND bit[%0d] = %b | drive_low=%b | SDA=%b | SCL=%b",
+                 $time,
+                 i,
+                 data_to_send[i],
+                 vif.sda_drive_low,
+                 vif.i2c_sda,
+                 vif.i2c_scl);
 
- end
+    end
+
+
+    // -------------------------------------------------
+    // bit[0] is now on SDA.
+    //
+    // Master will sample it at the next rising edge.
+    // Therefore DON'T release SDA immediately.
+    // -------------------------------------------------
+
+    @(posedge vif.i2c_scl);
+
+    $display("[%0t] bit[0] sampled by MASTER | SDA=%b",
+             $time, vif.i2c_sda);
+
+
+    // Now SCL goes LOW and slave can release SDA
+    @(negedge vif.i2c_scl);
+
+    vif.sda_drive_low = 1'b0;
+
+    $display("[%0t] SLAVE RELEASED SDA after DATA",
+             $time);
+
+    $display("================================================");
+    $display("[%0t] SLAVE SEND DATA END", $time);
+    $display("================================================");
+
 endtask
 
 task send_ack();
@@ -384,6 +401,7 @@ $display("---------------[%0t]---ACK sent----------",$time);
  
  bit scl_pos_edge = 1'b0;
  bit m_data_recvd =0;
+ vif.sda_drive_low = 0;
  repeat(1) begin
  scl_last = vif.i2c_scl;
 while(!scl_pos_edge)
@@ -408,18 +426,19 @@ $display("---------------NACK Received --------");
  
 task  wait_for_stop();
  bit scl_last,sda_last;
-
+ 
 
 stop_detected = 1'b0;
  scl_last = vif.i2c_scl;
- //sda_last = vif.i2c_sda;
+ sda_last = vif.i2c_sda;
  $display("[%0t]-------wating for stop---------------",$time);
- 
+  vif.done = 1'b1; 
 while(!stop_detected)
 begin
  @(vif.driver_cb);
    if(vif.i2c_scl == 1 & (vif.i2c_sda ==1 & sda_last ==0)) begin
-          stop_detected = 1'b1;  
+          stop_detected = 1'b1; 
+          vif.done = 1'b0; 
           $display("[%0t]-------stop  detected---------------",$time);
           
           end
@@ -437,3 +456,5 @@ endtask
 
 
 endclass
+
+

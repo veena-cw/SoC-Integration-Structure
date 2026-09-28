@@ -1,4 +1,0 @@
-orderedmultidict
-wheel
-setuptools>=58
-markupsafe

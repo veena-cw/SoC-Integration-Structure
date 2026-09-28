@@ -1,2 +1,0 @@
--tree testbench
-+tree testbench.wrapper.dut

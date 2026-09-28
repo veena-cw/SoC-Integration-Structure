@@ -505,7 +505,7 @@ class apb_i2c_scoreboard extends uvm_component;
 
   function  check_i2c_transaction();
 
-    bit rw;
+    bit i2c_rw;
 
    i2c_rw = ral_model.CTRL_REG.READ_WRITE.get_mirrored_value();
 
@@ -514,7 +514,7 @@ class apb_i2c_scoreboard extends uvm_component;
     // I2C WRITE
     //======================================================================
 
-    if (rw == 1'b0) begin
+    if (i2c_rw == 1'b0) begin
 
       if (!i2c_write_seen) begin
 

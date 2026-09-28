@@ -106,9 +106,9 @@ end
         run_test("apb_i2c_reg_reset_test");
     end
     
-    
+    /*
     initial begin
     #1000;
     $finish;
-    end
+    end*/
 endmodule

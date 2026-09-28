@@ -206,8 +206,10 @@ module ahb3lite_plic_top #(
 
     //get number of active lanes for a 1024bit databus (max width) for this HSIZE
     case (hsize)
-       HSIZE_B1024: full_be = 'hffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff; 
-       HSIZE_B512 : full_be = 'hffff_ffff_ffff_ffff;
+       //HSIZE_B1024: full_be = 'hffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff; 
+       //HSIZE_B512 : full_be = 'hffff_ffff_ffff_ffff;
+       HSIZE_B1024: full_be = 128'hffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff;
+       HSIZE_B512 : full_be = 128'hffff_ffff_ffff_ffff;
        HSIZE_B256 : full_be = 'hffff_ffff;
        HSIZE_B128 : full_be = 'hffff;
        HSIZE_DWORD: full_be = 'hff;

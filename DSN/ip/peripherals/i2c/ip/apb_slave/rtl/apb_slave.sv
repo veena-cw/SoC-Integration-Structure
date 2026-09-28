@@ -1,7 +1,4 @@
-   module apb_slave #(
-   //==========================================================
-   // Configurable Parameters
-   //==========================================================
+module apb_slave #(
    parameter DW = 32,
    parameter AW = 32,
 
@@ -9,15 +6,9 @@
    localparam SW = int'($ceil(DW/8))
 )
 (
-   //==========================================================
-   // Clock and Reset
-   //==========================================================
+   
    input  logic pclk,
    input  logic presetn,
-
-   //==========================================================
-   // APB Interface
-   //==========================================================
    input  logic [AW-1:0] i_paddr,
    input  logic          i_pwrite,
    input  logic          i_psel,
@@ -28,21 +19,20 @@
    output logic          o_pslverr,
    output logic          o_pready,
 
+
+
    input logic i2c_busy,
    input logic i2c_done,
    output logic          fifo_wr_en,
    output logic [DW-1:0] fifo_wr_data,
    input  logic          fifo_full,
 
-   input  logic [7:0]    i_rd_data,
+  input  logic [7:0]    i_rd_data,
    input logic i_rd_data_valid,
    input logic i2c_nack
 
 );
 
-   //==========================================================
-   // State Machine
-   //==========================================================
 
    typedef enum logic [1:0]
    {
@@ -54,9 +44,6 @@
 
    state_t state_ff;
 
-   //==========================================================
-   // Address Configuration
-   //==========================================================
 
    localparam ADDR_LSB = $clog2(DW/8);
    localparam N_REG    = 2**(AW-ADDR_LSB);
@@ -88,17 +75,6 @@
       else
          reg_addr <= i_paddr[7:0];
    end
-
-   //----------------------------------------------------------
-   // STATUS register: sticky, read-to-clear DONE/NACK bits
-   //----------------------------------------------------------
-   // i2c_done / i2c_nack are single-cycle pulses from the I2C
-   // engine. Wiring them straight into status_reg combinationally
-   // (as before) meant the DONE bit was only observable for the
-   // exact one clock cycle the pulse occurred on - a polling read
-   // over APB will almost always miss it. Latch them into sticky
-   // bits that stay set until software reads STATUS.
-
    logic status_read_fire;
    assign status_read_fire = req_rd && o_pready && i_penable &&
                               (reg_addr == STATUS_OFFSET);
@@ -113,9 +89,7 @@
             done_sticky <= 1'b0;
             nack_sticky <= 1'b0;
          end
-
-         // ... but a fresh pulse always wins over a same-cycle
-         // clear, so a new completion/error is never dropped.
+         
          if (i2c_done) done_sticky <= 1'b1;
          if (i2c_nack) nack_sticky <= 1'b1;
       end
@@ -138,13 +112,9 @@
    assign tx_write_blocked   = (i_paddr[7:0] == TXDATA_OFFSET) && tx_valid;
 
    always_comb begin
-
     o_pready = 1'b0;
-
     case (state_ff)
-
         IDLE: begin
-
             // WRITE
             if (req_wr &&
                 i_penable &&
@@ -153,51 +123,34 @@
                 !i2c_busy &&
                 !ctrl_write_blocked &&
                 !tx_write_blocked) begin
-
                 o_pready = 1'b1;
             end
-
-            // READ - register reads (CTRL/STATUS/TXDATA/RXDATA)
-            // complete in the same cycle, they don't wait on
-            // i_rd_data_valid.
             if (req_rd &&
                 i_penable &&
                 i_psel) begin
-
                 o_pready = 1'b1;
             end
-
             // I2C NACK error
             if (i2c_nack &&
                 i_psel &&
                 i_penable) begin
-
                 o_pready = 1'b1;
             end
-
         end
-
-
         W_ACCESS: begin
-
             if (req_wr &&
                 i_penable &&
                 !fifo_full &&
                 !i2c_busy &&
                 !ctrl_write_blocked &&
                 !tx_write_blocked) begin
-
                 o_pready = 1'b1;
             end
-
              if (req_rd && i_penable) 
                 o_pready = 1'b1;
-
         end
 
-
         R_ACCESS: begin
-
             // READ completes when data is valid
             if (req_rd &&
                 i_penable &&
@@ -205,78 +158,19 @@
 
                 o_pready = 1'b1;
             end
-
         end
-
-
         default: begin
             o_pready = 1'b0;
         end
 
+
+
     endcase
 
+
+
 end
-   /*always_comb begin
-
-      o_pready = 1'b0;
-
-     
-case (state_ff)
-
-    IDLE: begin
-        if (req_wr && i_penable && i_psel && !fifo_full && !i2c_busy &&
-            !ctrl_write_blocked && !tx_write_blocked) begin
-            o_pready = 1'b1;
-        end
-
-        if (i2c_nack && i_psel && i_penable) begin
-            o_pready = 1'b1;
-        end
-    end
-
-    W_ACCESS: begin
-        if (req_wr && i_penable && !fifo_full && !i2c_busy &&
-            !ctrl_write_blocked && !tx_write_blocked) begin
-            o_pready = 1'b1;
-        end
-    end
- 
-
-    R_FINISH: begin
-        o_pready = 1'b1;
-    end
-
-    default: begin
-        o_pready = 1'b0;
-    end
-i_pwdata
-endcase
-   end */
-
-   //==========================================================
-   // CTRL and TX Register Write Logic
-   //
-   // FIX (i_pstrb not used): i_pstrb was declared but never
-   // referenced, so a CTRL/TXDATA write always wrote the full
-   // word regardless of which byte lanes the master actually
-   // asserted (per APB, i_pstrb[n] indicates whether i_pwdata's
-   // byte lane n contains valid write data - i_pstrb[0]=[7:0],
-   // [1]=[15:8], [2]=[23:16], [3]=[31:24]).
-   //
-   // CTRL_OFFSET only ever used i_pwdata[15:8] (byte lane 1), so
-   // that write is now gated on i_pstrb[1] - if that lane is not
-   // enabled, ctrl_reg is left unchanged and ctrl_valid is not
-   // set (falls through to the existing clearing behavior below).
-   //
-   // TXDATA_OFFSET uses the full word, so each byte lane is now
-   // written independently, gated by its own i_pstrb bit (a
-   // byte-merge write: any lane not enabled keeps its previous
-   // value in txdata_reg instead of being overwritten with a
-   // stale/undriven i_pwdata byte). tx_valid is only set if at
-   // least one lane was actually enabled - a write with
-   // i_pstrb == '0 writes nothing and must not be treated as a
-   // pending TX byte.
-   //==========================================================
+   
    always_ff @(posedge pclk or negedge presetn) begin
       if(!presetn) begin
          ctrl_reg   <= 32'h0000_0000; // Default: slave addr 0x50 in [14:8]
@@ -284,6 +178,8 @@ endcase
          tx_valid   <= 1'b0;
          ctrl_valid <= 1'b0;
       end else begin
+
+
 
          if (o_pready && i_psel && i_pwrite && i_penable) begin
             case(reg_addr)
@@ -306,11 +202,8 @@ endcase
                         end
             endcase
          end
-        else 
-        begin
-            ctrl_valid <= 1'b0;
-            tx_valid <= 1'b0;
-            end
+
+
 
          // Clear old transaction once I2C consumes it
          if (i2c_done == 1) begin
@@ -318,12 +211,20 @@ endcase
             tx_valid   <= 1'b0;
          end
 
+
+
       end
    end
 
+
+
    logic both_valid, both_valid_d, fifo_wr_pulse;
 
+
+
    assign both_valid = (ctrl_valid == 1) && (tx_valid == 1);
+
+
 
    always_ff @(posedge pclk or negedge presetn) begin
       if (!presetn)
@@ -332,15 +233,25 @@ endcase
          both_valid_d <= both_valid;
    end
 
+
+
    assign fifo_wr_pulse = both_valid & ~both_valid_d;
+
+
 
    assign fifo_wr_data = txdata_reg;
    assign fifo_wr_en   = fifo_wr_pulse & ~fifo_full;
 
+
+
    assign o_pslverr = (i2c_nack && i_psel && i_penable && o_pready) ? 1'b1 : 1'b0;
+
+
 
    always_comb begin
       o_prdata = '0;
+
+
 
       if (req_rd) begin
          case (reg_addr)
@@ -353,14 +264,22 @@ endcase
       end
    end
 
+
+
    always_ff @(posedge pclk or negedge presetn) begin
+
+
 
       if (!presetn) begin
          state_ff <= IDLE;
       end
       else begin
 
+
+
          case (state_ff)
+
+
 
             IDLE: begin
                if (req_wr) begin
@@ -374,13 +293,6 @@ endcase
                end
             end
 
-            //--------------------------------------------------
-            // WRITE ACCESS
-            //--------------------------------------------------
-            W_ACCESS: begin
-               // Transition is driven directly by o_pready instead
-               // of re-deriving the same fifo_full/i2c_busy/i2c_done
-               // condition separately.
                if (o_pready) begin
                   state_ff <= IDLE;
                end             
@@ -390,7 +302,11 @@ endcase
                else
                   state_ff <= W_ACCESS;
 
+
+
             end
+
+
 
             R_ACCESS: begin
                if (req_rd) begin
@@ -401,18 +317,30 @@ endcase
                end
             end
 
+
+
             R_FINISH: begin
                state_ff <= IDLE;
             end
+
+
 
             default: begin
                state_ff <= IDLE;
             end
 
+
+
          endcase
+
+
 
       end
 
+
+
    end
+
+
 
 endmodule

@@ -92,7 +92,12 @@ module cpu_top
 
     output logic [num_cce_p-1:0][l2_dmas_p-1:0][l2_fill_width_p-1:0] dma_data_o,
     output logic [num_cce_p-1:0][l2_dmas_p-1:0]                      dma_data_v_o,
-    input  logic [num_cce_p-1:0][l2_dmas_p-1:0]                      dma_data_ready_and_i
+    input  logic [num_cce_p-1:0][l2_dmas_p-1:0]                      dma_data_ready_and_i,
+    
+    // ==================================================================
+    // External PLIC interrupt sources
+    // ==================================================================
+    input logic [63:0] plic_src_i
 );
 
   // --------------------------------------------------------------------
@@ -154,7 +159,10 @@ module cpu_top
 
       .dma_data_o          (dma_data_o),
       .dma_data_v_o        (dma_data_v_o),
-      .dma_data_ready_and_i(dma_data_ready_and_i)
+      .dma_data_ready_and_i(dma_data_ready_and_i),
+      
+      // ---- External PLIC interrupt sources ----
+      .plic_src_i(plic_src_i)
   );
 
   // Instantiated directly - no auto-parameterizing wrapper in between.

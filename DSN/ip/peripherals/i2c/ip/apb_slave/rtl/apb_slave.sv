@@ -269,16 +269,13 @@ end
    always_ff @(posedge pclk or negedge presetn) begin
 
 
-
       if (!presetn) begin
          state_ff <= IDLE;
       end
       else begin
 
 
-
          case (state_ff)
-
 
 
             IDLE: begin
@@ -292,55 +289,41 @@ end
                   state_ff <= IDLE;
                end
             end
-
+    W_ACCESS : begin
                if (o_pready) begin
                   state_ff <= IDLE;
                end             
-               else if (req_rd && i_rd_data_valid) begin
+               else if (req_rd && i_rd_data_valid) 
                   state_ff <= R_ACCESS;
-               end
+              
                else
                   state_ff <= W_ACCESS;
-
-
-
-            end
+                  
+                end
 
 
 
             R_ACCESS: begin
-               if (req_rd) begin
+               if (req_rd) 
                   state_ff <= R_FINISH;
-               end
-               else begin
+            
+               else 
                   state_ff <= R_ACCESS;
-               end
+            
             end
-
-
 
             R_FINISH: begin
                state_ff <= IDLE;
             end
 
-
-
             default: begin
                state_ff <= IDLE;
             end
 
-
-
          endcase
-
-
 
       end
 
-
-
    end
-
-
 
 endmodule

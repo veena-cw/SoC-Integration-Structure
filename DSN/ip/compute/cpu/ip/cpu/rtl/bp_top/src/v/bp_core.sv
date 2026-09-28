@@ -77,6 +77,20 @@ module bp_core
    , output logic [bedrock_fill_width_p-1:0]             mem_rev_data_o
    , output logic                                        mem_rev_v_o
    , input                                               mem_rev_ready_and_i
+   // PLIC BedRock device connection 
+   , output logic [mem_fwd_header_width_lp-1:0] plic_fwd_header_o //core to shared PLIC
+   , output logic [bedrock_fill_width_p-1:0]    plic_fwd_data_o
+   , output logic                               plic_fwd_v_o
+   , input  logic                               plic_fwd_ready_and_i
+
+   , input  logic [mem_rev_header_width_lp-1:0] plic_rev_header_i //shared PLIC to core
+   , input  logic [bedrock_fill_width_p-1:0]    plic_rev_data_i
+   , input  logic                               plic_rev_v_i
+   , output logic                               plic_rev_ready_and_o
+
+   // PLIC external interrupts  
+   , input logic                               plic_m_external_irq_i
+   , input logic                               plic_s_external_irq_i
 
    , output logic [l2_slices_p-1:0][l2_banks_p-1:0][dma_pkt_width_lp-1:0] dma_pkt_o
    , output logic [l2_slices_p-1:0][l2_banks_p-1:0]                       dma_pkt_v_o
@@ -99,13 +113,21 @@ module bp_core
   localparam cce_proc_id_lp     =                      0;
   localparam num_proc_lp        = cce_proc_id_lp     + 1;
   localparam lg_num_proc_lp     = `BSG_SAFE_CLOG2(num_proc_lp);
-
+/*
   localparam cfg_dev_id_lp      =                      0;
   localparam clint_dev_id_lp    = cfg_dev_id_lp      + 1;
   localparam l2s_dev_base_id_lp = clint_dev_id_lp    + 1;
   localparam loopback_dev_id_lp = l2s_dev_base_id_lp + l2_slices_p;
   localparam num_dev_lp         = loopback_dev_id_lp + 1;
   localparam lg_num_dev_lp      = `BSG_SAFE_CLOG2(num_dev_lp);
+*/
+ localparam cfg_dev_id_lp      = 0;
+ localparam clint_dev_id_lp    = cfg_dev_id_lp + 1;
+ localparam l2s_dev_base_id_lp = clint_dev_id_lp + 1;
+ localparam loopback_dev_id_lp = l2s_dev_base_id_lp + l2_slices_p;
+ localparam plic_dev_id_lp     = loopback_dev_id_lp + 1;
+ localparam num_dev_lp         = plic_dev_id_lp + 1;
+ localparam lg_num_dev_lp      = `BSG_SAFE_CLOG2(num_dev_lp);
 
   // {CCE}
   bp_bedrock_mem_fwd_header_s [num_proc_lp-1:0] proc_fwd_header_lo;
@@ -116,7 +138,7 @@ module bp_core
   logic [num_proc_lp-1:0] proc_rev_v_li, proc_rev_ready_and_lo;
 
   // Device-side CCE-Mem network connections
-  // {LOOPBACK, L2, CLINT, CFG}
+  // {PLIC, LOOPBACK, L2, CLINT, CFG}
   bp_bedrock_mem_fwd_header_s [num_dev_lp-1:0] dev_fwd_header_li;
   logic [num_dev_lp-1:0][bedrock_fill_width_p-1:0] dev_fwd_data_li;
   logic [num_dev_lp-1:0] dev_fwd_v_li, dev_fwd_ready_and_lo;
@@ -126,6 +148,12 @@ module bp_core
 
   bp_cfg_bus_s cfg_bus_lo;
   logic debug_irq_li, timer_irq_li, software_irq_li, m_external_irq_li, s_external_irq_li;
+  logic clint_m_external_irq_li, clint_s_external_irq_li; //Added for ORing CLINT with PLIC
+  
+  assign m_external_irq_li = clint_m_external_irq_li | plic_m_external_irq_i;
+  assign s_external_irq_li = clint_s_external_irq_li | plic_s_external_irq_i;
+  
+  
   bp_core_lite
    #(.bp_params_p(bp_params_p))
    core_lite
@@ -162,8 +190,10 @@ module bp_core
      ,.debug_irq_i(debug_irq_li)
      ,.timer_irq_i(timer_irq_li)
      ,.software_irq_i(software_irq_li)
-     ,.m_external_irq_i(m_external_irq_li)
-     ,.s_external_irq_i(s_external_irq_li)
+     //,.m_external_irq_i(m_external_irq_li)
+     //,.s_external_irq_i(s_external_irq_li)
+    ,.m_external_irq_i(m_external_irq_li)
+    ,.s_external_irq_i(s_external_irq_li)
      );
 
   // CCE drives all local memory requests
@@ -190,7 +220,9 @@ module bp_core
       wire is_clint_fwd    = is_local & (device_fwd_li == clint_dev_gp);
 
       wire is_l2s_fwd      = ~is_local;
-      wire is_loopback_fwd = is_local & ~is_cfg_fwd & ~is_clint_fwd & ~is_l2s_fwd;
+      //wire is_loopback_fwd = is_local & ~is_cfg_fwd & ~is_clint_fwd & ~is_l2s_fwd;
+      wire is_plic_fwd = is_local & (device_fwd_li == plic_dev_gp); //Added for PLIC
+      wire is_loopback_fwd = is_local & ~is_cfg_fwd & ~is_clint_fwd & ~is_plic_fwd & ~is_l2s_fwd;//Added for PLIC
 
       localparam lg_l2_slices_lp = `BSG_SAFE_CLOG2(l2_slices_p);
       logic [lg_l2_slices_lp-1:0] slice_id;
@@ -215,12 +247,39 @@ module bp_core
          ,.v_i(is_l2s_fwd)
          ,.o(is_l2s_slice_fwd)
          );
-
+/*
       wire [num_dev_lp-1:0] proc_fwd_dst_sel =
         (is_cfg_fwd << cfg_dev_id_lp)
         | (is_clint_fwd << clint_dev_id_lp)
         | (is_l2s_slice_fwd << l2s_dev_base_id_lp)
         | (is_loopback_fwd << loopback_dev_id_lp);
+*/
+
+      wire [num_dev_lp-1:0] proc_fwd_dst_sel =
+        (is_cfg_fwd << cfg_dev_id_lp)
+        | (is_clint_fwd << clint_dev_id_lp)
+        | (is_l2s_slice_fwd << l2s_dev_base_id_lp)
+        | (is_loopback_fwd << loopback_dev_id_lp)
+        | (is_plic_fwd    << plic_dev_id_lp);
+
+
+
+// ============================================================================
+// PLIC
+// External PLIC device connection.
+// The actual PLIC instance lives at chip-top in bp_plic_shared_top.
+// ============================================================================
+
+ assign plic_fwd_header_o                    = dev_fwd_header_li[plic_dev_id_lp];
+ assign plic_fwd_data_o                      = dev_fwd_data_li[plic_dev_id_lp];
+ assign plic_fwd_v_o                         = dev_fwd_v_li[plic_dev_id_lp];
+ assign dev_fwd_ready_and_lo[plic_dev_id_lp] = plic_fwd_ready_and_i;
+ assign dev_rev_header_lo[plic_dev_id_lp]    = plic_rev_header_i;
+ assign dev_rev_data_lo[plic_dev_id_lp]      = plic_rev_data_i;
+ assign dev_rev_v_lo[plic_dev_id_lp]         = plic_rev_v_i;
+ assign plic_rev_ready_and_o                 = dev_rev_ready_and_li[plic_dev_id_lp];
+
+
 
       bsg_encode_one_hot
        #(.width_p(num_dev_lp), .lo_to_hi_p(1))
@@ -332,8 +391,10 @@ module bp_core
      ,.debug_irq_o(debug_irq_li)
      ,.timer_irq_o(timer_irq_li)
      ,.software_irq_o(software_irq_li)
-     ,.m_external_irq_o(m_external_irq_li)
-     ,.s_external_irq_o(s_external_irq_li)
+     //,.m_external_irq_o(m_external_irq_li)
+     //,.s_external_irq_o(s_external_irq_li)
+     ,.m_external_irq_o(clint_m_external_irq_li)
+     ,.s_external_irq_o(clint_s_external_irq_li)
      );
 
   // CCE-Mem network to L2 Cache adapter

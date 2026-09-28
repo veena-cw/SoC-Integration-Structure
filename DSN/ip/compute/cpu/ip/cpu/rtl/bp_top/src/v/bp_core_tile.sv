@@ -52,12 +52,29 @@ module bp_core_tile
 
    , output logic [dma_noc_ral_link_width_lp-1:0]             dma_link_o
    , input [dma_noc_ral_link_width_lp-1:0]                    dma_link_i
+   // PLIC interface
+, output logic [mem_fwd_header_width_lp-1:0] plic_fwd_header_o
+, output logic [bedrock_fill_width_p-1:0]    plic_fwd_data_o
+, output logic                               plic_fwd_v_o
+, input  logic                                plic_fwd_ready_and_i
+
+, input logic [mem_rev_header_width_lp-1:0]   plic_rev_header_i
+, input logic [bedrock_fill_width_p-1:0]      plic_rev_data_i
+, input logic                                 plic_rev_v_i
+, output logic                                plic_rev_ready_and_o
+
+, input logic                                 plic_m_external_irq_i
+, input logic                                 plic_s_external_irq_i
    );
 
   `declare_bp_cfg_bus_s(vaddr_width_p, hio_width_p, core_id_width_p, cce_id_width_p, lce_id_width_p, did_width_p);
   `declare_bp_bedrock_if(paddr_width_p, lce_id_width_p, cce_id_width_p, did_width_p, lce_assoc_p);
   `declare_bsg_ready_and_link_sif_s(coh_noc_flit_width_p, bp_coh_ready_and_link_s);
   `declare_bsg_ready_and_link_sif_s(dma_noc_flit_width_p, bp_dma_ready_and_link_s);
+  
+  //Added for PLIC
+  `bp_cast_o(bp_bedrock_mem_fwd_header_s, plic_fwd_header);
+  `bp_cast_i(bp_bedrock_mem_rev_header_s, plic_rev_header);
 
   // Reset
   logic reset_r;
@@ -596,6 +613,19 @@ module bp_core_tile
      ,.dma_data_o(dma_data_lo)
      ,.dma_data_v_o(dma_data_v_lo)
      ,.dma_data_ready_and_i(dma_data_yumi_li)
+           // PLIC interface
+      ,.plic_fwd_header_o(plic_fwd_header_o)
+      ,.plic_fwd_data_o(plic_fwd_data_o)
+      ,.plic_fwd_v_o(plic_fwd_v_o)
+      ,.plic_fwd_ready_and_i(plic_fwd_ready_and_i)
+
+      ,.plic_rev_header_i(plic_rev_header_i)
+      ,.plic_rev_data_i(plic_rev_data_i)
+      ,.plic_rev_v_i(plic_rev_v_i)
+      ,.plic_rev_ready_and_o(plic_rev_ready_and_o)
+
+      ,.plic_m_external_irq_i(plic_m_external_irq_i)
+      ,.plic_s_external_irq_i(plic_s_external_irq_i)
      );
 
   // CCE: Cache Coherence Engine

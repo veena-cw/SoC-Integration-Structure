@@ -15,13 +15,17 @@ module bp_core_complex
  import bsg_noc_pkg::*;
  import bsg_wormhole_router_pkg::*;
  import bp_me_pkg::*;
- #(parameter bp_params_e bp_params_p = e_bp_default_cfg
-   `declare_bp_proc_params(bp_params_p)
 
-   , localparam dma_noc_ral_link_width_lp = `bsg_ready_and_link_sif_width(dma_noc_flit_width_p)
-   , localparam coh_noc_ral_link_width_lp = `bsg_ready_and_link_sif_width(coh_noc_flit_width_p)
-   )
-  (input                                                               core_clk_i
+
+
+#(parameter bp_params_e bp_params_p = e_bp_default_cfg
+  `declare_bp_proc_params(bp_params_p)
+  `declare_bp_bedrock_if_widths(paddr_width_p, lce_id_width_p, cce_id_width_p, did_width_p, lce_assoc_p)
+
+  , localparam dma_noc_ral_link_width_lp = `bsg_ready_and_link_sif_width(dma_noc_flit_width_p)
+  , localparam coh_noc_ral_link_width_lp = `bsg_ready_and_link_sif_width(coh_noc_flit_width_p)
+)
+  (input core_clk_i
    , input                                                             rt_clk_i
    , input                                                             core_reset_i
 
@@ -60,11 +64,65 @@ module bp_core_complex
 
    , input [S:N][cc_x_dim_p-1:0][dma_noc_ral_link_width_lp-1:0]        dma_link_i
    , output logic [S:N][cc_x_dim_p-1:0][dma_noc_ral_link_width_lp-1:0] dma_link_o
-   );
+   
 
-  `declare_bp_cfg_bus_s(vaddr_width_p, hio_width_p, core_id_width_p, cce_id_width_p, lce_id_width_p, did_width_p);
-  `declare_bsg_ready_and_link_sif_s(coh_noc_flit_width_p, coh_noc_ral_link_s);
-  `declare_bsg_ready_and_link_sif_s(dma_noc_flit_width_p, dma_noc_ral_link_s);
+// PLIC interface - core 0
+, output logic [mem_fwd_header_width_lp-1:0] plic0_fwd_header_o
+, output logic [bedrock_fill_width_p-1:0]    plic0_fwd_data_o
+, output logic                               plic0_fwd_v_o
+, input  logic                                plic0_fwd_ready_and_i
+
+, input logic [mem_rev_header_width_lp-1:0]  plic0_rev_header_i
+, input logic [bedrock_fill_width_p-1:0]     plic0_rev_data_i
+, input logic                                plic0_rev_v_i
+, output logic                               plic0_rev_ready_and_o
+
+, input logic                                plic0_m_external_irq_i
+, input logic                                plic0_s_external_irq_i
+
+// PLIC interface - core 1
+// PLIC interface - core 1
+, output logic [mem_fwd_header_width_lp-1:0] plic1_fwd_header_o
+, output logic [bedrock_fill_width_p-1:0]    plic1_fwd_data_o
+, output logic                               plic1_fwd_v_o
+, input logic                                plic1_fwd_ready_and_i
+
+, input logic [mem_rev_header_width_lp-1:0]  plic1_rev_header_i
+, input logic [bedrock_fill_width_p-1:0]     plic1_rev_data_i
+, input logic                                plic1_rev_v_i
+, output logic                               plic1_rev_ready_and_o
+
+, input logic                                plic1_m_external_irq_i
+, input logic                                plic1_s_external_irq_i);
+
+  //`declare_bp_cfg_bus_s(vaddr_width_p, hio_width_p, core_id_width_p, cce_id_width_p, lce_id_width_p, did_width_p);
+  //`declare_bsg_ready_and_link_sif_s(coh_noc_flit_width_p, coh_noc_ral_link_s);
+  //`declare_bsg_ready_and_link_sif_s(dma_noc_flit_width_p, dma_noc_ral_link_s);
+
+//`bp_cast_o(bp_bedrock_mem_fwd_header_s, plic0_fwd_header);
+//`bp_cast_i(bp_bedrock_mem_rev_header_s, plic0_rev_header);
+
+//`bp_cast_o(bp_bedrock_mem_fwd_header_s, plic1_fwd_header);
+//`bp_cast_i(bp_bedrock_mem_rev_header_s, plic1_rev_header);
+
+`declare_bp_cfg_bus_s(vaddr_width_p, hio_width_p, core_id_width_p, cce_id_width_p, lce_id_width_p, did_width_p);
+
+`declare_bp_bedrock_if(paddr_width_p
+                      ,lce_id_width_p
+                      ,cce_id_width_p
+                      ,did_width_p
+                      ,lce_assoc_p
+                      );
+
+`declare_bsg_ready_and_link_sif_s(coh_noc_flit_width_p, coh_noc_ral_link_s);
+`declare_bsg_ready_and_link_sif_s(dma_noc_flit_width_p, dma_noc_ral_link_s);
+
+`bp_cast_o(bp_bedrock_mem_fwd_header_s, plic0_fwd_header);
+`bp_cast_i(bp_bedrock_mem_rev_header_s, plic0_rev_header);
+
+`bp_cast_o(bp_bedrock_mem_fwd_header_s, plic1_fwd_header);
+`bp_cast_i(bp_bedrock_mem_rev_header_s, plic1_rev_header);
+
 
   coh_noc_ral_link_s [cc_y_dim_p-1:0][cc_x_dim_p-1:0][S:W] lce_req_link_lo, lce_req_link_li;
   coh_noc_ral_link_s [cc_y_dim_p-1:0][cc_x_dim_p-1:0][S:W] lce_cmd_link_lo, lce_cmd_link_li;
@@ -72,6 +130,72 @@ module bp_core_complex
   coh_noc_ral_link_s [cc_y_dim_p-1:0][cc_x_dim_p-1:0][S:W] lce_resp_link_lo, lce_resp_link_li;
 
   dma_noc_ral_link_s [cc_y_dim_p-1:0][cc_x_dim_p-1:0][S:N] dma_link_lo, dma_link_li;
+
+  bp_bedrock_mem_fwd_header_s
+  plic_fwd_header_lo [cc_x_dim_p-1:0];
+
+logic [bedrock_fill_width_p-1:0]
+  plic_fwd_data_lo [cc_x_dim_p-1:0];
+
+logic
+  plic_fwd_v_lo [cc_x_dim_p-1:0];
+
+logic
+  plic_fwd_ready_and_li [cc_x_dim_p-1:0];
+
+bp_bedrock_mem_rev_header_s
+  plic_rev_header_li [cc_x_dim_p-1:0];
+
+logic [bedrock_fill_width_p-1:0]
+  plic_rev_data_li [cc_x_dim_p-1:0];
+
+logic
+  plic_rev_v_li [cc_x_dim_p-1:0];
+
+logic
+  plic_rev_ready_and_lo [cc_x_dim_p-1:0];
+
+logic
+  plic_m_external_irq_li [cc_x_dim_p-1:0];
+
+logic
+  plic_s_external_irq_li [cc_x_dim_p-1:0];
+
+
+// ------------------------------------------------------------
+// PLIC interface - Core 0
+// ------------------------------------------------------------
+
+bp_bedrock_mem_fwd_header_s plic0_fwd_header_lo;
+logic [bedrock_fill_width_p-1:0] plic0_fwd_data_lo;
+logic plic0_fwd_v_lo;
+logic plic0_fwd_ready_and_li;
+
+bp_bedrock_mem_rev_header_s plic0_rev_header_li;
+logic [bedrock_fill_width_p-1:0] plic0_rev_data_li;
+logic plic0_rev_v_li;
+logic plic0_rev_ready_and_lo;
+
+logic plic0_m_external_irq_li;
+logic plic0_s_external_irq_li;
+
+
+// ------------------------------------------------------------
+// PLIC interface - Core 1
+// ------------------------------------------------------------
+
+bp_bedrock_mem_fwd_header_s plic1_fwd_header_lo;
+logic [bedrock_fill_width_p-1:0] plic1_fwd_data_lo;
+logic plic1_fwd_v_lo;
+logic plic1_fwd_ready_and_li;
+
+bp_bedrock_mem_rev_header_s plic1_rev_header_li;
+logic [bedrock_fill_width_p-1:0] plic1_rev_data_li;
+logic plic1_rev_v_li;
+logic plic1_rev_ready_and_lo;
+
+logic plic1_m_external_irq_li;
+logic plic1_s_external_irq_li;
 
   coh_noc_ral_link_s [E:W][cc_y_dim_p-1:0] lce_req_hor_link_li, lce_req_hor_link_lo;
   coh_noc_ral_link_s [S:N][cc_x_dim_p-1:0] lce_req_ver_link_li, lce_req_ver_link_lo;
@@ -120,6 +244,21 @@ module bp_core_complex
 
              ,.dma_link_i(dma_link_li[j][i])
              ,.dma_link_o(dma_link_lo[j][i])
+
+// PLIC interface
+,.plic_fwd_header_o(plic_fwd_header_lo[i])
+,.plic_fwd_data_o(plic_fwd_data_lo[i])
+,.plic_fwd_v_o(plic_fwd_v_lo[i])
+,.plic_fwd_ready_and_i(plic_fwd_ready_and_li[i])
+
+,.plic_rev_header_i(plic_rev_header_li[i])
+,.plic_rev_data_i(plic_rev_data_li[i])
+,.plic_rev_v_i(plic_rev_v_li[i])
+,.plic_rev_ready_and_o(plic_rev_ready_and_lo[i])
+
+,.plic_m_external_irq_i(plic_m_external_irq_li[i])
+,.plic_s_external_irq_i(plic_s_external_irq_li[i])
+             
              );
         end
     end
@@ -223,6 +362,42 @@ module bp_core_complex
        ,.ver_o(mem_ver_link_lo)
        );
     assign dma_link_o = mem_ver_link_lo;
+    
+    
+
+
+// ------------------------------------------------------------
+// PLIC connections to bp_multicore
+// ------------------------------------------------------------
+
+// Core 0
+assign plic0_fwd_header_cast_o = plic_fwd_header_lo[0];
+assign plic0_fwd_data_o        = plic_fwd_data_lo[0];
+assign plic0_fwd_v_o           = plic_fwd_v_lo[0];
+assign plic_fwd_ready_and_li[0] = plic0_fwd_ready_and_i;
+
+assign plic_rev_header_li[0]    = plic0_rev_header_cast_i;
+assign plic_rev_data_li[0]      = plic0_rev_data_i;
+assign plic_rev_v_li[0]         = plic0_rev_v_i;
+assign plic0_rev_ready_and_o    = plic_rev_ready_and_lo[0];
+
+assign plic_m_external_irq_li[0] = plic0_m_external_irq_i;
+assign plic_s_external_irq_li[0] = plic0_s_external_irq_i;
+
+
+// Core 1
+assign plic1_fwd_header_cast_o = plic_fwd_header_lo[1];
+assign plic1_fwd_data_o        = plic_fwd_data_lo[1];
+assign plic1_fwd_v_o           = plic_fwd_v_lo[1];
+assign plic_fwd_ready_and_li[1] = plic1_fwd_ready_and_i;
+
+assign plic_rev_header_li[1]    = plic1_rev_header_cast_i;
+assign plic_rev_data_li[1]      = plic1_rev_data_i;
+assign plic_rev_v_li[1]         = plic1_rev_v_i;
+assign plic1_rev_ready_and_o    = plic_rev_ready_and_lo[1];
+
+assign plic_m_external_irq_li[1] = plic1_m_external_irq_i;
+assign plic_s_external_irq_li[1] = plic1_s_external_irq_i;
 
 endmodule
 

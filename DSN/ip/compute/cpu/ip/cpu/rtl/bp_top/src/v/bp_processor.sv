@@ -62,6 +62,8 @@ module bp_processor
    , output logic [num_cce_p-1:0][l2_dmas_p-1:0][l2_fill_width_p-1:0]   dma_data_o
    , output logic [num_cce_p-1:0][l2_dmas_p-1:0]                        dma_data_v_o
    , input [num_cce_p-1:0][l2_dmas_p-1:0]                               dma_data_ready_and_i
+   // External PLIC interrupt sources
+   , input logic [63:0] plic_src_i
    );
 
   if (cce_type_p != e_cce_uce)
@@ -105,6 +107,8 @@ module bp_processor
 
          ,.dma_link_i(dma_link_li)
          ,.dma_link_o(dma_link_lo)
+         // External PLIC interrupt sources
+   	 ,.plic_src_i(plic_src_i)
          );
 
       `declare_bp_bedrock_if(paddr_width_p, lce_id_width_p, cce_id_width_p, did_width_p, lce_assoc_p);

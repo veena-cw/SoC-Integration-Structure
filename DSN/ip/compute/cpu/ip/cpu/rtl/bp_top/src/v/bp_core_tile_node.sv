@@ -16,6 +16,8 @@ module bp_core_tile_node
  import bp_me_pkg::*;
  #(parameter bp_params_e bp_params_p = e_bp_default_cfg
    `declare_bp_proc_params(bp_params_p)
+     `declare_bp_bedrock_if_widths(paddr_width_p, lce_id_width_p, cce_id_width_p, did_width_p, lce_assoc_p)
+
 
    , localparam coh_noc_ral_link_width_lp = `bsg_ready_and_link_sif_width(coh_noc_flit_width_p)
    , localparam dma_noc_ral_link_width_lp = `bsg_ready_and_link_sif_width(dma_noc_flit_width_p)
@@ -50,6 +52,19 @@ module bp_core_tile_node
 
    , input [S:N][dma_noc_ral_link_width_lp-1:0]        dma_link_i
    , output logic [S:N][dma_noc_ral_link_width_lp-1:0] dma_link_o
+// PLIC interface
+, output logic [mem_fwd_header_width_lp-1:0] plic_fwd_header_o
+, output logic [bedrock_fill_width_p-1:0]    plic_fwd_data_o
+, output logic                               plic_fwd_v_o
+, input  logic                                plic_fwd_ready_and_i
+
+, input logic [mem_rev_header_width_lp-1:0]  plic_rev_header_i
+, input logic [bedrock_fill_width_p-1:0]     plic_rev_data_i
+, input logic                                plic_rev_v_i
+, output logic                               plic_rev_ready_and_o
+
+, input logic                                plic_m_external_irq_i
+, input logic                                plic_s_external_irq_i
    );
 
   // Declare the routing links
@@ -64,6 +79,8 @@ module bp_core_tile_node
 
   // Tile side membus connections
   bp_dma_ready_and_link_s core_dma_link_lo, core_dma_link_li;
+
+
 
   bp_core_tile
    #(.bp_params_p(bp_params_p))
@@ -91,6 +108,19 @@ module bp_core_tile_node
 
      ,.dma_link_o(core_dma_link_lo)
      ,.dma_link_i(core_dma_link_li)
+      // PLIC interface
+     ,.plic_fwd_header_o(plic_fwd_header_o)
+     ,.plic_fwd_data_o(plic_fwd_data_o)
+     ,.plic_fwd_v_o(plic_fwd_v_o)
+     ,.plic_fwd_ready_and_i(plic_fwd_ready_and_i)
+
+     ,.plic_rev_header_i(plic_rev_header_i)
+     ,.plic_rev_data_i(plic_rev_data_i)
+     ,.plic_rev_v_i(plic_rev_v_i)
+     ,.plic_rev_ready_and_o(plic_rev_ready_and_o)
+
+     ,.plic_m_external_irq_i(plic_m_external_irq_i)
+     ,.plic_s_external_irq_i(plic_s_external_irq_i)
      );
 
   bp_nd_socket

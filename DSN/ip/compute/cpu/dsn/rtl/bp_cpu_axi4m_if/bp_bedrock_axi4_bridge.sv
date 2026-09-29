@@ -31,7 +31,7 @@ module bp_bedrock_axi4_bridge
     // CPU / BedRock domain
     // ==================================================================
     input logic cpu_clk_i,
-    input logic cpu_reset_i,
+    input logic cpu_reset_i,//Active high reset
 
     input  logic [MEM_FWD_HEADER_WIDTH-1:0] mem_fwd_header_i,
     input  logic [CPU_DATA_WIDTH-1:0]       mem_fwd_data_i,
@@ -47,7 +47,7 @@ module bp_bedrock_axi4_bridge
     // AXI4 domain
     // ==================================================================
     input logic axi_clk_i,
-    input logic axi_reset_i,
+    input logic axi_reset_i,//Active low reset from AXI4 master
 
     // AW
     output logic [ID_WIDTH-1:0]        m_axi_awid,
@@ -156,9 +156,9 @@ module bp_bedrock_axi4_bridge
       .DATA_WIDTH(REQ_FIFO_WIDTH)
   ) u_req_fifo (
       .wclk    (cpu_clk_i),
-      .wrst_n  (~cpu_reset_i),
+      .wrst_n  (~cpu_reset_i),//Convert CPU Posedge reset to negedge
       .rclk    (axi_clk_i),
-      .rrst_n  (~axi_reset_i),
+      .rrst_n  (axi_reset_i),//Active low reset from AXI4 master module
       .w_en    (req_fifo_w_en),
       .r_en    (req_fifo_r_en),
       .data_in (req_fifo_data_in),
@@ -207,9 +207,9 @@ module bp_bedrock_axi4_bridge
       .DATA_WIDTH(RESP_FIFO_WIDTH)
   ) u_resp_fifo (
       .wclk    (axi_clk_i),
-      .wrst_n  (~axi_reset_i),
+      .wrst_n  (axi_reset_i),//Active low reset from AXI4 master module
       .rclk    (cpu_clk_i),
-      .rrst_n  (~cpu_reset_i),
+      .rrst_n  (~cpu_reset_i),//Convert CPU Posedge reset to negedge
       .w_en    (resp_fifo_w_en),
       .r_en    (resp_fifo_r_en),
       .data_in (resp_fifo_data_in),
@@ -262,7 +262,7 @@ module bp_bedrock_axi4_bridge
       .ID_WIDTH  (ID_WIDTH)
   ) u_axi4_master (
       .aclk         (axi_clk_i),
-      .aresetn      (~axi_reset_i),
+      .aresetn      (axi_reset_i),//Active low reset from AXI4 master module
 
       .wr_req       (wr_req),
       .wr_req_ack   (wr_req_ack),
@@ -570,7 +570,7 @@ module bp_bedrock_axi4_bridge
   // ----------------------------------------------------------------------
 
   always_ff @(posedge axi_clk_i or negedge axi_reset_i) begin
-    if (axi_reset_i) begin
+    if (!axi_reset_i) begin
       req_hdr_r        <= '0;
       req_first_data_r <= '0;
       resp_hdr_r       <= '0;

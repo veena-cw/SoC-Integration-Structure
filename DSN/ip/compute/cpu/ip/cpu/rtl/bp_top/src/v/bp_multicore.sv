@@ -23,6 +23,7 @@ module bp_multicore
    , localparam mem_noc_ral_link_width_lp = `bsg_ready_and_link_sif_width(mem_noc_flit_width_p)
    )
   (input                                                               core_clk_i
+   , input 							       plic_ahb_clk_i
    , input                                                             rt_clk_i
    , input                                                             core_reset_i
 
@@ -202,7 +203,8 @@ module bp_multicore
      )
    shared_plic
     (
-      .clk_i(core_clk_i),
+      .core_clk_i(core_clk_i),
+      .plic_ahb_clk_i(plic_ahb_clk_i),
       .reset_i(core_reset_i),
 
       // Core 0 PLIC BedRock interface

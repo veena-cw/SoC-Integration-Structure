@@ -62,6 +62,8 @@ module bp_processor
    , output logic [num_cce_p-1:0][l2_dmas_p-1:0][l2_fill_width_p-1:0]   dma_data_o
    , output logic [num_cce_p-1:0][l2_dmas_p-1:0]                        dma_data_v_o
    , input [num_cce_p-1:0][l2_dmas_p-1:0]                               dma_data_ready_and_i
+   // AHB Interfaces
+   , input 								plic_ahb_clk_i
    // External PLIC interrupt sources
    , input logic [63:0] plic_src_i
    );
@@ -84,6 +86,8 @@ module bp_processor
        #(.bp_params_p(bp_params_p))
        multicore
         (.core_clk_i(clk_i)
+         ,.plic_ahb_clk_i(plic_ahb_clk_i)// PLIC AHB clock
+
          ,.rt_clk_i(rt_clk_i)
          ,.core_reset_i(reset_i)
 

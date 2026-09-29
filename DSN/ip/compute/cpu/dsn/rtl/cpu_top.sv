@@ -24,6 +24,7 @@ module cpu_top
     // BlackParrot core domain
     // ==================================================================
     input logic clk_i,
+    input logic plic_ahb_clk_i,
     input logic rt_clk_i,
     input logic reset_i,
 
@@ -120,6 +121,7 @@ module cpu_top
       .bp_params_p(bp_params_p)
   ) u_bp (
       .clk_i   (clk_i),
+      .plic_ahb_clk_i (plic_ahb_clk_i),
       .rt_clk_i(rt_clk_i),
       .reset_i (!reset_i),//Converted posedge reset of CPU to negedge reset at top module
 

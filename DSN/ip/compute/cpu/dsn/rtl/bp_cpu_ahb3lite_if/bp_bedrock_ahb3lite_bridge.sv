@@ -37,10 +37,6 @@ module bp_bedrock_ahb3lite_bridge
     output logic                            mem_rev_v_o,
     input  logic                            mem_rev_ready_and_i,
 
-    // Transaction-busy flag: high whenever the FSM below is anywhere
-    // other than ST_IDLE. Added so an external multi-master arbiter
-    output logic                            busy_o,
-
     // ==================================================================
     // AHB3-Lite domain
     // ==================================================================
@@ -115,6 +111,9 @@ module bp_bedrock_ahb3lite_bridge
   assign mem_fwd_ready_and_o = !req_fifo_full;
   assign req_fifo_w_en       = mem_fwd_v_i && mem_fwd_ready_and_o;
 
+//-----------------------------------//
+//Write FIFO - Bedrock to AHB3lite Master
+//----------------------------------//
   asynchronous_fifo #(
       .DEPTH     (FIFO_DEPTH),
       .DATA_WIDTH(REQ_FIFO_WIDTH)
@@ -162,6 +161,9 @@ module bp_bedrock_ahb3lite_bridge
   assign bridge_rev_ready = !resp_fifo_full;
   assign resp_fifo_w_en   = bridge_rev_v && bridge_rev_ready;
 
+//-----------------------------------//
+//Read FIFO - HB3lite Master to Bedrock
+//----------------------------------//
   asynchronous_fifo #(
       .DEPTH     (FIFO_DEPTH),
       .DATA_WIDTH(RESP_FIFO_WIDTH)
@@ -243,7 +245,6 @@ module bp_bedrock_ahb3lite_bridge
   logic [5:0] cur_state, next_state;
 
 
-  assign busy_o = (cur_state != ST_IDLE) || !resp_fifo_empty;
 
   bp_bedrock_mem_fwd_header_s req_hdr_r;
   bp_bedrock_mem_rev_header_s resp_hdr_r;
@@ -324,8 +325,8 @@ module bp_bedrock_ahb3lite_bridge
   // 1. State register
   // ----------------------------------------------------------------------
 
-  always_ff @(posedge ahb_clk_i or posedge ahb_reset_i) begin
-    if (ahb_reset_i)
+  always_ff @(posedge ahb_clk_i or negedge ahb_reset_i) begin
+    if (!ahb_reset_i)
       cur_state <= ST_IDLE;
     else
       cur_state <= next_state;
@@ -435,8 +436,8 @@ module bp_bedrock_ahb3lite_bridge
   // 4. Datapath / control registers
   // ----------------------------------------------------------------------
 
-  always_ff @(posedge ahb_clk_i or posedge ahb_reset_i) begin
-    if (ahb_reset_i) begin
+  always_ff @(posedge ahb_clk_i or negedge ahb_reset_i) begin
+    if (!ahb_reset_i) begin
       req_hdr_r             <= '0;
       resp_hdr_r            <= '0;
       is_write_r            <= 1'b0;

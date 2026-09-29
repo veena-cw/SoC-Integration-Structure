@@ -25,9 +25,6 @@
 // BedRock request/response CDC is handled inside
 // bp_bedrock_ahb3lite_bridge through its asynchronous FIFOs.
 //
-// The bridge busy_o signal is intentionally NOT used here because its
-// implementation is based on AHB-domain state and response FIFO state.
-//
 // PLIC interrupt outputs remain in the plic_ahb_clk_i domain and must be
 // synchronized into core_clk_i before being consumed by the cores.
 //
@@ -86,7 +83,7 @@ module bp_plic_shared_top
   input logic core_clk_i,
   input logic plic_ahb_clk_i,
 
-  // Active-high main reset.
+  // Active-low main reset.
   // Synchronous with core_clk_i.
   input logic reset_i,
 
@@ -168,10 +165,10 @@ module bp_plic_shared_top
   // 0. AHB clock-domain reset synchronizer
   //
   // reset_i:
-  //   active-high reset
+  //   active-low reset
   //
   // ahb_reset_lo:
-  //   active-high reset synchronized to plic_ahb_clk_i
+  //   active-low reset synchronized to plic_ahb_clk_i
   //
   // Async assert + synchronous deassert.
   // ==========================================================================
@@ -179,15 +176,12 @@ module bp_plic_shared_top
   logic [1:0] ahb_rst_sync_r;
   logic       ahb_reset_lo;
 
-  always_ff @(posedge plic_ahb_clk_i or posedge reset_i) begin
-    if (reset_i)
-      ahb_rst_sync_r <= 2'b11;
+  always_ff @(posedge plic_ahb_clk_i or negedge reset_i) begin
+    if (!reset_i)
+      ahb_rst_sync_r <= 2'b00;
     else
-      ahb_rst_sync_r <= {ahb_rst_sync_r[0], 1'b0};
+      ahb_rst_sync_r <= {ahb_rst_sync_r[0], 1'b1};
   end
-
-  assign ahb_reset_lo = ahb_rst_sync_r[1];
-
 
   // ==========================================================================
   // 1. Round-robin arbitration
@@ -226,7 +220,7 @@ module bp_plic_shared_top
   round_robin_arbiter_2to1 plic_arb
   (
     .clk   (core_clk_i),
-    .rst_n (~reset_i),
+    .rst_n (reset_i),
     .req   (arb_req),
     .grant (arb_grant)
   );
@@ -415,9 +409,9 @@ module bp_plic_shared_top
   // Ownership is released on the final reverse handshake.
   // ==========================================================================
 
-  always_ff @(posedge core_clk_i or posedge reset_i) begin
+  always_ff @(posedge core_clk_i or negedge reset_i) begin
 
-    if (reset_i) begin
+    if (!reset_i) begin
 
       txn_busy_r     <= 1'b0;
       granted_core_r <= 1'b0;
@@ -550,7 +544,7 @@ module bp_plic_shared_top
     // ------------------------------------------------------------------------
 
     .cpu_clk_i              (core_clk_i),
-    .cpu_reset_i            (reset_i),
+    .cpu_reset_i            (~reset_i),//Make active low reset to active high for CPU
 
     .mem_fwd_header_i       (bridge_fwd_header_li),
     .mem_fwd_data_i         (bridge_fwd_data_li),
@@ -561,13 +555,6 @@ module bp_plic_shared_top
     .mem_rev_data_o         (bridge_rev_data_lo),
     .mem_rev_v_o            (bridge_rev_v_lo),
     .mem_rev_ready_and_i    (bridge_rev_ready_and_li),
-
-    // Intentionally unused.
-    //
-    // busy_o is generated from the bridge AHB-side FSM and also includes
-    // response-FIFO state. Transaction ownership is tracked locally in the
-    // core clock domain using BedRock handshakes instead.
-    .busy_o                 (),
 
     // ------------------------------------------------------------------------
     // AHB3-Lite clock domain
@@ -607,7 +594,7 @@ module bp_plic_shared_top
   )
   plic
   (
-    .HRESETn                (~ahb_reset_lo),
+    .HRESETn                (ahb_reset_lo),
     .HCLK                   (plic_ahb_clk_i),
 
     .HSEL                   (ahb_hsel),

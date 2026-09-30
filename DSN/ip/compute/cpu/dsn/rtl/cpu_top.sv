@@ -139,7 +139,7 @@ module cpu_top
       .mem_rev_v_i     (rev_v),
       .mem_rev_ready_and_o(rev_ready),
 
-      // ---- Incoming I/O: tied off, no peer access into BP here ----
+      // ---- Incoming I/O: tied off; simulation may override via XMR ----
       .mem_fwd_header_i('0),
       .mem_fwd_data_i  ('0),
       .mem_fwd_v_i     (1'b0),

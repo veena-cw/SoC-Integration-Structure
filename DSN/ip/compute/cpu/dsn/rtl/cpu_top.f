@@ -8,7 +8,7 @@
 # Asynchronous FIFO
 # ============================================================
 +incdir+$REPO_ROOT/DSN/ip/compute/cpu/ip/async_fifo/rtl
--f $REPO_ROOT/DSN/ip/compute/cpu/ip/async_fifo/rtl/async_fifo.f
+-f $REPO_ROOT/DSN/ip/compute/cpu/ip/async_fifo/rtl/async.f
 
 
 # ============================================================
@@ -56,4 +56,4 @@ $REPO_ROOT/DSN/ip/compute/cpu/dsn/rtl/bp_plic_shared_top.sv
 # ============================================================
 # Top Module
 # ============================================================
-$REPO_ROOT/DSN/ip/compute/cpu/dsn/rtl/bp_cpu_axi4m_if/bp_bedrock_axi4_soc_top.sv
+$REPO_ROOT/DSN/ip/compute/cpu/dsn/rtl/cpu_top.sv

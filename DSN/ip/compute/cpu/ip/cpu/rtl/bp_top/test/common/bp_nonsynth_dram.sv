@@ -189,7 +189,40 @@ module bp_nonsynth_dram
     for (int i = 0; i < dma_data_width_p/8; i++)
         if (mem_read) mem_rdata[i] <= mem.exists(mem_raddr+i) ? mem[mem_raddr+i] : '0;
 
+`ifdef BP_DV_024_LATENCY
+  int unsigned dram_latency_min;
+  int unsigned dram_latency_max;
+  logic [7:0] dram_response_wait_r;
+  int unsigned dram_latency_selected;
+
+  initial begin
+    dram_latency_min = 1;
+    dram_latency_max = 8;
+    void'($value$plusargs("DRAM_LATENCY_MIN=%d", dram_latency_min));
+    void'($value$plusargs("DRAM_LATENCY_MAX=%d", dram_latency_max));
+    if (dram_latency_max < dram_latency_min)
+      $fatal(1, "Invalid DRAM latency range: min=%0d max=%0d",
+             dram_latency_min, dram_latency_max);
+    $display("BP-DV-024 DRAM latency enabled: min=%0d max=%0d cycles",
+             dram_latency_min, dram_latency_max);
+  end
+`endif
+
+`ifdef BP_DV_011_BACKPRESSURE
+  logic dram_req_stall_r;
+  logic dram_resp_stall_r;
+  int unsigned dram_req_stall_count;
+  int unsigned dram_resp_stall_count;
+
+  initial
+    $display("BP-DV-011 memory backpressure enabled: randomized request/response stalls");
+`endif
+
+`ifdef BP_DV_024_LATENCY
+  enum logic [1:0] { e_ready, e_wait, e_read, e_write } state_n, state_r;
+`else
   enum logic [1:0] { e_ready, e_read, e_write } state_n, state_r;
+`endif
   wire is_ready = (state_r == e_ready);
   wire is_read = (state_r == e_read);
   wire is_write = (state_r == e_write);
@@ -218,18 +251,46 @@ module bp_nonsynth_dram
             // Start every DMA burst at word zero. Without this clear, the
             // next request inherits the previous burst index and can return
             // only a partial cache line.
+`ifdef BP_DV_011_BACKPRESSURE
+            clear_li = dma_pkt_v_lo & !dram_req_stall_r;
+            mem_read = clear_li & !dma_pkt_lo.write_not_read;
+`else
             clear_li = dma_pkt_v_lo;
             mem_read = dma_pkt_v_lo & !dma_pkt_lo.write_not_read;
+`endif
             mem_raddr = base_addr;
 
+`ifdef BP_DV_024_LATENCY
+            state_n = clear_li
+                     ? mem_read ? ((dram_latency_max > 0) ? e_wait : e_read) : e_write
+                     : state_r;
+`else
+`ifdef BP_DV_011_BACKPRESSURE
+            state_n = clear_li ? mem_read ? e_read : e_write : state_r;
+`else
             state_n = dma_pkt_v_lo ? mem_read ? e_read : e_write : state_r;
+`endif
+`endif
           end
+`ifdef BP_DV_024_LATENCY
+        e_wait:
+          begin
+            // Hold the read response until the selected latency expires.
+            state_n = (dram_response_wait_r == 0) ? e_read : e_wait;
+          end
+`endif
         e_read:
           begin
             dma_data_o[dma_pkt_tag_lo] = mem_rdata;
             dma_data_v_o[dma_pkt_tag_lo] = 1'b1;
 
+`ifdef BP_DV_011_BACKPRESSURE
+            up_li = dma_data_ready_and_i[dma_pkt_tag_lo]
+                    & dma_data_v_o[dma_pkt_tag_lo]
+                    & !dram_resp_stall_r;
+`else
             up_li = dma_data_ready_and_i[dma_pkt_tag_lo] & dma_data_v_o[dma_pkt_tag_lo];
+`endif
             dma_pkt_yumi_li = up_li & (count_lo == dma_burst_len_p-1);
 
             mem_read = up_li & (count_lo != dma_burst_len_p-1);
@@ -255,9 +316,44 @@ module bp_nonsynth_dram
     end
 
   always_ff @(posedge clk_i)
-    if (reset_i)
+    if (reset_i) begin
       state_r <= e_ready;
-    else
+`ifdef BP_DV_011_BACKPRESSURE
+      dram_req_stall_r <= 1'b0;
+      dram_resp_stall_r <= 1'b0;
+      dram_req_stall_count = 0;
+      dram_resp_stall_count = 0;
+`endif
+`ifdef BP_DV_024_LATENCY
+      dram_response_wait_r <= '0;
+`endif
+    end
+    else begin
       state_r <= state_n;
+`ifdef BP_DV_011_BACKPRESSURE
+      dram_req_stall_r <= $urandom_range(0, 1);
+      dram_resp_stall_r <= $urandom_range(0, 1);
+      if ((state_r == e_ready) && dma_pkt_v_lo && dram_req_stall_r) begin
+        dram_req_stall_count++;
+        if (dram_req_stall_count <= 4)
+          $display("BP-DV-011 request backpressure: packet held time=%0t", $time);
+      end
+      if ((state_r == e_read) && dma_data_v_o[dma_pkt_tag_lo] && dram_resp_stall_r) begin
+        dram_resp_stall_count++;
+        if (dram_resp_stall_count <= 4)
+          $display("BP-DV-011 response backpressure: beat held time=%0t", $time);
+      end
+`endif
+`ifdef BP_DV_024_LATENCY
+      if ((state_r == e_ready) && dma_pkt_v_lo && !dma_pkt_lo.write_not_read) begin
+        dram_latency_selected = $urandom_range(dram_latency_max, dram_latency_min);
+        dram_response_wait_r <= dram_latency_selected;
+        $display("BP-DV-024 DRAM read latency: addr=%h delay=%0d cycles time=%0t",
+                 base_addr, dram_latency_selected, $time);
+      end
+      else if ((state_r == e_wait) && (dram_response_wait_r != 0))
+        dram_response_wait_r <= dram_response_wait_r - 1'b1;
+`endif
+    end
 
 endmodule

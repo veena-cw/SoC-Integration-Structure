@@ -89,12 +89,12 @@ class cpu_reset_driver extends uvm_driver #(cpu_reset_txn);
     time width;
     width = (tr.pulse_width > 0) ? tr.pulse_width : DEFAULT_RESET_DURATION;
 
-    vif.reset = 1'b1;
+    vif.reset = 1'b0;
     `uvm_info("CPU_RESET_DRV",
               $sformatf("asserting active-high CPU reset for %0t at %0t", width, $time),
               UVM_LOW)
     #(width);
-    vif.reset = 1'b0;
+    vif.reset = 1'b1;
     `uvm_info("CPU_RESET_DRV",
               $sformatf("deasserted CPU reset at %0t", $time), UVM_LOW)
   endtask

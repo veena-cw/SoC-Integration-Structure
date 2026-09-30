@@ -195,6 +195,86 @@ class bp_dv_012_cache_miss_test extends bp_base_test;
 
 endclass
 
+// Test ID: BP-DV-025 | Feature: cache-line refill and AXI burst observation
+class bp_dv_025_axi_burst_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_025_axi_burst_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    cache_burst_test_seq seq;
+    phase.raise_objection(this);
+
+    apply_cpu_reset();
+    seq = cache_burst_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+    wait (env.sb.finished);
+    phase.drop_objection(this);
+  endtask
+endclass
+
+// Test ID: BP-DV-020 | Feature: cache conflict replacement/eviction
+class bp_dv_020_cache_replacement_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_020_cache_replacement_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    cache_replacement_test_seq seq;
+    phase.raise_objection(this);
+
+    apply_cpu_reset();
+    seq = cache_replacement_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+    wait (env.sb.finished);
+    phase.drop_objection(this);
+  endtask
+endclass
+
+// Test ID: BP-DV-011 | Feature: memory request/response backpressure
+class bp_dv_011_memory_backpressure_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_011_memory_backpressure_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    memory_backpressure_test_seq seq;
+    phase.raise_objection(this);
+
+    apply_cpu_reset();
+    seq = memory_backpressure_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+    wait (env.sb.finished);
+    phase.drop_objection(this);
+  endtask
+endclass
+
+// Test ID: BP-DV-024 | Feature: variable DRAM latency under memory stress
+class bp_dv_024_dram_latency_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_024_dram_latency_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    dram_latency_test_seq seq;
+    phase.raise_objection(this);
+
+    apply_cpu_reset();
+    seq = dram_latency_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+    wait (env.sb.finished);
+    phase.drop_objection(this);
+  endtask
+endclass
+
 // Test ID: BP-DV-015 | Feature: illegal instruction trap and mret return
 class bp_dv_015_illegal_trap_test extends bp_base_test;
   `uvm_component_utils(bp_dv_015_illegal_trap_test)

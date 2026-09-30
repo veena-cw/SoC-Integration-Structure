@@ -35,8 +35,25 @@ RISCV_OPT    ?= -O0
 TEST         ?= bp_base_test
 TOP          ?= cpu_tb_top
 
+# CPU AXI configuration. The DUT, interface, and UVM agent must use the
+# same values. Override these when building another AXI data width, e.g.
+#   make sim TEST=... CPU_AXI_DATA_WIDTH=256
+CPU_AXI_DATA_WIDTH ?= 128
+CPU_AXI_ADDR_WIDTH ?= 64
+CPU_AXI_ID_WIDTH   ?= 4
+
 # Suppress only the misleading component-name warnings emitted by the
 # no-DPI UVM fallback checker. UVM errors and fatals remain visible.
+DRAM_ARGS =
+BURST_ARGS =
+
+ifeq ($(TEST),bp_dv_024_dram_latency_test)
+DRAM_ARGS := +DRAM_LATENCY_MIN=1 +DRAM_LATENCY_MAX=8
+endif
+ifeq ($(TEST),bp_dv_025_axi_burst_test)
+BURST_ARGS := +REQUIRE_AXI_BURST=1
+endif
+
 UVM_RUN_ARGS = \
 	+UVM_TESTNAME=$(TEST) \
 	+BP_TEST_ID=$(TEST_ID) \
@@ -78,6 +95,9 @@ TEST_ID      ?= 8
 else ifeq ($(TEST),bp_dv_007_load_add_store_test)
 TCNAME       ?= load_add_store
 TEST_ID      ?= 9
+else ifeq ($(TEST),bp_dv_011_memory_backpressure_test)
+TCNAME       ?= memory_backpressure_function
+TEST_ID      ?= 11
 else ifeq ($(TEST),bp_dv_010_memory_widths_test)
 TCNAME       ?= width_function
 TEST_ID      ?= 10
@@ -99,6 +119,15 @@ TEST_ID      ?= 17
 else ifeq ($(TEST),bp_dv_019_compressed_test)
 TCNAME       ?= compressed_function
 TEST_ID      ?= 19
+else ifeq ($(TEST),bp_dv_020_cache_replacement_test)
+TCNAME       ?= cache_replacement_function
+TEST_ID      ?= 20
+else ifeq ($(TEST),bp_dv_025_axi_burst_test)
+TCNAME       ?= cache_burst_function
+TEST_ID      ?= 25
+else ifeq ($(TEST),bp_dv_024_dram_latency_test)
+TCNAME       ?= dram_latency_function
+TEST_ID      ?= 24
 RISCV_MARCH  := rv64imac
 else ifeq ($(TEST),bp_i2c_write_read_test)
 TCNAME       ?= i2c_write_read
@@ -127,7 +156,7 @@ SIM_DISPLAY_FILTER = sed -E '/^\#\# work\.bsg_mem_.*: instantiating /d'
 
 # BlackParrot RTL filelist from the new repository layout.
 # cpu.f uses $REPO_ROOT in its paths, so export REPO_ROOT below.
-CPU_FLIST    ?= $(SIM_DIR)/pasted_flist.f
+CPU_FLIST    ?= $(CPU_DIR)/dsn/rtl/cpu_top.f
 TB_FILELIST  ?= $(SIM_DIR)/tb_filelist.f
 
 # Verilator build directory.
@@ -154,7 +183,7 @@ VERILATOR_FLAGS = \
 	--coverage \
 	--error-limit 100 \
 	--converge-limit 10000000 \
-	-j 4
+	-j 2
 
 # UVM/Verilator compatibility warnings seen in the BP environment.
 #
@@ -172,10 +201,34 @@ VERILATOR_WARNINGS = \
 	-Wno-UNUSEDSIGNAL \
 	-Wno-UNUSEDPARAM \
 	-Wno-CASEINCOMPLETE \
-	-Wno-ZERODLY
+	-Wno-ZERODLY \
+	-Wno-COVERIGN \
+	-Wno-MODDUP \
+	-Wno-PINMISSING \
+	-Wno-IMPLICIT \
+	-Wno-WIDTHCONCAT \
+	-Wno-CMPCONST \
+	-Wno-UNSIGNED \
+	-Wno-CASEOVERLAP \
+	-Wno-UNOPTFLAT
+
 
 VERILATOR_DEFINES = \
-	-DUVM_NO_DPI
+	-DUVM_NO_DPI \
+	-DCPU_AXI_DATA_WIDTH=$(CPU_AXI_DATA_WIDTH) \
+	-DCPU_AXI_ADDR_WIDTH=$(CPU_AXI_ADDR_WIDTH) \
+	-DCPU_AXI_ID_WIDTH=$(CPU_AXI_ID_WIDTH)
+
+# BP-DV-020 needs only cache/DRAM traffic diagnostics; suppress unrelated ALU logs.
+ifeq ($(TEST),bp_dv_011_memory_backpressure_test)
+VERILATOR_DEFINES += -DBP_DV_011_BACKPRESSURE
+endif
+ifeq ($(TEST),bp_dv_020_cache_replacement_test)
+VERILATOR_DEFINES += -DBP_DV_020_LOG
+endif
+ifeq ($(TEST),bp_dv_024_dram_latency_test)
+VERILATOR_DEFINES += -DBP_DV_024_LATENCY
+endif
 
 VERILATOR_INCDIRS = \
 	-I$(UVM_HOME) \
@@ -303,7 +356,7 @@ sim: $(TCNAME).nbf check_uvm
 	@echo " Running UVM test"
 	@echo "=================================================="
 	set -o pipefail; $(VERILATOR_EXE) \
-		$(UVM_RUN_ARGS) \
+		$(UVM_RUN_ARGS) $(DRAM_ARGS) $(BURST_ARGS) \
 		2>&1 | $(SIM_DISPLAY_FILTER) | tee -a $(SIM_LOG)
 	@if [ -f coverage.dat ]; then \
 		mkdir -p $(COVERAGE_DIR); \
@@ -372,6 +425,8 @@ regression: check_uvm
 			fail=1; \
 			continue; \
 		fi; \
+		burst_args=; \
+		if [[ "$$t" == "bp_dv_025_axi_burst_test" ]]; then burst_args="+REQUIRE_AXI_BURST=1"; fi; \
 		if $(VERILATOR_EXE) \
 			+UVM_TESTNAME=$$t \
 			+BP_TEST_ID=$$test_id \
@@ -380,6 +435,7 @@ regression: check_uvm
 			+UVM_VERBOSITY=UVM_LOW \
 			+UVM_OBJECTION_TRACE \
 			'+uvm_set_action=*,UVM/COMP/NAME,UVM_WARNING,UVM_NO_ACTION' \
+			$$burst_args \
 			2>&1 | $(SIM_DISPLAY_FILTER) | tee "$(REGR_DIR)/$$tcname.log"; then \
 			:; \
 		else \

@@ -110,6 +110,14 @@ module cpu_tb_top
   bedrock_if #(.ADDR_WIDTH(64), .DATA_WIDTH(64)) incoming_vif (.clk(clk), .reset(reset));
   bedrock_if #(.ADDR_WIDTH(64), .DATA_WIDTH(64)) outgoing_vif (.clk(clk), .reset(reset));
 
+  // AXI bridge interface driven by cpu_top and serviced by the AXI agent.
+  cpu_AXI_if #(
+    .ID_WIDTH(`CPU_AXI_ID_WIDTH),
+    .ADDR_WIDTH(`CPU_AXI_ADDR_WIDTH),
+    .DATA_WIDTH(`CPU_AXI_DATA_WIDTH)
+  ) cpu_axi_vif (.axi_clk_i(clk));
+  assign cpu_axi_vif.axi_reset_i = reset;
+
   // struct wires that sit directly on the DUT's real ports
   bp_bedrock_mem_fwd_header_s mem_fwd_header_li, mem_fwd_header_lo;
   bp_bedrock_mem_rev_header_s mem_rev_header_li, mem_rev_header_lo;
@@ -151,6 +159,16 @@ module cpu_tb_top
   logic host_mem_write;
   bp_uvm_name_warning_catcher name_warning_catcher;
 
+`ifdef BP_DV_020_LOG
+  // BP-DV-020 activity evidence: ten conflict lines are exercised, then
+  // replacement must cause additional refills and at least one writeback.
+  localparam logic [daddr_width_p-1:0] BP020_CONFLICT_BASE = 64'h8001_0000;
+  localparam logic [daddr_width_p-1:0] BP020_CONFLICT_LAST = 64'h8003_4000;
+  int unsigned bp020_conflict_read_count;
+  int unsigned bp020_conflict_write_count;
+  bit bp020_activity_checked;
+`endif
+
   assign mem_fwd_header_li.msg_type = incoming_vif.mem_fwd_msg_type;
   assign mem_fwd_header_li.addr     = incoming_vif.mem_fwd_addr;
   assign mem_fwd_header_li.size     = bp_bedrock_msg_size_e'(incoming_vif.mem_fwd_size);
@@ -167,9 +185,13 @@ module cpu_tb_top
   assign mem_rev_ready_to_dut = cfg_done
                               ? incoming_vif.mem_rev_ready_and
                               : cfg_mem_rev_ready;
-  assign cfg_mem_rev_header = mem_rev_header_lo;
-  assign cfg_mem_rev_data   = incoming_vif.mem_rev_data;
-  assign cfg_mem_rev_v      = incoming_vif.mem_rev_v;
+
+  // XMR simulation hook: cpu_top keeps these bp_processor ports tied off in RTL.
+  // The testbench overrides only the configuration path for the NBF loader.
+  assign mem_fwd_ready_from_dut = dut.u_bp.mem_fwd_ready_and_o;
+  assign cfg_mem_rev_header     = dut.u_bp.mem_rev_header_o;
+  assign cfg_mem_rev_data       = dut.u_bp.mem_rev_data_o;
+  assign cfg_mem_rev_v          = dut.u_bp.mem_rev_v_o;
 
   assign outgoing_vif.mem_fwd_msg_type = mem_fwd_header_lo.msg_type;
   assign outgoing_vif.mem_fwd_addr     = mem_fwd_header_lo.addr;
@@ -185,7 +207,7 @@ module cpu_tb_top
   bp_nonsynth_cfg_loader
     #(.bp_params_p(bp_params_p), .ucode_str_p("ucode_mem"))
   cfg_loader
-   ( .clk_i(clk), .reset_i(reset)
+   ( .clk_i(clk), .reset_i(~reset)
    , .lce_id_i(host_lce_id), .did_i(host_did)
    , .mem_fwd_header_o(cfg_mem_fwd_header)
    , .mem_fwd_data_o(cfg_mem_fwd_data)
@@ -198,38 +220,35 @@ module cpu_tb_top
    , .done_o(cfg_done)
    );
 
-  // Respond to the processor's outbound uncached BedRock traffic.  This is
-  // the same host model used by BlackParrot's normal tethered testbench and
-  // is needed for program stores such as the final tohost write.
-  bp_nonsynth_host
-    #(.bp_params_p(bp_params_p))
-  host
-   ( .clk_i(clk), .reset_i(reset)
-   , .mem_fwd_header_i(mem_fwd_header_lo)
-   , .mem_fwd_data_i(outgoing_vif.mem_fwd_data)
-   , .mem_fwd_v_i(outgoing_vif.mem_fwd_v)
-   , .mem_fwd_ready_and_o(outgoing_vif.mem_fwd_ready_and)
-   , .mem_rev_header_o(mem_rev_header_li)
-   , .mem_rev_data_o(outgoing_vif.mem_rev_data)
-   , .mem_rev_v_o(outgoing_vif.mem_rev_v)
-   , .mem_rev_ready_and_i(outgoing_vif.mem_rev_ready_and)
-   );
 
-  // ---- direct DUT instantiation, no wrapper/adapter module ----
-  bp_processor #(.bp_params_p(bp_params_p)) dut
+  // ---- cpu_top instantiation ----
+  cpu_top #(
+    .bp_params_p(bp_params_p),
+    .ID_WIDTH(`CPU_AXI_ID_WIDTH),
+    .AXI_DATA_WIDTH(`CPU_AXI_DATA_WIDTH)
+  ) dut
    ( .clk_i(clk), .rt_clk_i(rt_clk), .reset_i(reset)
    , .my_did_i(proc_did), .host_did_i(host_did)
-
-   , .mem_fwd_header_o(mem_fwd_header_lo), .mem_fwd_data_o(outgoing_vif.mem_fwd_data)
-   , .mem_fwd_v_o(outgoing_vif.mem_fwd_v), .mem_fwd_ready_and_i(outgoing_vif.mem_fwd_ready_and)
-   , .mem_rev_header_i(mem_rev_header_li), .mem_rev_data_i(outgoing_vif.mem_rev_data)
-   , .mem_rev_v_i(outgoing_vif.mem_rev_v), .mem_rev_ready_and_o(outgoing_vif.mem_rev_ready_and)
-
-   , .mem_fwd_header_i(mem_fwd_header_to_dut), .mem_fwd_data_i(mem_fwd_data_to_dut)
-   , .mem_fwd_v_i(mem_fwd_v_to_dut), .mem_fwd_ready_and_o(mem_fwd_ready_from_dut)
-   , .mem_rev_header_o(mem_rev_header_lo), .mem_rev_data_o(incoming_vif.mem_rev_data)
-   , .mem_rev_v_o(incoming_vif.mem_rev_v), .mem_rev_ready_and_i(mem_rev_ready_to_dut)
-
+   , .axi_clk_i(clk), .axi_reset_i(reset)
+   , .m_axi_awid(cpu_axi_vif.m_axi_awid), .m_axi_awaddr(cpu_axi_vif.m_axi_awaddr)
+   , .m_axi_awlen(cpu_axi_vif.m_axi_awlen), .m_axi_awsize(cpu_axi_vif.m_axi_awsize)
+   , .m_axi_awburst(cpu_axi_vif.m_axi_awburst), .m_axi_awlock(cpu_axi_vif.m_axi_awlock)
+   , .m_axi_awcache(cpu_axi_vif.m_axi_awcache), .m_axi_awprot(cpu_axi_vif.m_axi_awprot)
+   , .m_axi_awqos(cpu_axi_vif.m_axi_awqos), .m_axi_awvalid(cpu_axi_vif.m_axi_awvalid)
+   , .m_axi_awready(cpu_axi_vif.m_axi_awready), .m_axi_wdata(cpu_axi_vif.m_axi_wdata)
+   , .m_axi_wstrb(cpu_axi_vif.m_axi_wstrb), .m_axi_wlast(cpu_axi_vif.m_axi_wlast)
+   , .m_axi_wvalid(cpu_axi_vif.m_axi_wvalid), .m_axi_wready(cpu_axi_vif.m_axi_wready)
+   , .m_axi_bid(cpu_axi_vif.m_axi_bid), .m_axi_bresp(cpu_axi_vif.m_axi_bresp)
+   , .m_axi_bvalid(cpu_axi_vif.m_axi_bvalid), .m_axi_bready(cpu_axi_vif.m_axi_bready)
+   , .m_axi_arid(cpu_axi_vif.m_axi_arid), .m_axi_araddr(cpu_axi_vif.m_axi_araddr)
+   , .m_axi_arlen(cpu_axi_vif.m_axi_arlen), .m_axi_arsize(cpu_axi_vif.m_axi_arsize)
+   , .m_axi_arburst(cpu_axi_vif.m_axi_arburst), .m_axi_arlock(cpu_axi_vif.m_axi_arlock)
+   , .m_axi_arcache(cpu_axi_vif.m_axi_arcache), .m_axi_arprot(cpu_axi_vif.m_axi_arprot)
+   , .m_axi_arqos(cpu_axi_vif.m_axi_arqos), .m_axi_arvalid(cpu_axi_vif.m_axi_arvalid)
+   , .m_axi_arready(cpu_axi_vif.m_axi_arready), .m_axi_rid(cpu_axi_vif.m_axi_rid)
+   , .m_axi_rdata(cpu_axi_vif.m_axi_rdata), .m_axi_rresp(cpu_axi_vif.m_axi_rresp)
+   , .m_axi_rlast(cpu_axi_vif.m_axi_rlast), .m_axi_rvalid(cpu_axi_vif.m_axi_rvalid)
+   , .m_axi_rready(cpu_axi_vif.m_axi_rready)
    , .dma_pkt_o(dma_pkt), .dma_pkt_v_o(dma_pkt_v), .dma_pkt_ready_and_i(dma_pkt_yumi)
    , .dma_data_i(dma_data_to_dut), .dma_data_v_i(dma_data_v_to_dut), .dma_data_ready_and_o(dma_data_ready_from_dut)
    , .dma_data_o(dma_data_from_dut), .dma_data_v_o(dma_data_v_from_dut), .dma_data_ready_and_i(dma_data_yumi)
@@ -243,7 +262,7 @@ module cpu_tb_top
      ,.dma_mask_width_p(l2_block_size_in_words_p)
      ) dram
     (.clk_i(clk)
-     ,.reset_i(reset)
+     ,.reset_i(~reset)
      ,.dma_pkt_i(dma_pkt)
      ,.dma_pkt_v_i(dma_pkt_v)
      ,.dma_pkt_yumi_o(dma_pkt_yumi)
@@ -258,6 +277,7 @@ module cpu_tb_top
      ,.host_mem_data_i(incoming_vif.mem_fwd_data)
      );
 
+`ifdef BP_DV_020_LOG
   // Observe only the processor-to-DRAM DMA interface. These are accepted
   // external-memory requests; cache hits do not create a DRAM request, and a
   // CPU store may appear here later as a cache-line writeback.
@@ -270,12 +290,24 @@ module cpu_tb_top
       dma_log_last_write     <= '0;
       dma_log_last_read_data <= '0;
       dma_log_last_write_data <= '0;
+      bp020_conflict_read_count <= 0;
+      bp020_conflict_write_count <= 0;
+      bp020_activity_checked <= 1'b0;
     end
     else begin
       for (int cce = 0; cce < num_cce_p; cce++) begin
         for (int dma = 0; dma < l2_dmas_p; dma++) begin
           // Print a request only when its address or direction changes from
           // the last accepted request on this DMA channel.
+          if (dma_pkt_v[cce][dma] && dma_pkt_yumi[cce][dma]
+              && (dma_pkt[cce][dma].addr >= BP020_CONFLICT_BASE)
+              && (dma_pkt[cce][dma].addr <= BP020_CONFLICT_LAST)) begin
+            if (dma_pkt[cce][dma].write_not_read)
+              bp020_conflict_write_count++;
+            else
+              bp020_conflict_read_count++;
+          end
+
           if (dma_pkt_v[cce][dma] && dma_pkt_yumi[cce][dma]
               && (!dma_log_pkt_seen[cce][dma]
                   || dma_pkt[cce][dma].addr !== dma_log_last_addr[cce][dma]
@@ -313,10 +345,32 @@ module cpu_tb_top
           end
         end
       end
+
+      // The final tohost write is the completion point for the C test. Check
+      // the actual accepted DMA traffic before allowing BP-DV-020 to pass.
+      if (!bp020_activity_checked
+          && outgoing_vif.mem_fwd_v
+          && outgoing_vif.mem_fwd_ready_and
+          && outgoing_vif.mem_fwd_addr == 64'h0010_2000) begin
+        bp020_activity_checked = 1'b1;
+        if ((bp020_conflict_read_count <= 10)
+            || (bp020_conflict_write_count == 0)) begin
+          $fatal(1,
+                 "BP-DV-020 ACTIVITY CHECK FAILED: conflict_reads=%0d conflict_writebacks=%0d",
+                 bp020_conflict_read_count, bp020_conflict_write_count);
+        end
+        else begin
+          $display("BP-DV-020 ACTIVITY CHECK PASSED: conflict_reads=%0d conflict_writebacks=%0d",
+                   bp020_conflict_read_count, bp020_conflict_write_count);
+        end
+      end
     end
   end
+`endif
 
-
+`ifndef BP_DV_020_LOG
+`ifndef BP_DV_024_LATENCY
+`ifndef BP_DV_011_BACKPRESSURE
   // Observe the catch-up integer result. This stage has the forwarded source
   // operands for dependent instructions; the early reservation can still
   // contain stale operands while a producer is completing.
@@ -343,7 +397,7 @@ module cpu_tb_top
   int add_retire_count;
   int srl_retire_count;
   int muldiv_retire_count;
-  always @(posedge dut.u.unicore.unicore_lite.core_minimal.be.calculator.pipe_int_catchup_data_v_lo) begin : alu_operation_log
+  always @(posedge dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.pipe_int_catchup_data_v_lo) begin : alu_operation_log
     logic [31:0] instr;
     logic [6:0] opcode;
     logic [2:0] funct3;
@@ -355,17 +409,17 @@ module cpu_tb_top
     // sampling the forwarded operands and result.
     #1ps;
 
-    instr = dut.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.instr;
+    instr = dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.instr;
     opcode = instr[6:0];
     funct3 = instr[14:12];
     funct7 = instr[31:25];
     immediate = {{52{instr[31]}}, instr[31:20]};
-    operand_a = dut.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.isrc1[63:0];
-    operand_b = dut.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.isrc2[63:0];
-    alu_result = dut.u.unicore.unicore_lite.core_minimal.be.calculator.pipe_int_catchup_data_lo[63:0];
+    operand_a = dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.isrc1[63:0];
+    operand_b = dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.isrc2[63:0];
+    alu_result = dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.pipe_int_catchup_data_lo[63:0];
     if (!reset
-        && dut.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.v
-        && dut.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.decode.pipe_int_v) begin
+        && dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.v
+        && dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.decode.pipe_int_v) begin
       if ((opcode == 7'b0110011) || (opcode == 7'b0111011)) begin
         if (funct7 == 7'b0000001) begin
           case ({opcode, funct3})
@@ -387,7 +441,7 @@ module cpu_tb_top
           muldiv_exec_count++;
           $display("TB MULDIV op=%s count=%0d pc=%h instr=%h a=%h b=%h result=%h time=%0t",
                    operation_name, muldiv_exec_count,
-                   dut.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
+                   dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
                    instr, operand_a, operand_b, alu_result, $time);
         end
         case (funct3)
@@ -396,13 +450,13 @@ module cpu_tb_top
               add_exec_count++;
               $display("TB ALU op=ADD count=%0d pc=%h instr=%h a=%h b=%h result=%h time=%0t",
                        add_exec_count,
-                       dut.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
+                       dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
                        instr, operand_a, operand_b, alu_result, $time);
             end else if (funct7 == 7'b0100000) begin
               sub_exec_count++;
               $display("TB ALU op=SUB count=%0d pc=%h instr=%h a=%h b=%h result=%h time=%0t",
                        sub_exec_count,
-                       dut.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
+                       dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
                        instr, operand_a, operand_b, alu_result, $time);
             end
           end
@@ -410,42 +464,42 @@ module cpu_tb_top
             and_exec_count++;
             $display("TB ALU op=AND count=%0d pc=%h instr=%h a=%h b=%h result=%h time=%0t",
                      and_exec_count,
-                     dut.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
+                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
                      instr, operand_a, operand_b, alu_result, $time);
           end
           3'b110: if ((opcode == 7'b0110011) && (funct7 == 7'b0000000)) begin
             or_exec_count++;
             $display("TB ALU op=OR count=%0d pc=%h instr=%h a=%h b=%h result=%h time=%0t",
                      or_exec_count,
-                     dut.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
+                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
                      instr, operand_a, operand_b, alu_result, $time);
           end
           3'b100: if ((opcode == 7'b0110011) && (funct7 == 7'b0000000)) begin
             xor_exec_count++;
             $display("TB ALU op=XOR count=%0d pc=%h instr=%h a=%h b=%h result=%h time=%0t",
                      xor_exec_count,
-                     dut.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
+                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
                      instr, operand_a, operand_b, alu_result, $time);
           end
           3'b010: if ((opcode == 7'b0110011) && (funct7 == 7'b0000000)) begin
             slt_exec_count++;
             $display("TB ALU op=SLT count=%0d pc=%h instr=%h a=%h b=%h result=%h time=%0t",
                      slt_exec_count,
-                     dut.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
+                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
                      instr, operand_a, operand_b, alu_result, $time);
           end
           3'b011: if ((opcode == 7'b0110011) && (funct7 == 7'b0000000)) begin
             sltu_exec_count++;
             $display("TB ALU op=SLTU count=%0d pc=%h instr=%h a=%h b=%h result=%h time=%0t",
                      sltu_exec_count,
-                     dut.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
+                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
                      instr, operand_a, operand_b, alu_result, $time);
           end
           3'b001: if (opcode == 7'b0110011 && funct7 == 7'b0000000) begin
             sll_exec_count++;
             $display("TB ALU op=SLL count=%0d pc=%h instr=%h a=%h shamt=%h result=%h time=%0t",
                      sll_exec_count,
-                     dut.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
+                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
                      instr, operand_a, operand_b, alu_result, $time);
           end
           3'b101: if (opcode == 7'b0110011) begin
@@ -453,13 +507,13 @@ module cpu_tb_top
               srl_exec_count++;
               $display("TB ALU op=SRL count=%0d pc=%h instr=%h a=%h shamt=%h result=%h time=%0t",
                        srl_exec_count,
-                       dut.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
+                       dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
                        instr, operand_a, operand_b, alu_result, $time);
             end else if (funct7 == 7'b0100000) begin
               sra_exec_count++;
               $display("TB ALU op=SRA count=%0d pc=%h instr=%h a=%h shamt=%h result=%h time=%0t",
                        sra_exec_count,
-                       dut.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
+                       dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
                        instr, operand_a, operand_b, alu_result, $time);
             end
           end
@@ -471,49 +525,49 @@ module cpu_tb_top
             addi_exec_count++;
             $display("TB ALU op=ADDI count=%0d pc=%h instr=%h a=%h imm=%h result=%h time=%0t",
                      addi_exec_count,
-                     dut.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
+                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
                      instr, operand_a, immediate, alu_result, $time);
           end
           3'b010: begin
             slti_exec_count++;
             $display("TB ALU op=SLTI count=%0d pc=%h instr=%h a=%h imm=%h result=%h time=%0t",
                      slti_exec_count,
-                     dut.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
+                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
                      instr, operand_a, immediate, alu_result, $time);
           end
           3'b011: begin
             sltiu_exec_count++;
             $display("TB ALU op=SLTIU count=%0d pc=%h instr=%h a=%h imm=%h result=%h time=%0t",
                      sltiu_exec_count,
-                     dut.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
+                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
                      instr, operand_a, immediate, alu_result, $time);
           end
           3'b111: begin
             andi_exec_count++;
             $display("TB ALU op=ANDI count=%0d pc=%h instr=%h a=%h imm=%h result=%h time=%0t",
                      andi_exec_count,
-                     dut.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
+                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
                      instr, operand_a, immediate, alu_result, $time);
           end
           3'b110: begin
             ori_exec_count++;
             $display("TB ALU op=ORI count=%0d pc=%h instr=%h a=%h imm=%h result=%h time=%0t",
                      ori_exec_count,
-                     dut.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
+                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
                      instr, operand_a, immediate, alu_result, $time);
           end
           3'b100: begin
             xori_exec_count++;
             $display("TB ALU op=XORI count=%0d pc=%h instr=%h a=%h imm=%h result=%h time=%0t",
                      xori_exec_count,
-                     dut.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
+                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
                      instr, operand_a, immediate, alu_result, $time);
           end
           3'b001: if (instr[31:26] == 6'b000000) begin
             slli_exec_count++;
             $display("TB ALU op=SLLI count=%0d pc=%h instr=%h a=%h shamt=%0d result=%h time=%0t",
                      slli_exec_count,
-                     dut.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
+                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
                      instr, operand_a, instr[25:20], alu_result, $time);
           end
           3'b101: begin
@@ -521,13 +575,13 @@ module cpu_tb_top
               srli_exec_count++;
               $display("TB ALU op=SRLI count=%0d pc=%h instr=%h a=%h shamt=%0d result=%h time=%0t",
                        srli_exec_count,
-                       dut.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
+                       dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
                        instr, operand_a, instr[25:20], alu_result, $time);
             end else if (instr[31:26] == 6'b010000) begin
               srai_exec_count++;
               $display("TB ALU op=SRAI count=%0d pc=%h instr=%h a=%h shamt=%0d result=%h time=%0t",
                        srai_exec_count,
-                       dut.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
+                       dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
                        instr, operand_a, instr[25:20], alu_result, $time);
             end
           end
@@ -542,16 +596,16 @@ module cpu_tb_top
   // is carrying a non-valid reservation payload.
   always @(posedge clk) begin
     if (!reset
-        && dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instret
-        && !dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.exception
-        && (dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr[6:0] == 7'b0110011)
-        && (dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr[14:12] == 3'b000)
-        && (dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr[31:25] == 7'b0000000)) begin
+        && dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instret
+        && !dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.exception
+        && (dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr[6:0] == 7'b0110011)
+        && (dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr[14:12] == 3'b000)
+        && (dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr[31:25] == 7'b0000000)) begin
       add_retire_count++;
       $display("TB ADD RETIRED count=%0d pc=%h instr=%h time=%0t",
                add_retire_count,
-               dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.pc,
-               dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr,
+               dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.pc,
+               dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr,
                $time);
     end
   end
@@ -560,16 +614,16 @@ module cpu_tb_top
   // that the decoded logical-right-shift instruction actually committed.
   always @(posedge clk) begin
     if (!reset
-        && dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instret
-        && !dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.exception
-        && (dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr[6:0] == 7'b0110011)
-        && (dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr[14:12] == 3'b101)
-        && (dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr[31:25] == 7'b0000000)) begin
+        && dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instret
+        && !dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.exception
+        && (dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr[6:0] == 7'b0110011)
+        && (dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr[14:12] == 3'b101)
+        && (dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr[31:25] == 7'b0000000)) begin
       srl_retire_count++;
       $display("TB SHIFT RETIRED op=SRL count=%0d pc=%h instr=%h time=%0t",
                srl_retire_count,
-               dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.pc,
-               dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr,
+               dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.pc,
+               dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr,
                $time);
     end
   end
@@ -578,11 +632,11 @@ module cpu_tb_top
     logic [31:0] retired_instr;
     string operation_name;
 
-    retired_instr = dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr;
+    retired_instr = dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr;
     operation_name = "";
     if (!reset
-        && dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instret
-        && !dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.exception
+        && dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instret
+        && !dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.exception
         && (retired_instr[31:25] == 7'b0000001)) begin
       case ({retired_instr[6:0], retired_instr[14:12]})
         10'b0110011_000: operation_name = "MUL";
@@ -604,11 +658,14 @@ module cpu_tb_top
         muldiv_retire_count++;
         $display("TB MULDIV RETIRED op=%s count=%0d pc=%h instr=%h time=%0t",
                  operation_name, muldiv_retire_count,
-                 dut.u.unicore.unicore_lite.core_minimal.be.commit_pkt.pc,
+                 dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.pc,
                  retired_instr, $time);
       end
     end
   end
+`endif
+`endif
+`endif
 
   initial begin
     name_warning_catcher = new();
@@ -623,6 +680,15 @@ module cpu_tb_top
       "uvm_test_top.env.bedrock_agt.bedrock_mon", "vif", incoming_vif);
     uvm_resource_db#(virtual bedrock_if)::set(
       "uvm_test_top.env.outgoing_mon", "vif", outgoing_vif);
+    force dut.u_bp.mem_fwd_header_i = mem_fwd_header_to_dut;
+    force dut.u_bp.mem_fwd_data_i   = mem_fwd_data_to_dut;
+    force dut.u_bp.mem_fwd_v_i      = mem_fwd_v_to_dut;
+    force dut.u_bp.mem_rev_ready_and_i = mem_rev_ready_to_dut;
+
+    uvm_resource_db#(virtual cpu_AXI_if #(`CPU_AXI_ID_WIDTH, `CPU_AXI_ADDR_WIDTH, `CPU_AXI_DATA_WIDTH))::set(
+      "uvm_test_top.env.axi_agt", "vif", cpu_axi_vif);
+    uvm_resource_db#(uvm_active_passive_enum)::set(
+      "uvm_test_top.env.axi_agt", "is_active", UVM_ACTIVE);
     run_test();
   end
 
@@ -632,6 +698,7 @@ module cpu_tb_top
     $dumpvars(0, reset_vif);
     $dumpvars(0, incoming_vif);
     $dumpvars(0, outgoing_vif);
+    $dumpvars(0, cpu_axi_vif);
     $dumpvars(0, dma_pkt);
     $dumpvars(0, dma_pkt_v);
     $dumpvars(0, dma_pkt_yumi);

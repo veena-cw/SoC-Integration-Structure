@@ -1,4 +1,14 @@
 // bp_uvm_pkg.sv
+// Compile-time defaults shared by the parameterized CPU AXI UVM classes.
+`ifndef CPU_AXI_DATA_WIDTH
+  `define CPU_AXI_DATA_WIDTH 128
+`endif
+`ifndef CPU_AXI_ADDR_WIDTH
+  `define CPU_AXI_ADDR_WIDTH 64
+`endif
+`ifndef CPU_AXI_ID_WIDTH
+  `define CPU_AXI_ID_WIDTH 4
+`endif
 package bp_uvm_pkg;
   import uvm_pkg::*;
   `include "uvm_macros.svh"
@@ -25,6 +35,13 @@ package bp_uvm_pkg;
   `include "bedrock_monitor.sv"
   `include "bp_coverage.sv"
   `include "bedrock_agent.sv"
+  `include "axi_agent/cpu_axi_txn.sv"
+  `include "axi_agent/cpu_axi_mem_model.sv"
+  `include "axi_agent/cpu_axi_agent_sequencer.sv"
+  `include "axi_agent/cpu_axi_agent_driver.sv"
+  `include "axi_agent/cpu_axi_agent_monitor.sv"
+  `include "axi_agent/cpu_axi_agent.sv"
+  `include "cpu_axi_coverage.sv"
   `include "nbf_load_seq.sv"
   `include "alu_test_seq.sv"
   `include "immediate_test_seq.sv"
@@ -35,6 +52,10 @@ package bp_uvm_pkg;
   `include "branch_test_seq.sv"
   `include "memory_widths_test_seq.sv"
   `include "cache_miss_test_seq.sv"
+  `include "cache_burst_test_seq.sv"
+  `include "cache_replacement_test_seq.sv"
+  `include "dram_latency_test_seq.sv"
+  `include "memory_backpressure_test_seq.sv"
   `include "illegal_trap_test_seq.sv"
   `include "ecall_ebreak_test_seq.sv"
   `include "compressed_test_seq.sv"

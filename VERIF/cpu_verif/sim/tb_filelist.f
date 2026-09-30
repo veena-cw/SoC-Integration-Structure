@@ -26,4 +26,5 @@ $CPU_RTL_DIR/bp_top/test/common/bp_nonsynth_dram.sv
 $TB_DIR/package/bp_uvm_pkg.sv
 $TB_DIR/interface/bedrock_if.sv
 $TB_DIR/interface/cpu_reset_if.sv
+$TB_DIR/interface/cpu_axi_if.sv
 $TB_DIR/top/cpu_tb_top.sv

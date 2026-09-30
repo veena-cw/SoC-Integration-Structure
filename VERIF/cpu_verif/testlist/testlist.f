@@ -43,9 +43,25 @@ bp_dv_016_ecall_ebreak_test 16 ecall_ebreak_function.nbf
 # BP-DV-019 - RV64C compressed instructions
 bp_dv_019_compressed_test 19 compressed_function.nbf
 
-# BP-DV-017 requires a separate two-core RTL build (BP_CFG_ID=9); it is
-# intentionally not part of this default single-core regression.
-# bp_dv_017_multicore_shared_memory_test 17 multicore_shared_memory.nbf
+# BP-DV-011 - Randomized memory request/response backpressure
+bp_dv_011_memory_backpressure_test 11 memory_backpressure_function.nbf
+
+# BP-DV-020 - Cache replacement/eviction under same-set conflicts
+bp_dv_020_cache_replacement_test 20 cache_replacement_function.nbf
+
+# BP-DV-025 - Cache-line refill and AXI AWLEN/ARLEN burst observation
+bp_dv_025_axi_burst_test 25 cache_burst_function.nbf
+
+# BP-DV-024 - Variable DRAM latency under memory-intensive traffic
+bp_dv_024_dram_latency_test 24 dram_latency_function.nbf
+
+# BP-DV-017 - Multicore shared-memory test.
+# Requires a separate two-core RTL build (BP_CFG_ID=9).
+bp_dv_017_multicore_shared_memory_test 17 multicore_shared_memory.nbf
+
+# BP-DV-027 - I2C write/read test aliases.
+bp_i2c_write_read_test       27 i2c_write_read.nbf
+bp_dv_004_i2c_write_read_test 27 i2c_write_read.nbf
 
 # Supplemental CPU smoke test retained from earlier development
 bp_dv_007_load_add_store_test 9  load_add_store.nbf

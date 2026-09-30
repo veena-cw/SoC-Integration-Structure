@@ -11,10 +11,13 @@
 `ifndef SCOREBOARD_SV
 `define SCOREBOARD_SV
 
+`uvm_analysis_imp_decl(_axi)
+
 class bedrock_scoreboard extends uvm_component;
   `uvm_component_utils(bedrock_scoreboard)
 
   uvm_analysis_imp #(bedrock_txn, bedrock_scoreboard) ap_imp;
+  uvm_analysis_imp_axi #(cpu_axi_txn#(), bedrock_scoreboard) axi_imp;
 
   bit [63:0] tohost_addr = 64'h0010_2000;
   bit        finished;
@@ -22,12 +25,23 @@ class bedrock_scoreboard extends uvm_component;
   int        test_id;
   int        n_checks;
   int        n_mismatches;
+  bit        require_axi_burst;
+  bit        axi_burst_seen;
+  int        axi_burst_count;
+  int        axi_max_burst_beats;
 
   function new(string name, uvm_component parent);
     super.new(name, parent);
     ap_imp = new("ap_imp", this);
+    axi_imp = new("axi_imp", this);
     test_id = 3;
     void'($value$plusargs("BP_TEST_ID=%d", test_id));
+    begin
+      int require_burst_arg;
+      require_burst_arg = 0;
+      void'($value$plusargs("REQUIRE_AXI_BURST=%d", require_burst_arg));
+      require_axi_burst = (require_burst_arg != 0);
+    end
   endfunction
 
   // called by the monitor's analysis port for every accepted mem_fwd/mem_rev beat
@@ -53,10 +67,45 @@ class bedrock_scoreboard extends uvm_component;
     // environment runs standalone without a Spike/Dromajo build dependency.
   endfunction
 
+  function void write_axi(cpu_axi_txn#() t);
+    n_checks++;
+
+    if (t.burst_beats > 1) begin
+      axi_burst_seen = 1'b1;
+      axi_burst_count++;
+      if (t.burst_beats > axi_max_burst_beats)
+        axi_max_burst_beats = t.burst_beats;
+    end
+
+    if (!finished && t.direction == cpu_axi_txn#()::AXI_WRITE && t.addr == tohost_addr) begin
+      finished    = 1'b1;
+      test_passed = (t.data == 64'h0);
+      if (test_passed)
+        `uvm_info("SCOREBOARD", $sformatf("AXI tohost == 0 : BP-DV-%03d PASSED", test_id), UVM_NONE)
+      else begin
+        n_mismatches++;
+        `uvm_error("SCOREBOARD", $sformatf("AXI tohost == 0x%0h : BP-DV-%03d FAILED", t.data, test_id))
+      end
+    end
+  endfunction
+
   function void report_phase(uvm_phase phase);
     super.report_phase(phase);
     if (!finished)
       `uvm_error("SCOREBOARD", $sformatf("BP-DV-%03d did not write tohost before the test ended", test_id))
+
+    `uvm_info("AXI_BURST", $sformatf(
+      "seen=%0b transactions=%0d max_beats=%0d required=%0b",
+      axi_burst_seen, axi_burst_count, axi_max_burst_beats,
+      require_axi_burst), UVM_NONE)
+
+    if (require_axi_burst && !axi_burst_seen) begin
+      test_passed = 1'b0;
+      n_mismatches++;
+      `uvm_error("AXI_BURST",
+        "BP-DV-025 expected AWLEN/ARLEN > 0, but no multi-beat AXI burst was observed")
+    end
+
     `uvm_info("SCOREBOARD",
       $sformatf("checks=%0d mismatches=%0d finished=%0b passed=%0b",
                  n_checks, n_mismatches, finished, test_passed), UVM_NONE)

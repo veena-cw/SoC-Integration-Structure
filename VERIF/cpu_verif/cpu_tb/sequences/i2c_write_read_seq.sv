@@ -30,7 +30,7 @@ class i2c_write_read_seq extends uvm_sequence #(bedrock_txn);
     void'($value$plusargs("NBF_PRELOAD_ONLY=%d", preload_only));
 
     if (preload_only) begin
-      #(20us);
+      #(100us);
       return;
     end
 

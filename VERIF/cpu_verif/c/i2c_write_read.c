@@ -10,10 +10,7 @@
 
 #define TOHOST_ADDR  ((volatile uint64_t *)0x00102000UL)
 #define I2C_CMD_ADDR ((volatile uint64_t *)0x30010000UL)
-#define I2C_DATA_ADDR ((volatile uint64_t *)0x30010008UL)
-
 #define I2C_WRITE 0
-#define I2C_READ  1
 
 static inline uint64_t i2c_command(uint8_t slave_addr, uint8_t rw,
                                    uint8_t data)
@@ -45,12 +42,10 @@ static void check_i2c_write_read(uint8_t slave_addr, uint8_t write_data,
   *I2C_CMD_ADDR = i2c_command(slave_addr, I2C_WRITE, write_data);
   io_fence();
 
-  /* CPU -> TB: request a read from the same I2C slave. */
-  *I2C_CMD_ADDR = i2c_command(slave_addr, I2C_READ, 0);
-  io_fence();
-
-  /* TB -> CPU: read the byte returned by the I2C model. */
-  uint64_t read_data = *I2C_DATA_ADDR;
+  /* CPU -> TB: request/read from the same I2C slave through AXI AR/R. */
+  /* The I2C model interprets an AR to the command register as the read
+   * request and returns the previously written byte on the R channel. */
+  uint64_t read_data = *I2C_CMD_ADDR;
   io_fence();
 
   if ((read_data & 0xFF) != write_data)

@@ -237,12 +237,48 @@ module bp_multicore
      );
      
 
-       
-	assign plic_m_external_irq_li[0] = plic_irq_lo[0];
-	assign plic_s_external_irq_li[0] = plic_irq_lo[1];
 
-	assign plic_m_external_irq_li[1] = plic_irq_lo[2];
-	assign plic_s_external_irq_li[1] = plic_irq_lo[3];
+	logic [3:0] plic_irq_core_sync1;
+	logic [3:0] plic_irq_core_sync2;
+
+
+	// ============================================================
+	// PLIC IRQ CDC
+	//
+	// Source domain : plic_ahb_clk_i
+	// Destination   : core_clk_i
+	//
+	// PLIC irq is a level-sensitive interrupt indication.
+	// Use a 2-flop synchronizer for the CDC.
+	// ============================================================
+
+	always_ff @(posedge core_clk_i or negedge core_reset_i) begin
+	  if (!core_reset_i) begin
+	    plic_irq_core_sync1 <= 4'b0;
+	    plic_irq_core_sync2 <= 4'b0;
+	  end
+	  else begin
+	    plic_irq_core_sync1 <= plic_irq_lo;
+	    plic_irq_core_sync2 <= plic_irq_core_sync1;
+	  end
+	end
+
+
+	// ============================================================
+	// PLIC interrupt target mapping
+	//
+	// PLIC target 0 -> Core 0 M-mode
+	// PLIC target 1 -> Core 0 S-mode
+	// PLIC target 2 -> Core 1 M-mode
+	// PLIC target 3 -> Core 1 S-mode
+	// ============================================================
+
+	assign plic_m_external_irq_li[0] = plic_irq_core_sync2[0];
+	assign plic_s_external_irq_li[0] = plic_irq_core_sync2[1];
+
+	assign plic_m_external_irq_li[1] = plic_irq_core_sync2[2];
+	assign plic_s_external_irq_li[1] = plic_irq_core_sync2[3];
+       
 
 
 

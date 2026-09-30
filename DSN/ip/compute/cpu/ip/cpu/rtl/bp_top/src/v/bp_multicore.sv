@@ -205,7 +205,7 @@ module bp_multicore
     (
       .core_clk_i(core_clk_i),
       .plic_ahb_clk_i(plic_ahb_clk_i),
-      .reset_i(core_reset_i),
+      .reset_i(~core_reset_i),
 
       // Core 0 PLIC BedRock interface
        .core0_fwd_header_i(plic_fwd_header_lo[0]),

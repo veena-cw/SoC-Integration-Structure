@@ -156,7 +156,7 @@ module bp_bedrock_axi4_bridge
       .DATA_WIDTH(REQ_FIFO_WIDTH)
   ) u_req_fifo (
       .wclk    (cpu_clk_i),
-      .wrst_n  (~cpu_reset_i),//Convert CPU Posedge reset to negedge
+      .wrst_n  (cpu_reset_i),//Convert CPU Posedge reset to negedge
       .rclk    (axi_clk_i),
       .rrst_n  (axi_reset_i),//Active low reset from AXI4 master module
       .w_en    (req_fifo_w_en),
@@ -209,7 +209,7 @@ module bp_bedrock_axi4_bridge
       .wclk    (axi_clk_i),
       .wrst_n  (axi_reset_i),//Active low reset from AXI4 master module
       .rclk    (cpu_clk_i),
-      .rrst_n  (~cpu_reset_i),//Convert CPU Posedge reset to negedge
+      .rrst_n  (cpu_reset_i),//Convert CPU Posedge reset to negedge
       .w_en    (resp_fifo_w_en),
       .r_en    (resp_fifo_r_en),
       .data_in (resp_fifo_data_in),

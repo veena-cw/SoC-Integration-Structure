@@ -1,0 +1,99 @@
+/* axi_block_access.c
+ *
+ * BP-DV-029: write a whole AXI-mapped block, read it all back, then compare.
+ *
+ * The block 0x3002_0000 - 0x3002_00FF (256 B = 16 x 128-bit AXI beats) is
+ * outside DRAM, so every access goes BedRock I/O -> bp_bedrock_axi4_bridge
+ * -> AXI4 -> cpu_axi_mem_model. The flow is done in three separate phases
+ * rather than write/read/compare per location:
+ *
+ *   1. write : 32 x SD, one 8-byte pattern per dword, offsets 0x00..0xF8
+ *   2. read  : 32 x LD of the same offsets into a buffer in DRAM
+ *   3. check : compare the buffer against the expected patterns
+ *
+ * Each 128-bit beat holds two dwords: offset ...0 on AXI lanes 0-7 and
+ * offset ...8 on lanes 8-15. A bridge that does not move read data from
+ * lanes 8-15 down to [63:0] fails every ...8 dword (16 of the 32).
+ *
+ * tohost == 0 is pass. Otherwise:
+ *   tohost = (mismatch_count << 16) | 0x1000 | first_failing_offset
+ * e.g. 0x101008 = 16 mismatches, first at offset 0x08 (0x3002_0008).
+ */
+
+#include <stdint.h>
+
+#define TOHOST_ADDR     ((volatile uint64_t *)0x00102000UL)
+#define AXI_BLOCK_BASE  0x30020000UL
+#define AXI_BLOCK_BYTES 0x100
+#define NUM_DWORDS      (AXI_BLOCK_BYTES / 8)
+
+static uint64_t readback[NUM_DWORDS];
+
+static inline void io_fence(void)
+{
+  __asm__ volatile ("fence iorw, iorw" ::: "memory");
+}
+
+static void tohost_exit(uint64_t code)
+{
+  *TOHOST_ADDR = code;
+  io_fence();
+
+  while (1) {
+    /* Wait for the simulation harness to observe tohost. */
+  }
+}
+
+/* Unique per offset, with distinct upper and lower 32-bit halves, so data
+ * from the wrong dword or the wrong half of the beat cannot match. */
+static uint64_t pattern(unsigned offset)
+{
+  return 0xA5A50000C3C30000ULL
+         | ((uint64_t)(0x1000 + offset) << 32)
+         | (uint64_t)(0x2000 + offset);
+}
+
+static void start_main(void);
+
+/* Initialize the stack before entering C code. */
+__attribute__((naked, section(".text.start"), used))
+void _start(void)
+{
+  __asm__ volatile (
+    "li sp, 0x80004000\n"
+    "jal ra, start_main\n"
+    "1: j 1b\n"
+  );
+}
+
+static void start_main(void)
+{
+  volatile uint64_t *block = (volatile uint64_t *)AXI_BLOCK_BASE;
+  unsigned mismatches = 0;
+  unsigned first_bad = 0;
+
+  /* Phase 1: write the whole block. */
+  for (unsigned i = 0; i < NUM_DWORDS; i++)
+    block[i] = pattern(i * 8);
+  io_fence();
+
+  /* Phase 2: read the whole block back. */
+  for (unsigned i = 0; i < NUM_DWORDS; i++)
+    readback[i] = block[i];
+  io_fence();
+
+  /* Phase 3: compare everything, remembering the first failure. */
+  for (unsigned i = 0; i < NUM_DWORDS; i++) {
+    if (readback[i] != pattern(i * 8)) {
+      if (mismatches == 0)
+        first_bad = i * 8;
+      mismatches++;
+    }
+  }
+
+  if (mismatches != 0)
+    tohost_exit(((uint64_t)mismatches << 16) | 0x1000 | first_bad);
+
+  /* Zero on the BP nonsynth host is the pass indication. */
+  tohost_exit(0);
+}

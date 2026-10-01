@@ -102,7 +102,7 @@ module cpu_tb_top
     #(.width_p(3))
   rt_clk_gen
    (.clk_i(clk)
-    ,.reset_i(reset)
+    ,.reset_i(!reset)
     ,.val_i('1)
     ,.clk_r_o(rt_clk)
     );
@@ -282,7 +282,7 @@ module cpu_tb_top
   // external-memory requests; cache hits do not create a DRAM request, and a
   // CPU store may appear here later as a cache-line writeback.
   always @(posedge clk) begin : dram_dma_interface_log
-    if (reset) begin
+    if (!reset) begin
       dma_log_pkt_seen       <= '0;
       dma_log_read_data_seen <= '0;
       dma_log_write_data_seen <= '0;
@@ -368,6 +368,122 @@ module cpu_tb_top
   end
 `endif
 
+  // --------------------------------------------------------------------
+  // AXI read data log: what the AXI slave returned vs what the bridge
+  // handed to the CPU.
+  //
+  //   AXI R    : R-channel beat at the AXI master port, plus the bytes that
+  //              AXI places on lane (araddr % bus_bytes) for that transfer.
+  //   AXI->CPU : BedRock read response from bp_bedrock_axi4_bridge into
+  //              bp_processor, plus the bytes the core takes from it -
+  //              data[63:0] starting at byte (addr % 8).
+  //
+  // The two "bytes" fields must be equal for a correct read; the CPU line
+  // prints MATCH/MISMATCH against the preceding AXI R beat. The bridge
+  // allows one outstanding read, so each response pairs with the last beat.
+  // --------------------------------------------------------------------
+  localparam int AXI_LOG_BUS_BYTES = `CPU_AXI_DATA_WIDTH / 8;
+
+  function automatic logic [63:0] axi_log_bytes(
+      input logic [`CPU_AXI_DATA_WIDTH-1:0] data,
+      input int unsigned                    offset,
+      input int unsigned                    nbytes);
+    logic [`CPU_AXI_DATA_WIDTH-1:0] shifted;
+    shifted = data >> (8 * offset);
+    return (nbytes >= 8) ? shifted[63:0]
+                         : shifted[63:0] & ((64'd1 << (8 * nbytes)) - 64'd1);
+  endfunction
+
+  logic [`CPU_AXI_ADDR_WIDTH-1:0] axi_log_ar_addr;
+  int unsigned                    axi_log_ar_bytes;
+  logic [63:0]                    axi_log_r_bytes;
+  bit                             axi_log_r_seen;
+
+  always @(posedge clk) begin : axi_read_data_log
+    bp_bedrock_mem_rev_header_s cpu_rev_hdr;
+    int unsigned cpu_bytes;
+    logic [63:0] cpu_view;
+    string       verdict;
+
+    // reset is active-low: 1 means the DUT is running.
+    if (!reset) begin
+      axi_log_r_seen = 1'b0;
+    end
+    else begin
+      if (cpu_axi_vif.m_axi_arvalid && cpu_axi_vif.m_axi_arready) begin
+        axi_log_ar_addr  = cpu_axi_vif.m_axi_araddr;
+        axi_log_ar_bytes = 1 << cpu_axi_vif.m_axi_arsize;
+      end
+
+      if (cpu_axi_vif.m_axi_rvalid && cpu_axi_vif.m_axi_rready) begin
+        axi_log_r_bytes = axi_log_bytes(cpu_axi_vif.m_axi_rdata,
+                                        axi_log_ar_addr % AXI_LOG_BUS_BYTES,
+                                        axi_log_ar_bytes);
+        axi_log_r_seen  = 1'b1;
+        $display("AXI R    addr=%h size=%0dB lane=%0d rdata=%h bytes=%h time=%0t",
+                 axi_log_ar_addr, axi_log_ar_bytes,
+                 axi_log_ar_addr % AXI_LOG_BUS_BYTES,
+                 cpu_axi_vif.m_axi_rdata, axi_log_r_bytes, $time);
+      end
+
+      cpu_rev_hdr = dut.rev_hdr;
+      if (dut.rev_v && dut.rev_ready
+          && (cpu_rev_hdr.msg_type.rev == e_bedrock_mem_rd)) begin
+        cpu_bytes = 1 << cpu_rev_hdr.size;
+        cpu_view  = axi_log_bytes(dut.rev_data, cpu_rev_hdr.addr % 8, cpu_bytes);
+        if (!axi_log_r_seen)
+          verdict = "(no AXI R beat seen)";
+        else if (cpu_view == axi_log_r_bytes)
+          verdict = "MATCH";
+        else
+          verdict = "MISMATCH";
+        $display("AXI->CPU addr=%h size=%0dB data=%h bytes=%h %s time=%0t",
+                 cpu_rev_hdr.addr, cpu_bytes, dut.rev_data, cpu_view,
+                 verdict, $time);
+        axi_log_r_seen = 1'b0;
+      end
+    end
+  end
+
+  // --------------------------------------------------------------------
+  // CPU-side proof of which response bits an uncached load uses.
+  //
+  // In bp_uce.sv (state e_uc_read_wait) the D$ uncached-load engine builds
+  // the data handed to the D$ as
+  //   {(fill_width_p/64){fsm_rev_data_li[63:0]}}
+  // i.e. only bits [63:0] of the BedRock response are kept and replicated;
+  // bits [fill_width_p-1:64] are discarded. The D$ then picks the loaded
+  // bytes from that dword at (addr % 8). This logs the response as the UCE
+  // received it and what it actually passed to the D$.
+  //
+  // bp_uce runs on the inverted core clock (negedge_clk in bp_unicore_lite).
+  // Unicore build only - same hierarchy as the ALU logs below.
+  // --------------------------------------------------------------------
+  always @(posedge dut.u_bp.u.unicore.unicore_lite.dcache_uce.clk_i) begin : cpu_uncached_load_log
+    logic [`CPU_AXI_DATA_WIDTH-1:0] uce_rev_data;
+    logic [`CPU_AXI_DATA_WIDTH-1:0] uce_to_dcache;
+    logic [`CPU_AXI_DATA_WIDTH-1:0] uce_dropped;
+    logic [63:0]                    uce_used;
+    string                          uce_note;
+
+    if (reset
+        && dut.u_bp.u.unicore.unicore_lite.dcache_uce.data_mem_pkt_v_o
+        && dut.u_bp.u.unicore.unicore_lite.dcache_uce.data_mem_pkt_yumi_i
+        && (dut.u_bp.u.unicore.unicore_lite.dcache_uce.data_mem_pkt_cast_o.opcode
+            == e_cache_data_mem_uncached)) begin
+      uce_rev_data  = dut.u_bp.u.unicore.unicore_lite.dcache_uce.fsm_rev_data_li;
+      uce_to_dcache = dut.u_bp.u.unicore.unicore_lite.dcache_uce.data_mem_pkt_cast_o.data;
+      uce_used      = uce_rev_data[63:0];
+      uce_dropped   = uce_rev_data >> 64;
+      uce_note      = (uce_dropped != '0) ? " <- nonzero upper bits DISCARDED by bp_uce" : "";
+      $display("CPU UCE  addr=%h rev_data=%h used[63:0]=%h dropped[%0d:64]=%h to_dcache=%h%s time=%0t",
+               dut.u_bp.u.unicore.unicore_lite.dcache_uce.fsm_rev_addr_li,
+               uce_rev_data, uce_used,
+               `CPU_AXI_DATA_WIDTH - 1, uce_dropped[`CPU_AXI_DATA_WIDTH-65:0],
+               uce_to_dcache, uce_note, $time);
+    end
+  end
+
 `ifndef BP_DV_020_LOG
 `ifndef BP_DV_024_LATENCY
 `ifndef BP_DV_011_BACKPRESSURE
@@ -417,7 +533,7 @@ module cpu_tb_top
     operand_a = dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.isrc1[63:0];
     operand_b = dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.isrc2[63:0];
     alu_result = dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.pipe_int_catchup_data_lo[63:0];
-    if (!reset
+    if (reset
         && dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.v
         && dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.decode.pipe_int_v) begin
       if ((opcode == 7'b0110011) || (opcode == 7'b0111011)) begin
@@ -595,7 +711,7 @@ module cpu_tb_top
   // which can be low while the instruction is stalled or while the pipeline
   // is carrying a non-valid reservation payload.
   always @(posedge clk) begin
-    if (!reset
+    if (reset
         && dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instret
         && !dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.exception
         && (dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr[6:0] == 7'b0110011)
@@ -613,7 +729,7 @@ module cpu_tb_top
   // Log SRL at retirement as well as at ALU execution, so the trace confirms
   // that the decoded logical-right-shift instruction actually committed.
   always @(posedge clk) begin
-    if (!reset
+    if (reset
         && dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instret
         && !dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.exception
         && (dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr[6:0] == 7'b0110011)
@@ -634,7 +750,7 @@ module cpu_tb_top
 
     retired_instr = dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr;
     operation_name = "";
-    if (!reset
+    if (reset
         && dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instret
         && !dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.exception
         && (retired_instr[31:25] == 7'b0000001)) begin

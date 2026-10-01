@@ -129,6 +129,9 @@ else ifeq ($(TEST),bp_dv_024_dram_latency_test)
 TCNAME       ?= dram_latency_function
 TEST_ID      ?= 24
 RISCV_MARCH  := rv64imac
+else ifeq ($(TEST),bp_dv_028_axi_unaligned_test)
+TCNAME       ?= axi_unaligned_access
+TEST_ID      ?= 28
 else ifeq ($(TEST),bp_i2c_write_read_test)
 TCNAME       ?= i2c_write_read
 TEST_ID      ?= 27

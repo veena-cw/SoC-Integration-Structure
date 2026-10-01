@@ -24,6 +24,15 @@ class cpu_axi_agent_driver #(
         "[%s] AXI virtual interface not found", get_full_name()))
   endfunction
 
+  // INCR burst: every beat after the first starts at the next
+  // size-aligned address, even when the first beat was unaligned.
+  static function bit [ADDR_WIDTH-1:0] next_beat_addr(
+    input bit [ADDR_WIDTH-1:0] addr,
+    input int unsigned         bytes
+  );
+    return (addr - (addr % bytes)) + bytes;
+  endfunction
+
   task run_phase(uvm_phase phase);
     bit [ID_WIDTH-1:0]   aw_id;
     bit [ADDR_WIDTH-1:0] write_addr;
@@ -120,7 +129,7 @@ class cpu_axi_agent_driver #(
           vif.m_axi_bvalid <= 1'b1;
         end
         else begin
-          write_addr += write_bytes;
+          write_addr = next_beat_addr(write_addr, write_bytes);
           write_left--;
         end
       end
@@ -157,10 +166,10 @@ class cpu_axi_agent_driver #(
           vif.m_axi_rlast  <= 1'b0;
         end
         else begin
-          read_addr += read_bytes;
+          read_addr = next_beat_addr(read_addr, read_bytes);
           read_left--;
           vif.m_axi_rid   <= read_id;
-          vif.m_axi_rdata <= mem.read_beat(read_addr + read_bytes, read_awsize);
+          vif.m_axi_rdata <= mem.read_beat(read_addr, read_awsize);
           vif.m_axi_rresp <= 2'b00;
           vif.m_axi_rlast <= (read_left == 1);
           vif.m_axi_rvalid <= 1'b1;

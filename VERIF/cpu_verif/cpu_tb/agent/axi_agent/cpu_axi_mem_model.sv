@@ -24,47 +24,57 @@ class cpu_axi_mem_model #(
     return (bytes > STRB_WIDTH) ? STRB_WIDTH : bytes;
   endfunction
 
+  // Byte lane that carries a given address on the native data bus.
+  static function automatic int unsigned byte_lane(input longint unsigned addr);
+    return addr % STRB_WIDTH;
+  endfunction
+
+  // WSTRB alone selects the written bytes. Each byte sits on the lane given
+  // by its address within the bus-aligned beat, so a narrow or unaligned
+  // store (e.g. 8 bytes at ...08 on a 16-byte bus) lands at the right place.
   static function void write_beat(
     input bit [ADDR_WIDTH-1:0] addr,
     input bit [DATA_WIDTH-1:0] data,
     input bit [STRB_WIDTH-1:0] strb,
     input int unsigned          awsize
   );
-    longint unsigned base_addr;
-    int unsigned nbytes;
+    longint unsigned bus_base;
+    int unsigned i2c_lane;
 
-    base_addr = addr;
-    nbytes = beat_bytes(awsize);
-    for (int unsigned b = 0; b < nbytes; b++) begin
-      if (strb[b])
-        mem[base_addr + b] = data[8*b +: 8];
+    bus_base = longint'(addr) - byte_lane(addr);
+    for (int unsigned lane = 0; lane < STRB_WIDTH; lane++) begin
+      if (strb[lane])
+        mem[bus_base + lane] = data[8*lane +: 8];
     end
 
-    if (base_addr == I2C_CMD_ADDR && strb[0])
-      i2c_last_data = data[7:0];
+    i2c_lane = byte_lane(I2C_CMD_ADDR);
+    if ((bus_base == I2C_CMD_ADDR - i2c_lane) && strb[i2c_lane])
+      i2c_last_data = data[8*i2c_lane +: 8];
   endfunction
 
+  // Returns the bytes from addr up to the end of its size-aligned container,
+  // each on its own byte lane. Lanes outside the transfer read as zero.
   static function bit [DATA_WIDTH-1:0] read_beat(
     input bit [ADDR_WIDTH-1:0] addr,
     input int unsigned          awsize
   );
     bit [DATA_WIDTH-1:0] value;
     longint unsigned base_addr;
+    longint unsigned end_addr;
     int unsigned nbytes;
 
     value = '0;
     base_addr = addr;
     nbytes = beat_bytes(awsize);
+    end_addr = (base_addr - (base_addr % nbytes)) + nbytes;
 
     if (base_addr == I2C_CMD_ADDR) begin
-      value[7:0] = i2c_last_data;
+      value[8*byte_lane(I2C_CMD_ADDR) +: 8] = i2c_last_data;
       return value;
     end
 
-    for (int unsigned b = 0; b < nbytes; b++) begin
-      value[8*b +: 8] = mem.exists(base_addr + b)
-                       ? mem[base_addr + b]
-                       : 8'h00;
+    for (longint unsigned a = base_addr; a < end_addr; a++) begin
+      value[8*byte_lane(a) +: 8] = mem.exists(a) ? mem[a] : 8'h00;
     end
     return value;
   endfunction

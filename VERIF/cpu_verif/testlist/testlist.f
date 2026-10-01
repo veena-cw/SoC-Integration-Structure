@@ -63,5 +63,10 @@ bp_dv_017_multicore_shared_memory_test 17 multicore_shared_memory.nbf
 bp_i2c_write_read_test       27 i2c_write_read.nbf
 bp_dv_004_i2c_write_read_test 27 i2c_write_read.nbf
 
+# BP-DV-028 - Uncached AXI loads/stores on every byte lane (1/2/4/8 B at
+# each aligned offset in a 16-byte beat). Nonzero tohost encodes
+# (kind << 8) | (size << 4) | offset of the first failing access.
+bp_dv_028_axi_unaligned_test 28 axi_unaligned_access.nbf
+
 # Supplemental CPU smoke test retained from earlier development
 bp_dv_007_load_add_store_test 9  load_add_store.nbf

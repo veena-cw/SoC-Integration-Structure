@@ -62,6 +62,7 @@ package bp_uvm_pkg;
   `include "multicore_shared_memory_test_seq.sv"
   `include "atomic_test_seq.sv"
   `include "i2c_write_read_seq.sv"
+  `include "axi_unaligned_test_seq.sv"
   `include "scoreboard.sv"
   `include "bp_env.sv"
   `include "bp_tests.sv"

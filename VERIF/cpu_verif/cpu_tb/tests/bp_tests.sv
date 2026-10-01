@@ -420,6 +420,46 @@ class bp_dv_008_jump_test extends bp_base_test;
 
 endclass
 
+// Test ID: BP-DV-028 | Feature: uncached AXI accesses on every byte lane
+class bp_dv_028_axi_unaligned_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_028_axi_unaligned_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    axi_unaligned_test_seq seq;
+    bit timeout;
+
+    phase.raise_objection(this);
+    apply_cpu_reset();
+    seq = axi_unaligned_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        // A bridge that stalls on an unexpected lane must fail explicitly
+        // instead of leaving make sim waiting indefinitely.
+        #(200us);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("BP028_TIMEOUT",
+                 "BP-DV-028 did not write tohost within 200 us of test start")
+
+    phase.drop_objection(this);
+  endtask
+
+endclass
+
 // Supplemental I2C model smoke test (BP-DV-027, outside the supplied plan).
 class bp_i2c_write_read_test extends bp_base_test;
   `uvm_component_utils(bp_i2c_write_read_test)

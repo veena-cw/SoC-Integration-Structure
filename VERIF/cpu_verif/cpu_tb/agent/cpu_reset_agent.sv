@@ -1,4 +1,4 @@
-// UVM reset agent for the active-high reset_i used by the CPU testbench.
+// UVM reset agent for the active-low reset_i used by the CPU testbench.
 `ifndef CPU_RESET_AGENT_SV
 `define CPU_RESET_AGENT_SV
 
@@ -73,9 +73,9 @@ class cpu_reset_driver extends uvm_driver #(cpu_reset_txn);
 
   task run_phase(uvm_phase phase);
     cpu_reset_txn tr;
-    // The interface starts asserted; keep it asserted until a sequence item
-    // requests the reset pulse.
-    vif.reset = 1'b1;
+    // Reset is active-low. The interface starts asserted (0); keep it
+    // asserted until a sequence item requests the reset pulse.
+    vif.reset = 1'b0;
     forever begin
       seq_item_port.get_next_item(tr);
       if (tr.delay > 0)
@@ -91,7 +91,7 @@ class cpu_reset_driver extends uvm_driver #(cpu_reset_txn);
 
     vif.reset = 1'b0;
     `uvm_info("CPU_RESET_DRV",
-              $sformatf("asserting active-high CPU reset for %0t at %0t", width, $time),
+              $sformatf("asserting active-low CPU reset for %0t at %0t", width, $time),
               UVM_LOW)
     #(width);
     vif.reset = 1'b1;

@@ -74,13 +74,21 @@ endmodule
 `include "bp_common_defines.svh"
 `include "bp_me_defines.svh"
 
+// BlackParrot configuration, selected at build time (make BP_CFG_ID=<n>).
+// 0 = e_bp_default_cfg (unicore), 9 = e_bp_multicore_2_cfg (two cores).
+// Multicore builds also define BP_MULTICORE, which removes the logs that
+// reach into the unicore-only hierarchy (dut.u_bp.u.unicore...).
+`ifndef BP_CFG_ID
+  `define BP_CFG_ID 0
+`endif
+
 module cpu_tb_top
   import uvm_pkg::*;
   import bp_uvm_pkg::*;
   import bp_common_pkg::*;
   import bp_me_pkg::*;
   #(
-    parameter bp_params_e bp_params_p = e_bp_default_cfg
+    parameter bp_params_e bp_params_p = bp_params_e'(`BP_CFG_ID)
     `declare_bp_proc_params(bp_params_p)
     `declare_bp_bedrock_if_widths(paddr_width_p, lce_id_width_p, cce_id_width_p, did_width_p, lce_assoc_p)
   )
@@ -228,6 +236,9 @@ module cpu_tb_top
     .AXI_DATA_WIDTH(`CPU_AXI_DATA_WIDTH)
   ) dut
    ( .clk_i(clk), .rt_clk_i(rt_clk), .reset_i(reset)
+   // Shared PLIC (multicore only; unused by the unicore build). The AHB
+   // side runs on the core clock here and no external interrupt is raised.
+   , .plic_ahb_clk_i(clk), .plic_src_i('0)
    , .my_did_i(proc_did), .host_did_i(host_did)
    , .axi_clk_i(clk), .axi_reset_i(reset)
    , .m_axi_awid(cpu_axi_vif.m_axi_awid), .m_axi_awaddr(cpu_axi_vif.m_axi_awaddr)
@@ -445,6 +456,7 @@ module cpu_tb_top
     end
   end
 
+`ifndef BP_MULTICORE
   // --------------------------------------------------------------------
   // CPU-side proof of which response bits an uncached load uses.
   //
@@ -782,6 +794,7 @@ module cpu_tb_top
 `endif
 `endif
 `endif
+`endif // BP_MULTICORE
 
   initial begin
     name_warning_catcher = new();

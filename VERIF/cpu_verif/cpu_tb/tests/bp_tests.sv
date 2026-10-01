@@ -460,6 +460,85 @@ class bp_dv_028_axi_unaligned_test extends bp_base_test;
 
 endclass
 
+// Test ID: BP-DV-029 | Feature: AXI block write, then block read, then compare
+class bp_dv_029_axi_block_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_029_axi_block_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    axi_block_test_seq seq;
+    bit timeout;
+
+    phase.raise_objection(this);
+    apply_cpu_reset();
+    seq = axi_block_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        #(200us);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("BP029_TIMEOUT",
+                 "BP-DV-029 did not write tohost within 200 us of test start")
+
+    phase.drop_objection(this);
+  endtask
+
+endclass
+
+// Test ID: BP-DV-030 | Feature: BP-DV-029 AXI block test on both cores at once
+// Requires the two-core build (BP_CFG_ID=9).
+class bp_dv_030_axi_block_dual_core_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_030_axi_block_dual_core_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    axi_block_dual_core_test_seq seq;
+    bit timeout;
+
+    phase.raise_objection(this);
+    apply_cpu_reset();
+    seq = axi_block_dual_core_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        // Covers both harts' AXI traffic plus hart 0's bounded wait for
+        // hart 1's DONE marker.
+        #(500us);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("BP030_TIMEOUT",
+                 "BP-DV-030 did not write tohost within 500 us of test start")
+
+    phase.drop_objection(this);
+  endtask
+
+endclass
+
 // Supplemental I2C model smoke test (BP-DV-027, outside the supplied plan).
 class bp_i2c_write_read_test extends bp_base_test;
   `uvm_component_utils(bp_i2c_write_read_test)

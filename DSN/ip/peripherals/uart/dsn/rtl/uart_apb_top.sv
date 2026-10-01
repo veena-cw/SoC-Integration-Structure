@@ -241,7 +241,7 @@ module uart_apb_top(
     .rx_rd_data_o      (rx_rd_data_o),
     .rx_full_o         (rx_full_o),
     .rx_empty_o        (rx_empty_o),
-   // .rx_data_valid_o   (data_valid_o),         // added port (see patched uart_top.sv)
+    .rx_data_valid_o   (data_valid_o),         // added port (see patched uart_top.sv)
     .rx_level_o        (),
 
     .frame_err_o       (frame_err_o),

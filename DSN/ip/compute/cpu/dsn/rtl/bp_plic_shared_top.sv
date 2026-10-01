@@ -85,7 +85,7 @@ module bp_plic_shared_top
 
   // Active-low main reset.
   // Synchronous with core_clk_i.
-  input logic reset_i,
+  input logic reset_n,
 
 
   // ==========================================================================
@@ -164,25 +164,26 @@ module bp_plic_shared_top
   // ==========================================================================
   // 0. AHB clock-domain reset synchronizer
   //
-  // reset_i:
+  // reset_n:
   //   active-low reset
   //
-  // ahb_reset_lo:
+  // ahb_rstn:
   //   active-low reset synchronized to plic_ahb_clk_i
   //
   // Async assert + synchronous deassert.
   // ==========================================================================
 
   logic [1:0] ahb_rst_sync_r;
-  logic       ahb_reset_lo;
+  logic       ahb_rstn;
 
-  always_ff @(posedge plic_ahb_clk_i or negedge reset_i) begin
-    if (!reset_i)
+  always_ff @(posedge plic_ahb_clk_i or negedge reset_n) begin
+    if (!reset_n)
       ahb_rst_sync_r <= 2'b00;
     else
       ahb_rst_sync_r <= {ahb_rst_sync_r[0], 1'b1};
   end
 
+ assign ahb_rstn = ahb_rst_sync_r[1];
   // ==========================================================================
   // 1. Round-robin arbitration
   //
@@ -220,7 +221,7 @@ module bp_plic_shared_top
   round_robin_arbiter_2to1 plic_arb
   (
     .clk   (core_clk_i),
-    .rst_n (reset_i),
+    .rst_n (reset_n),
     .req   (arb_req),
     .grant (arb_grant)
   );
@@ -409,9 +410,9 @@ module bp_plic_shared_top
   // Ownership is released on the final reverse handshake.
   // ==========================================================================
 
-  always_ff @(posedge core_clk_i or negedge reset_i) begin
+  always_ff @(posedge core_clk_i or negedge reset_n) begin
 
-    if (!reset_i) begin
+    if (!reset_n) begin
 
       txn_busy_r     <= 1'b0;
       granted_core_r <= 1'b0;
@@ -544,7 +545,7 @@ module bp_plic_shared_top
     // ------------------------------------------------------------------------
 
     .cpu_clk_i              (core_clk_i),
-    .cpu_reset_i            (~reset_i),//Make active low reset to active high for CPU
+    .cpu_reset_i            (~reset_n),//Make active low reset to active high for CPU
 
     .mem_fwd_header_i       (bridge_fwd_header_li),
     .mem_fwd_data_i         (bridge_fwd_data_li),
@@ -561,7 +562,7 @@ module bp_plic_shared_top
     // ------------------------------------------------------------------------
 
     .ahb_clk_i              (plic_ahb_clk_i),
-    .ahb_reset_i            (ahb_reset_lo),
+    .ahb_reset_n            (ahb_rstn),
 
     .HSEL                   (ahb_hsel),
     .HADDR                  (ahb_haddr_full),
@@ -594,7 +595,7 @@ module bp_plic_shared_top
   )
   plic
   (
-    .HRESETn                (ahb_reset_lo),
+    .HRESETn                (ahb_rstn),
     .HCLK                   (plic_ahb_clk_i),
 
     .HSEL                   (ahb_hsel),

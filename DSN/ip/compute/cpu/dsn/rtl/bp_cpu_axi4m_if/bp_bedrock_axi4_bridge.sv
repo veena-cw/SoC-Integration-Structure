@@ -422,6 +422,56 @@ module bp_bedrock_axi4_bridge
     end
   endfunction
 
+  // Byte-lane steering for narrow transfers (size < one AXI beat). AXI
+  // carries a narrow transfer on the lanes given by its address, while
+  // BedRock data for a sub-beat message is not positioned that way:
+  //   - writes: the store value is in the low bytes of the flit (the core
+  //     copies it across 64 bits; the unicore UCE also across the flit),
+  //   - reads: the core takes data[63:0] and picks bytes at (addr % 8)
+  //     (bp_uce e_uc_read_wait keeps only fsm_rev_data_li[63:0]).
+  // Both are fixed by copying the transfer's bytes across the whole beat.
+  // Full-width transfers pass through unchanged.
+
+  // Write: copy the low nbytes of the flit across the beat, so whichever
+  // lanes WSTRB selects (addr % BYTES_PER_AXI_BEAT) hold the store value.
+  function automatic [DATA_WIDTH-1:0] write_lane_data(
+      input logic [DATA_WIDTH-1:0] data,
+      input bp_bedrock_msg_size_e  s
+  );
+    logic [DATA_WIDTH-1:0] out;
+    int unsigned nbytes, i;
+    begin
+      nbytes = size_bytes(s);
+      if (nbytes >= BYTES_PER_AXI_BEAT)
+        return data;
+      for (i = 0; i < BYTES_PER_AXI_BEAT; i++)
+        out[8*i +: 8] = data[8*(i & (nbytes - 1)) +: 8];
+      return out;
+    end
+  endfunction
+
+  // Read: take the nbytes on lane (addr % BYTES_PER_AXI_BEAT) and copy them
+  // across the word, so the core finds them in [63:0] at (addr % 8).
+  // BedRock sub-beat messages are naturally aligned, so the lane offset is
+  // a multiple of nbytes.
+  function automatic [DATA_WIDTH-1:0] read_lane_data(
+      input logic [DATA_WIDTH-1:0] data,
+      input logic [ADDR_WIDTH-1:0] addr,
+      input bp_bedrock_msg_size_e  s
+  );
+    logic [DATA_WIDTH-1:0] out;
+    int unsigned nbytes, offset, i;
+    begin
+      nbytes = size_bytes(s);
+      if (nbytes >= BYTES_PER_AXI_BEAT)
+        return data;
+      offset = (addr % BYTES_PER_AXI_BEAT) & ~(nbytes - 1);
+      for (i = 0; i < BYTES_PER_AXI_BEAT; i++)
+        out[8*i +: 8] = data[8*(offset + (i & (nbytes - 1))) +: 8];
+      return out;
+    end
+  endfunction
+
   // ----------------------------------------------------------------------
   // 1. State register
   // ----------------------------------------------------------------------
@@ -530,7 +580,7 @@ module bp_bedrock_axi4_bridge
       ST_WR_DATA: begin
         if (beat_count_r == 0) begin
           wdata_valid = 1'b1;
-          wdata       = req_first_data_r;
+          wdata       = write_lane_data(req_first_data_r, req_hdr_r.size);
           wstrb       = beat_strb(req_hdr_r.addr, req_hdr_r.size);
         end else begin
           wdata_valid = bridge_fwd_v;
@@ -551,7 +601,7 @@ module bp_bedrock_axi4_bridge
         rdata_ready = bridge_rev_ready;
         bridge_rev_v        = rdata_valid;
         bridge_rev_header_o = resp_hdr_r;
-        bridge_rev_data     = rdata;
+        bridge_rev_data     = read_lane_data(rdata, req_hdr_r.addr, req_hdr_r.size);
       end
 
       ST_WR_RESP: begin

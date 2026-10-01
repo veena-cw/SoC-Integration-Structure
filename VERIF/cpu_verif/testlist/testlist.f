@@ -1,5 +1,7 @@
 # CPU formal regression list
-# Columns: UVM test class, BP test ID, boot image (.nbf).
+# Columns: UVM test class, BP test ID, boot image (.nbf) [, cfg=<BP_CFG_ID>].
+# cfg defaults to 0 (unicore); multicore rows use cfg=9 (two cores) and
+# run on their own simulator build (sim/obj_dir_cfg9).
 
 # BP-DV-003 - ALU operations
 bp_dv_003_alu_test       3  add_function.nbf
@@ -57,7 +59,7 @@ bp_dv_024_dram_latency_test 24 dram_latency_function.nbf
 
 # BP-DV-017 - Multicore shared-memory test.
 # Requires a separate two-core RTL build (BP_CFG_ID=9).
-bp_dv_017_multicore_shared_memory_test 17 multicore_shared_memory.nbf
+bp_dv_017_multicore_shared_memory_test 17 multicore_shared_memory.nbf cfg=9
 
 # BP-DV-027 - I2C write/read test aliases.
 bp_i2c_write_read_test       27 i2c_write_read.nbf
@@ -67,6 +69,18 @@ bp_dv_004_i2c_write_read_test 27 i2c_write_read.nbf
 # each aligned offset in a 16-byte beat). Nonzero tohost encodes
 # (kind << 8) | (size << 4) | offset of the first failing access.
 bp_dv_028_axi_unaligned_test 28 axi_unaligned_access.nbf
+
+# BP-DV-029 - Write 0x3002_0000-0x3002_00FF (32 x SD), read it all back
+# (32 x LD), then compare. Nonzero tohost encodes
+# (mismatch_count << 16) | 0x1000 | first failing offset.
+bp_dv_029_axi_block_test 29 axi_block_access.nbf
+
+# BP-DV-030 - BP-DV-029 on both cores at once (hart 0: 0x0010_4000-40FF,
+# hart 1: 0x0010_4100-41FF; host window - 0x3xxx is not routed to I/O on
+# two cores). Requires the two-core build (BP_CFG_ID=9):
+#   make sim TEST=bp_dv_030_axi_block_dual_core_test
+# Nonzero tohost encodes (hart1_result << 32) | hart0_result.
+bp_dv_030_axi_block_dual_core_test 30 axi_block_dual_core.nbf cfg=9
 
 # Supplemental CPU smoke test retained from earlier development
 bp_dv_007_load_add_store_test 9  load_add_store.nbf

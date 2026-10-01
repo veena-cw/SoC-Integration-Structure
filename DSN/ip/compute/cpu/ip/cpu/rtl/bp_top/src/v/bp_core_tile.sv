@@ -73,7 +73,9 @@ module bp_core_tile
   `declare_bsg_ready_and_link_sif_s(dma_noc_flit_width_p, bp_dma_ready_and_link_s);
   
   //Added for PLIC
-  `bp_cast_o(bp_bedrock_mem_fwd_header_s, plic_fwd_header);
+  // plic_fwd_header_o is driven directly by the bp_core instance below.
+  // No `bp_cast_o here: it would add an undriven plic_fwd_header_cast_o
+  // and a second (constant 0) driver on plic_fwd_header_o (MULTIDRIVEN).
   `bp_cast_i(bp_bedrock_mem_rev_header_s, plic_rev_header);
 
   // Reset

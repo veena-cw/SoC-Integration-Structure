@@ -3,10 +3,30 @@
 `include "async.sv"
 
 
+// ============================================================================
+// bp_bedrock_ahb3lite_bridge
+//
+// BedRock mem fwd/rev  <->  AHB3-Lite master, with:
+//   - async FIFO CDC (cpu_clk_i <-> ahb_clk_i)
+//   - CPU_DATA_WIDTH -> AHB_DATA_WIDTH beat splitting
+//   - AHB_BASE_ADDR subtraction: the AHB slave sees a 0-based offset
+//
+// Address handling
+// ----------------------------------------------------------------------------
+//   HADDR = (BedRock addr - AHB_BASE_ADDR) + flit/beat offset
+//
+//   req_hdr_r.addr stays ABSOLUTE. The rev header is echoed from the fwd
+//   header, and BlackParrot expects its original address back.
+// ============================================================================
+
 module bp_bedrock_ahb3lite_bridge
   import bp_common_pkg::*;
 #(
     parameter int ADDR_WIDTH = 32,
+
+    // Base address of the AHB slave region. Subtracted from every BedRock
+    // request address before driving HADDR. Default 0 = pass-through.
+    parameter logic [ADDR_WIDTH-1:0] AHB_BASE_ADDR = '0,
 
     parameter int CPU_DATA_WIDTH = 128,
     parameter int AHB_DATA_WIDTH = 32,
@@ -57,28 +77,25 @@ module bp_bedrock_ahb3lite_bridge
 );
 
   // --------------------------------------------------------------------
-  // Elaboration-time checks. This bridge only implements the
-  // CPU-wider-than-AHB split direction; AHB_DATA_WIDTH must divide
-  // CPU_DATA_WIDTH evenly so every flit splits into a whole number of
-  // AHB beats.
+  // Elaboration-time checks
   // --------------------------------------------------------------------
   if (CPU_DATA_WIDTH < AHB_DATA_WIDTH) begin : gen_dir_check
     initial
       $fatal(1,
-        "bp_bedrock_ahb3lite_bridge_w32: CPU_DATA_WIDTH (%0d) must be >= AHB_DATA_WIDTH (%0d) - this bridge only implements splitting wide CPU flits into narrower AHB beats, not the reverse.",
+        "bp_bedrock_ahb3lite_bridge: CPU_DATA_WIDTH (%0d) must be >= AHB_DATA_WIDTH (%0d).",
         CPU_DATA_WIDTH, AHB_DATA_WIDTH);
   end
   if ((CPU_DATA_WIDTH % AHB_DATA_WIDTH) != 0) begin : gen_ratio_check
     initial
       $fatal(1,
-        "bp_bedrock_ahb3lite_bridge_w32: CPU_DATA_WIDTH (%0d) must be an integer multiple of AHB_DATA_WIDTH (%0d).",
+        "bp_bedrock_ahb3lite_bridge: CPU_DATA_WIDTH (%0d) must be an integer multiple of AHB_DATA_WIDTH (%0d).",
         CPU_DATA_WIDTH, AHB_DATA_WIDTH);
   end
 
   localparam int DATA_WIDTH         = CPU_DATA_WIDTH;  // CDC FIFOs stay CPU-width
   localparam int AHB_BYTES_PER_BEAT = AHB_DATA_WIDTH / 8;
   localparam int CPU_BYTES_PER_FLIT = CPU_DATA_WIDTH / 8;
-  localparam int WORDS_PER_FLIT     = CPU_DATA_WIDTH / AHB_DATA_WIDTH;  // e.g. 4
+  localparam int WORDS_PER_FLIT     = CPU_DATA_WIDTH / AHB_DATA_WIDTH;
 
   localparam int REQ_FIFO_WIDTH  = MEM_FWD_HEADER_WIDTH + DATA_WIDTH;
   localparam int RESP_FIFO_WIDTH = MEM_REV_HEADER_WIDTH + DATA_WIDTH;
@@ -92,14 +109,9 @@ module bp_bedrock_ahb3lite_bridge
   );
 
   `bp_cast_i(bp_bedrock_mem_fwd_header_s, bridge_fwd_header);
-  // No bp_cast_o here - same reasoning as every prior bridge in this
-  // series: the rev-header value is produced directly as a flat
-  // vector from resp_hdr_r in the FSM below.
 
   // ======================================================================
   // REQUEST PATH: CPU domain -> async FIFO -> AHB domain
-  // (unchanged from the width-matched AHB3-Lite bridge - CDC FIFOs
-  // carry whole 128-bit flits, splitting happens after this point.)
   // ======================================================================
 
   logic [REQ_FIFO_WIDTH-1:0] req_fifo_data_in, req_fifo_data_out;
@@ -111,9 +123,6 @@ module bp_bedrock_ahb3lite_bridge
   assign mem_fwd_ready_and_o = !req_fifo_full;
   assign req_fifo_w_en       = mem_fwd_v_i && mem_fwd_ready_and_o;
 
-//-----------------------------------//
-//Write FIFO - Bedrock to AHB3lite Master
-//----------------------------------//
   asynchronous_fifo #(
       .DEPTH     (FIFO_DEPTH),
       .DATA_WIDTH(REQ_FIFO_WIDTH)
@@ -142,9 +151,6 @@ module bp_bedrock_ahb3lite_bridge
 
   // ======================================================================
   // RESPONSE PATH: AHB domain -> async FIFO -> CPU domain
-  // One FIFO word = one fully-assembled 128-bit rev flit (already
-  // reassembled from up to WORDS_PER_FLIT AHB beats by the FSM below
-  // before it ever reaches this FIFO).
   // ======================================================================
 
   logic [RESP_FIFO_WIDTH-1:0] resp_fifo_data_in, resp_fifo_data_out;
@@ -161,9 +167,6 @@ module bp_bedrock_ahb3lite_bridge
   assign bridge_rev_ready = !resp_fifo_full;
   assign resp_fifo_w_en   = bridge_rev_v && bridge_rev_ready;
 
-//-----------------------------------//
-//Read FIFO - HB3lite Master to Bedrock
-//----------------------------------//
   asynchronous_fifo #(
       .DEPTH     (FIFO_DEPTH),
       .DATA_WIDTH(RESP_FIFO_WIDTH)
@@ -232,36 +235,29 @@ module bp_bedrock_ahb3lite_bridge
   );
 
   // ======================================================================
-  // Core BedRock <-> AHB3-Lite FSM, with 4:1 width conversion
+  // Core BedRock <-> AHB3-Lite FSM, with width conversion
   // ======================================================================
 
   parameter ST_IDLE      = 6'b000001;
-  parameter ST_XFER      = 6'b000010;  // drive one 32-bit AHB beat
-  parameter ST_XFER_WAIT = 6'b000100;  // wait for that beat, accumulate/extract
-  parameter ST_FETCH     = 6'b001000;  // (write only) pop the next 128b flit
-  parameter ST_RD_PUSH   = 6'b010000;  // (read only) push one assembled 128b rev flit
-  parameter ST_WR_RESP   = 6'b100000;  // (write only) push the single completion flit
+  parameter ST_XFER      = 6'b000010;  // drive one AHB beat
+  parameter ST_XFER_WAIT = 6'b000100;  // wait for that beat
+  parameter ST_FETCH     = 6'b001000;  // (write) pop next flit
+  parameter ST_RD_PUSH   = 6'b010000;  // (read) push assembled rev flit
+  parameter ST_WR_RESP   = 6'b100000;  // (write) push completion flit
 
   logic [5:0] cur_state, next_state;
 
+  bp_bedrock_mem_fwd_header_s req_hdr_r;   // absolute address kept here
+  bp_bedrock_mem_rev_header_s resp_hdr_r;  // echoed back to BedRock
+  logic                        is_write_r;
 
+  logic [DATA_WIDTH-1:0] flit_data_r;
+  logic [DATA_WIDTH-1:0] read_accum_r;
 
-  bp_bedrock_mem_fwd_header_s req_hdr_r;
-  bp_bedrock_mem_rev_header_s resp_hdr_r;
-  logic                        is_write_r;   // latched once in ST_IDLE; ST_XFER/
-                                              // ST_XFER_WAIT are shared between
-                                              // read and write, so this is what
-                                              // tells them apart downstream.
-
-  logic [DATA_WIDTH-1:0] flit_data_r;    // current 128b flit being written out
-  logic [DATA_WIDTH-1:0] read_accum_r;   // 128b read result being assembled
-
-  logic [7:0] bedrock_flits_total_r;     // how many 128b BedRock flits this
-                                          // message needs (unchanged concept
-                                          // from the width-matched bridges)
+  logic [7:0] bedrock_flits_total_r;
   logic [7:0] bedrock_flit_count_r;
 
-  logic [2:0] ahb_beats_this_flit;       // combinational: 1..WORDS_PER_FLIT
+  logic [2:0] ahb_beats_this_flit;
   logic [2:0] ahb_beat_count_r;
 
   wire is_first_flit = (bedrock_flit_count_r == 0);
@@ -272,6 +268,15 @@ module bp_bedrock_ahb3lite_bridge
   wire fwd_is_rd = (bridge_fwd_header_cast_i.msg_type.fwd == e_bedrock_mem_rd);
 
   // ----------------------------------------------------------------------
+  // Base-address subtraction
+  //
+  // Only the AHB-facing address is rebased. req_hdr_r.addr stays absolute
+  // so the echoed rev header matches what BlackParrot sent.
+  // ----------------------------------------------------------------------
+  logic [ADDR_WIDTH-1:0] req_offset;
+  assign req_offset = req_hdr_r.addr - AHB_BASE_ADDR;
+
+  // ----------------------------------------------------------------------
   // Functions
   // ----------------------------------------------------------------------
 
@@ -279,7 +284,6 @@ module bp_bedrock_ahb3lite_bridge
     return (16'd1 << s);
   endfunction
 
-  // How many whole 128-bit BedRock flits this message needs.
   function automatic [7:0] num_bedrock_flits(input bp_bedrock_msg_size_e s);
     int unsigned bytes;
     begin
@@ -288,12 +292,6 @@ module bp_bedrock_ahb3lite_bridge
     end
   endfunction
 
-  // How many AHB beats the FIRST (and, for sub-flit messages, only)
-  // flit needs. Every flit after the first always needs the full
-  // WORDS_PER_FLIT, because only a message smaller than one whole
-  // flit (which by construction is always flit 0, and always the
-  // only flit) can be partial - sizes >= CPU_BYTES_PER_FLIT are exact
-  // multiples of it (BedRock's size enum is powers of two throughout).
   function automatic [2:0] first_flit_ahb_beats(input bp_bedrock_msg_size_e s);
     int unsigned bytes, nbytes_first;
     begin
@@ -306,10 +304,6 @@ module bp_bedrock_ahb3lite_bridge
   assign ahb_beats_this_flit =
       is_first_flit ? first_flit_ahb_beats(req_hdr_r.size) : WORDS_PER_FLIT[2:0];
 
-  // HSIZE for the CURRENT beat: narrower than a full AHB word only for
-  // the very first beat of the very first flit of a sub-word message
-  // (size < AHB_BYTES_PER_BEAT); every other beat is always a full
-  // AHB-width transfer, by the same reasoning as ahb_beats_this_flit.
   function automatic [2:0] beat_hsize;
     int unsigned bytes;
     begin
@@ -363,14 +357,8 @@ module bp_bedrock_ahb3lite_bridge
           next_state = ST_XFER_WAIT;
       end
 
-      // Write only: pull the next 128b flit out of the request FIFO
-      // before continuing its AHB beats.
       ST_FETCH: next_state = bridge_fwd_v ? ST_XFER : ST_FETCH;
 
-      // Read only: push this flit's assembled data; if more flits
-      // remain, go straight to the next flit's beat 0 (no fetch
-      // needed - reads never consume request-FIFO data beyond the
-      // header already latched in ST_IDLE).
       ST_RD_PUSH: begin
         if (bridge_rev_ready)
           next_state = is_last_flit ? ST_IDLE : ST_XFER;
@@ -391,7 +379,7 @@ module bp_bedrock_ahb3lite_bridge
 
   always_comb begin
     m_req   = 1'b0;
-    m_addr  = req_hdr_r.addr
+    m_addr  = req_offset
               + (bedrock_flit_count_r * CPU_BYTES_PER_FLIT)
               + (ahb_beat_count_r * AHB_BYTES_PER_BEAT);
     m_write = is_write_r;
@@ -448,9 +436,6 @@ module bp_bedrock_ahb3lite_bridge
       ahb_beat_count_r      <= '0;
     end else begin
 
-      // Accept first BedRock forward flit; also latch the full
-      // response header up front (echo + .rev override), same
-      // full-echo pattern as every prior bridge in this series.
       if ((cur_state == ST_IDLE) && bridge_fwd_v && bridge_fwd_ready) begin
         req_hdr_r              <= bridge_fwd_header_cast_i;
         flit_data_r            <= bridge_fwd_data;
@@ -464,7 +449,6 @@ module bp_bedrock_ahb3lite_bridge
         resp_hdr_r.msg_type.rev <= fwd_is_wr ? e_bedrock_mem_wr : e_bedrock_mem_rd;
       end
 
-      // One AHB beat completed.
       if ((cur_state == ST_XFER_WAIT) && m_resp_v && m_resp_ready) begin
 
         if (!is_write_r)
@@ -476,14 +460,11 @@ module bp_bedrock_ahb3lite_bridge
           ahb_beat_count_r <= ahb_beat_count_r + 3'd1;
       end
 
-      // Write only: next 128b flit arrived from the request FIFO.
       if ((cur_state == ST_FETCH) && bridge_fwd_v) begin
         flit_data_r          <= bridge_fwd_data;
         bedrock_flit_count_r <= bedrock_flit_count_r + 8'd1;
       end
 
-      // Read only: this flit's assembled data has been pushed; advance
-      // to the next flit and clear the accumulator for it.
       if ((cur_state == ST_RD_PUSH) && bridge_rev_ready) begin
         bedrock_flit_count_r <= bedrock_flit_count_r + 8'd1;
         read_accum_r         <= '0;
@@ -492,4 +473,16 @@ module bp_bedrock_ahb3lite_bridge
     end
   end
 
+  // ----------------------------------------------------------------------
+  // Simulation guard: request below the slave base would wrap around.
+  // ----------------------------------------------------------------------
+ 
+  always_ff @(posedge ahb_clk_i) begin
+    if (ahb_reset_n && (cur_state == ST_XFER) && (req_hdr_r.addr < AHB_BASE_ADDR))
+      $error("bp_bedrock_ahb3lite_bridge: addr %h below AHB_BASE_ADDR %h",
+             req_hdr_r.addr, AHB_BASE_ADDR);
+  end
+  
+
 endmodule
+

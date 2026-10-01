@@ -56,6 +56,7 @@ module uart_top #(
   // RX user-side FIFO pop.
   input  logic                              rx_rd_en_i,
   output logic [8:0]                        rx_rd_data_o,
+  output logic                              rx_data_valid_o,
   output logic                              rx_full_o,
   output logic                              rx_empty_o,
   output logic [$clog2(RX_FIFO_DEPTH+1)-1:0] rx_level_o,
@@ -80,7 +81,7 @@ module uart_top #(
   input  logic                              cts_n_i,
   output logic                              rts_n_o
 );
-
+assign rx_data_valid_o = rx_data_valid;
   // ---------------------------------------------------------------------
   // Baud generator.
   // ---------------------------------------------------------------------

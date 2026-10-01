@@ -205,7 +205,7 @@ module bp_multicore
     (
       .core_clk_i(core_clk_i),
       .plic_ahb_clk_i(plic_ahb_clk_i),
-      .reset_i(~core_reset_i),
+      .reset_n(~core_reset_i),
 
       // Core 0 PLIC BedRock interface
        .core0_fwd_header_i(plic_fwd_header_lo[0]),
@@ -252,8 +252,8 @@ module bp_multicore
 	// Use a 2-flop synchronizer for the CDC.
 	// ============================================================
 
-	always_ff @(posedge core_clk_i or negedge core_reset_i) begin
-	  if (!core_reset_i) begin
+	always_ff @(posedge core_clk_i or posedge core_reset_i) begin
+	  if (core_reset_i) begin
 	    plic_irq_core_sync1 <= 4'b0;
 	    plic_irq_core_sync2 <= 4'b0;
 	  end

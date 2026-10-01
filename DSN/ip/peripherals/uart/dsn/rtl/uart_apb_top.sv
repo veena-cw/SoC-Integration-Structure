@@ -135,8 +135,8 @@ module uart_apb_top(
   // Read only register
   always_ff @(posedge clk or negedge rst_n)
       if (!rst_n) {rhr_reg_vld, rhr_reg} <= 33'h0;
-      //else if ((!rx_empty_o) & (addr == ADDR_RHR)) {rhr_reg_vld, rhr_reg} <= {1'b1, rx_rd_data_o};   // from rx fsm from stop state data_valid_pulse_q is assigned to data_valid_o which signal say that i ahve received all data 
-      else if (data_valid_o & (addr == ADDR_RHR)) {rhr_reg_vld, rhr_reg} <= {1'b1, rx_rd_data_o};
+  else if ((!rx_empty_o) & (addr == ADDR_RHR)) {rhr_reg_vld, rhr_reg} <= {1'b1, 23'h0,rx_rd_data_o};   // from rx fsm from stop state data_valid_pulse_q is assigned to data_valid_o which signal say that i ahve received all data 
+     // else if (data_valid_o & (addr == ADDR_RHR)) {rhr_reg_vld, rhr_reg} <= {1'b1, rx_rd_data_o};
      
 /* SR (0x08) - read-only, live status
 // bit0 : tx_empty_o   - 1 = TX FIFO empty

@@ -82,5 +82,10 @@ bp_dv_029_axi_block_test 29 axi_block_access.nbf
 # Nonzero tohost encodes (hart1_result << 32) | hart0_result.
 bp_dv_030_axi_block_dual_core_test 30 axi_block_dual_core.nbf cfg=9
 
+# BP-DV-031 - BP-DV-030 with the blocks at 0x3002_0000 (two cores).
+# Expected to FAIL (tohost 0xffffffff_00201000) until 0x3xxx_xxxx is routed
+# to the AXI bridge in the two-core build; passes once that is fixed.
+bp_dv_031_axi_block_dual_core_3002_test 31 axi_block_dual_core_3002.nbf cfg=9
+
 # Supplemental CPU smoke test retained from earlier development
 bp_dv_007_load_add_store_test 9  load_add_store.nbf

@@ -39,7 +39,11 @@
 #include <stdint.h>
 
 #define TOHOST_ADDR      ((volatile uint64_t *)0x00102000UL)
+/* Overridable so BP-DV-031 (axi_block_dual_core_3002.c) can run this same
+ * program at 0x3002_0000. */
+#ifndef AXI_BLOCK_BASE
 #define AXI_BLOCK_BASE   0x00104000UL
+#endif
 #define AXI_BLOCK_BYTES  0x100
 #define NUM_DWORDS       (AXI_BLOCK_BYTES / 8)
 #define NUM_HARTS        2

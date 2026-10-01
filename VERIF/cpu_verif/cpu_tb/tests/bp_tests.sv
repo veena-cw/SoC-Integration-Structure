@@ -539,6 +539,18 @@ class bp_dv_030_axi_block_dual_core_test extends bp_base_test;
 
 endclass
 
+// Test ID: BP-DV-031 | Feature: BP-DV-030 with the blocks at 0x3002_0000
+// Same sequence and checks as BP-DV-030; only the boot image differs
+// (axi_block_dual_core_3002.nbf). Requires the two-core build (BP_CFG_ID=9).
+// Currently fails: 0x3xxx_xxxx is not routed to the AXI bridge on two cores.
+class bp_dv_031_axi_block_dual_core_3002_test extends bp_dv_030_axi_block_dual_core_test;
+  `uvm_component_utils(bp_dv_031_axi_block_dual_core_3002_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+endclass
+
 // Supplemental I2C model smoke test (BP-DV-027, outside the supplied plan).
 class bp_i2c_write_read_test extends bp_base_test;
   `uvm_component_utils(bp_i2c_write_read_test)

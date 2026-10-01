@@ -140,6 +140,10 @@ else ifeq ($(TEST),bp_dv_030_axi_block_dual_core_test)
 TCNAME       ?= axi_block_dual_core
 TEST_ID      ?= 30
 BP_CFG_ID    ?= 9
+else ifeq ($(TEST),bp_dv_031_axi_block_dual_core_3002_test)
+TCNAME       ?= axi_block_dual_core_3002
+TEST_ID      ?= 31
+BP_CFG_ID    ?= 9
 else ifeq ($(TEST),bp_i2c_write_read_test)
 TCNAME       ?= i2c_write_read
 TEST_ID      ?= 27

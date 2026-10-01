@@ -41,7 +41,7 @@ module bp_bedrock_ahb3lite_bridge
     // AHB3-Lite domain
     // ==================================================================
     input logic ahb_clk_i,
-    input logic ahb_reset_i,       // active-high, synchronous to ahb_clk_i
+    input logic ahb_reset_n,       // active-low, synchronous to ahb_clk_i
 
     output logic                      HSEL,
     output logic [ADDR_WIDTH-1:0]     HADDR,
@@ -121,7 +121,7 @@ module bp_bedrock_ahb3lite_bridge
       .wclk    (cpu_clk_i),
       .wrst_n  (~cpu_reset_i),
       .rclk    (ahb_clk_i),
-      .rrst_n  (~ahb_reset_i),
+      .rrst_n  (ahb_reset_n),
       .w_en    (req_fifo_w_en),
       .r_en    (req_fifo_r_en),
       .data_in (req_fifo_data_in),
@@ -169,7 +169,7 @@ module bp_bedrock_ahb3lite_bridge
       .DATA_WIDTH(RESP_FIFO_WIDTH)
   ) u_resp_fifo (
       .wclk    (ahb_clk_i),
-      .wrst_n  (~ahb_reset_i),
+      .wrst_n  (ahb_reset_n),
       .rclk    (cpu_clk_i),
       .rrst_n  (~cpu_reset_i),
       .w_en    (resp_fifo_w_en),
@@ -204,7 +204,7 @@ module bp_bedrock_ahb3lite_bridge
       .DATA_WIDTH(AHB_DATA_WIDTH)
   ) u_ahb3lite_master (
       .HCLK   (ahb_clk_i),
-      .HRESETn(~ahb_reset_i),
+      .HRESETn(ahb_reset_n),
 
       .req_i    (m_req),
       .req_ack_o(m_req_ack),
@@ -325,8 +325,8 @@ module bp_bedrock_ahb3lite_bridge
   // 1. State register
   // ----------------------------------------------------------------------
 
-  always_ff @(posedge ahb_clk_i or negedge ahb_reset_i) begin
-    if (!ahb_reset_i)
+  always_ff @(posedge ahb_clk_i or negedge ahb_reset_n) begin
+    if (!ahb_reset_n)
       cur_state <= ST_IDLE;
     else
       cur_state <= next_state;
@@ -436,8 +436,8 @@ module bp_bedrock_ahb3lite_bridge
   // 4. Datapath / control registers
   // ----------------------------------------------------------------------
 
-  always_ff @(posedge ahb_clk_i or negedge ahb_reset_i) begin
-    if (!ahb_reset_i) begin
+  always_ff @(posedge ahb_clk_i or negedge ahb_reset_n) begin
+    if (!ahb_reset_n) begin
       req_hdr_r             <= '0;
       resp_hdr_r            <= '0;
       is_write_r            <= 1'b0;

@@ -11,10 +11,8 @@
  *   hart 1 : 0x0010_4100 - 0x0010_41FF
  *
  * The blocks are in the host-device window (0x0010_xxxx, where tohost also
- * lives) rather than at 0x3002_xxxx as in BP-DV-028/029: in the two-core
- * build, bp_me_addr_to_cce_id routes 0x3xxx_xxxx to CCE id addr[30:24]
- * (0x30), which does not exist, so those accesses never reach AXI. Move
- * the blocks back once that window is routed to the I/O port.
+ * lives). BP-DV-031 (axi_block_dual_core_3002.c) runs this same program at
+ * 0x3002_0000, so both I/O windows are covered on two cores.
  *
  * Each hart runs three separate phases:
  *   1. write : 32 x SD, one 8-byte pattern per dword

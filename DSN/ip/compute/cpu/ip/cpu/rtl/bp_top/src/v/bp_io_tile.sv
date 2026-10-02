@@ -285,7 +285,13 @@ module bp_io_tile
   assign global_addr_lo = mem_fwd_header_lo.addr;
   assign local_addr_lo  = mem_fwd_header_lo.addr;
 
-  wire is_host_addr = (~local_addr_lo.nonlocal && (local_addr_lo.dev inside {host_dev_gp}));
+  // Off-chip local addresses (tile field beyond every on-chip coherent or
+  // accelerator tile, e.g. 0x3002_0000 -> tile 0x30) go to the host link
+  // like host-device addresses; bp_me_addr_to_cce_id routes them here.
+  // Without this they would be sent to did = hio = 0.
+  localparam max_sac_cce_lp = num_core_p + num_l2e_p + num_cacc_p + num_sacc_p;
+  wire is_offchip_tile = ~local_addr_lo.nonlocal && (local_addr_lo.tile >= max_sac_cce_lp);
+  wire is_host_addr = (~local_addr_lo.nonlocal && (local_addr_lo.dev inside {host_dev_gp})) || is_offchip_tile;
   wire [mem_noc_did_width_p-1:0] dst_did_lo = is_host_addr ? host_did_i : global_addr_lo.hio;
 
   `declare_bsg_ready_and_link_sif_s(mem_noc_flit_width_p, bsg_ready_and_link_sif_s);

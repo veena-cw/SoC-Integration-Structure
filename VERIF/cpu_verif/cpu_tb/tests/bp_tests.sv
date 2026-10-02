@@ -542,7 +542,7 @@ endclass
 // Test ID: BP-DV-031 | Feature: BP-DV-030 with the blocks at 0x3002_0000
 // Same sequence and checks as BP-DV-030; only the boot image differs
 // (axi_block_dual_core_3002.nbf). Requires the two-core build (BP_CFG_ID=9).
-// Currently fails: 0x3xxx_xxxx is not routed to the AXI bridge on two cores.
+// Checks that 0x3xxx_xxxx is routed to the AXI bridge on two cores.
 class bp_dv_031_axi_block_dual_core_3002_test extends bp_dv_030_axi_block_dual_core_test;
   `uvm_component_utils(bp_dv_031_axi_block_dual_core_3002_test)
 

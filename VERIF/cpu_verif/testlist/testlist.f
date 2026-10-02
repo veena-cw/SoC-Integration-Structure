@@ -76,15 +76,15 @@ bp_dv_028_axi_unaligned_test 28 axi_unaligned_access.nbf
 bp_dv_029_axi_block_test 29 axi_block_access.nbf
 
 # BP-DV-030 - BP-DV-029 on both cores at once (hart 0: 0x0010_4000-40FF,
-# hart 1: 0x0010_4100-41FF; host window - 0x3xxx is not routed to I/O on
-# two cores). Requires the two-core build (BP_CFG_ID=9):
+# hart 1: 0x0010_4100-41FF; host-device window - BP-DV-031 covers the same
+# test at 0x3002_0000). Requires the two-core build (BP_CFG_ID=9):
 #   make sim TEST=bp_dv_030_axi_block_dual_core_test
 # Nonzero tohost encodes (hart1_result << 32) | hart0_result.
 bp_dv_030_axi_block_dual_core_test 30 axi_block_dual_core.nbf cfg=9
 
 # BP-DV-031 - BP-DV-030 with the blocks at 0x3002_0000 (two cores).
-# Expected to FAIL (tohost 0xffffffff_00201000) until 0x3xxx_xxxx is routed
-# to the AXI bridge in the two-core build; passes once that is fixed.
+# Checks that 0x3xxx_xxxx reaches the AXI bridge on two cores (routing fix
+# in bp_me_addr_to_cce_id / bp_io_tile). Without it: 0xffffffff_00201000.
 bp_dv_031_axi_block_dual_core_3002_test 31 axi_block_dual_core_3002.nbf cfg=9
 
 # Supplemental CPU smoke test retained from earlier development

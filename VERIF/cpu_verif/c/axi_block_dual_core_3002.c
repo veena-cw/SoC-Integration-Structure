@@ -9,12 +9,12 @@
  *   hart 1 -> hart 0 handshake : 0x3002_0F00 (result), 0x3002_0F10 (DONE)
  *
  * On one core 0x3xxx_xxxx is routed to the I/O port and reaches AXI. In
- * the two-core build it currently does not (bp_me_addr_to_cce_id sends it
- * to CCE id addr[30:24] = 0x30, which does not exist), so no AXI
+ * the two-core build that needs bp_me_addr_to_cce_id to send off-chip
+ * tiles (tile field beyond every on-chip tile, here 0x30) to the I/O CCE
+ * and bp_io_tile to forward them to host_did. Without that routing no AXI
  * transaction is issued and the test fails with
  *   tohost = 0xffffffff_00201000
  *   (hart 1 never reports; hart 0 reads back 32/32 wrong dwords).
- * It passes (tohost == 0) once that window is routed to I/O.
  */
 
 #define AXI_BLOCK_BASE 0x30020000UL

@@ -1,0 +1,5 @@
+Reading tracefile /home/cw028_harish/uvm-tools/SoC-Integration-Structure/VERIF/i2c_verif/i2c_tb/sim/verilator_log/coverage/coverage.info
+Summary coverage rate:
+  lines......: 31.8% (5620 of 17657 lines)
+  functions..: no data found
+  branches...: no data found

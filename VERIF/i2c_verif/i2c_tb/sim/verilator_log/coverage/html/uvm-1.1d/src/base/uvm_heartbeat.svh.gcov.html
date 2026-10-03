@@ -1,0 +1,414 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - I2C Verilator Code Coverage - uvm-1.1d/src/base/uvm_heartbeat.svh</title>
+  <link rel="stylesheet" type="text/css" href="../../../gcov.css">
+</head>
+
+<body>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="title">LCOV - code coverage report</td></tr>
+    <tr><td class="ruler"><img src="../../../glass.png" width=3 height=3 alt=""></td></tr>
+
+    <tr>
+      <td width="100%">
+        <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="35%" class="headerValue"><a href="../../../index.html">top level</a> - <a href="index.html">uvm-1.1d/src/base</a> - uvm_heartbeat.svh<span style="font-size: 80%;"> (source / <a href="uvm_heartbeat.svh.func-sort-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="15%"></td>
+            <td width="10%" class="headerCovTableHead">Hit</td>
+            <td width="10%" class="headerCovTableHead">Total</td>
+            <td width="15%" class="headerCovTableHead">Coverage</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">I2C Verilator Code Coverage</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntry">129</td>
+            <td class="headerCovTableEntryLo">0.0 %</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Date:</td>
+            <td class="headerValue">2026-09-29 16:46:23</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntryHi">-</td>
+          </tr>
+          <tr><td><img src="../../../glass.png" width=3 height=3 alt=""></td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr><td class="ruler"><img src="../../../glass.png" width=3 height=3 alt=""></td></tr>
+  </table>
+
+  <table cellpadding=0 cellspacing=0 border=0>
+    <tr>
+      <td><br></td>
+    </tr>
+    <tr>
+      <td>
+<pre class="sourceHeading">          Line data    Source code</pre>
+<pre class="source">
+<a name="1"><span class="lineNum">       1 </span>            : //----------------------------------------------------------------------</a>
+<a name="2"><span class="lineNum">       2 </span>            : //   Copyright 2007-2011 Mentor Graphics Corporation</a>
+<a name="3"><span class="lineNum">       3 </span>            : //   Copyright 2007-2009 Cadence Design Systems, Inc. </a>
+<a name="4"><span class="lineNum">       4 </span>            : //   Copyright 2010 Synopsys, Inc.</a>
+<a name="5"><span class="lineNum">       5 </span>            : //   All Rights Reserved Worldwide</a>
+<a name="6"><span class="lineNum">       6 </span>            : //</a>
+<a name="7"><span class="lineNum">       7 </span>            : //   Licensed under the Apache License, Version 2.0 (the</a>
+<a name="8"><span class="lineNum">       8 </span>            : //   &quot;License&quot;); you may not use this file except in</a>
+<a name="9"><span class="lineNum">       9 </span>            : //   compliance with the License.  You may obtain a copy of</a>
+<a name="10"><span class="lineNum">      10 </span>            : //   the License at</a>
+<a name="11"><span class="lineNum">      11 </span>            : //</a>
+<a name="12"><span class="lineNum">      12 </span>            : //       http://www.apache.org/licenses/LICENSE-2.0</a>
+<a name="13"><span class="lineNum">      13 </span>            : //</a>
+<a name="14"><span class="lineNum">      14 </span>            : //   Unless required by applicable law or agreed to in</a>
+<a name="15"><span class="lineNum">      15 </span>            : //   writing, software distributed under the License is</a>
+<a name="16"><span class="lineNum">      16 </span>            : //   distributed on an &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR</a>
+<a name="17"><span class="lineNum">      17 </span>            : //   CONDITIONS OF ANY KIND, either express or implied.  See</a>
+<a name="18"><span class="lineNum">      18 </span>            : //   the License for the specific language governing</a>
+<a name="19"><span class="lineNum">      19 </span>            : //   permissions and limitations under the License.</a>
+<a name="20"><span class="lineNum">      20 </span>            : //----------------------------------------------------------------------</a>
+<a name="21"><span class="lineNum">      21 </span>            : </a>
+<a name="22"><span class="lineNum">      22 </span>            : `ifndef UVM_HEARTBEAT_SVH</a>
+<a name="23"><span class="lineNum">      23 </span>            : `define UVM_HEARTBEAT_SVH</a>
+<a name="24"><span class="lineNum">      24 </span>            : </a>
+<a name="25"><span class="lineNum">      25 </span>            : typedef enum {</a>
+<a name="26"><span class="lineNum">      26 </span>            :   UVM_ALL_ACTIVE,</a>
+<a name="27"><span class="lineNum">      27 </span>            :   UVM_ONE_ACTIVE,</a>
+<a name="28"><span class="lineNum">      28 </span>            :   UVM_ANY_ACTIVE,</a>
+<a name="29"><span class="lineNum">      29 </span>            :   UVM_NO_HB_MODE</a>
+<a name="30"><span class="lineNum">      30 </span>            : } uvm_heartbeat_modes;</a>
+<a name="31"><span class="lineNum">      31 </span>            : </a>
+<a name="32"><span class="lineNum">      32 </span>            : typedef class uvm_heartbeat_callback;</a>
+<a name="33"><span class="lineNum">      33 </span>            : typedef uvm_callbacks #(uvm_callbacks_objection,uvm_heartbeat_callback) uvm_heartbeat_cbs_t;</a>
+<a name="34"><span class="lineNum">      34 </span>            : </a>
+<a name="35"><span class="lineNum">      35 </span>            : </a>
+<a name="36"><span class="lineNum">      36 </span>            : //------------------------------------------------------------------------------</a>
+<a name="37"><span class="lineNum">      37 </span>            : //</a>
+<a name="38"><span class="lineNum">      38 </span>            : // Class: uvm_heartbeat</a>
+<a name="39"><span class="lineNum">      39 </span>            : //</a>
+<a name="40"><span class="lineNum">      40 </span>            : //------------------------------------------------------------------------------</a>
+<a name="41"><span class="lineNum">      41 </span>            : // Heartbeats provide a way for environments to easily ensure that their</a>
+<a name="42"><span class="lineNum">      42 </span>            : // descendants are alive. A uvm_heartbeat is associated with a specific</a>
+<a name="43"><span class="lineNum">      43 </span>            : // objection object. A component that is being tracked by the heartbeat</a>
+<a name="44"><span class="lineNum">      44 </span>            : // object must raise (or drop) the synchronizing objection during</a>
+<a name="45"><span class="lineNum">      45 </span>            : // the heartbeat window. The synchronizing objection must be a</a>
+<a name="46"><span class="lineNum">      46 </span>            : // &lt;uvm_callbacks_objection&gt; type.</a>
+<a name="47"><span class="lineNum">      47 </span>            : //</a>
+<a name="48"><span class="lineNum">      48 </span>            : // The uvm_heartbeat object has a list of participating objects. The heartbeat</a>
+<a name="49"><span class="lineNum">      49 </span>            : // can be configured so that all components (UVM_ALL_ACTIVE), exactly one</a>
+<a name="50"><span class="lineNum">      50 </span>            : // (UVM_ONE_ACTIVE), or any component (UVM_ANY_ACTIVE) must trigger the</a>
+<a name="51"><span class="lineNum">      51 </span>            : // objection in order to satisfy the heartbeat condition.</a>
+<a name="52"><span class="lineNum">      52 </span>            : //------------------------------------------------------------------------------</a>
+<a name="53"><span class="lineNum">      53 </span>            : </a>
+<a name="54"><span class="lineNum">      54 </span>            : typedef class uvm_objection_callback;</a>
+<a name="55"><span class="lineNum">      55 </span>            : class uvm_heartbeat extends uvm_object;</a>
+<a name="56"><span class="lineNum">      56 </span>            : </a>
+<a name="57"><span class="lineNum">      57 </span>            :   protected uvm_callbacks_objection m_objection;</a>
+<a name="58"><span class="lineNum">      58 </span>            :   protected uvm_heartbeat_callback m_cb;</a>
+<a name="59"><span class="lineNum">      59 </span>            :   protected uvm_component   m_cntxt;</a>
+<a name="60"><span class="lineNum">      60 </span>            :   protected uvm_heartbeat_modes   m_mode;</a>
+<a name="61"><span class="lineNum">      61 </span>            :   protected uvm_component   m_hblist[$];</a>
+<a name="62"><span class="lineNum">      62 </span>            :   protected uvm_event       m_event;</a>
+<a name="63"><span class="lineNum">      63 </span>            :   protected bit             m_started;</a>
+<a name="64"><span class="lineNum">      64 </span>            :   protected event           m_stop_event;</a>
+<a name="65"><span class="lineNum">      65 </span>            : </a>
+<a name="66"><span class="lineNum">      66 </span>            :   // Function: new</a>
+<a name="67"><span class="lineNum">      67 </span>            :   //</a>
+<a name="68"><span class="lineNum">      68 </span>            :   // Creates a new heartbeat instance associated with ~cntxt~. The context</a>
+<a name="69"><span class="lineNum">      69 </span>            :   // is the hierarchical location that the heartbeat objections will flow</a>
+<a name="70"><span class="lineNum">      70 </span>            :   // through and be monitored at. The ~objection~ associated with the heartbeat </a>
+<a name="71"><span class="lineNum">      71 </span>            :   // is optional, if it is left null but it must be set before the heartbeat</a>
+<a name="72"><span class="lineNum">      72 </span>            :   // monitor will activate.</a>
+<a name="73"><span class="lineNum">      73 </span>            :   //</a>
+<a name="74"><span class="lineNum">      74 </span>            :   //| uvm_callbacks_objection myobjection = new(&quot;myobjection&quot;); //some shared objection</a>
+<a name="75"><span class="lineNum">      75 </span>            :   //| class myenv extends uvm_env;</a>
+<a name="76"><span class="lineNum">      76 </span>            :   //|    uvm_heartbeat hb = new(&quot;hb&quot;, this, myobjection);</a>
+<a name="77"><span class="lineNum">      77 </span>            :   //|    ...</a>
+<a name="78"><span class="lineNum">      78 </span>            :   //| endclass</a>
+<a name="79"><span class="lineNum">      79 </span>            : </a>
+<a name="80"><span class="lineNum">      80 </span><span class="lineNoCov">          0 :   function new(string name, uvm_component cntxt, uvm_callbacks_objection objection=null);</span></a>
+<a name="81"><span class="lineNum">      81 </span><span class="lineNoCov">          0 :     super.new(name);</span></a>
+<a name="82"><span class="lineNum">      82 </span><span class="lineNoCov">          0 :     m_objection = objection;</span></a>
+<a name="83"><span class="lineNum">      83 </span>            :     </a>
+<a name="84"><span class="lineNum">      84 </span>            :     //if a cntxt is given it will be used for reporting.</a>
+<a name="85"><span class="lineNum">      85 </span><span class="lineNoCov">          0 :     if(cntxt != null) m_cntxt = cntxt;</span></a>
+<a name="86"><span class="lineNum">      86 </span><span class="lineNoCov">          0 :     else m_cntxt = uvm_root::get();</span></a>
+<a name="87"><span class="lineNum">      87 </span>            : </a>
+<a name="88"><span class="lineNum">      88 </span><span class="lineNoCov">          0 :     m_cb = new({name,&quot;_cb&quot;},m_cntxt);</span></a>
+<a name="89"><span class="lineNum">      89 </span>            : </a>
+<a name="90"><span class="lineNum">      90 </span>            :   endfunction</a>
+<a name="91"><span class="lineNum">      91 </span>            : </a>
+<a name="92"><span class="lineNum">      92 </span>            : </a>
+<a name="93"><span class="lineNum">      93 </span>            :   // Function: set_mode</a>
+<a name="94"><span class="lineNum">      94 </span>            :   //</a>
+<a name="95"><span class="lineNum">      95 </span>            :   // Sets or retrieves the heartbeat mode. The current value for the heartbeat</a>
+<a name="96"><span class="lineNum">      96 </span>            :   // mode is returned. If an argument is specified to change the mode then the</a>
+<a name="97"><span class="lineNum">      97 </span>            :   // mode is changed to the new value.</a>
+<a name="98"><span class="lineNum">      98 </span>            : </a>
+<a name="99"><span class="lineNum">      99 </span><span class="lineNoCov">          0 :   function uvm_heartbeat_modes set_mode (uvm_heartbeat_modes mode = UVM_NO_HB_MODE);</span></a>
+<a name="100"><span class="lineNum">     100 </span><span class="lineNoCov">          0 :     set_mode = m_mode;</span></a>
+<a name="101"><span class="lineNum">     101 </span><span class="lineNoCov">          0 :     if(mode == UVM_ANY_ACTIVE || mode == UVM_ONE_ACTIVE || mode == UVM_ALL_ACTIVE)</span></a>
+<a name="102"><span class="lineNum">     102 </span><span class="lineNoCov">          0 :       m_mode = mode;</span></a>
+<a name="103"><span class="lineNum">     103 </span>            :   endfunction</a>
+<a name="104"><span class="lineNum">     104 </span>            : </a>
+<a name="105"><span class="lineNum">     105 </span>            : </a>
+<a name="106"><span class="lineNum">     106 </span>            :   // Function: set_heartbeat </a>
+<a name="107"><span class="lineNum">     107 </span>            :   //</a>
+<a name="108"><span class="lineNum">     108 </span>            :   // Sets up the heartbeat event and assigns a list of objects to watch. The</a>
+<a name="109"><span class="lineNum">     109 </span>            :   // monitoring is started as soon as this method is called. Once the</a>
+<a name="110"><span class="lineNum">     110 </span>            :   // monitoring has been started with a specific event, providing a new</a>
+<a name="111"><span class="lineNum">     111 </span>            :   // monitor event results in an error. To change trigger events, you</a>
+<a name="112"><span class="lineNum">     112 </span>            :   // must first &lt;stop&gt; the monitor and then &lt;start&gt; with a new event trigger.</a>
+<a name="113"><span class="lineNum">     113 </span>            :   //</a>
+<a name="114"><span class="lineNum">     114 </span>            :   // If the trigger event ~e~ is null and there was no previously set</a>
+<a name="115"><span class="lineNum">     115 </span>            :   // trigger event, then the monitoring is not started. Monitoring can be </a>
+<a name="116"><span class="lineNum">     116 </span>            :   // started by explicitly calling &lt;start&gt;.</a>
+<a name="117"><span class="lineNum">     117 </span>            : </a>
+<a name="118"><span class="lineNum">     118 </span><span class="lineNoCov">          0 :   function void set_heartbeat (uvm_event e, ref uvm_component comps[$]);</span></a>
+<a name="119"><span class="lineNum">     119 </span><span class="lineNoCov">          0 :     uvm_object c;</span></a>
+<a name="120"><span class="lineNum">     120 </span><span class="lineNoCov">          0 :     foreach(comps[i]) begin</span></a>
+<a name="121"><span class="lineNum">     121 </span><span class="lineNoCov">          0 :       c = comps[i];</span></a>
+<a name="122"><span class="lineNum">     122 </span><span class="lineNoCov">          0 :       if(!m_cb.cnt.exists(c)) </span></a>
+<a name="123"><span class="lineNum">     123 </span><span class="lineNoCov">          0 :         m_cb.cnt[c]=0;</span></a>
+<a name="124"><span class="lineNum">     124 </span><span class="lineNoCov">          0 :       if(!m_cb.last_trigger.exists(c)) </span></a>
+<a name="125"><span class="lineNum">     125 </span><span class="lineNoCov">          0 :         m_cb.last_trigger[c]=0;</span></a>
+<a name="126"><span class="lineNum">     126 </span>            :     end</a>
+<a name="127"><span class="lineNum">     127 </span><span class="lineNoCov">          0 :     if(e==null &amp;&amp; m_event==null) return;</span></a>
+<a name="128"><span class="lineNum">     128 </span><span class="lineNoCov">          0 :     start(e);</span></a>
+<a name="129"><span class="lineNum">     129 </span>            :   endfunction</a>
+<a name="130"><span class="lineNum">     130 </span>            : </a>
+<a name="131"><span class="lineNum">     131 </span>            :   // Function: add</a>
+<a name="132"><span class="lineNum">     132 </span>            :   //</a>
+<a name="133"><span class="lineNum">     133 </span>            :   // Add a single component to the set of components to be monitored.</a>
+<a name="134"><span class="lineNum">     134 </span>            :   // This does not cause monitoring to be started. If monitoring is</a>
+<a name="135"><span class="lineNum">     135 </span>            :   // currently active then this component will be immediately added</a>
+<a name="136"><span class="lineNum">     136 </span>            :   // to the list of components and will be expected to participate</a>
+<a name="137"><span class="lineNum">     137 </span>            :   // in the currently active event window.</a>
+<a name="138"><span class="lineNum">     138 </span>            : </a>
+<a name="139"><span class="lineNum">     139 </span><span class="lineNoCov">          0 :   function void add (uvm_component comp);</span></a>
+<a name="140"><span class="lineNum">     140 </span><span class="lineNoCov">          0 :     uvm_object c = comp;</span></a>
+<a name="141"><span class="lineNum">     141 </span><span class="lineNoCov">          0 :     if(m_cb.cnt.exists(c)) return;</span></a>
+<a name="142"><span class="lineNum">     142 </span><span class="lineNoCov">          0 :     m_cb.cnt[c]=0;</span></a>
+<a name="143"><span class="lineNum">     143 </span><span class="lineNoCov">          0 :     m_cb.last_trigger[c]=0;</span></a>
+<a name="144"><span class="lineNum">     144 </span>            :   endfunction</a>
+<a name="145"><span class="lineNum">     145 </span>            : </a>
+<a name="146"><span class="lineNum">     146 </span>            :   // Function: remove</a>
+<a name="147"><span class="lineNum">     147 </span>            :   //</a>
+<a name="148"><span class="lineNum">     148 </span>            :   // Remove a single component to the set of components being monitored.</a>
+<a name="149"><span class="lineNum">     149 </span>            :   // Monitoring is not stopped, even if the last component has been</a>
+<a name="150"><span class="lineNum">     150 </span>            :   // removed (an explicit stop is required).</a>
+<a name="151"><span class="lineNum">     151 </span>            : </a>
+<a name="152"><span class="lineNum">     152 </span><span class="lineNoCov">          0 :   function void remove (uvm_component comp);</span></a>
+<a name="153"><span class="lineNum">     153 </span><span class="lineNoCov">          0 :     uvm_object c = comp;</span></a>
+<a name="154"><span class="lineNum">     154 </span><span class="lineNoCov">          0 :     if(m_cb.cnt.exists(c)) m_cb.cnt.delete(c);</span></a>
+<a name="155"><span class="lineNum">     155 </span><span class="lineNoCov">          0 :     if(m_cb.last_trigger.exists(c)) m_cb.last_trigger.delete(c);</span></a>
+<a name="156"><span class="lineNum">     156 </span>            :   endfunction</a>
+<a name="157"><span class="lineNum">     157 </span>            : </a>
+<a name="158"><span class="lineNum">     158 </span>            : </a>
+<a name="159"><span class="lineNum">     159 </span>            :   // Function: start</a>
+<a name="160"><span class="lineNum">     160 </span>            :   //</a>
+<a name="161"><span class="lineNum">     161 </span>            :   // Starts the heartbeat monitor. If ~e~ is null then whatever event</a>
+<a name="162"><span class="lineNum">     162 </span>            :   // was previously set is used. If no event was previously set then</a>
+<a name="163"><span class="lineNum">     163 </span>            :   // a warning is issued. It is an error if the monitor is currently</a>
+<a name="164"><span class="lineNum">     164 </span>            :   // running and ~e~ is specifying a different trigger event from the</a>
+<a name="165"><span class="lineNum">     165 </span>            :   // current event.</a>
+<a name="166"><span class="lineNum">     166 </span>            : </a>
+<a name="167"><span class="lineNum">     167 </span><span class="lineNoCov">          0 :   function void start (uvm_event e=null);</span></a>
+<a name="168"><span class="lineNum">     168 </span><span class="lineNoCov">          0 :     if(m_event == null &amp;&amp; e == null) begin</span></a>
+<a name="169"><span class="lineNum">     169 </span><span class="lineNoCov">          0 :       m_cntxt.uvm_report_warning(&quot;NOEVNT&quot;, { &quot;start() was called for: &quot;,</span></a>
+<a name="170"><span class="lineNum">     170 </span><span class="lineNoCov">          0 :         get_name(), &quot; with a null trigger and no currently set trigger&quot; },</span></a>
+<a name="171"><span class="lineNum">     171 </span><span class="lineNoCov">          0 :         UVM_NONE);</span></a>
+<a name="172"><span class="lineNum">     172 </span><span class="lineNoCov">          0 :       return;</span></a>
+<a name="173"><span class="lineNum">     173 </span>            :     end</a>
+<a name="174"><span class="lineNum">     174 </span><span class="lineNoCov">          0 :     if((m_event != null) &amp;&amp; (e != m_event) &amp;&amp; m_started) begin</span></a>
+<a name="175"><span class="lineNum">     175 </span><span class="lineNoCov">          0 :       m_cntxt.uvm_report_error(&quot;ILHBVNT&quot;, { &quot;start() was called for: &quot;,</span></a>
+<a name="176"><span class="lineNum">     176 </span><span class="lineNoCov">          0 :         get_name(), &quot; with trigger &quot;, e.get_name(), &quot; which is different &quot;,</span></a>
+<a name="177"><span class="lineNum">     177 </span><span class="lineNoCov">          0 :         &quot;from the original trigger &quot;, m_event.get_name() }, UVM_NONE);</span></a>
+<a name="178"><span class="lineNum">     178 </span><span class="lineNoCov">          0 :       return;</span></a>
+<a name="179"><span class="lineNum">     179 </span>            :     end  </a>
+<a name="180"><span class="lineNum">     180 </span><span class="lineNoCov">          0 :     if(e != null) m_event = e;</span></a>
+<a name="181"><span class="lineNum">     181 </span><span class="lineNoCov">          0 :     m_enable_cb();</span></a>
+<a name="182"><span class="lineNum">     182 </span><span class="lineNoCov">          0 :     m_start_hb_process();</span></a>
+<a name="183"><span class="lineNum">     183 </span>            :   endfunction</a>
+<a name="184"><span class="lineNum">     184 </span>            : </a>
+<a name="185"><span class="lineNum">     185 </span>            :   // Function: stop</a>
+<a name="186"><span class="lineNum">     186 </span>            :   //</a>
+<a name="187"><span class="lineNum">     187 </span>            :   // Stops the heartbeat monitor. Current state information is reset so</a>
+<a name="188"><span class="lineNum">     188 </span>            :   // that if &lt;start&gt; is called again the process will wait for the first</a>
+<a name="189"><span class="lineNum">     189 </span>            :   // event trigger to start the monitoring.</a>
+<a name="190"><span class="lineNum">     190 </span>            : </a>
+<a name="191"><span class="lineNum">     191 </span><span class="lineNoCov">          0 :   function void stop ();</span></a>
+<a name="192"><span class="lineNum">     192 </span><span class="lineNoCov">          0 :     m_started = 0;</span></a>
+<a name="193"><span class="lineNum">     193 </span><span class="lineNoCov">          0 :     -&gt;m_stop_event;</span></a>
+<a name="194"><span class="lineNum">     194 </span><span class="lineNoCov">          0 :     m_disable_cb();</span></a>
+<a name="195"><span class="lineNum">     195 </span>            :   endfunction</a>
+<a name="196"><span class="lineNum">     196 </span>            : </a>
+<a name="197"><span class="lineNum">     197 </span><span class="lineNoCov">          0 :   function void m_start_hb_process();</span></a>
+<a name="198"><span class="lineNum">     198 </span><span class="lineNoCov">          0 :     if(m_started) return;</span></a>
+<a name="199"><span class="lineNum">     199 </span><span class="lineNoCov">          0 :     m_started = 1;</span></a>
+<a name="200"><span class="lineNum">     200 </span><span class="lineNoCov">          0 :     fork</span></a>
+<a name="201"><span class="lineNum">     201 </span><span class="lineNoCov">          0 :       m_hb_process;</span></a>
+<a name="202"><span class="lineNum">     202 </span>            :     join_none</a>
+<a name="203"><span class="lineNum">     203 </span>            :   endfunction</a>
+<a name="204"><span class="lineNum">     204 </span>            : </a>
+<a name="205"><span class="lineNum">     205 </span>            :   protected bit m_added;</a>
+<a name="206"><span class="lineNum">     206 </span><span class="lineNoCov">          0 :   function void m_enable_cb;</span></a>
+<a name="207"><span class="lineNum">     207 </span><span class="lineNoCov">          0 :     void'(m_cb.callback_mode(1));</span></a>
+<a name="208"><span class="lineNum">     208 </span><span class="lineNoCov">          0 :     if(m_objection == null) return;</span></a>
+<a name="209"><span class="lineNum">     209 </span><span class="lineNoCov">          0 :     if(!m_added) </span></a>
+<a name="210"><span class="lineNum">     210 </span><span class="lineNoCov">          0 :       uvm_heartbeat_cbs_t::add(m_objection, m_cb);</span></a>
+<a name="211"><span class="lineNum">     211 </span><span class="lineNoCov">          0 :     m_added = 1;</span></a>
+<a name="212"><span class="lineNum">     212 </span>            :   endfunction</a>
+<a name="213"><span class="lineNum">     213 </span>            : </a>
+<a name="214"><span class="lineNum">     214 </span><span class="lineNoCov">          0 :   function void m_disable_cb;</span></a>
+<a name="215"><span class="lineNum">     215 </span><span class="lineNoCov">          0 :     void'(m_cb.callback_mode(0));</span></a>
+<a name="216"><span class="lineNum">     216 </span>            :   endfunction</a>
+<a name="217"><span class="lineNum">     217 </span>            : </a>
+<a name="218"><span class="lineNum">     218 </span><span class="lineNoCov">          0 :   task m_hb_process;</span></a>
+<a name="219"><span class="lineNum">     219 </span><span class="lineNoCov">          0 :     uvm_object obj;</span></a>
+<a name="220"><span class="lineNum">     220 </span><span class="lineNoCov">          0 :     bit  triggered;</span></a>
+<a name="221"><span class="lineNum">     221 </span><span class="lineNoCov">          0 :     time last_trigger=0;</span></a>
+<a name="222"><span class="lineNum">     222 </span><span class="lineNoCov">          0 :     fork</span></a>
+<a name="223"><span class="lineNum">     223 </span><span class="lineNoCov">          0 :       begin</span></a>
+<a name="224"><span class="lineNum">     224 </span>            :         // The process waits for the event trigger. The first trigger is</a>
+<a name="225"><span class="lineNum">     225 </span>            :         // ignored, but sets the first start window. On susequent triggers</a>
+<a name="226"><span class="lineNum">     226 </span>            :         // the monitor tests that the mode criteria was full-filled.</a>
+<a name="227"><span class="lineNum">     227 </span><span class="lineNoCov">          0 :         while(1) begin</span></a>
+<a name="228"><span class="lineNum">     228 </span><span class="lineNoCov">          0 :           m_event.wait_trigger();</span></a>
+<a name="229"><span class="lineNum">     229 </span><span class="lineNoCov">          0 :           if(triggered) begin</span></a>
+<a name="230"><span class="lineNum">     230 </span><span class="lineNoCov">          0 :             case (m_mode)</span></a>
+<a name="231"><span class="lineNum">     231 </span><span class="lineNoCov">          0 :               UVM_ALL_ACTIVE:              </span></a>
+<a name="232"><span class="lineNum">     232 </span><span class="lineNoCov">          0 :                 begin</span></a>
+<a name="233"><span class="lineNum">     233 </span><span class="lineNoCov">          0 :                   foreach(m_cb.cnt[idx]) begin</span></a>
+<a name="234"><span class="lineNum">     234 </span><span class="lineNoCov">          0 :                     obj = idx;</span></a>
+<a name="235"><span class="lineNum">     235 </span><span class="lineNoCov">          0 :                     if(!m_cb.cnt[obj]) begin</span></a>
+<a name="236"><span class="lineNum">     236 </span><span class="lineNoCov">          0 :                       m_cntxt.uvm_report_fatal(&quot;HBFAIL&quot;, $sformatf(&quot;Did not recieve an update of %s for component %s since last event trigger at time %0t : last update time was %0t&quot;,</span></a>
+<a name="237"><span class="lineNum">     237 </span><span class="lineNoCov">          0 :                         m_objection.get_name(), obj.get_full_name(), </span></a>
+<a name="238"><span class="lineNum">     238 </span><span class="lineNoCov">          0 :                         last_trigger, m_cb.last_trigger[obj]), UVM_NONE);</span></a>
+<a name="239"><span class="lineNum">     239 </span>            :                     end</a>
+<a name="240"><span class="lineNum">     240 </span>            :                   end</a>
+<a name="241"><span class="lineNum">     241 </span>            :                 end </a>
+<a name="242"><span class="lineNum">     242 </span><span class="lineNoCov">          0 :               UVM_ANY_ACTIVE:              </span></a>
+<a name="243"><span class="lineNum">     243 </span><span class="lineNoCov">          0 :                 begin</span></a>
+<a name="244"><span class="lineNum">     244 </span><span class="lineNoCov">          0 :                   if(m_cb.cnt.num() &amp;&amp; !m_cb.objects_triggered()) begin</span></a>
+<a name="245"><span class="lineNum">     245 </span><span class="lineNoCov">          0 :                     string s;</span></a>
+<a name="246"><span class="lineNum">     246 </span><span class="lineNoCov">          0 :                     foreach(m_cb.cnt[idx]) begin</span></a>
+<a name="247"><span class="lineNum">     247 </span><span class="lineNoCov">          0 :                       obj = idx;</span></a>
+<a name="248"><span class="lineNum">     248 </span><span class="lineNoCov">          0 :                       s={s,&quot;\n  &quot;,obj.get_full_name()};</span></a>
+<a name="249"><span class="lineNum">     249 </span>            :                     end</a>
+<a name="250"><span class="lineNum">     250 </span><span class="lineNoCov">          0 :                     m_cntxt.uvm_report_fatal(&quot;HBFAIL&quot;, $sformatf(&quot;Did not recieve an update of %s on any component since last event trigger at time %0t. The list of registered components is:%s&quot;,</span></a>
+<a name="251"><span class="lineNum">     251 </span><span class="lineNoCov">          0 :                       m_objection.get_name(), last_trigger, s), UVM_NONE); </span></a>
+<a name="252"><span class="lineNum">     252 </span>            :                   end</a>
+<a name="253"><span class="lineNum">     253 </span>            :                 end </a>
+<a name="254"><span class="lineNum">     254 </span><span class="lineNoCov">          0 :               UVM_ONE_ACTIVE:              </span></a>
+<a name="255"><span class="lineNum">     255 </span><span class="lineNoCov">          0 :                 begin</span></a>
+<a name="256"><span class="lineNum">     256 </span><span class="lineNoCov">          0 :                   if(m_cb.objects_triggered() &gt; 1) begin</span></a>
+<a name="257"><span class="lineNum">     257 </span><span class="lineNoCov">          0 :                     string s;</span></a>
+<a name="258"><span class="lineNum">     258 </span><span class="lineNoCov">          0 :                     foreach(m_cb.cnt[idx])  begin</span></a>
+<a name="259"><span class="lineNum">     259 </span><span class="lineNoCov">          0 :                       obj = idx;</span></a>
+<a name="260"><span class="lineNum">     260 </span><span class="lineNoCov">          0 :                       if(m_cb.cnt[obj]) $swrite(s,&quot;%s\n  %s (updated: %0t)&quot;,</span></a>
+<a name="261"><span class="lineNum">     261 </span><span class="lineNoCov">          0 :                          s, obj.get_full_name(), m_cb.last_trigger[obj]);</span></a>
+<a name="262"><span class="lineNum">     262 </span>            :                     end</a>
+<a name="263"><span class="lineNum">     263 </span><span class="lineNoCov">          0 :                     m_cntxt.uvm_report_fatal(&quot;HBFAIL&quot;, $sformatf(&quot;Recieved update of %s from more than one component since last event trigger at time %0t. The list of triggered components is:%s&quot;,</span></a>
+<a name="264"><span class="lineNum">     264 </span><span class="lineNoCov">          0 :                       m_objection.get_name(), last_trigger, s), UVM_NONE); </span></a>
+<a name="265"><span class="lineNum">     265 </span>            :                   end</a>
+<a name="266"><span class="lineNum">     266 </span><span class="lineNoCov">          0 :                   if(m_cb.cnt.num() &amp;&amp; !m_cb.objects_triggered()) begin</span></a>
+<a name="267"><span class="lineNum">     267 </span><span class="lineNoCov">          0 :                     string s;</span></a>
+<a name="268"><span class="lineNum">     268 </span><span class="lineNoCov">          0 :                     foreach(m_cb.cnt[idx]) begin</span></a>
+<a name="269"><span class="lineNum">     269 </span><span class="lineNoCov">          0 :                       obj = idx;</span></a>
+<a name="270"><span class="lineNum">     270 </span><span class="lineNoCov">          0 :                       s={s,&quot;\n  &quot;,obj.get_full_name()};</span></a>
+<a name="271"><span class="lineNum">     271 </span>            :                     end</a>
+<a name="272"><span class="lineNum">     272 </span><span class="lineNoCov">          0 :                     m_cntxt.uvm_report_fatal(&quot;HBFAIL&quot;, $sformatf(&quot;Did not recieve an update of %s on any component since last event trigger at time %0t. The list of registered components is:%s&quot;,</span></a>
+<a name="273"><span class="lineNum">     273 </span><span class="lineNoCov">          0 :                       m_objection.get_name(), last_trigger, s), UVM_NONE); </span></a>
+<a name="274"><span class="lineNum">     274 </span>            :                   end</a>
+<a name="275"><span class="lineNum">     275 </span>            :                 end </a>
+<a name="276"><span class="lineNum">     276 </span>            :             endcase</a>
+<a name="277"><span class="lineNum">     277 </span>            :           end </a>
+<a name="278"><span class="lineNum">     278 </span><span class="lineNoCov">          0 :           m_cb.reset_counts();</span></a>
+<a name="279"><span class="lineNum">     279 </span><span class="lineNoCov">          0 :           last_trigger = $realtime;</span></a>
+<a name="280"><span class="lineNum">     280 </span><span class="lineNoCov">          0 :           triggered = 1;</span></a>
+<a name="281"><span class="lineNum">     281 </span>            :         end</a>
+<a name="282"><span class="lineNum">     282 </span>            :       end</a>
+<a name="283"><span class="lineNum">     283 </span><span class="lineNoCov">          0 :       @(m_stop_event);</span></a>
+<a name="284"><span class="lineNum">     284 </span>            :     join_any</a>
+<a name="285"><span class="lineNum">     285 </span><span class="lineNoCov">          0 :     disable fork;</span></a>
+<a name="286"><span class="lineNum">     286 </span>            :   endtask</a>
+<a name="287"><span class="lineNum">     287 </span>            : endclass</a>
+<a name="288"><span class="lineNum">     288 </span>            : </a>
+<a name="289"><span class="lineNum">     289 </span>            : </a>
+<a name="290"><span class="lineNum">     290 </span>            : class uvm_heartbeat_callback extends uvm_objection_callback;</a>
+<a name="291"><span class="lineNum">     291 </span>            :   int  cnt [uvm_object];</a>
+<a name="292"><span class="lineNum">     292 </span>            :   time last_trigger [uvm_object];</a>
+<a name="293"><span class="lineNum">     293 </span>            :   uvm_object target;</a>
+<a name="294"><span class="lineNum">     294 </span>            : </a>
+<a name="295"><span class="lineNum">     295 </span><span class="lineNoCov">          0 :   function new(string name, uvm_object target);</span></a>
+<a name="296"><span class="lineNum">     296 </span><span class="lineNoCov">          0 :     super.new(name);</span></a>
+<a name="297"><span class="lineNum">     297 </span><span class="lineNoCov">          0 :     if (target != null)</span></a>
+<a name="298"><span class="lineNum">     298 </span><span class="lineNoCov">          0 :        this.target = target;</span></a>
+<a name="299"><span class="lineNum">     299 </span>            :     else</a>
+<a name="300"><span class="lineNum">     300 </span><span class="lineNoCov">          0 :        this.target = uvm_root::get();</span></a>
+<a name="301"><span class="lineNum">     301 </span>            :   endfunction</a>
+<a name="302"><span class="lineNum">     302 </span>            : </a>
+<a name="303"><span class="lineNum">     303 </span><span class="lineNoCov">          0 :   virtual function void raised (uvm_objection objection,</span></a>
+<a name="304"><span class="lineNum">     304 </span>            :                                 uvm_object obj,</a>
+<a name="305"><span class="lineNum">     305 </span>            :                                 uvm_object source_obj,</a>
+<a name="306"><span class="lineNum">     306 </span>            :                                 string description,</a>
+<a name="307"><span class="lineNum">     307 </span>            :                                 int count);</a>
+<a name="308"><span class="lineNum">     308 </span><span class="lineNoCov">          0 :     if(obj == target) begin</span></a>
+<a name="309"><span class="lineNum">     309 </span><span class="lineNoCov">          0 :       if(!cnt.exists(source_obj))</span></a>
+<a name="310"><span class="lineNum">     310 </span><span class="lineNoCov">          0 :         cnt[source_obj] = 0;</span></a>
+<a name="311"><span class="lineNum">     311 </span><span class="lineNoCov">          0 :       cnt[source_obj] = cnt[source_obj]+1;</span></a>
+<a name="312"><span class="lineNum">     312 </span><span class="lineNoCov">          0 :       last_trigger[source_obj] = $realtime;</span></a>
+<a name="313"><span class="lineNum">     313 </span>            :     end</a>
+<a name="314"><span class="lineNum">     314 </span>            :   endfunction</a>
+<a name="315"><span class="lineNum">     315 </span>            : </a>
+<a name="316"><span class="lineNum">     316 </span><span class="lineNoCov">          0 :   virtual function void dropped (uvm_objection objection,</span></a>
+<a name="317"><span class="lineNum">     317 </span>            :                                  uvm_object obj,</a>
+<a name="318"><span class="lineNum">     318 </span>            :                                  uvm_object source_obj,</a>
+<a name="319"><span class="lineNum">     319 </span>            :                                  string description,</a>
+<a name="320"><span class="lineNum">     320 </span>            :                                  int count);</a>
+<a name="321"><span class="lineNum">     321 </span><span class="lineNoCov">          0 :     raised(objection,obj,source_obj,description,count);</span></a>
+<a name="322"><span class="lineNum">     322 </span>            :   endfunction</a>
+<a name="323"><span class="lineNum">     323 </span>            : </a>
+<a name="324"><span class="lineNum">     324 </span><span class="lineNoCov">          0 :   function void reset_counts;</span></a>
+<a name="325"><span class="lineNum">     325 </span><span class="lineNoCov">          0 :     foreach(cnt[i]) cnt[i] = 0;</span></a>
+<a name="326"><span class="lineNum">     326 </span>            :   endfunction</a>
+<a name="327"><span class="lineNum">     327 </span>            : </a>
+<a name="328"><span class="lineNum">     328 </span><span class="lineNoCov">          0 :   function int objects_triggered;</span></a>
+<a name="329"><span class="lineNum">     329 </span><span class="lineNoCov">          0 :     objects_triggered = 0; </span></a>
+<a name="330"><span class="lineNum">     330 </span><span class="lineNoCov">          0 :     foreach(cnt[i])</span></a>
+<a name="331"><span class="lineNum">     331 </span><span class="lineNoCov">          0 :       if (cnt[i] != 0)</span></a>
+<a name="332"><span class="lineNum">     332 </span><span class="lineNoCov">          0 :         objects_triggered++;</span></a>
+<a name="333"><span class="lineNum">     333 </span>            :   endfunction</a>
+<a name="334"><span class="lineNum">     334 </span>            : </a>
+<a name="335"><span class="lineNum">     335 </span>            : endclass</a>
+<a name="336"><span class="lineNum">     336 </span>            : </a>
+<a name="337"><span class="lineNum">     337 </span>            : `endif</a>
+<a name="338"><span class="lineNum">     338 </span>            : </a>
+</pre>
+      </td>
+    </tr>
+  </table>
+  <br>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="ruler"><img src="../../../glass.png" width=3 height=3 alt=""></td></tr>
+    <tr><td class="versionInfo">Generated by: <a href="http://ltp.sourceforge.net/coverage/lcov.php" target="_parent">LCOV version 1.14</a></td></tr>
+  </table>
+  <br>
+
+</body>
+</html>

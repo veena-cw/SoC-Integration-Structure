@@ -17,6 +17,7 @@ wire i2c_sda;
 logic i2c_scl;
 
 
+pullup(i2c_sda);
 // internal signals
 logic sda_drive_low;
 logic done;

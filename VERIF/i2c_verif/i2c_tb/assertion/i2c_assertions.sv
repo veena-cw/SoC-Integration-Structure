@@ -45,10 +45,7 @@ end
     // During active-low reset:
     // SDA and SCL must be HIGH
     //========================================================
-<<<<<<< HEAD
 
-=======
->>>>>>> e26f49d (Update Makefile)
     property i2c_reset_check;
         @(posedge clk) !rst_n |=> (sda && scl);
     endproperty

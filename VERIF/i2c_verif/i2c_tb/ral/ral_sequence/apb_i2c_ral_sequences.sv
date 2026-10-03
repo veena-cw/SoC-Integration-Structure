@@ -1393,8 +1393,6 @@ model.STATUS_REG.read(
   endtask
 
 endclass
-<<<<<<< HEAD
-=======
 
 
 class apb_i2c_reg_write_wrong_addr_seq extends apb_i2c_ral_base_seq;
@@ -1996,5 +1994,4 @@ class apb_i2c_invalid_addr_seq extends apb_i2c_ral_base_seq;
 
 endclass
 
->>>>>>> e26f49d (Update Makefile)
 endpackage

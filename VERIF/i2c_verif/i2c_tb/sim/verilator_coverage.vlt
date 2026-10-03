@@ -1,105 +1,92 @@
 `verilator_config
 
-# ============================================================
-# UVM PACKAGE
-# ============================================================
+// ============================================================
+// UVM
+// ============================================================
 
 coverage_off -file "*uvm-1.1d/src/*"
 
 
-# ============================================================
-# FUNCTIONAL COVERAGE
-# Do not include the coverage model itself in RTL line coverage
-# ============================================================
-
-coverage_off -file "*apb_i2c_coverage.sv"
-
-
-# ============================================================
-# UVM / TESTBENCH TRANSACTION CLASSES
-# ============================================================
+// ============================================================
+// I2C TESTBENCH - AGENTS
+// ============================================================
 
 coverage_off -file "*apb_i2c_apb_item.sv"
-coverage_off -file "*apb_i2c_i2c_item.sv"
-
-
-# ============================================================
-# APB TESTBENCH
-# ============================================================
-
+coverage_off -file "*apb_i2c_apb_sequencer.sv"
 coverage_off -file "*apb_i2c_apb_driver.sv"
 coverage_off -file "*apb_i2c_apb_monitor.sv"
 coverage_off -file "*apb_i2c_apb_agent.sv"
 
-
-# ============================================================
-# I2C TESTBENCH
-# ============================================================
-
-coverage_off -file "*apb_i2c_i2c_driver.sv"
+coverage_off -file "*apb_i2c_i2c_item.sv"
+coverage_off -file "*apb_i2c_i2c_bfm.sv"
 coverage_off -file "*apb_i2c_i2c_monitor.sv"
 coverage_off -file "*apb_i2c_i2c_agent.sv"
 
-
-# ============================================================
-# ENVIRONMENT
-# ============================================================
-
-coverage_off -file "*apb_i2c_env.sv"
-coverage_off -file "*apb_i2c_scoreboard.sv"
-coverage_off -file "*apb_i2c_virtual_sequencer.sv"
+coverage_off -file "*apb_i2c_reset_agent.sv"
 
 
-# ============================================================
-# RAL
-# ============================================================
+// ============================================================
+// INTERFACES
+// ============================================================
 
-coverage_off -file "*apb_i2c_ral_model.sv"
+coverage_off -file "*apb_i2c_apb_if.sv"
+coverage_off -file "*apb_i2c_reset_if.sv"
+coverage_off -file "*apb_i2c_i2c_if.sv"
+
+
+// ============================================================
+// RAL
+// ============================================================
+
+coverage_off -file "*apb_i2c_ral_pkg.sv"
+coverage_off -file "*apb_i2c_ral_block.sv"
+coverage_off -file "*apb_i2c_ral_metadata_pkg.sv"
 coverage_off -file "*apb_i2c_apb_adapter.sv"
 coverage_off -file "*apb_i2c_apb_predictor.sv"
-
-
-# ============================================================
-# RAL SEQUENCES
-# ============================================================
-
 coverage_off -file "*apb_i2c_ral_sequences.sv"
+coverage_off -file "*apb_i2c_ral_env.sv"
 
 
-# ============================================================
-# TEST CLASSES
-# ============================================================
+// ============================================================
+// TESTS
+// ============================================================
 
-coverage_off -file "*apb_i2c_base_test.sv"
-coverage_off -file "*apb_i2c_reg_write_test.sv"
-coverage_off -file "*apb_i2c_reg_read_test.sv"
-coverage_off -file "*apb_i2c_reg_reset_test.sv"
-coverage_off -file "*apb_i2c_reg_walk_one_test.sv"
-coverage_off -file "*apb_i2c_reg_mirror_predict_test.sv"
-coverage_off -file "*apb_i2c_reg_write_read_test.sv"
-coverage_off -file "*apb_i2c_reg_write_wrong_addr_test.sv"
-coverage_off -file "*apb_i2c_scoreboard_test.sv"
+coverage_off -file "*apb_i2c_ral_test.sv"
 
 
-# ============================================================
-# ASSERTION FILE
-# Keep this only if you don't want assertion implementation
-# counted as RTL line coverage.
-# ============================================================
+// ============================================================
+// SCOREBOARD
+// ============================================================
+
+coverage_off -file "*apb_i2c_scoreboard.sv"
+
+
+// ============================================================
+// TEST TOP
+// ============================================================
+
+coverage_off -file "*test_top.sv"
+
+
+// ============================================================
+// ASSERTIONS
+// ============================================================
 
 coverage_off -file "*i2c_assertions.sv"
 
 
-# ============================================================
-# TESTBENCH TOP
-# ============================================================
+// ============================================================
+// FUNCTIONAL COVERAGE
+//
+// IMPORTANT:
+// DO NOT disable apb_i2c_coverage.sv
+//
+// This file contains your covergroups / coverpoints.
+// ============================================================
 
-coverage_off -file "*tb_top.sv"
-coverage_off -file "*i2c_tb.sv"
 
-
-# ============================================================
-# VERILATOR INTERNAL LIBRARY
-# ============================================================
-
-coverage_off -file "/opt/verilator-5.052/share/verilator/include/*"
+// ============================================================
+// RTL
+//
+// No coverage_off here.
+// ============================================================

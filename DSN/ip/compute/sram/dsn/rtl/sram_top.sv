@@ -1,40 +1,11 @@
 //------------------------------------------------------------------------------
-// axi4_sram_top.sv
+// sram_top.sv
 //
-// AXI4 -> CDC FIFO -> 750 MHz SRAM integration
+// AXI4 (400 MHz)-> CDC FIFO -> 750 MHz SRAM integration
 //
-// Architecture:
-//
-//                    400 MHz
-//                       |
-//                       v
-//                +--------------+
-//                |  axi4_slave  |
-//                +--------------+
-//                       |
-//                    mem_*
-//                       |
-//                       v
-//                +--------------+
-//                | axi_sram_cdc |
-//                +--------------+
-//                  |          ^
-//             Req FIFO      Resp FIFO
-//             400 -> 750    750 -> 400
-//                  |          |
-//                  v          |
-//                +--------------+
-//                |   tc_sram    |
-//                |    750 MHz   |
-//                +--------------+
-//
-// NOTE:
-// The original axi_sram_adapter is intentionally not instantiated here.
-// Its address conversion and SRAM latency handling are now handled by
-// axi_sram_cdc.
 //------------------------------------------------------------------------------
 
-`timescale 1ns/1ps
+
 
 module sram_top #(
     parameter int ADDR_WIDTH     = 32,

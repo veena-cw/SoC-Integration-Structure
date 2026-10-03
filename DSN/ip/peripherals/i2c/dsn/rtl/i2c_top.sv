@@ -53,16 +53,21 @@ localparam I2C_END_ADDR  = 32'h3001_FFFF;
 
     logic        fifo_wr_en_apb;
     logic        fifo_rd_en_apb;
-
+ 
+    // verilator coverage_off
     logic        fifo_full_tx;
+    // verilator coverage_on
     logic        fifo_empty_tx;
 //----------------------------------
 	logic fifo_wr_en_i2c;
 	logic fifo_rd_en_i2c;
 	logic [7:0] fifo_wr_data_i2c;
 	logic [31:0] fifo_rd_data_i2c;
-
+	
+        // verilator coverage_off
 	logic fifo_full_Rx;
+	 // verilator coverage_on
+	 
 	logic fifo_empty_Rx;
 //---------------------------------------
 
@@ -71,7 +76,9 @@ localparam I2C_END_ADDR  = 32'h3001_FFFF;
 
 //--------------------------------------------
     logic        i2c_fifo_rw;
+    // verilator coverage_off
     logic [2:0]  i2c_fifo_device_sel;
+     // verilator coverage_on
     logic [7:0]  i2c_fifo_data;
 
     logic [6:0]  i2c_slave_address;

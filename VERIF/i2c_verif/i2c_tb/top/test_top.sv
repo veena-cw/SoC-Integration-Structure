@@ -65,12 +65,14 @@ module test_top;
   );
   
   // assertion binding 
-  bind i2c_master  i2c_assertions i2c_assertions_inst (
+  bind i2c_master i2c_assertions #(
+    .ADDR_NACK(1'b0)
+) i2c_assertions_inst (
     .clk     (clk),
-    .rst_n     (rst_n),
+    .rst_n   (rst_n),
     .start   (start),
-    .datain  (datain),
-    .dataout (dataout),
+    .datain  (data_in),       // FIX
+    .dataout (data_out),      // FIX
     .sda     (i2c_sda),
     .scl     (i2c_scl)
 );

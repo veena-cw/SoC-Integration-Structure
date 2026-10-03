@@ -278,9 +278,15 @@ class apb_i2c_reg_write_test extends apb_i2c_base_test;
     wseq.model = env.ral_model;
    wseq.slave_addr = 7'h55;
   wseq.read_write = 1'b0;
+<<<<<<< HEAD
   wseq.tx_data    = 32'h000055A5;
 
+=======
+ 
+    repeat(1)
+>>>>>>> e26f49d (Update Makefile)
     wseq.start(env.agent.sequencer);
+    #10;
    // env.scoreboard.check_mirror_desired("after_write_read");
     phase.drop_objection(this);
   endtask
@@ -313,3 +319,71 @@ class apb_i2c_reg_read_test extends apb_i2c_base_test;
     phase.drop_objection(this);
   endtask
 endclass
+<<<<<<< HEAD
+=======
+
+
+class apb_i2c_reg_write_wrong_addr_test extends apb_i2c_base_test;
+  `uvm_component_utils(apb_i2c_reg_write_wrong_addr_test)
+
+  apb_i2c_reg_write_wrong_addr_seq   wr_seq;
+  function new(string name = "apb_i2c_reg_write_wrong_addr_test", uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+  function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+
+    wr_seq = apb_i2c_reg_write_wrong_addr_seq :: type_id :: create("wr_seq",this);
+  endfunction
+  task run_phase(uvm_phase phase);
+    phase.raise_objection(this);
+    do_reset();
+    `uvm_info(get_type_name(), "WRONG ADDR TEST:", UVM_LOW)
+    wr_seq.model = env.ral_model;
+   // rseq.slave_addr = 7'h55;
+  //rseq.read_write = 1'b1;
+    //repeat(25)
+    wr_seq.start(env.agent.sequencer);
+    
+    phase.drop_objection(this);
+  endtask
+  
+  endclass
+ // apb_i2c_write_data_nack_test
+  
+  class apb_i2c_write_data_nack_test extends apb_i2c_base_test;
+  `uvm_component_utils(apb_i2c_write_data_nack_test)
+
+  apb_i2c_write_data_nack_seq   wr_seq;
+  function new(string name = "apb_i2c_write_data_nack_test", uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+  function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+
+    wr_seq = apb_i2c_write_data_nack_seq :: type_id :: create("wr_seq",this);
+   uvm_resource_db#(bit)::set(
+    "*",
+    "generate_nack",
+    1'b1,
+    this
+);	
+  endfunction
+  task run_phase(uvm_phase phase);
+    phase.raise_objection(this);
+    do_reset();
+    `uvm_info(get_type_name(), "WRITE + NACK:", UVM_LOW)
+    wr_seq.model = env.ral_model;
+   // rseq.slave_addr = 7'h55;
+  //rseq.read_write = 1'b1;
+    //repeat(25)
+    wr_seq.start(env.agent.sequencer);
+    
+    phase.drop_objection(this);
+  endtask
+  
+endclass
+
+
+
+>>>>>>> e26f49d (Update Makefile)

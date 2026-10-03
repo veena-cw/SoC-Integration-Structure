@@ -184,86 +184,424 @@ package apb_i2c_ral_sequences_pkg;
   // WHY SKIPPED: They do not provide stable ordinary storage readback semantics.
   // EXPECTED RESULT: Writable field values read back correctly.
   //============================================================================
-  class apb_i2c_reg_write_read_seq extends apb_i2c_ral_base_seq;
-    `uvm_object_utils(apb_i2c_reg_write_read_seq)
-    function new(string name = "apb_i2c_reg_write_read_seq"); super.new(name); endfunction
-    virtual task body();
-      uvm_status_e status;
-      uvm_reg regs[$];
-      uvm_reg_field fields[$];
-      uvm_reg_data_t current_value;
-      uvm_reg_data_t expected;
-      uvm_reg_data_t actual;
-      uvm_reg_data_t random_value;
-      uvm_reg_data_t writable_mask;
-      uvm_reg_data_t field_mask;
-      uvm_reg rg;
-      uvm_reg_field f;
-      int width;
-      int lsb;
-      bit has_rw;
-      string acc;
-      model.get_registers(regs);
-      foreach (regs[i]) begin
-        rg = regs[i];
-        if (!reg_compare_enabled(rg) || reg_is_volatile(rg)) continue;
-        if (has_read_side_effect(rg.get_name()) || has_write_side_effect(rg.get_name())) continue;
+class apb_i2c_reg_write_read_seq extends apb_i2c_ral_base_seq;
 
-        fields.delete();
-        rg.get_fields(fields);
-        has_rw = 0;
-        foreach (fields[j]) begin
-          f = fields[j];
-          acc = f.get_access();
-          if (acc == "RW") has_rw = 1;
-        end
-        if (!has_rw) continue;
+  `uvm_object_utils(apb_i2c_reg_write_read_seq)
 
-        // Read the current register value first.  This preserves RO/reserved bits
-        // instead of randomizing them as part of a full register write.
-        rg.read(status, current_value, UVM_FRONTDOOR);
-        if (status != UVM_IS_OK) begin
-          `uvm_error(get_type_name(), $sformatf("INITIAL READ FAILED: %s", rg.get_name()))
-          continue;
-        end
+  function new(string name = "apb_i2c_reg_write_read_seq");
+    super.new(name);
+  endfunction
 
-        expected = current_value;
-        writable_mask = '0;
 
-        // Randomize only RW field positions and construct one complete expected value.
-        foreach (fields[j]) begin
-          f = fields[j];
-          acc = f.get_access();
-          if (acc != "RW") continue;
-          width = f.get_n_bits();
-          lsb = f.get_lsb_pos();
-          random_value = { $urandom, $urandom };
-          if (width >= $bits(uvm_reg_data_t))
-            field_mask = '1;
-          else if (width > 0)
-            field_mask = (uvm_reg_data_t'(1) << width) - 1;
-          else
-            field_mask = '0;
-          random_value = random_value & field_mask;
-          expected = (expected & ~(field_mask << lsb)) | ((random_value & field_mask) << lsb);
-          writable_mask = writable_mask | (field_mask << lsb);
-        end
+  virtual task body();
 
-        // Perform one register-level write, then one register-level readback.
-        rg.write(status, expected, UVM_FRONTDOOR);
-        if (status != UVM_IS_OK) begin
-          `uvm_error(get_type_name(), $sformatf("WRITE FAILED: %s expected=0x%0h", rg.get_name(), expected))
-          continue;
-        end
+    uvm_status_e status;
 
-        rg.read(status, actual, UVM_FRONTDOOR);
-        if (status != UVM_IS_OK)
-          `uvm_error(get_type_name(), $sformatf("READ FAILED: %s", rg.get_name()))
-        else if ((actual & writable_mask) !== (expected & writable_mask))
-          `uvm_error(get_type_name(), $sformatf("READBACK MISMATCH: %s expected(writable)=0x%0h actual(writable)=0x%0h full_expected=0x%0h full_actual=0x%0h", rg.get_name(), (expected & writable_mask), (actual & writable_mask), expected, actual))
+    uvm_reg regs[$];
+    uvm_reg_field fields[$];
+
+    uvm_reg_data_t current_value;
+    uvm_reg_data_t expected;
+    uvm_reg_data_t actual;
+    uvm_reg_data_t random_value;
+
+    uvm_reg_data_t writable_mask;
+    uvm_reg_data_t field_mask;
+
+    uvm_reg rg;
+    uvm_reg_field f;
+
+    int width;
+    int lsb;
+
+    bit has_rw;
+    string acc;
+
+
+    if (model == null) begin
+      `uvm_fatal(
+        "RAL_ACCESS",
+        "RAL model is NULL"
+      )
+    end
+
+
+    model.get_registers(regs);
+
+
+    foreach (regs[i]) begin
+
+      rg = regs[i];
+
+
+      `uvm_info(
+        "RAL_ACCESS",
+        $sformatf(
+          "=================================================="
+        ),
+        UVM_LOW
+      )
+
+      `uvm_info(
+        "RAL_ACCESS",
+        $sformatf(
+          "PROCESSING REGISTER: %s",
+          rg.get_name()
+        ),
+        UVM_LOW
+      )
+
+
+      //==========================================================
+      // Skip unsupported/special registers
+      //==========================================================
+
+      if (rg.get_name() == "STATUS_REG") begin
+
+        `uvm_info(
+          "RAL_ACCESS",
+          "Skipping STATUS_REG because DONE/SLAVE_ERROR are read-clear",
+          UVM_LOW
+        )
+
+        continue;
+
       end
-    endtask
-  endclass
+
+
+      if (rg.get_name() == "RXDATA_REG") begin
+
+        `uvm_info(
+          "RAL_ACCESS",
+          "Skipping RXDATA_REG because it is RO",
+          UVM_LOW
+        )
+
+        continue;
+
+      end
+
+
+      if (!reg_compare_enabled(rg))
+        continue;
+
+
+      if (reg_is_volatile(rg))
+        continue;
+
+
+      if (has_read_side_effect(rg.get_name()) ||
+          has_write_side_effect(rg.get_name()))
+        continue;
+
+
+      //==========================================================
+      // Get fields
+      //==========================================================
+
+      fields.delete();
+
+      rg.get_fields(fields);
+
+      has_rw = 0;
+
+
+      foreach (fields[j]) begin
+
+        f = fields[j];
+
+        acc = f.get_access();
+
+        `uvm_info(
+          "RAL_ACCESS",
+          $sformatf(
+            "FIELD: %s.%s ACCESS=%s WIDTH=%0d LSB=%0d",
+            rg.get_name(),
+            f.get_name(),
+            acc,
+            f.get_n_bits(),
+            f.get_lsb_pos()
+          ),
+          UVM_LOW
+        )
+
+
+        if (acc == "RW")
+          has_rw = 1;
+
+      end
+
+
+      if (!has_rw) begin
+
+        `uvm_info(
+          "RAL_ACCESS",
+          $sformatf(
+            "Skipping %s because it has no RW field",
+            rg.get_name()
+          ),
+          UVM_LOW
+        )
+
+        continue;
+
+      end
+
+
+      //==========================================================
+      // INITIAL READ
+      //==========================================================
+
+      `uvm_info(
+        "RAL_ACCESS",
+        $sformatf(
+          "BEFORE INITIAL READ: %s",
+          rg.get_name()
+        ),
+        UVM_LOW
+      )
+
+
+      rg.read(
+        status,
+        current_value,
+        UVM_FRONTDOOR
+      );
+
+
+      `uvm_info(
+        "RAL_ACCESS",
+        $sformatf(
+          "AFTER INITIAL READ: %s VALUE=0x%0h STATUS=%s",
+          rg.get_name(),
+          current_value,
+          status.name()
+        ),
+        UVM_LOW
+      )
+
+
+      if (status != UVM_IS_OK) begin
+
+        `uvm_error(
+          "RAL_ACCESS",
+          $sformatf(
+            "INITIAL READ FAILED: %s",
+            rg.get_name()
+          )
+        )
+
+        continue;
+
+      end
+
+
+      //==========================================================
+      // Build expected value
+      //==========================================================
+
+      expected = current_value;
+
+      writable_mask = '0;
+
+
+      foreach (fields[j]) begin
+
+        f = fields[j];
+
+        acc = f.get_access();
+
+        if (acc != "RW")
+          continue;
+
+
+        width = f.get_n_bits();
+        lsb   = f.get_lsb_pos();
+
+
+        if (width >= $bits(uvm_reg_data_t)) begin
+
+          field_mask = '1;
+
+        end
+        else if (width > 0) begin
+
+          field_mask =
+            (uvm_reg_data_t'(1) << width) - 1;
+
+        end
+        else begin
+
+          field_mask = '0;
+
+        end
+
+
+        random_value = $urandom;
+
+        random_value = random_value & field_mask;
+
+
+        expected =
+          (expected & ~(field_mask << lsb)) |
+          ((random_value & field_mask) << lsb);
+
+
+        writable_mask =
+          writable_mask |
+          (field_mask << lsb);
+
+      end
+
+
+      `uvm_info(
+        "RAL_ACCESS",
+        $sformatf(
+          "EXPECTED WRITE: %s EXPECTED=0x%0h MASK=0x%0h",
+          rg.get_name(),
+          expected,
+          writable_mask
+        ),
+        UVM_LOW
+      )
+
+
+      //==========================================================
+      // WRITE
+      //==========================================================
+
+      `uvm_info(
+        "RAL_ACCESS",
+        $sformatf(
+          "BEFORE WRITE: %s",
+          rg.get_name()
+        ),
+        UVM_LOW
+      )
+
+
+      rg.write(
+        status,
+        expected,
+        UVM_FRONTDOOR
+      );
+
+
+      `uvm_info(
+        "RAL_ACCESS",
+        $sformatf(
+          "AFTER WRITE: %s STATUS=%s",
+          rg.get_name(),
+          status.name()
+        ),
+        UVM_LOW
+      )
+
+
+      if (status != UVM_IS_OK) begin
+
+        `uvm_error(
+          "RAL_ACCESS",
+          $sformatf(
+            "WRITE FAILED: %s expected=0x%0h",
+            rg.get_name(),
+            expected
+          )
+        )
+
+        continue;
+
+      end
+
+
+      //==========================================================
+      // READBACK
+      //==========================================================
+
+      `uvm_info(
+        "RAL_ACCESS",
+        $sformatf(
+          "BEFORE READBACK: %s",
+          rg.get_name()
+        ),
+        UVM_LOW
+      )
+
+
+      rg.read(
+        status,
+        actual,
+        UVM_FRONTDOOR
+      );
+
+
+      `uvm_info(
+        "RAL_ACCESS",
+        $sformatf(
+          "AFTER READBACK: %s ACTUAL=0x%0h STATUS=%s",
+          rg.get_name(),
+          actual,
+          status.name()
+        ),
+        UVM_LOW
+      )
+
+
+      if (status != UVM_IS_OK) begin
+
+        `uvm_error(
+          "RAL_ACCESS",
+          $sformatf(
+            "READ FAILED: %s",
+            rg.get_name()
+          )
+        )
+
+      end
+      else if (
+        (actual & writable_mask) !==
+        (expected & writable_mask)
+      ) begin
+
+        `uvm_error(
+          "RAL_ACCESS",
+          $sformatf(
+            "READBACK MISMATCH: %s EXPECTED=0x%0h ACTUAL=0x%0h MASK=0x%0h",
+            rg.get_name(),
+            expected & writable_mask,
+            actual & writable_mask,
+            writable_mask
+          )
+        )
+
+      end
+      else begin
+
+        `uvm_info(
+          "RAL_ACCESS",
+          $sformatf(
+            "PASS: %s EXPECTED=0x%0h ACTUAL=0x%0h",
+            rg.get_name(),
+            expected & writable_mask,
+            actual & writable_mask
+          ),
+          UVM_LOW
+        )
+
+      end
+
+    end
+
+
+    `uvm_info(
+      "RAL_ACCESS",
+      "RAL REGISTER ACCESS TEST COMPLETED",
+      UVM_LOW
+    )
+
+  endtask
+
+endclass
 
   //============================================================================
   // TEST NAME: apb_i2c_reg_ro_read_seq
@@ -589,8 +927,7 @@ package apb_i2c_ral_sequences_pkg;
         UVM_MEDIUM
       );
 
-      if (busy)
-        #100ns;
+   
 
     end while (busy);
 
@@ -716,8 +1053,7 @@ package apb_i2c_ral_sequences_pkg;
       end
 
 
-      if (!done)
-        #100ns;
+
 
 
     end while (!done);
@@ -851,8 +1187,7 @@ class apb_i2c_reg_read_seq extends apb_i2c_ral_base_seq;
       );
 
 
-      if (busy)
-        #100ns;
+      
 
 
     end while (busy);
@@ -981,8 +1316,7 @@ class apb_i2c_reg_read_seq extends apb_i2c_ral_base_seq;
       end
 
 
-      if (!done)
-        #100ns;
+      
 
 
     end while (!done);
@@ -1059,4 +1393,608 @@ model.STATUS_REG.read(
   endtask
 
 endclass
+<<<<<<< HEAD
+=======
+
+
+class apb_i2c_reg_write_wrong_addr_seq extends apb_i2c_ral_base_seq;
+
+  `uvm_object_utils(apb_i2c_reg_write_wrong_addr_seq)
+
+  rand bit [6:0] slave_addr;
+  rand bit       read_write;
+  rand bit [7:0] tx_data_lower;
+
+  uvm_status_e   status;
+  uvm_reg_data_t status_value;
+
+  bit [31:0] ctrl_value;
+  bit [31:0] tx_data;
+
+  bit busy;
+  bit done;
+  bit slave_error;
+  bit transaction_finished;
+
+
+  //============================================================
+  // Constraints
+  //============================================================
+
+  constraint wrong_addr_c {
+    slave_addr != 7'h55;
+  }
+
+  constraint write_c {
+    read_write == 1'b0;
+  }
+
+
+  function new(string name = "apb_i2c_reg_write_wrong_addr_seq");
+    super.new(name);
+  endfunction
+
+
+  virtual task body();
+
+    //==========================================================
+    // Check RAL model
+    //==========================================================
+
+    if (model == null) begin
+      `uvm_fatal(
+        "RAL_SEQ",
+        "RAL model is NULL"
+      )
+    end
+
+
+    //==========================================================
+    // Randomize transaction
+    //==========================================================
+
+    if (!this.randomize()) begin
+      `uvm_fatal(
+        "I2C_WRONG_ADDR",
+        "Sequence randomization failed"
+      )
+    end
+
+
+    `uvm_info(
+      "I2C_WRONG_ADDR",
+      $sformatf(
+        "RANDOMIZED: SLAVE_ADDR=0x%02h READ_WRITE=%0b TX_LOWER=0x%02h",
+        slave_addr,
+        read_write,
+        tx_data_lower
+      ),
+      UVM_MEDIUM
+    )
+
+
+    //==========================================================
+    // Make sure address is really wrong
+    //==========================================================
+
+    if (slave_addr == 7'h55) begin
+      `uvm_fatal(
+        "I2C_WRONG_ADDR",
+        "Randomized address is unexpectedly 0x55"
+      )
+    end
+
+
+    //==========================================================
+    // CTRL_REG
+    //==========================================================
+
+    ctrl_value = '0;
+
+    ctrl_value[6:0] = slave_addr;
+    ctrl_value[7]   = read_write;
+
+
+    `uvm_info(
+      "I2C_WRONG_ADDR",
+      $sformatf(
+        "CTRL_REG <= 0x%08h SLAVE_ADDR=0x%02h",
+        ctrl_value,
+        slave_addr
+      ),
+      UVM_MEDIUM
+    )
+
+
+    model.CTRL_REG.write(
+      status,
+      ctrl_value,
+      UVM_FRONTDOOR
+    );
+
+
+    if (status != UVM_IS_OK) begin
+      `uvm_fatal(
+        "I2C_WRONG_ADDR",
+        "CTRL_REG write failed"
+      )
+    end
+
+
+    //==========================================================
+    // TXDATA_REG
+    //==========================================================
+
+    tx_data = {
+      16'h0000,
+      read_write,
+      slave_addr,
+      tx_data_lower
+    };
+
+
+    `uvm_info(
+      "I2C_WRONG_ADDR",
+      $sformatf(
+        "TXDATA_REG <= 0x%08h",
+        tx_data
+      ),
+      UVM_MEDIUM
+    )
+
+
+    model.TXDATA_REG.write(
+      status,
+      tx_data,
+      UVM_FRONTDOOR
+    );
+
+
+    if (status != UVM_IS_OK) begin
+      `uvm_fatal(
+        "I2C_WRONG_ADDR",
+        "TXDATA_REG write failed"
+      )
+    end
+
+
+    //==========================================================
+    // WAIT FOR TRANSACTION TO COMPLETE
+    //
+    // We are waiting for DONE.
+    // We are NOT waiting directly for SLAVE_ERROR.
+    //==========================================================
+
+    `uvm_info(
+      "I2C_WRONG_ADDR",
+      "Waiting for transaction DONE...",
+      UVM_LOW
+    )
+
+
+    transaction_finished = 1'b0;
+
+
+    do begin
+
+      //========================================================
+      // Read STATUS
+      //
+      // IMPORTANT:
+      // DONE and SLAVE_ERROR are read-clear.
+      // Therefore this read captures both values.
+      //========================================================
+
+      model.STATUS_REG.read(
+        status,
+        status_value,
+        UVM_FRONTDOOR
+      );
+
+
+      if (status != UVM_IS_OK) begin
+        `uvm_fatal(
+          "I2C_WRONG_ADDR",
+          "STATUS_REG read failed"
+        )
+      end
+
+
+      busy        = status_value[0];
+      done        = status_value[1];
+      slave_error = status_value[2];
+
+
+      `uvm_info(
+        "I2C_WRONG_ADDR",
+        $sformatf(
+          "STATUS=0x%08h BUSY=%0b DONE=%0b SLAVE_ERROR=%0b",
+          status_value,
+          busy,
+          done,
+          slave_error
+        ),
+        UVM_MEDIUM
+      )
+
+    
+
+
+    end while (!done);
+
+
+    //==========================================================
+    // CHECK RESULT
+    //
+    // DO NOT READ STATUS_REG AGAIN HERE.
+    //
+    // The previous read already captured DONE and SLAVE_ERROR.
+    //==========================================================
+
+    if (done && slave_error) begin
+
+      `uvm_info(
+        "I2C_WRONG_ADDR",
+        $sformatf(
+          "PASS: Wrong address generated ACK error. ADDR=0x%02h DONE=1 SLAVE_ERROR=1",
+          slave_addr
+        ),
+        UVM_LOW
+      )
+
+    end
+    else if (done && !slave_error) begin
+
+      `uvm_error(
+        "I2C_WRONG_ADDR",
+        $sformatf(
+          "FAIL: Transaction completed but SLAVE_ERROR=0. ADDR=0x%02h STATUS=0x%08h",
+          slave_addr,
+          status_value
+        )
+      )
+
+    end
+    else begin
+
+      `uvm_error(
+        "I2C_WRONG_ADDR",
+        $sformatf(
+          "FAIL: Transaction did not complete correctly. STATUS=0x%08h",
+          status_value
+        )
+      )
+
+    end
+
+  endtask
+
+endclass
+
+
+//////////////////////////////
+  class apb_i2c_write_data_nack_seq extends apb_i2c_ral_base_seq;
+
+  `uvm_object_utils(apb_i2c_write_data_nack_seq)
+
+  rand bit [6:0]  slave_addr;
+  rand bit        read_write;
+   bit [31:0] tx_data;
+  rand bit [7:0] tx_data_lower;
+  constraint default_c {
+    slave_addr == 7'h55;
+    read_write == 1'b0;
+  }
+
+  function new(string name = "apb_i2c_write_data_nack_seq");
+    super.new(name);
+  endfunction
+
+
+  virtual task body();
+
+    uvm_status_e   status;
+    uvm_reg_data_t status_value;
+    uvm_reg_data_t ctrl_value;
+
+    bit busy;
+    bit done;
+    bit slave_error;
+
+
+    if (model == null) begin
+      `uvm_fatal("RAL_SEQ",
+                 "model is NULL")
+    end
+
+    //========================================================
+    // RANDOMIZE SEQUENCE VARIABLES
+    //========================================================
+
+    if (!(this.randomize())) begin
+      `uvm_fatal("I2C_WRITE",
+                 "Sequence randomization failed")
+    end
+
+    `uvm_info(
+      "I2C_WRITE",
+      $sformatf(
+        "RANDOMIZED: SLAVE_ADDR=0x%02h READ_WRITE=%0b TX_LOWER=0x%02h",
+        slave_addr,
+        read_write,
+        tx_data_lower
+      ),
+      UVM_MEDIUM
+    )
+
+    //========================================================
+    // 1. WAIT UNTIL BUSY = 0
+    //========================================================
+
+    `uvm_info("I2C_WRITE",
+              "Waiting for BUSY = 0",
+              UVM_MEDIUM)
+
+    do begin
+
+      model.STATUS_REG.read(
+        status,
+        status_value,
+        UVM_FRONTDOOR
+      );
+
+      if (status != UVM_IS_OK) begin
+        `uvm_fatal("I2C_WRITE",
+                   "STATUS_REG read failed")
+      end
+
+      busy = status_value[0];
+
+      `uvm_info(
+        "I2C_WRITE",
+        $sformatf(
+          "STATUS = 0x%08h BUSY=%0b",
+          status_value,
+          busy
+        ),
+        UVM_MEDIUM
+      );
+
+      
+
+    end while (busy);
+
+
+    //========================================================
+    // 2. WRITE CTRL_REG
+    //========================================================
+
+	    ctrl_value = '0;
+
+	    ctrl_value[6:0] = slave_addr;
+	    ctrl_value[7]   = read_write;
+
+     //ctrl_value = 32'h0000_0102;
+
+	    `uvm_info(
+	      "I2C_WRITE",
+	      $sformatf(
+		"CTRL_REG <= 0x%08h",
+		ctrl_value
+	      ),
+	      UVM_MEDIUM
+	    )
+
+
+	    model.CTRL_REG.write(
+	      status,
+	      ctrl_value,
+	      UVM_FRONTDOOR
+	    );
+
+
+    if (status != UVM_IS_OK) begin
+      `uvm_fatal(
+        "I2C_WRITE",
+        "CTRL_REG write failed"
+      )
+    end
+
+
+    //========================================================
+    // 3. WRITE TXDATA_REG
+    //========================================================
+    tx_data = {16'h0000,read_write,slave_addr,tx_data_lower};
+    `uvm_info(
+      "I2C_WRITE",
+      $sformatf(
+        "TXDATA_REG <= 0x%08h",
+        tx_data
+      ),
+      UVM_MEDIUM
+    )
+
+
+    model.TXDATA_REG.write(
+      status,
+      tx_data,
+      UVM_FRONTDOOR
+    );
+
+
+    if (status != UVM_IS_OK) begin
+      `uvm_fatal(
+        "I2C_WRITE",
+        "TXDATA_REG write failed"
+      )
+    end
+
+
+    //========================================================
+    // 4. WAIT UNTIL DONE = 1
+    //========================================================
+
+    `uvm_info(
+      "I2C_WRITE",
+      "Waiting for DONE = 1",
+      UVM_MEDIUM
+    )
+
+
+    do begin
+
+      model.STATUS_REG.read(
+        status,
+        status_value,
+        UVM_FRONTDOOR
+      );
+
+
+      if (status != UVM_IS_OK) begin
+        `uvm_fatal(
+          "I2C_WRITE",
+          "STATUS_REG read failed"
+        )
+      end
+
+
+      busy        = status_value[0];
+      done        = status_value[1];
+      slave_error = status_value[2];
+
+
+      `uvm_info(
+        "I2C_WRITE",
+        $sformatf(
+          "STATUS = 0x%08h BUSY=%0b DONE=%0b SLVERR=%0b",
+          status_value,
+          busy,
+          done,
+          slave_error
+        ),
+        UVM_MEDIUM
+      );
+
+
+      // Check error
+      if (slave_error) begin
+        `uvm_error(
+          "I2C_WRITE",
+          "I2C transaction has PASSED because of NACK after write"
+        )
+        break;
+      end
+
+
+      
+
+
+    end while (!done);
+
+
+    if (done) begin
+      `uvm_info(
+        "I2C_WRITE",
+        "I2C WRITE transaction completed",
+        UVM_MEDIUM
+      )
+    end
+   
+
+  endtask
+
+endclass
+
+class apb_i2c_invalid_addr_seq extends apb_i2c_ral_base_seq;
+
+  `uvm_object_utils(apb_i2c_invalid_addr_seq)
+
+  rand bit [31:0] invalid_addr;
+  rand bit [31:0] write_data;
+
+  constraint invalid_addr_c {
+    (invalid_addr < 32'h3001_0000) ||
+    (invalid_addr > 32'h3001_FFFF);
+  }
+
+  function new(string name = "apb_i2c_invalid_addr_seq");
+    super.new(name);
+  endfunction
+
+
+  virtual task body();
+
+    uvm_status_e status;
+    apb_i2c_apb_item req;
+
+    if (model == null) begin
+      `uvm_fatal("INVALID_ADDR",
+                 "RAL model is NULL")
+    end
+
+    // Randomize an address outside the valid range
+    if (!this.randomize()) begin
+      `uvm_fatal("INVALID_ADDR",
+                 "Failed to randomize invalid address")
+    end
+
+    `uvm_info(
+      "INVALID_ADDR",
+      $sformatf(
+        "Testing INVALID APB address = 0x%08h DATA = 0x%08h",
+        invalid_addr,
+        write_data
+      ),
+      UVM_LOW
+    )
+
+    // ---------------------------------------------------------
+    // Direct APB transaction
+    // ---------------------------------------------------------
+
+    req = apb_i2c_apb_item::type_id::create("req");
+
+    req.paddr  = invalid_addr;
+    req.pwrite = 1'b1;
+    req.pwdata = write_data;
+    req.pstrb  = 4'b1111;
+
+    // Send through your APB sequencer
+    start_item(req);
+
+    finish_item(req);
+
+    // ---------------------------------------------------------
+    // Check response
+    // ---------------------------------------------------------
+
+    if (req.pslverr) begin
+
+      `uvm_info(
+        "INVALID_ADDR",
+        $sformatf(
+          "PASS: Invalid address 0x%08h generated PSLVERR",
+          invalid_addr
+        ),
+        UVM_LOW
+      )
+
+    end
+    else begin
+
+      `uvm_error(
+        "INVALID_ADDR",
+        $sformatf(
+          "FAIL: Invalid address 0x%08h was accepted",
+          invalid_addr
+        )
+      )
+
+    end
+
+  endtask
+
+endclass
+
+>>>>>>> e26f49d (Update Makefile)
 endpackage

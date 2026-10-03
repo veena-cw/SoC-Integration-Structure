@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='UTF-8'>
+<title>Verilator Functional Coverage</title>
+
+<style>
+
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f4f6f8;
+    margin: 0;
+    padding: 0;
+}
+
+.header {
+    background: #20252b;
+    color: white;
+    padding: 25px 35px;
+}
+
+.header h1 {
+    margin: 0 0 8px 0;
+}
+
+.container {
+    padding: 25px 35px;
+}
+
+.summary {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.card {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    min-width: 180px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.card-title {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.card-value {
+    font-size: 30px;
+    font-weight: bold;
+}
+
+.covered {
+    color: #16803c;
+}
+
+.uncovered {
+    color: #c62828;
+}
+
+.partial {
+    color: #e68a00;
+}
+
+.file {
+    background: white;
+    margin-bottom: 25px;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    overflow: hidden;
+}
+
+.file-header {
+    background: #e9edf1;
+    padding: 15px 20px;
+    font-weight: bold;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th {
+    background: #f1f3f5;
+    text-align: left;
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+}
+
+td {
+    padding: 9px;
+    border-bottom: 1px solid #eee;
+    vertical-align: top;
+}
+
+td.line {
+    width: 70px;
+    color: #777;
+}
+
+td.type {
+    width: 130px;
+}
+
+td.hits {
+    width: 100px;
+    font-weight: bold;
+}
+
+.source {
+    font-family: monospace;
+    white-space: pre-wrap;
+}
+
+.bar {
+    height: 18px;
+    width: 300px;
+    background: #ddd;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.bar-fill {
+    height: 100%;
+    background: #16803c;
+}
+
+.legend {
+    margin: 20px 0;
+    background: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+}
+
+.badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.badge-covergroup {
+    background: #d9ead3;
+    color: #275e22;
+}
+
+.badge-user {
+    background: #d9eaf7;
+    color: #1d4f73;
+}
+
+.empty {
+    background: white;
+    padding: 30px;
+    border-radius: 8px;
+    color: #a00;
+}
+
+</style>
+
+</head>
+<body>
+<div class='header'>
+<h1>Verilator Functional Coverage</h1>
+<div>Generated: 2026-09-30 14:49:10</div>
+</div>
+<div class='container'>
+<div class='summary'>
+<div class='card'>
+<div class='card-title'>Functional Coverage</div>
+<div class='card-value covered'>39.39%</div>
+</div>
+<div class='card'>
+<div class='card-title'>Total Points</div>
+<div class='card-value'>66</div>
+</div>
+<div class='card'>
+<div class='card-title'>Covered Points</div>
+<div class='card-value covered'>26</div>
+</div>
+<div class='card'>
+<div class='card-title'>Uncovered Points</div>
+<div class='card-value uncovered'>40</div>
+</div>
+</div>
+<h2>Overall Functional Coverage</h2>
+<div class='bar'>
+<div class='bar-fill' style='width:39.39%'></div>
+</div>
+<p>26 / 66 functional coverage points covered</p>
+
+<div class="legend">
+<b>Legend</b><br><br>
+<span class="badge badge-covergroup">covergroup</span>
+SystemVerilog covergroup coverage<br><br>
+<span class="badge badge-user">user</span>
+User functional coverage point
+</div>
+
+<div class='file'>
+<div class='file-header'>apb_i2c_coverage.sv</div>
+<table>
+
+<tr>
+<th>Line</th>
+<th>Type</th>
+<th>Hits</th>
+<th>Coverage Point</th>
+<th>Source</th>
+</tr>
+
+<tr>
+<td class='line'>56</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>1332</td>
+<td>(no comment)</td>
+<td class='source'>+001332  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.cp_write.READ</td>
+</tr>
+<tr>
+<td class='line'>58</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>406</td>
+<td>(no comment)</td>
+<td class='source'>+000406  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.cp_write.WRITE</td>
+</tr>
+<tr>
+<td class='line'>70</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>320</td>
+<td>(no comment)</td>
+<td class='source'>+000320  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.cp_addr.CTRL_REG</td>
+</tr>
+<tr>
+<td class='line'>75</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>862</td>
+<td>(no comment)</td>
+<td class='source'>+000862  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.cp_addr.STATUS_REG</td>
+</tr>
+<tr>
+<td class='line'>80</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>506</td>
+<td>(no comment)</td>
+<td class='source'>+000506  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.cp_addr.TXDATA_REG</td>
+</tr>
+<tr>
+<td class='line'>85</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>50</td>
+<td>(no comment)</td>
+<td class='source'>+000050  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.cp_addr.RXDATA_REG</td>
+</tr>
+<tr>
+<td class='line'>90</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.cp_addr.OTHER</td>
+</tr>
+<tr>
+<td class='line'>102</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.cp_strb.BYTE0</td>
+</tr>
+<tr>
+<td class='line'>104</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>172</td>
+<td>(no comment)</td>
+<td class='source'>+000172  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.cp_strb.BYTE1</td>
+</tr>
+<tr>
+<td class='line'>106</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.cp_strb.BYTE2</td>
+</tr>
+<tr>
+<td class='line'>108</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.cp_strb.BYTE3</td>
+</tr>
+<tr>
+<td class='line'>111</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.cp_strb.BYTE01</td>
+</tr>
+<tr>
+<td class='line'>113</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.cp_strb.BYTE12</td>
+</tr>
+<tr>
+<td class='line'>115</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.cp_strb.BYTE23</td>
+</tr>
+<tr>
+<td class='line'>118</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>234</td>
+<td>(no comment)</td>
+<td class='source'>+000234  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.cp_strb.ALL_BYTES</td>
+</tr>
+<tr>
+<td class='line'>121</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>1332</td>
+<td>(no comment)</td>
+<td class='source'>+001332  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.cp_strb.OTHER</td>
+</tr>
+<tr>
+<td class='line'>133</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>1332</td>
+<td>(no comment)</td>
+<td class='source'>+001332  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.cp_pwdata.ZERO</td>
+</tr>
+<tr>
+<td class='line'>136</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>406</td>
+<td>(no comment)</td>
+<td class='source'>+000406  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.cp_pwdata.NON_ZERO</td>
+</tr>
+<tr>
+<td class='line'>150</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>1112</td>
+<td>(no comment)</td>
+<td class='source'>+001112  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.cp_prdata.ZERO</td>
+</tr>
+<tr>
+<td class='line'>153</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>626</td>
+<td>(no comment)</td>
+<td class='source'>+000626  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.cp_prdata.NON_ZERO</td>
+</tr>
+<tr>
+<td class='line'>167</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>1734</td>
+<td>(no comment)</td>
+<td class='source'>+001734  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.cp_slverr.NO_ERROR</td>
+</tr>
+<tr>
+<td class='line'>169</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>4</td>
+<td>(no comment)</td>
+<td class='source'>-000004  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.cp_slverr.ERROR</td>
+</tr>
+<tr>
+<td class='line'>181</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>148</td>
+<td>(no comment)</td>
+<td class='source'>+000148  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_write.CTRL_REG_x_READ</td>
+</tr>
+<tr>
+<td class='line'>183</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>172</td>
+<td>(no comment)</td>
+<td class='source'>+000172  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_write.CTRL_REG_x_WRITE</td>
+</tr>
+<tr>
+<td class='line'>185</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>50</td>
+<td>(no comment)</td>
+<td class='source'>+000050  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_write.RXDATA_REG_x_READ</td>
+</tr>
+<tr>
+<td class='line'>187</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_write.RXDATA_REG_x_WRITE</td>
+</tr>
+<tr>
+<td class='line'>189</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>862</td>
+<td>(no comment)</td>
+<td class='source'>+000862  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_write.STATUS_REG_x_READ</td>
+</tr>
+<tr>
+<td class='line'>191</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_write.STATUS_REG_x_WRITE</td>
+</tr>
+<tr>
+<td class='line'>193</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>272</td>
+<td>(no comment)</td>
+<td class='source'>+000272  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_write.TXDATA_REG_x_READ</td>
+</tr>
+<tr>
+<td class='line'>195</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>234</td>
+<td>(no comment)</td>
+<td class='source'>+000234  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_write.TXDATA_REG_x_WRITE</td>
+</tr>
+<tr>
+<td class='line'>205</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.CTRL_REG_x_ALL_BYTES</td>
+</tr>
+<tr>
+<td class='line'>207</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.CTRL_REG_x_BYTE0</td>
+</tr>
+<tr>
+<td class='line'>209</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.CTRL_REG_x_BYTE01</td>
+</tr>
+<tr>
+<td class='line'>211</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>172</td>
+<td>(no comment)</td>
+<td class='source'>+000172  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.CTRL_REG_x_BYTE1</td>
+</tr>
+<tr>
+<td class='line'>213</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.CTRL_REG_x_BYTE12</td>
+</tr>
+<tr>
+<td class='line'>215</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.CTRL_REG_x_BYTE2</td>
+</tr>
+<tr>
+<td class='line'>217</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.CTRL_REG_x_BYTE23</td>
+</tr>
+<tr>
+<td class='line'>219</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.CTRL_REG_x_BYTE3</td>
+</tr>
+<tr>
+<td class='line'>221</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.RXDATA_REG_x_ALL_BYTES</td>
+</tr>
+<tr>
+<td class='line'>223</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.RXDATA_REG_x_BYTE0</td>
+</tr>
+<tr>
+<td class='line'>225</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.RXDATA_REG_x_BYTE01</td>
+</tr>
+<tr>
+<td class='line'>227</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.RXDATA_REG_x_BYTE1</td>
+</tr>
+<tr>
+<td class='line'>229</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.RXDATA_REG_x_BYTE12</td>
+</tr>
+<tr>
+<td class='line'>231</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.RXDATA_REG_x_BYTE2</td>
+</tr>
+<tr>
+<td class='line'>233</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.RXDATA_REG_x_BYTE23</td>
+</tr>
+<tr>
+<td class='line'>235</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.RXDATA_REG_x_BYTE3</td>
+</tr>
+<tr>
+<td class='line'>237</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.STATUS_REG_x_ALL_BYTES</td>
+</tr>
+<tr>
+<td class='line'>239</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.STATUS_REG_x_BYTE0</td>
+</tr>
+<tr>
+<td class='line'>241</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.STATUS_REG_x_BYTE01</td>
+</tr>
+<tr>
+<td class='line'>243</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.STATUS_REG_x_BYTE1</td>
+</tr>
+<tr>
+<td class='line'>245</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.STATUS_REG_x_BYTE12</td>
+</tr>
+<tr>
+<td class='line'>247</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.STATUS_REG_x_BYTE2</td>
+</tr>
+<tr>
+<td class='line'>249</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.STATUS_REG_x_BYTE23</td>
+</tr>
+<tr>
+<td class='line'>251</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.STATUS_REG_x_BYTE3</td>
+</tr>
+<tr>
+<td class='line'>253</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>234</td>
+<td>(no comment)</td>
+<td class='source'>+000234  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.TXDATA_REG_x_ALL_BYTES</td>
+</tr>
+<tr>
+<td class='line'>255</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.TXDATA_REG_x_BYTE0</td>
+</tr>
+<tr>
+<td class='line'>257</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.TXDATA_REG_x_BYTE01</td>
+</tr>
+<tr>
+<td class='line'>259</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.TXDATA_REG_x_BYTE1</td>
+</tr>
+<tr>
+<td class='line'>261</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.TXDATA_REG_x_BYTE12</td>
+</tr>
+<tr>
+<td class='line'>263</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.TXDATA_REG_x_BYTE2</td>
+</tr>
+<tr>
+<td class='line'>265</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.TXDATA_REG_x_BYTE23</td>
+</tr>
+<tr>
+<td class='line'>267</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.addr_x_strb.TXDATA_REG_x_BYTE3</td>
+</tr>
+<tr>
+<td class='line'>277</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>4</td>
+<td>(no comment)</td>
+<td class='source'>-000004  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.write_x_error.READ_x_ERROR</td>
+</tr>
+<tr>
+<td class='line'>279</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>1328</td>
+<td>(no comment)</td>
+<td class='source'>+001328  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.write_x_error.READ_x_NO_ERROR</td>
+</tr>
+<tr>
+<td class='line'>281</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits uncovered'>0</td>
+<td>(no comment)</td>
+<td class='source'>-000000  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.write_x_error.WRITE_x_ERROR</td>
+</tr>
+<tr>
+<td class='line'>283</td>
+<td class='type'><span class='badge badge-covergroup'>covergroup</span></td>
+<td class='hits covered'>406</td>
+<td>(no comment)</td>
+<td class='source'>+000406  point: type=covergroup comment= hier=__vlAnonCG_apb_cg.write_x_error.WRITE_x_NO_ERROR</td>
+</tr>
+</table>
+</div>
+</div>
+</body>
+</html>

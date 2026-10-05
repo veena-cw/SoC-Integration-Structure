@@ -60,6 +60,7 @@ module test_top;
     .t_o_pready (APB_vif.pready),
 
     // I2C
+    .i2c_irq_en  (i2c_irq_en),
     .i2c_irq    (i2c_irq),
     .i2c_scl    (I2C_vif.i2c_scl),
     .i2c_sda    (I2C_vif.i2c_sda)

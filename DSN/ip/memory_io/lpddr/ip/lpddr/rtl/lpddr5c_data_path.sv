@@ -14,7 +14,7 @@
 module lpddr5c_data_path #(
     parameter DATA_WIDTH        = 128,
     parameter DFI_DATA_WIDTH    = 64,
-    parameter NUM_CHANNELS      = 2,
+    parameter NUM_CHANNELS      = 1,
     parameter FIFO_DEPTH        = 8,
     parameter ECC_WIDTH         = 8,          // 8-bit ECC for 128-bit data
     parameter ECC_ENABLE        = 1,
@@ -232,38 +232,72 @@ module lpddr5c_data_path #(
     // Read Data Path Implementation
     //========================================================================
     
+//    // DFI Data Accumulation (narrow -> wide)
+//    always_ff @(posedge phy_clk or negedge phy_rst_n) begin
+//        if (!phy_rst_n) begin
+//            rd_data_accum <= '0;
+//            rd_beat_counter <= '0;
+//            rd_data_valid <= 1'b0;
+//        end else begin
+//            if (dfi_rddata_valid) begin
+//                case (rd_beat_counter)
+//                    2'd0: begin
+//                        rd_data_accum[DFI_DATA_WIDTH-1:0] <= dfi_rddata[DFI_DATA_WIDTH-1:0];
+//                        rd_beat_counter <= 2'd1;
+//                        rd_data_valid <= 1'b0;
+//                    end
+//                    2'd1: begin
+//                        rd_data_accum[DATA_WIDTH-1:DFI_DATA_WIDTH] <= dfi_rddata[2*DFI_DATA_WIDTH-1:DFI_DATA_WIDTH];
+//                        rd_beat_counter <= 2'd0;
+//                        rd_data_valid <= 1'b1;  // Complete 128-bit word
+//                    end
+//                    default: begin
+//                        rd_beat_counter <= '0;
+//                        rd_data_valid <= 1'b0;
+//                    end
+//                endcase
+//            end else begin
+//                rd_data_valid <= 1'b0;
+//            end
+//        end
+//    end
+    
+//    assign rd_data_fifo_in = rd_data_accum;
+//    assign rd_fifo_wr_en = rd_data_valid;
+
+
+    //========================================================================
+    // Read Data Path Implementation
+    //========================================================================
+
     // DFI Data Accumulation (narrow -> wide)
+    localparam RD_BEATS = DATA_WIDTH / DFI_DATA_WIDTH;   // 2 here
+    localparam logic [$clog2(RD_BEATS)-1:0] LAST_BEAT = RD_BEATS - 1;
+
+    logic [$clog2(RD_BEATS)-1:0] rd_beat_counter;        // 1 bit when RD_BEATS = 2
+
     always_ff @(posedge phy_clk or negedge phy_rst_n) begin
         if (!phy_rst_n) begin
-            rd_data_accum <= '0;
+            rd_data_accum   <= '0;
             rd_beat_counter <= '0;
-            rd_data_valid <= 1'b0;
+            rd_data_valid   <= 1'b0;
         end else begin
+            rd_data_valid <= 1'b0;
             if (dfi_rddata_valid) begin
-                case (rd_beat_counter)
-                    2'd0: begin
-                        rd_data_accum[DFI_DATA_WIDTH-1:0] <= dfi_rddata[DFI_DATA_WIDTH-1:0];
-                        rd_beat_counter <= 2'd1;
-                        rd_data_valid <= 1'b0;
-                    end
-                    2'd1: begin
-                        rd_data_accum[DATA_WIDTH-1:DFI_DATA_WIDTH] <= dfi_rddata[2*DFI_DATA_WIDTH-1:DFI_DATA_WIDTH];
-                        rd_beat_counter <= 2'd0;
-                        rd_data_valid <= 1'b1;  // Complete 128-bit word
-                    end
-                    default: begin
-                        rd_beat_counter <= '0;
-                        rd_data_valid <= 1'b0;
-                    end
-                endcase
-            end else begin
-                rd_data_valid <= 1'b0;
+                rd_data_accum[rd_beat_counter*DFI_DATA_WIDTH +: DFI_DATA_WIDTH] <= dfi_rddata[DFI_DATA_WIDTH-1:0];
+                if (rd_beat_counter == LAST_BEAT) begin
+                    rd_beat_counter <= '0;
+                    rd_data_valid   <= 1'b1;
+                end else begin
+                    rd_beat_counter <= rd_beat_counter + 1'b1;
+                end
             end
         end
     end
-    
+
     assign rd_data_fifo_in = rd_data_accum;
-    assign rd_fifo_wr_en = rd_data_valid;
+    assign rd_fifo_wr_en   = rd_data_valid;  
+  
     
     // ECC Decoder & Corrector (optional)
     generate

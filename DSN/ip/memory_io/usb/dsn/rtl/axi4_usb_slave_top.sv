@@ -357,6 +357,82 @@ module axi4_usb_slave #(
     assign s_axi_rresp   = rresp_q;
     assign s_axi_rlast   = (rd_state == RD_RESP);
 
+
+
+   // -------------------------------------------------------------------------
+    // AXI response FIFO read side.
+    //
+    // FIFO has registered data_out, so:
+    //   IDLE -> assert rd_en for one AXI cycle
+    //   LOAD -> capture data_out on the following cycle
+    // -------------------------------------------------------------------------
+    typedef enum logic [1:0] {
+        BAXI_IDLE,
+        BAXI_LOAD
+    } baxi_state_t;
+
+    typedef enum logic [1:0] {
+        RAXI_IDLE,
+        RAXI_LOAD
+    } raxi_state_t;
+
+    baxi_state_t baxi_state;
+    raxi_state_t raxi_state;
+
+    assign br_fifo_rd_en = (baxi_state == BAXI_IDLE) &&
+                           (wr_state == WR_WAIT_RESP) &&
+                           !br_fifo_empty;
+
+    assign rr_fifo_rd_en = (raxi_state == RAXI_IDLE) &&
+                           (rd_state == RD_WAIT_RESP) &&
+                           !rr_fifo_empty;
+
+    always_ff @(posedge aclk) begin
+        if (!aresetn) begin
+            baxi_state <= BAXI_IDLE;
+        end
+        else begin
+            case (baxi_state)
+                BAXI_IDLE: begin
+                    if (wr_state == WR_WAIT_RESP && !br_fifo_empty)
+                        baxi_state <= BAXI_LOAD;
+                end
+
+                BAXI_LOAD: begin
+                    bid_q   <= br_fifo_out[BRS_WIDTH-1:2];
+                    bresp_q <= br_fifo_out[1:0];
+                    baxi_state <= BAXI_IDLE;
+                end
+
+                default: baxi_state <= BAXI_IDLE;
+            endcase
+        end
+    end
+
+    always_ff @(posedge aclk) begin
+        if (!aresetn) begin
+            raxi_state <= RAXI_IDLE;
+        end
+        else begin
+            case (raxi_state)
+                RAXI_IDLE: begin
+                    if (rd_state == RD_WAIT_RESP && !rr_fifo_empty)
+                        raxi_state <= RAXI_LOAD;
+                end
+
+                RAXI_LOAD: begin
+                    rid_q   <= rr_fifo_out[RRS_WIDTH-1 -: ID_WIDTH];
+                    rresp_q <= rr_fifo_out[DATA_WIDTH+1:DATA_WIDTH];
+                    rdata_q <= rr_fifo_out[DATA_WIDTH-1:0];
+                    raxi_state <= RAXI_IDLE;
+                end
+
+                default: raxi_state <= RAXI_IDLE;
+            endcase
+        end
+    end
+
+    
     // -------------------------------------------------------------------------
     // AXI write FSM
     // -------------------------------------------------------------------------
@@ -507,78 +583,7 @@ module axi4_usb_slave #(
         end
     end
 
-    // -------------------------------------------------------------------------
-    // AXI response FIFO read side.
-    //
-    // FIFO has registered data_out, so:
-    //   IDLE -> assert rd_en for one AXI cycle
-    //   LOAD -> capture data_out on the following cycle
-    // -------------------------------------------------------------------------
-    typedef enum logic [1:0] {
-        BAXI_IDLE,
-        BAXI_LOAD
-    } baxi_state_t;
-
-    typedef enum logic [1:0] {
-        RAXI_IDLE,
-        RAXI_LOAD
-    } raxi_state_t;
-
-    baxi_state_t baxi_state;
-    raxi_state_t raxi_state;
-
-    assign br_fifo_rd_en = (baxi_state == BAXI_IDLE) &&
-                           (wr_state == WR_WAIT_RESP) &&
-                           !br_fifo_empty;
-
-    assign rr_fifo_rd_en = (raxi_state == RAXI_IDLE) &&
-                           (rd_state == RD_WAIT_RESP) &&
-                           !rr_fifo_empty;
-
-    always_ff @(posedge aclk) begin
-        if (!aresetn) begin
-            baxi_state <= BAXI_IDLE;
-        end
-        else begin
-            case (baxi_state)
-                BAXI_IDLE: begin
-                    if (wr_state == WR_WAIT_RESP && !br_fifo_empty)
-                        baxi_state <= BAXI_LOAD;
-                end
-
-                BAXI_LOAD: begin
-                    bid_q   <= br_fifo_out[BRS_WIDTH-1:2];
-                    bresp_q <= br_fifo_out[1:0];
-                    baxi_state <= BAXI_IDLE;
-                end
-
-                default: baxi_state <= BAXI_IDLE;
-            endcase
-        end
-    end
-
-    always_ff @(posedge aclk) begin
-        if (!aresetn) begin
-            raxi_state <= RAXI_IDLE;
-        end
-        else begin
-            case (raxi_state)
-                RAXI_IDLE: begin
-                    if (rd_state == RD_WAIT_RESP && !rr_fifo_empty)
-                        raxi_state <= RAXI_LOAD;
-                end
-
-                RAXI_LOAD: begin
-                    rid_q   <= rr_fifo_out[RRS_WIDTH-1 -: ID_WIDTH];
-                    rresp_q <= rr_fifo_out[DATA_WIDTH+1:DATA_WIDTH];
-                    rdata_q <= rr_fifo_out[DATA_WIDTH-1:0];
-                    raxi_state <= RAXI_IDLE;
-                end
-
-                default: raxi_state <= RAXI_IDLE;
-            endcase
-        end
-    end
+ 
 
     // -------------------------------------------------------------------------
     // USB CLOCK DOMAIN

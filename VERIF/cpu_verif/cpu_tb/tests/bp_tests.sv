@@ -14,6 +14,11 @@ class bp_base_test extends uvm_test;
   function void build_phase(uvm_phase phase);
     super.build_phase(phase);
     env = bp_env::type_id::create("env", this);
+    // Watchdog: most tests wait for tohost with no bound of their own. A
+    // passing two-core test finishes well under 0.5 ms; a hung core must
+    // fail the run instead of stalling make sim / make regression.
+    // Override with +UVM_TIMEOUT=<time>.
+    uvm_top.set_timeout(2ms, 1);
   endfunction
 
   // Keep reset generation in one place and use the active reset agent before
@@ -561,11 +566,29 @@ class bp_i2c_write_read_test extends bp_base_test;
 
   task run_phase(uvm_phase phase);
     i2c_write_read_seq seq;
+    bit timeout;
     phase.raise_objection(this);
 
     apply_cpu_reset();
     seq = i2c_write_read_seq::type_id::create("seq");
     seq.start(env.bedrock_agt.bedrock_sqr);
+
+    // On two cores hart 1 runs its I2C checks after hart 0, so do not rely
+    // on the sequence's fixed delay: wait for tohost, bounded.
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        #(500us);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("I2C_TIMEOUT", "I2C test did not write tohost within 500 us")
 
     phase.drop_objection(this);
   endtask

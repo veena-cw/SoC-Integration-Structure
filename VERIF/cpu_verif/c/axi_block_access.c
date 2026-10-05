@@ -21,27 +21,17 @@
  */
 
 #include <stdint.h>
+#include "dual_core.h"
 
-#define TOHOST_ADDR     ((volatile uint64_t *)0x00102000UL)
-#define AXI_BLOCK_BASE  0x30020000UL
+#define AXI_BLOCK_BASE  HART_IO(0x30020000UL)
 #define AXI_BLOCK_BYTES 0x100
 #define NUM_DWORDS      (AXI_BLOCK_BYTES / 8)
 
-static uint64_t readback[NUM_DWORDS];
+static uint64_t readback[NUM_HARTS][NUM_DWORDS];
 
 static inline void io_fence(void)
 {
   __asm__ volatile ("fence iorw, iorw" ::: "memory");
-}
-
-static void tohost_exit(uint64_t code)
-{
-  *TOHOST_ADDR = code;
-  io_fence();
-
-  while (1) {
-    /* Wait for the simulation harness to observe tohost. */
-  }
 }
 
 /* Unique per offset, with distinct upper and lower 32-bit halves, so data
@@ -60,7 +50,7 @@ __attribute__((naked, section(".text.start"), used))
 void _start(void)
 {
   __asm__ volatile (
-    "li sp, 0x80004000\n"
+    DUAL_CORE_STACK_INIT
     "jal ra, start_main\n"
     "1: j 1b\n"
   );
@@ -79,12 +69,12 @@ static void start_main(void)
 
   /* Phase 2: read the whole block back. */
   for (unsigned i = 0; i < NUM_DWORDS; i++)
-    readback[i] = block[i];
+    readback[hart_id()][i] = block[i];
   io_fence();
 
   /* Phase 3: compare everything, remembering the first failure. */
   for (unsigned i = 0; i < NUM_DWORDS; i++) {
-    if (readback[i] != pattern(i * 8)) {
+    if (readback[hart_id()][i] != pattern(i * 8)) {
       if (mismatches == 0)
         first_bad = i * 8;
       mismatches++;

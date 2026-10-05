@@ -1,7 +1,8 @@
 # CPU formal regression list
 # Columns: UVM test class, BP test ID, boot image (.nbf) [, cfg=<BP_CFG_ID>].
-# cfg defaults to 0 (unicore); multicore rows use cfg=9 (two cores) and
-# run on their own simulator build (sim/obj_dir_cfg9).
+# cfg defaults to the Makefile's BP_CFG_ID = 9 (two cores, sim/obj_dir_cfg9).
+# Every test runs on both harts (c/dual_core.h); a nonzero tohost is
+# (hart1_result << 32) | hart0_result, hart1_result 0xFFFFFFFF = no report.
 
 # BP-DV-003 - ALU operations
 bp_dv_003_alu_test       3  add_function.nbf

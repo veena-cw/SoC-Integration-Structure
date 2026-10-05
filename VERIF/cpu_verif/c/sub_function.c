@@ -7,27 +7,18 @@
  */
 
 #include <stdint.h>
+#include "dual_core.h"
 
 /* bp_nonsynth_host maps the finish register at host base + 0x2000. */
-#define TOHOST_ADDR ((volatile uint64_t *)0x00102000UL)
 /* Keep the result buffer consistent with add_function.c. */
-#define SUB_RESULTS_ADDR ((volatile uint64_t *)0x80005000UL)
-
-static void tohost_exit(uint64_t code)
-{
-  __asm__ volatile ("fence rw, rw" ::: "memory");
-  *TOHOST_ADDR = code;
-  while (1) {
-    /* Wait for the simulation harness to observe tohost. */
-  }
-}
+#define SUB_RESULTS_ADDR ((volatile uint64_t *)HART_DRAM(0x80005000UL))
 
 static void flush_sub_results(void)
 {
   uintptr_t addr = (uintptr_t)SUB_RESULTS_ADDR;
 
   /* CBO.FLUSH uses immediate 2 and requires a cache-block-aligned address. */
-  __asm__ volatile (".insn i 0x0f, 2, x0, %0, 2" :: "r"(addr) : "memory");
+  cbo_flush(addr);
 }
 
 static void evict_sub_results(void)
@@ -35,7 +26,7 @@ static void evict_sub_results(void)
   /* Addresses 16 KiB apart map to the same L2 set in this configuration. */
   for (uint64_t i = 1; i <= 20; i++) {
     volatile uint64_t *conflict_addr =
-      (volatile uint64_t *)(0x80005000UL + (i * 0x4000UL));
+      (volatile uint64_t *)(HART_DRAM(0x80005000UL) + (i * 0x4000UL));
     *conflict_addr = 0x5AB0000000000000UL | i;
   }
 }
@@ -72,7 +63,7 @@ __attribute__((naked, section(".text.start"), used))
 void _start(void)
 {
   __asm__ volatile (
-    "li sp, 0x80004000\n"
+    DUAL_CORE_STACK_INIT
     "jal ra, start_main\n"
     "1: j 1b\n"
   );

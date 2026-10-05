@@ -7,9 +7,9 @@
  */
 
 #include <stdint.h>
+#include "dual_core.h"
 
-#define TOHOST_ADDR  ((volatile uint64_t *)0x00102000UL)
-#define RESULT_ADDR  ((volatile uint64_t *)0x80005000UL)
+#define RESULT_ADDR  ((volatile uint64_t *)HART_DRAM(0x80005000UL))
 #define ALIAS_STRIDE 0x4000UL
 
 /* Little-endian memory image:
@@ -19,31 +19,30 @@
  * Store destinations begin at offset 8 and remain naturally aligned.
  */
 __attribute__((aligned(64), used))
-volatile uint8_t width_memory[64] = {
+volatile uint8_t width_memory[NUM_HARTS][64] = {
+  {
   0x80, 0x00, 0x01, 0x80, 0x01, 0x00, 0x00, 0x80,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-};
-
-static void tohost_exit(uint64_t code)
-{
-  __asm__ volatile ("fence rw, rw" ::: "memory");
-  *TOHOST_ADDR = code;
-  while (1) {
-    /* Wait for the simulation harness to observe the tohost write. */
+  },
+  {
+  0x80, 0x00, 0x01, 0x80, 0x01, 0x00, 0x00, 0x80,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
   }
-}
+};
+/* This hart's copy (both start with the same image). */
+#define WIDTH_MEMORY (width_memory[hart_id()])
 
 static void flush_result_line(void)
 {
   uintptr_t addr = (uintptr_t)RESULT_ADDR;
-  __asm__ volatile (".insn i 0x0f, 2, x0, %0, 2" :: "r"(addr) : "memory");
+  cbo_flush(addr);
 }
 
 static void evict_result_line(void)
 {
   for (uint64_t i = 1; i <= 20; i++) {
     volatile uint64_t *alias =
-      (volatile uint64_t *)(0x80005000UL + (i * ALIAS_STRIDE));
+      (volatile uint64_t *)(HART_DRAM(0x80005000UL) + (i * ALIAS_STRIDE));
     *alias = 0xD710000000000000UL | i;
   }
 }
@@ -104,7 +103,7 @@ __attribute__((naked, section(".text.start"), used))
 void _start(void)
 {
   __asm__ volatile (
-    "li sp, 0x80004000\n"
+    DUAL_CORE_STACK_INIT
     "jal ra, start_main\n"
     "1: j 1b\n"
   );
@@ -112,14 +111,14 @@ void _start(void)
 
 static void start_main(void)
 {
-  volatile int8_t   *signed_bytes  = (volatile int8_t *)width_memory;
-  volatile uint8_t  *unsigned_bytes = (volatile uint8_t *)width_memory;
-  volatile int16_t  *signed_halves = (volatile int16_t *)(width_memory + 2);
-  volatile uint16_t *unsigned_halves = (volatile uint16_t *)(width_memory + 2);
-  volatile int32_t  *signed_words  = (volatile int32_t *)(width_memory + 4);
-  volatile uint8_t  *store_bytes   = (volatile uint8_t *)(width_memory + 8);
-  volatile uint16_t *store_halves  = (volatile uint16_t *)(width_memory + 10);
-  volatile uint32_t *store_words   = (volatile uint32_t *)(width_memory + 12);
+  volatile int8_t   *signed_bytes  = (volatile int8_t *)WIDTH_MEMORY;
+  volatile uint8_t  *unsigned_bytes = (volatile uint8_t *)WIDTH_MEMORY;
+  volatile int16_t  *signed_halves = (volatile int16_t *)(WIDTH_MEMORY + 2);
+  volatile uint16_t *unsigned_halves = (volatile uint16_t *)(WIDTH_MEMORY + 2);
+  volatile int32_t  *signed_words  = (volatile int32_t *)(WIDTH_MEMORY + 4);
+  volatile uint8_t  *store_bytes   = (volatile uint8_t *)(WIDTH_MEMORY + 8);
+  volatile uint16_t *store_halves  = (volatile uint16_t *)(WIDTH_MEMORY + 10);
+  volatile uint32_t *store_words   = (volatile uint32_t *)(WIDTH_MEMORY + 12);
 
   uint64_t fail = 0;
   int64_t lb = load_lb(signed_bytes);

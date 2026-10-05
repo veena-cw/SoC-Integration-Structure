@@ -21,9 +21,9 @@
  */
 
 #include <stdint.h>
+#include "dual_core.h"
 
-#define TOHOST_ADDR   ((volatile uint64_t *)0x00102000UL)
-#define AXI_TEST_BASE 0x30020000UL
+#define AXI_TEST_BASE HART_IO(0x30020000UL)
 #define AXI_BEAT_BYTES 16
 
 #define KIND_UNSIGNED 1
@@ -32,16 +32,6 @@
 static inline void io_fence(void)
 {
   __asm__ volatile ("fence iorw, iorw" ::: "memory");
-}
-
-static void tohost_exit(uint64_t code)
-{
-  *TOHOST_ADDR = code;
-  io_fence();
-
-  while (1) {
-    /* Wait for the simulation harness to observe tohost. */
-  }
 }
 
 /* Every byte differs per size/offset and the top bit of each byte is set,
@@ -137,7 +127,7 @@ __attribute__((naked, section(".text.start"), used))
 void _start(void)
 {
   __asm__ volatile (
-    "li sp, 0x80004000\n"
+    DUAL_CORE_STACK_INIT
     "jal ra, start_main\n"
     "1: j 1b\n"
   );

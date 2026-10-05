@@ -7,18 +7,9 @@
  */
 
 #include <stdint.h>
+#include "dual_core.h"
 
-#define TOHOST_ADDR         ((volatile uint64_t *)0x00102000UL)
-#define BRANCH_RESULTS_ADDR ((volatile uint64_t *)0x80005000UL)
-
-static void tohost_exit(uint64_t code)
-{
-  __asm__ volatile ("fence rw, rw" ::: "memory");
-  *TOHOST_ADDR = code;
-  while (1) {
-    /* Wait for the simulation harness to observe tohost. */
-  }
-}
+#define BRANCH_RESULTS_ADDR ((volatile uint64_t *)HART_DRAM(0x80005000UL))
 
 /* A nonzero bit in the returned value identifies a wrong branch outcome. */
 __attribute__((noinline, used))
@@ -136,14 +127,14 @@ static uint64_t check_branches(void)
 static void flush_branch_results(void)
 {
   uintptr_t addr = (uintptr_t)BRANCH_RESULTS_ADDR;
-  __asm__ volatile (".insn i 0x0f, 2, x0, %0, 2" :: "r"(addr) : "memory");
+  cbo_flush(addr);
 }
 
 static void evict_branch_results(void)
 {
   for (uint64_t i = 1; i <= 20; i++) {
     volatile uint64_t *conflict_addr =
-      (volatile uint64_t *)(0x80005000UL + (i * 0x4000UL));
+      (volatile uint64_t *)(HART_DRAM(0x80005000UL) + (i * 0x4000UL));
     *conflict_addr = 0x4252414E43480000UL | i; /* ASCII "BRANCH" marker */
   }
 }
@@ -154,7 +145,7 @@ __attribute__((naked, section(".text.start"), used))
 void _start(void)
 {
   __asm__ volatile (
-    "li sp, 0x80004000\n"
+    DUAL_CORE_STACK_INIT
     "jal ra, start_main\n"
     "1: j 1b\n"
   );

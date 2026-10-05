@@ -7,23 +7,12 @@
  */
 
 #include <stdint.h>
+#include "dual_core.h"
 
 /* bp_nonsynth_host maps the finish register at host base + 0x2000. */
-#define TOHOST_ADDR ((volatile uint64_t *)0x00102000UL)
 /* Reserved result buffer in the DRAM address space. The test image is small
  * and the stack grows down from 0x80004000, so this starts above both. */
-#define ADD_RESULTS_ADDR ((volatile uint64_t *)0x80005000UL)
-
-static void tohost_exit(uint64_t code)
-{
-  /* Order result stores before the pass/fail notification. This fence does
-   * not itself force dirty cache lines all the way to backing DRAM. */
-  __asm__ volatile ("fence rw, rw" ::: "memory");
-  *TOHOST_ADDR = code;
-  while (1) {
-    /* Wait for the simulation harness to observe tohost. */
-  }
-}
+#define ADD_RESULTS_ADDR ((volatile uint64_t *)HART_DRAM(0x80005000UL))
 
 static void flush_add_results(void)
 {
@@ -32,7 +21,7 @@ static void flush_add_results(void)
   /* CBO.FLUSH uses immediate 2 and requires a cache-block-aligned address.
    * Emit it as an instruction word so this test still assembles with the
    * repository's base -march=rv64ima setting. */
-  __asm__ volatile (".insn i 0x0f, 2, x0, %0, 2" :: "r"(addr) : "memory");
+  cbo_flush(addr);
 }
 
 static void evict_add_results(void)
@@ -42,7 +31,7 @@ static void evict_add_results(void)
    * the result line out of the write-back L2 and into the DRAM model. */
   for (uint64_t i = 1; i <= 20; i++) {
     volatile uint64_t *conflict_addr =
-      (volatile uint64_t *)(0x80005000UL + (i * 0x4000UL));
+      (volatile uint64_t *)(HART_DRAM(0x80005000UL) + (i * 0x4000UL));
     *conflict_addr = 0xADD0000000000000UL | i;
   }
 }
@@ -84,7 +73,7 @@ __attribute__((naked, section(".text.start"), used))
 void _start(void)
 {
   __asm__ volatile (
-    "li sp, 0x80004000\n"
+    DUAL_CORE_STACK_INIT
     "jal ra, start_main\n"
     "1: j 1b\n"
   );

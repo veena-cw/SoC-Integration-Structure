@@ -31,6 +31,8 @@ VERILATOR    ?= /opt/verilator-5.048/bin/verilator
 VERILATOR_COVERAGE ?= /opt/verilator-5.048/bin/verilator_coverage
 RISCV_MARCH  ?= rv64ima
 RISCV_OPT    ?= -O0
+# Extra C flags for the test programs, e.g. -DDUAL_CORE_USE_CBO_FLUSH
+RISCV_CFLAGS ?=
 
 TEST         ?= bp_base_test
 TOP          ?= cpu_tb_top
@@ -155,10 +157,11 @@ TCNAME       ?= add_function
 TEST_ID      ?= 3
 endif
 
-# BlackParrot configuration (bp_params_e value). 0 = e_bp_default_cfg
-# (unicore); 9 = e_bp_multicore_2_cfg (two cores), selected automatically by
-# the multicore tests above. IDs 0-5 are unicore configs, 6+ are multicore.
-BP_CFG_ID    ?= 0
+# BlackParrot configuration (bp_params_e value). Default 9 =
+# e_bp_multicore_2_cfg (two cores): every C test runs on both harts (see
+# c/dual_core.h). 0 = e_bp_default_cfg (unicore) is still buildable with
+# BP_CFG_ID=0. IDs 0-5 are unicore configs, 6+ are multicore.
+BP_CFG_ID    ?= 9
 ifeq ($(filter $(BP_CFG_ID),0 1 2 3 4 5),)
 BP_MULTICORE := 1
 # In the multicore build, bsg_mem_1r1w's read/write-same-address assertion
@@ -304,7 +307,7 @@ all: compile sim
 
 compile: $(TCNAME).nbf
 
-$(TCNAME).elf: $(C_DIR)/$(TCNAME).c $(C_DIR)/link.ld
+$(TCNAME).elf: $(C_DIR)/$(TCNAME).c $(C_DIR)/link.ld $(C_DIR)/dual_core.h
 	@mkdir -p $(LOG_DIR)
 	@echo "=================================================="
 	@echo " Compiling RISC-V C test"
@@ -314,7 +317,7 @@ $(TCNAME).elf: $(C_DIR)/$(TCNAME).c $(C_DIR)/link.ld
 		-mabi=lp64 \
 		-mcmodel=medany \
 		-nostdlib \
-		$(RISCV_OPT) \
+		$(RISCV_OPT) $(RISCV_CFLAGS) \
 		-T $(C_DIR)/link.ld \
 		$< -o $@ 2>&1 | tee -a $(COMPILE_LOG)
 
@@ -431,7 +434,7 @@ print_exe:
 ###############################################################################
 
 # Regression rows contain: UVM test class, BP test ID, boot image (.nbf), and
-# optionally cfg=<BP_CFG_ID> (default 0, unicore). Each row runs on the
+# optionally cfg=<BP_CFG_ID> (default $(BP_CFG_ID), i.e. 9 = two cores). Each row runs on the
 # simulator built for its config; a config whose simulator does not exist
 # yet is built once (make build BP_CFG_ID=<n>) before its first row.
 REGR_FILE ?= $(SIM_DIR)/../testlist/testlist.f
@@ -468,7 +471,7 @@ regression: check_uvm
 		line=$$(echo "$$line" | sed 's/#.*//' | xargs); \
 		[ -z "$$line" ] && continue; \
 		read -r t test_id nbf opt extra <<< "$$line"; \
-		cfg=0; \
+		cfg=$(BP_CFG_ID); \
 		if [[ "$$opt" =~ ^cfg=([0-9]+)$$ ]]; then cfg=$${BASH_REMATCH[1]}; opt=; fi; \
 		if [ -z "$$t" ] || [ -z "$$test_id" ] || [ -z "$$nbf" ] || [ -n "$$opt" ] || [ -n "$$extra" ] || [[ ! "$$test_id" =~ ^[0-9]+$$ ]] || [[ "$$nbf" != *.nbf ]]; then \
 			echo "ERROR: Invalid regression row: $$line"; \

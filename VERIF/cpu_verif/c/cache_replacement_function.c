@@ -7,19 +7,12 @@
  * different tags. Ten lines therefore exceed the eight available ways.
  */
 #include <stdint.h>
+#include "dual_core.h"
 
-#define TOHOST_ADDR       ((volatile uint64_t *)0x00102000UL)
-#define RESULT_ADDR       ((volatile uint64_t *)0x80005000UL)
-#define CONFLICT_BASE     0x80010000UL
+#define RESULT_ADDR       ((volatile uint64_t *)HART_DRAM(0x80005000UL))
+#define CONFLICT_BASE     HART_DRAM(0x80010000UL)
 #define CONFLICT_STRIDE   0x4000UL
 #define CONFLICT_LINES    10UL
-
-static void tohost_exit(uint64_t code)
-{
-  __asm__ volatile ("fence rw, rw" ::: "memory");
-  *TOHOST_ADDR = code;
-  while (1) { }
-}
 
 static uint64_t load_line(uint64_t index)
 {
@@ -43,7 +36,7 @@ __attribute__((naked, section(".text.start"), used))
 void _start(void)
 {
   __asm__ volatile (
-    "li sp, 0x80004000\n"
+    DUAL_CORE_STACK_INIT
     "jal ra, start_main\n"
     "1: j 1b\n"
   );

@@ -145,9 +145,14 @@ static void tohost_exit(uint64_t code)
     }
   }
 
-  /* Hart 0: report both harts. */
+  /* Hart 0: report both harts. On a single-hart build (unicore reference
+   * runs: RISCV_CFLAGS=-DDUAL_CORE_SINGLE_HART) there is no hart 1. */
+#ifdef DUAL_CORE_SINGLE_HART
+  hart1 = 0;
+#else
   if (dual_wait_marker(DUAL_MAILBOX_DONE))
     hart1 = dual_lo32(*DUAL_MAILBOX_RESULT);
+#endif
 
   *TOHOST_ADDR = (hart1 << 32) | dual_lo32(code);
   dual_fence();

@@ -88,5 +88,14 @@ bp_dv_030_axi_block_dual_core_test 30 axi_block_dual_core.nbf cfg=9
 # in bp_me_addr_to_cce_id / bp_io_tile). Without it: 0xffffffff_00201000.
 bp_dv_031_axi_block_dual_core_3002_test 31 axi_block_dual_core_3002.nbf cfg=9
 
+# BP-DV-032/033/034 - Zicbom cache-block operations on both harts, one test
+# per op: store -> cbo.<op> -> read back (c/cbo_ops.c). cbo.flush currently
+# hangs the core on two cores (Jira); AXI progress markers at 0x0010_8100
+# (+16 per hart) show the step reached. Nonzero tohost per hart:
+# (op << 8) | failing check; hart1 0xFFFFFFFF = no report.
+bp_dv_032_cbo_clean_test 32 cbo_clean.nbf
+bp_dv_033_cbo_flush_test 33 cbo_flush.nbf
+bp_dv_034_cbo_inval_test 34 cbo_inval.nbf
+
 # Supplemental CPU smoke test retained from earlier development
 bp_dv_007_load_add_store_test 9  load_add_store.nbf

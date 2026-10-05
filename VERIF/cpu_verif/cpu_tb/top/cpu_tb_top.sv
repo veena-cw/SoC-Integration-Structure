@@ -288,10 +288,13 @@ module cpu_tb_top
      ,.host_mem_data_i(incoming_vif.mem_fwd_data)
      );
 
-`ifdef BP_DV_020_LOG
-  // Observe only the processor-to-DRAM DMA interface. These are accepted
-  // external-memory requests; cache hits do not create a DRAM request, and a
-  // CPU store may appear here later as a cache-line writeback.
+  // Observe only the processor-to-DRAM DMA interface (L2 <-> bp_nonsynth_dram),
+  // in every test. These are accepted external-memory requests; cache hits do
+  // not create a DRAM request, and a CPU store may appear here later as a
+  // cache-line writeback (or after a CBO.FLUSH). Lines:
+  //   CPU DRAM READ/WRITE request cce=<n> dma=<n> addr=<line> time=<t>
+  //   CPU DRAM READ/WRITE data    cce=<n> dma=<n> data=<beat> time=<t>
+  // BP-DV-020 additionally counts conflict-range traffic (BP_DV_020_LOG).
   always @(posedge clk) begin : dram_dma_interface_log
     if (!reset) begin
       dma_log_pkt_seen       <= '0;
@@ -301,15 +304,16 @@ module cpu_tb_top
       dma_log_last_write     <= '0;
       dma_log_last_read_data <= '0;
       dma_log_last_write_data <= '0;
+`ifdef BP_DV_020_LOG
       bp020_conflict_read_count <= 0;
       bp020_conflict_write_count <= 0;
       bp020_activity_checked <= 1'b0;
+`endif
     end
     else begin
       for (int cce = 0; cce < num_cce_p; cce++) begin
         for (int dma = 0; dma < l2_dmas_p; dma++) begin
-          // Print a request only when its address or direction changes from
-          // the last accepted request on this DMA channel.
+`ifdef BP_DV_020_LOG
           if (dma_pkt_v[cce][dma] && dma_pkt_yumi[cce][dma]
               && (dma_pkt[cce][dma].addr >= BP020_CONFLICT_BASE)
               && (dma_pkt[cce][dma].addr <= BP020_CONFLICT_LAST)) begin
@@ -318,6 +322,10 @@ module cpu_tb_top
             else
               bp020_conflict_read_count++;
           end
+`endif
+
+          // Print a request only when its address or direction changes from
+          // the last accepted request on this DMA channel.
 
           if (dma_pkt_v[cce][dma] && dma_pkt_yumi[cce][dma]
               && (!dma_log_pkt_seen[cce][dma]
@@ -357,6 +365,7 @@ module cpu_tb_top
         end
       end
 
+`ifdef BP_DV_020_LOG
       // The final tohost write is the completion point for the C test. Check
       // the actual accepted DMA traffic before allowing BP-DV-020 to pass.
       if (!bp020_activity_checked
@@ -375,9 +384,9 @@ module cpu_tb_top
                    bp020_conflict_read_count, bp020_conflict_write_count);
         end
       end
+`endif
     end
   end
-`endif
 
   // --------------------------------------------------------------------
   // AXI read data log: what the AXI slave returned vs what the bridge

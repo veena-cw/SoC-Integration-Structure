@@ -556,6 +556,60 @@ class bp_dv_031_axi_block_dual_core_3002_test extends bp_dv_030_axi_block_dual_c
   endfunction
 endclass
 
+// Test IDs: BP-DV-032/033/034 | Feature: Zicbom cache-block operations
+// One test per operation (cbo.clean / cbo.flush / cbo.inval) so a hang in
+// one cannot hide another. A hung core shows up as a BP032_TIMEOUT fatal;
+// the AXI log's progress markers (c/cbo_ops.c) show the step it reached.
+class bp_dv_032_cbo_clean_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_032_cbo_clean_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    cbo_test_seq seq;
+    bit timeout;
+
+    phase.raise_objection(this);
+    apply_cpu_reset();
+    seq = cbo_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        #(500us);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("BP032_TIMEOUT",
+                 "cache-block operation test did not write tohost within 500 us (core hung in the CBO op?)")
+
+    phase.drop_objection(this);
+  endtask
+endclass
+
+class bp_dv_033_cbo_flush_test extends bp_dv_032_cbo_clean_test;
+  `uvm_component_utils(bp_dv_033_cbo_flush_test)
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+endclass
+
+class bp_dv_034_cbo_inval_test extends bp_dv_032_cbo_clean_test;
+  `uvm_component_utils(bp_dv_034_cbo_inval_test)
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+endclass
+
 // Supplemental I2C model smoke test (BP-DV-027, outside the supplied plan).
 class bp_i2c_write_read_test extends bp_base_test;
   `uvm_component_utils(bp_i2c_write_read_test)

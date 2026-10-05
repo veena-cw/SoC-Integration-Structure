@@ -131,7 +131,7 @@ module lpddr5c_data_path #(
     
     // Data alignment from DFI (narrow -> wide)
     reg [DATA_WIDTH-1:0]                rd_data_accum;
-    reg [1:0]                            rd_beat_counter;
+  //  reg [1:0]                            rd_beat_counter;
     reg                                  rd_data_valid;
     
     // Reorder buffer (for out-of-order read returns)

@@ -19,8 +19,9 @@
  *   2. read  : 32 x LD of the same addresses into a buffer in DRAM
  *   3. check : compare the buffer against the expected patterns
  *
- * Every ...8 dword is on AXI lanes 8-15. A bridge that does not move read
- * data from those lanes down to [63:0] fails 16 of the 32 dwords per hart.
+ * MMIO lane convention (bp_bedrock_axi4_bridge): every dword travels in
+ * WDATA/RDATA[63:0], including the 16 per hart at ...8 addresses; a lane
+ * mismatch between bridge and slave would fail those.
  *
  * Result handshake: hart 1 posts its result and then a DONE marker to the
  * AXI region at offsets 0xF00 / 0xF10. Both have addr[3] = 0, so the lane

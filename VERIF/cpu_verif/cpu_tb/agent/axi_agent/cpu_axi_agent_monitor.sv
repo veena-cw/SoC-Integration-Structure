@@ -86,6 +86,22 @@ class cpu_axi_agent_monitor #(
         ap.write(tr);
         `uvm_info("AXI_MON", $sformatf("AXI WRITE %s", tr.convert2string()), UVM_LOW)
 
+        // MMIO lane-convention check (bp_bedrock_axi4_bridge): a transfer
+        // narrower than the bus (<= 8 B) must use only WDATA/WSTRB[63:0],
+        // with exactly its bytes strobed at lane (addr % 8).
+        if (write_bytes < STRB_WIDTH) begin
+          bit [STRB_WIDTH-1:0] exp_strb;
+          exp_strb = ((STRB_WIDTH'(1) << write_bytes) - 1) << (write_addr % 8);
+          if (tr.strb !== exp_strb)
+            `uvm_error("AXI_MMIO_LANE", $sformatf(
+              "MMIO write addr=%h size=%0dB: WSTRB=%h, expected %h (lanes addr%%8 within [7:0])",
+              write_addr, write_bytes, tr.strb, exp_strb))
+          if (tr.data[DATA_WIDTH-1:64] !== '0)
+            `uvm_error("AXI_MMIO_LANE", $sformatf(
+              "MMIO write addr=%h size=%0dB: WDATA[%0d:64]=%h, expected 0",
+              write_addr, write_bytes, DATA_WIDTH-1, tr.data[DATA_WIDTH-1:64]))
+        end
+
         if (tr.last || (write_len == 0)) begin
           write_pending = 1'b0;
         end

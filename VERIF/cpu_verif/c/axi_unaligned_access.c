@@ -4,10 +4,11 @@
  *
  * The region at AXI_TEST_BASE is outside DRAM, so every access below goes
  * BedRock I/O -> bp_bedrock_axi4_bridge -> AXI4 -> cpu_axi_mem_model.
- * The AXI bus is 16 bytes wide, so an access at (addr % 16) != 0 uses the
- * upper byte lanes of WDATA/WSTRB and RDATA. The bridge must move the read
- * data from those lanes back to where BedRock expects it; a bridge that
- * passes RDATA through unchanged only works at offset 0.
+ * The AXI bus is 16 bytes wide. Under the MMIO lane convention
+ * (bp_bedrock_axi4_bridge) every access here (1-8 bytes) travels in
+ * WDATA/RDATA[63:0] at byte (addr % 8), with WSTRB[15:8] = 0, for every
+ * offset 0-15; the AXI monitor flags any MMIO beat that uses [127:64]. The
+ * offsets 8-15 are where a lane mismatch between bridge and slave shows.
  *
  * For each size in {1, 2, 4, 8} and each naturally aligned offset in a
  * 16-byte beat, the test stores a size/offset-unique pattern, loads it back

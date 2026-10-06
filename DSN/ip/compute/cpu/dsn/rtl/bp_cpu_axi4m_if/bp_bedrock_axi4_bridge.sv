@@ -398,11 +398,33 @@ module bp_bedrock_axi4_bridge
     end
   endfunction
 
-  // Byte-strobe for a beat. Multi-beat bursts (size >= AXI width) are
-  // always full-width on every beat by construction, so full mask is
-  // correct there; the only case needing a partial mask is a single-beat
-  // transfer narrower than the bus and/or unaligned within it - which is
-  // exactly the "first beat" (== only beat) case this function computes.
+  // ------------------------------------------------------------------
+  // MMIO data-lane convention (CPU subsystem design decision)
+  //
+  // MMIO / uncached transfers are at most 8 bytes: the core's uncached path
+  // is 64 bits wide and uses only data[63:0] of a BedRock flit. On the
+  // 128-bit AXI bus these transfers use only the lower 64 bits, for both
+  // writes and reads:
+  //   - the data occupies WDATA/RDATA[63:0], with the transfer's bytes at
+  //     byte (addr % 8) - the same position the core uses;
+  //   - WSTRB[15:8] = 0 and WDATA[127:64] = 0; RDATA[127:64] is ignored.
+  // NOTE: this differs from standard AXI4 narrow-transfer lane placement
+  // (byte lanes addr % 16). Every AXI slave on this bus must use the same
+  // convention for transfers with AxSIZE <= 3.
+  // Transfers of a full beat or more (16+ bytes, cached-line size) use the
+  // whole bus unchanged.
+  // ------------------------------------------------------------------
+  localparam int MMIO_BYTES = 8;
+
+  if (DATA_WIDTH < 8 * MMIO_BYTES) begin : gen_mmio_width_check
+    initial
+      $fatal(1, "bp_bedrock_axi4_bridge: DATA_WIDTH (%0d) must be >= 64 for the MMIO lane convention",
+             DATA_WIDTH);
+  end
+
+  // Byte strobe for the first (only) beat of a transfer. Full-width
+  // transfers strobe every lane; MMIO transfers strobe nbytes lanes at
+  // (addr % 8), always within WSTRB[7:0].
   function automatic [DATA_WIDTH/8-1:0] beat_strb(
       input logic [ADDR_WIDTH-1:0] addr,
       input bp_bedrock_msg_size_e  s
@@ -412,62 +434,43 @@ module bp_bedrock_axi4_bridge
     begin
       mask   = '0;
       nbytes = size_bytes(s);
-      if (nbytes > BYTES_PER_AXI_BEAT)
-        nbytes = BYTES_PER_AXI_BEAT;
-      offset = addr % BYTES_PER_AXI_BEAT;
-      for (i = 0; i < DATA_WIDTH/8; i++)
+      if (nbytes >= BYTES_PER_AXI_BEAT)
+        return '1;
+      offset = addr % MMIO_BYTES;
+      for (i = 0; i < MMIO_BYTES; i++)
         if ((i >= offset) && (i < offset + nbytes))
           mask[i] = 1'b1;
       return mask;
     end
   endfunction
 
-  // Byte-lane steering for narrow transfers (size < one AXI beat). AXI
-  // carries a narrow transfer on the lanes given by its address, while
-  // BedRock data for a sub-beat message is not positioned that way:
-  //   - writes: the store value is in the low bytes of the flit (the core
-  //     copies it across 64 bits; the unicore UCE also across the flit),
-  //   - reads: the core takes data[63:0] and picks bytes at (addr % 8)
-  //     (bp_uce e_uc_read_wait keeps only fsm_rev_data_li[63:0]).
-  // Both are fixed by copying the transfer's bytes across the whole beat.
-  // Full-width transfers pass through unchanged.
-
-  // Write: copy the low nbytes of the flit across the beat, so whichever
-  // lanes WSTRB selects (addr % BYTES_PER_AXI_BEAT) hold the store value.
-  function automatic [DATA_WIDTH-1:0] write_lane_data(
+  // Write: MMIO data stays in [63:0] (the core already places the store
+  // bytes at addr % 8); the upper half is driven to zero.
+  function automatic [DATA_WIDTH-1:0] mmio_write_data(
       input logic [DATA_WIDTH-1:0] data,
       input bp_bedrock_msg_size_e  s
   );
     logic [DATA_WIDTH-1:0] out;
-    int unsigned nbytes, i;
     begin
-      nbytes = size_bytes(s);
-      if (nbytes >= BYTES_PER_AXI_BEAT)
+      if (size_bytes(s) >= BYTES_PER_AXI_BEAT)
         return data;
-      for (i = 0; i < BYTES_PER_AXI_BEAT; i++)
-        out[8*i +: 8] = data[8*(i & (nbytes - 1)) +: 8];
+      out = '0;
+      out[8*MMIO_BYTES-1:0] = data[8*MMIO_BYTES-1:0];
       return out;
     end
   endfunction
 
-  // Read: take the nbytes on lane (addr % BYTES_PER_AXI_BEAT) and copy them
-  // across the word, so the core finds them in [63:0] at (addr % 8).
-  // BedRock sub-beat messages are naturally aligned, so the lane offset is
-  // a multiple of nbytes.
-  function automatic [DATA_WIDTH-1:0] read_lane_data(
+  // Read: MMIO data is taken from RDATA[63:0]; the upper half is ignored.
+  function automatic [DATA_WIDTH-1:0] mmio_read_data(
       input logic [DATA_WIDTH-1:0] data,
-      input logic [ADDR_WIDTH-1:0] addr,
       input bp_bedrock_msg_size_e  s
   );
     logic [DATA_WIDTH-1:0] out;
-    int unsigned nbytes, offset, i;
     begin
-      nbytes = size_bytes(s);
-      if (nbytes >= BYTES_PER_AXI_BEAT)
+      if (size_bytes(s) >= BYTES_PER_AXI_BEAT)
         return data;
-      offset = (addr % BYTES_PER_AXI_BEAT) & ~(nbytes - 1);
-      for (i = 0; i < BYTES_PER_AXI_BEAT; i++)
-        out[8*i +: 8] = data[8*(offset + (i & (nbytes - 1))) +: 8];
+      out = '0;
+      out[8*MMIO_BYTES-1:0] = data[8*MMIO_BYTES-1:0];
       return out;
     end
   endfunction
@@ -580,7 +583,7 @@ module bp_bedrock_axi4_bridge
       ST_WR_DATA: begin
         if (beat_count_r == 0) begin
           wdata_valid = 1'b1;
-          wdata       = write_lane_data(req_first_data_r, req_hdr_r.size);
+          wdata       = mmio_write_data(req_first_data_r, req_hdr_r.size);
           wstrb       = beat_strb(req_hdr_r.addr, req_hdr_r.size);
         end else begin
           wdata_valid = bridge_fwd_v;
@@ -601,7 +604,7 @@ module bp_bedrock_axi4_bridge
         rdata_ready = bridge_rev_ready;
         bridge_rev_v        = rdata_valid;
         bridge_rev_header_o = resp_hdr_r;
-        bridge_rev_data     = read_lane_data(rdata, req_hdr_r.addr, req_hdr_r.size);
+        bridge_rev_data     = mmio_read_data(rdata, req_hdr_r.size);
       end
 
       ST_WR_RESP: begin

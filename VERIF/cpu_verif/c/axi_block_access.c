@@ -11,9 +11,11 @@
  *   2. read  : 32 x LD of the same offsets into a buffer in DRAM
  *   3. check : compare the buffer against the expected patterns
  *
- * Each 128-bit beat holds two dwords: offset ...0 on AXI lanes 0-7 and
- * offset ...8 on lanes 8-15. A bridge that does not move read data from
- * lanes 8-15 down to [63:0] fails every ...8 dword (16 of the 32).
+ * MMIO lane convention (bp_bedrock_axi4_bridge): every 8-byte access
+ * travels in WDATA/RDATA[63:0] with WSTRB[15:8] = 0, whether its address
+ * ends in ...0 or ...8; the AXI monitor flags any MMIO beat that uses
+ * [127:64]. Half of the 32 dwords are at ...8 addresses, which is where a
+ * lane mismatch between bridge and slave would show up.
  *
  * tohost == 0 is pass. Otherwise:
  *   tohost = (mismatch_count << 16) | 0x1000 | first_failing_offset

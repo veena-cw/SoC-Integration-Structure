@@ -392,8 +392,10 @@ module cpu_tb_top
   // AXI read data log: what the AXI slave returned vs what the bridge
   // handed to the CPU.
   //
-  //   AXI R    : R-channel beat at the AXI master port, plus the bytes that
-  //              AXI places on lane (araddr % bus_bytes) for that transfer.
+  //   AXI R    : R-channel beat at the AXI master port, plus the transfer's
+  //              bytes at lane (araddr % 8) for MMIO (<= 8 B: RDATA[63:0],
+  //              the bridge's MMIO lane convention) or (araddr % 16) for
+  //              full-width beats.
   //   AXI->CPU : BedRock read response from bp_bedrock_axi4_bridge into
   //              bp_processor, plus the bytes the core takes from it -
   //              data[63:0] starting at byte (addr % 8).
@@ -403,6 +405,11 @@ module cpu_tb_top
   // allows one outstanding read, so each response pairs with the last beat.
   // --------------------------------------------------------------------
   localparam int AXI_LOG_BUS_BYTES = `CPU_AXI_DATA_WIDTH / 8;
+
+  function automatic int unsigned axi_log_lane(input logic [`CPU_AXI_ADDR_WIDTH-1:0] addr,
+                                               input int unsigned nbytes);
+    return (nbytes < AXI_LOG_BUS_BYTES) ? (addr % 8) : (addr % AXI_LOG_BUS_BYTES);
+  endfunction
 
   function automatic logic [63:0] axi_log_bytes(
       input logic [`CPU_AXI_DATA_WIDTH-1:0] data,
@@ -437,12 +444,12 @@ module cpu_tb_top
 
       if (cpu_axi_vif.m_axi_rvalid && cpu_axi_vif.m_axi_rready) begin
         axi_log_r_bytes = axi_log_bytes(cpu_axi_vif.m_axi_rdata,
-                                        axi_log_ar_addr % AXI_LOG_BUS_BYTES,
+                                        axi_log_lane(axi_log_ar_addr, axi_log_ar_bytes),
                                         axi_log_ar_bytes);
         axi_log_r_seen  = 1'b1;
         $display("AXI R    addr=%h size=%0dB lane=%0d rdata=%h bytes=%h time=%0t",
                  axi_log_ar_addr, axi_log_ar_bytes,
-                 axi_log_ar_addr % AXI_LOG_BUS_BYTES,
+                 axi_log_lane(axi_log_ar_addr, axi_log_ar_bytes),
                  cpu_axi_vif.m_axi_rdata, axi_log_r_bytes, $time);
       end
 
@@ -461,6 +468,40 @@ module cpu_tb_top
                  cpu_rev_hdr.addr, cpu_bytes, dut.rev_data, cpu_view,
                  verdict, $time);
         axi_log_r_seen = 1'b0;
+      end
+    end
+  end
+
+  // --------------------------------------------------------------------
+  // CPU write data log: the BedRock write request bp_processor hands to
+  // bp_bedrock_axi4_bridge (before any lane steering in the bridge). For
+  // each uncached write it shows where the CPU placed the store data in the
+  // 128-bit flit and classifies the upper half:
+  //   upper=0      : data only in [63:0], [127:64] all zero
+  //   upper=copy   : [127:64] == [63:0] (data copied into both halves)
+  //   upper=OTHER  : [127:64] holds something else
+  // The AXI W beat that follows is logged by the AXI monitor ("AXI WRITE").
+  // --------------------------------------------------------------------
+  always @(posedge clk) begin : cpu_write_data_log
+    bp_bedrock_mem_fwd_header_s cpu_fwd_hdr;
+    logic [63:0] wr_lo, wr_hi;
+    string       wr_class;
+
+    if (reset) begin
+      cpu_fwd_hdr = dut.fwd_hdr;
+      if (dut.fwd_v && dut.fwd_ready
+          && (cpu_fwd_hdr.msg_type.fwd == e_bedrock_mem_wr)) begin
+        wr_lo = dut.fwd_data[63:0];
+        wr_hi = dut.fwd_data[127:64];
+        if (wr_hi == '0)
+          wr_class = "upper=0";
+        else if (wr_hi == wr_lo)
+          wr_class = "upper=copy";
+        else
+          wr_class = "upper=OTHER";
+        $display("CPU->AXI addr=%h size=%0dB data=%h lower=%h upper=%h %s time=%0t",
+                 cpu_fwd_hdr.addr, 1 << cpu_fwd_hdr.size, dut.fwd_data,
+                 wr_lo, wr_hi, wr_class, $time);
       end
     end
   end

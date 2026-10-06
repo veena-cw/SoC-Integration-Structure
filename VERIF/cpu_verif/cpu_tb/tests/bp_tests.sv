@@ -610,6 +610,90 @@ class bp_dv_034_cbo_inval_test extends bp_dv_032_cbo_clean_test;
   endfunction
 endclass
 
+// Test ID: BP-DV-035 | Feature: M/S/U privilege modes, medeleg/mideleg, mret/sret
+class bp_dv_035_priv_modes_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_035_priv_modes_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    priv_modes_test_seq seq;
+    bit timeout;
+
+    phase.raise_objection(this);
+    apply_cpu_reset();
+    seq = priv_modes_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        #(500us);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("BP035_TIMEOUT",
+                 "privilege-mode test did not write tohost within 500 us")
+
+    phase.drop_objection(this);
+  endtask
+endclass
+
+// Test ID: BP-DV-036 | Feature: Sv39 virtual memory (walks, TLB, 4K/2M/1G,
+// page faults, A/D, SUM, sfence.vma)
+class bp_dv_036_vm_sv39_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_036_vm_sv39_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    vm_sv39_test_seq seq;
+    bit timeout;
+
+    phase.raise_objection(this);
+    apply_cpu_reset();
+    seq = vm_sv39_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        #(1ms);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("BP036_TIMEOUT", "Sv39 test did not write tohost within 1 ms")
+
+    phase.drop_objection(this);
+  endtask
+endclass
+
+// Test ID: BP-DV-037 | Feature: Sv39 instruction page fault (step 6 of
+// vm_sv39.c on its own). Currently fails: after the fault the handler's mret
+// continues at address 0 instead of mepc, so tohost is never written.
+class bp_dv_037_vm_ifetch_fault_test extends bp_dv_036_vm_sv39_test;
+  `uvm_component_utils(bp_dv_037_vm_ifetch_fault_test)
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+endclass
+
 // Supplemental I2C model smoke test (BP-DV-027, outside the supplied plan).
 class bp_i2c_write_read_test extends bp_base_test;
   `uvm_component_utils(bp_i2c_write_read_test)

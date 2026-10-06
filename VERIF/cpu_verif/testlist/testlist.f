@@ -97,5 +97,23 @@ bp_dv_032_cbo_clean_test 32 cbo_clean.nbf
 bp_dv_033_cbo_flush_test 33 cbo_flush.nbf
 bp_dv_034_cbo_inval_test 34 cbo_inval.nbf
 
+# BP-DV-035 - M/S/U privilege modes on both harts: ecall/illegal-CSR/xRET
+# traps from S and U, medeleg (U ecall -> S), mideleg (SSIP taken in S),
+# exact mepc/sepc and MPP/SPP, MPP = U after mret. Nonzero tohost per hart:
+# (step << 8) | (trap index << 4) | check (c/priv_modes.c).
+bp_dv_035_priv_modes_test 35 priv_modes.nbf
+
+# BP-DV-036 - Sv39 virtual memory on both harts: 4K/2M/1G mappings, TLB
+# capacity misses (16 pages), page faults with exact mtval (unmapped, RO
+# store, A=0, D=0, U page from S, misaligned megapage), sfence.vma after a
+# PTE change, SUM. Nonzero tohost per hart: (step << 8) | detail
+# (c/vm_sv39.c).
+bp_dv_036_vm_sv39_test 36 vm_sv39.nbf
+
+# BP-DV-037 - Sv39 instruction page fault (jump to a non-executable page).
+# Currently FAILS (timeout): the fault is reported correctly, but the
+# handler's mret then continues at address 0 instead of mepc (Jira).
+bp_dv_037_vm_ifetch_fault_test 37 vm_sv39_ifetch_fault.nbf
+
 # Supplemental CPU smoke test retained from earlier development
 bp_dv_007_load_add_store_test 9  load_add_store.nbf

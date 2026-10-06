@@ -155,6 +155,15 @@ TEST_ID      ?= 33
 else ifeq ($(TEST),bp_dv_034_cbo_inval_test)
 TCNAME       ?= cbo_inval
 TEST_ID      ?= 34
+else ifeq ($(TEST),bp_dv_035_priv_modes_test)
+TCNAME       ?= priv_modes
+TEST_ID      ?= 35
+else ifeq ($(TEST),bp_dv_036_vm_sv39_test)
+TCNAME       ?= vm_sv39
+TEST_ID      ?= 36
+else ifeq ($(TEST),bp_dv_037_vm_ifetch_fault_test)
+TCNAME       ?= vm_sv39_ifetch_fault
+TEST_ID      ?= 37
 else ifeq ($(TEST),bp_i2c_write_read_test)
 TCNAME       ?= i2c_write_read
 TEST_ID      ?= 27
@@ -316,7 +325,7 @@ all: compile sim
 
 compile: $(TCNAME).nbf
 
-$(TCNAME).elf: $(C_DIR)/$(TCNAME).c $(C_DIR)/link.ld $(C_DIR)/dual_core.h $(wildcard $(C_DIR)/cbo_ops.c $(C_DIR)/axi_block_dual_core.c)
+$(TCNAME).elf: $(C_DIR)/$(TCNAME).c $(C_DIR)/link.ld $(C_DIR)/dual_core.h $(wildcard $(C_DIR)/cbo_ops.c $(C_DIR)/axi_block_dual_core.c $(C_DIR)/vm_sv39.c)
 	@mkdir -p $(LOG_DIR)
 	@echo "=================================================="
 	@echo " Compiling RISC-V C test"

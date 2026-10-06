@@ -66,6 +66,8 @@ package bp_uvm_pkg;
   `include "axi_block_test_seq.sv"
   `include "axi_block_dual_core_test_seq.sv"
   `include "cbo_test_seq.sv"
+  `include "priv_modes_test_seq.sv"
+  `include "vm_sv39_test_seq.sv"
   `include "scoreboard.sv"
   `include "bp_env.sv"
   `include "bp_tests.sv"

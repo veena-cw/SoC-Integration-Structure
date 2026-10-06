@@ -1,0 +1,24 @@
+# =========================
+# PLIC Verification
+# =========================
+
+# Verilator generated files
+VERIF/plic_verif/plic_tb/sim/.verilator_build/
+VERIF/plic_verif/plic_tb/sim/verilator_obj_dir/
+VERIF/plic_verif/plic_tb/sim/verilator_log/
+
+# Waveforms
+VERIF/plic_verif/plic_tb/sim/*.vcd
+VERIF/plic_verif/plic_tb/sim/*.fst
+
+# Simulation logs
+VERIF/plic_verif/plic_tb/sim/*.log
+
+# Coverage
+VERIF/plic_verif/plic_tb/sim/*.dat
+VERIF/plic_verif/plic_tb/sim/*.info
+VERIF/plic_verif/plic_tb/sim/coverage_html/
+
+# Temporary files
+VERIF/plic_verif/plic_tb/sim/*.tmp
+VERIF/plic_verif/plic_tb/sim/*.bak

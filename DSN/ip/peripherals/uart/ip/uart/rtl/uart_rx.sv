@@ -163,7 +163,15 @@ module uart_rx (
           break_cnt_q   <= 13'd0;
           break_armed_q <= 1'b0;
         end
-
+if (break_armed_q) begin
+      state_q      <= S_IDLE;
+      sample_q     <= 4'd0;
+      bit_idx_q    <= 4'd0;
+      votes0_q     <= 1'b0;
+      votes1_q     <= 1'b0;
+      parity_bit_q <= 1'b0;
+    end
+    else begin
         case (state_q)
           S_IDLE: begin
             // Detect falling edge: rx_sync transitions to 0.
@@ -294,6 +302,7 @@ module uart_rx (
 
           default: state_q <= S_IDLE;
         endcase
+        end
       end
     end
   end

@@ -1,4 +1,4 @@
-$RE$REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/src/accumulator_buffer.sv
+$REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/src/accumulator_buffer.sv
 $REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/src/activation_fifo.sv
 $REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/src/activation_unit.sv
 $REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/src/decoder.sv

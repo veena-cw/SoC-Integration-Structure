@@ -130,14 +130,14 @@ module uart_apb_top(
   // Read write Register
   always_ff @(posedge clk or negedge rst_n) 
     if (!rst_n)  {thr_reg_vld,thr_reg}  <= 33'h0;
-    else if (PSEL & PENABLE & PWRITE & (addr == ADDR_THR))  {thr_reg_vld,thr_reg} <= {1'b1,PWDATA[31:0]} ; 
+    else if (PSEL & PENABLE & PWRITE & (addr == ADDR_THR))  {thr_reg_vld,thr_reg} <= {1'b1,23'd0,PWDATA[31:0]} ; 
       //assign thr_data = thr_reg;
   // Read only register
   always_ff @(posedge clk or negedge rst_n)
       if (!rst_n) {rhr_reg_vld, rhr_reg} <= 33'h0;
-  else if ((!rx_empty_o) & (addr == ADDR_RHR)) {rhr_reg_vld, rhr_reg} <= {1'b1, 23'h0,rx_rd_data_o};   // from rx fsm from stop state data_valid_pulse_q is assigned to data_valid_o which signal say that i ahve received all data 
-     // else if (data_valid_o & (addr == ADDR_RHR)) {rhr_reg_vld, rhr_reg} <= {1'b1, rx_rd_data_o};
-     
+     // else if (data_valid_o & (addr == ADDR_RHR)) {rhr_reg_vld, rhr_reg} <= {1'b1, 23'd0,rx_rd_data_o};
+     else if (!rx_empty_o) {rhr_reg_vld, rhr_reg} <= {1'b1, 23'h0,rx_rd_data_o};
+     else  {rhr_reg_vld, rhr_reg} <= 33'h0;
 /* SR (0x08) - read-only, live status
 // bit0 : tx_empty_o   - 1 = TX FIFO empty
 // bit1 : tx_full_o    - 1 = TX FIFO full
@@ -165,19 +165,8 @@ module uart_apb_top(
           if (!rst_n) {cr_reg_vld, cr_reg} <= 33'h0;
           else if (PSEL & PENABLE & PWRITE & (addr == ADDR_CR)) {cr_reg_vld, cr_reg} <= {1'b1,{24'h0, PWDATA[7:0]}};
 
-logic cr0_q, cr1_q;
-
-always_ff @(posedge clk or negedge rst_n)
-    if (!rst_n)
-        {cr1_q, cr0_q} <= 2'b00;
-    else
-        {cr1_q, cr0_q} <= cr_reg[1:0];
-
-assign tx_wr_en_i = cr_reg[0] & ~cr0_q;
-assign rx_rd_en_i = cr_reg[1] & ~cr1_q;
-
-      //assign tx_wr_en_i          = cr_reg[0];
-     // assign rx_rd_en_i          = cr_reg[1];
+      assign tx_wr_en_i          = cr_reg[0];
+      assign rx_rd_en_i          = cr_reg[1];
       assign parity_en_i         = cr_reg[2];        // bit2
       assign parity_mode_i       = cr_reg[4:3];       
       assign stop_2_i            = cr_reg[5];       // 0 = 1 stop bit, 1 = 2 stop bits
@@ -240,7 +229,7 @@ assign rx_rd_en_i = cr_reg[1] & ~cr1_q;
     .parity_en_i       (parity_en_i),
     .parity_mode_i     (parity_mode_i),
     .stop_2_i          (stop_2_i),
-    .flow_en_i         (1'b0),                 // CTS flow control not exposed in CR
+    .flow_en_i         (1'b1),                 // CTS flow control not exposed in CR
     .rts_thresh_i      (5'h0E),                // RTS de-asserts when RX level > 14
     .tx_wr_en_i        (tx_wr_en_i),
     .tx_wr_data_i      (thr_reg[8:0]),
@@ -252,7 +241,7 @@ assign rx_rd_en_i = cr_reg[1] & ~cr1_q;
     .rx_rd_data_o      (rx_rd_data_o),
     .rx_full_o         (rx_full_o),
     .rx_empty_o        (rx_empty_o),
-    .rx_data_valid_o   (data_valid_o),         // added port (see patched uart_top.sv)
+   .rx_data_valid_o   (data_valid_o),         // added port (see patched uart_top.sv)
     .rx_level_o        (),
 
     .frame_err_o       (frame_err_o),
@@ -262,7 +251,7 @@ assign rx_rd_en_i = cr_reg[1] & ~cr1_q;
     .clear_errors_i    (clear_errors),
 
     .rx_irq_en_i       (rx_irq_en_i),
-    .rx_full_irq_en_i  (1'b0),                 // no IER bit for it
+    .rx_full_irq_en_i  (1'b1),                 // no IER bit for it
     .tx_empty_irq_en_i (tx_empty_irq_en_i),
     .err_irq_en_i      (err_irq_en_i),
     .uart_irq          (uart_irq),

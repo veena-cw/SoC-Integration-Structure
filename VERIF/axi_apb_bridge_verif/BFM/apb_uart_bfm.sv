@@ -47,7 +47,7 @@ module apb_uart_bfm #(
         if (PSEL) begin
             case (PADDR[7:0])
                 8'h00: PRDATA = data_reg;        // DATA
-                8'h04: PRDATA = 32'h0000_0001;   // STATUS: TX ready
+                8'h04: PRDATA = 32'h0000_0001 ;   // STATUS: TX ready
                 8'h08: PRDATA = ctrl_reg;        // CTRL
                 8'h0C: PRDATA = baud_reg;        // BAUD
                 8'h10: PRDATA = irq_status_reg;  // IRQ_STATUS

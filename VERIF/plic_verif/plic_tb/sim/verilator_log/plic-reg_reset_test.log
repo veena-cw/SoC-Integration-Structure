@@ -1,0 +1,85 @@
+----------------------------------------------------------------
+UVM-1.1d
+(C) 2007-2013 Mentor Graphics Corporation
+(C) 2007-2013 Cadence Design Systems, Inc.
+(C) 2006-2013 Synopsys, Inc.
+(C) 2011-2013 Cypress Semiconductor Corp.
+----------------------------------------------------------------
+
+  ***********       IMPORTANT RELEASE NOTES         ************
+
+  You are using a version of the UVM library that has been compiled
+  with `UVM_NO_DEPRECATED undefined.
+  See http://www.eda.org/svdb/view.php?id=3313 for more details.
+
+  You are using a version of the UVM library that has been compiled
+  with `UVM_OBJECT_MUST_HAVE_CONSTRUCTOR undefined.
+  See http://www.eda.org/svdb/view.php?id=3770 for more details.
+
+      (Specify +UVM_NO_RELNOTES to turn off this notice)
+
+------------------------------------------------------------
+ ,------.                    ,--.                ,--.       
+ |  .--. ' ,---.  ,--,--.    |  |    ,---. ,---. `--' ,---. 
+ |  '--'.'| .-. |' ,-.  |    |  |   | .-. | .-. |,--.| .--' 
+ |  |\  \ ' '-' '\ '-'  |    |  '--.' '-' ' '-' ||  |\ `--. 
+ `--' '--' `---'  `--`--'    `-----' `---' `-   /`--' `---' 
+                                           `---'            
+ RISC-V Platform Level Interrupt Controller                 
+- Configuration Report -------------------------------------
+ Sources | Targets | Priority-lvl | Threshold? | Event-Cnt  
+    16   |    4    |      8       |    YES     |    8    
+- Register Map ---------------------------------------------
+ Address  Function               Mapping
+ 0x0000   Configuration          TARGETS,SOURCES
+ 0x0004   Configuration          15'h0,TH,PRIORITIES
+ 0x0008   Edge/Level             16'h0, EL[15:0]
+ 0x000c   Interrupt Priority     1'b0,P[7][2:0],1'b0,P[6][2:0],1'b0,P[5][2:0],1'b0,P[4][2:0],1'b0,P[3][2:0],1'b0,P[2][2:0],1'b0,P[1][2:0],1'b0,P[0][2:0]
+ 0x0010   Interrupt Priority     1'b0,P[15][2:0],1'b0,P[14][2:0],1'b0,P[13][2:0],1'b0,P[12][2:0],1'b0,P[11][2:0],1'b0,P[10][2:0],1'b0,P[9][2:0],1'b0,P[8][2:0]
+ 0x0014   Interrupt Enable       16'h0, IE[0][15:0]
+ 0x0018   Interrupt Enable       16'h0, IE[1][15:0]
+ 0x001c   Interrupt Enable       16'h0, IE[2][15:0]
+ 0x0020   Interrupt Enable       16'h0, IE[3][15:0]
+ 0x0024   Priority Threshold     29'h0, Th[0][2:0]
+ 0x0028   Priority Threshold     29'h0, Th[1][2:0]
+ 0x002c   Priority Threshold     29'h0, Th[2][2:0]
+ 0x0030   Priority Threshold     29'h0, Th[3][2:0]
+ 0x0034   ID                     27'h0, ID[0][4:0]
+ 0x0038   ID                     27'h0, ID[1][4:0]
+ 0x003c   ID                     27'h0, ID[2][4:0]
+ 0x0040   ID                     27'h0, ID[3][4:0]
+- End Configuration Report ---------------------------------
+UVM_INFO /home/cw016_lakshmi/SoC-Integration-Structure/VERIF/uvm-1.1d/src/base/uvm_root.svh(370) @ 0: reporter [NO_DPI_TSTNAME] UVM_NO_DPI defined--getting UVM_TESTNAME directly, without DPI
+UVM_WARNING @ 0: reporter [BDTYP] Cannot create a component of type 'plic-reg_reset_test' because it is not registered with the factory.
+UVM_FATAL @ 0: reporter [INVTST] Requested test from command line +UVM_TESTNAME=plic-reg_reset_test not found.
+
+--- UVM Report Summary ---
+
+** Report counts by severity
+UVM_INFO :    1
+UVM_WARNING :    1
+UVM_ERROR :    0
+UVM_FATAL :    1
+** Report counts by id
+[BDTYP]     1
+[INVTST]     1
+[NO_DPI_TSTNAME]     1
+- /home/cw016_lakshmi/SoC-Integration-Structure/VERIF/uvm-1.1d/src/base/uvm_report_object.svh:292: Verilog $finish
+UVM_FATAL @ 0: reporter [NOCOMP] No components instantiated. You must either instantiate at least one component before calling run_test or use run_test to do so. To run a test using run_test, use +UVM_TESTNAME or supply the test name in the argument to run_test(). Exiting simulation.
+
+--- UVM Report Summary ---
+
+** Report counts by severity
+UVM_INFO :    1
+UVM_WARNING :    1
+UVM_ERROR :    0
+UVM_FATAL :    2
+** Report counts by id
+[BDTYP]     1
+[INVTST]     1
+[NOCOMP]     1
+[NO_DPI_TSTNAME]     1
+- /home/cw016_lakshmi/SoC-Integration-Structure/VERIF/uvm-1.1d/src/base/uvm_report_object.svh:292: Verilog $finish
+- S i m u l a t i o n   R e p o r t: Verilator 5.048 2026-04-26
+- Verilator: $finish at 0s; walltime 0.008 s; speed 0.000 s/s
+- Verilator: cpu 0.006 s on 1 threads; allocated 20 MB

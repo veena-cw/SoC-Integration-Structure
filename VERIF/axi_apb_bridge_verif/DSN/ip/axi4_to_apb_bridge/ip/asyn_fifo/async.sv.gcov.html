@@ -1,0 +1,108 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - coverage.info - ../../DSN/ip/axi4_to_apb_bridge/ip/asyn_fifo/async.sv</title>
+  <link rel="stylesheet" type="text/css" href="../../../../../../../gcov.css">
+</head>
+
+<body>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="title">LCOV - code coverage report</td></tr>
+    <tr><td class="ruler"><img src="../../../../../../../glass.png" width=3 height=3 alt=""></td></tr>
+
+    <tr>
+      <td width="100%">
+        <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="35%" class="headerValue"><a href="../../../../../../../index.html">top level</a> - <a href="index.html">../../DSN/ip/axi4_to_apb_bridge/ip/asyn_fifo</a> - async.sv<span style="font-size: 80%;"> (source / <a href="async.sv.func-sort-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="15%"></td>
+            <td width="10%" class="headerCovTableHead">Hit</td>
+            <td width="10%" class="headerCovTableHead">Total</td>
+            <td width="15%" class="headerCovTableHead">Coverage</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">coverage.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntry">9</td>
+            <td class="headerCovTableEntry">10</td>
+            <td class="headerCovTableEntryHi">90.0 %</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Date:</td>
+            <td class="headerValue">2026-10-05 11:46:39</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntryHi">-</td>
+          </tr>
+          <tr><td><img src="../../../../../../../glass.png" width=3 height=3 alt=""></td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr><td class="ruler"><img src="../../../../../../../glass.png" width=3 height=3 alt=""></td></tr>
+  </table>
+
+  <table cellpadding=0 cellspacing=0 border=0>
+    <tr>
+      <td><br></td>
+    </tr>
+    <tr>
+      <td>
+<pre class="sourceHeading">          Line data    Source code</pre>
+<pre class="source">
+<a name="1"><span class="lineNum">       1 </span>            : //`include &quot;synchronizer.v&quot;</a>
+<a name="2"><span class="lineNum">       2 </span>            : //`include &quot;wptr_handler.v&quot;</a>
+<a name="3"><span class="lineNum">       3 </span>            : //`include &quot;rptr_handler.v&quot;</a>
+<a name="4"><span class="lineNum">       4 </span>            : //`include &quot;fifo_mem.v&quot;</a>
+<a name="5"><span class="lineNum">       5 </span>            : </a>
+<a name="6"><span class="lineNum">       6 </span>            : module asynchronous_fifo #(parameter DEPTH=8, DATA_WIDTH= 128) (</a>
+<a name="7"><span class="lineNum">       7 </span><span class="lineCov">       3845 :   input wclk, wrst_n,</span></a>
+<a name="8"><span class="lineNum">       8 </span><span class="lineCov">       3845 :   input rclk, rrst_n,</span></a>
+<a name="9"><span class="lineNum">       9 </span><span class="lineCov">        113 :   input w_en, r_en,</span></a>
+<a name="10"><span class="lineNum">      10 </span><span class="lineCov">         98 :   input [DATA_WIDTH-1:0] data_in,</span></a>
+<a name="11"><span class="lineNum">      11 </span>            :   //output reg [DATA_WIDTH-1:0] data_out,cahnged</a>
+<a name="12"><span class="lineNum">      12 </span><span class="lineCov">        194 :   output logic [DATA_WIDTH-1:0] data_out,</span></a>
+<a name="13"><span class="lineNum">      13 </span><span class="lineCov">        113 :   output logic full, empty</span></a>
+<a name="14"><span class="lineNum">      14 </span>            : );</a>
+<a name="15"><span class="lineNum">      15 </span>            :   </a>
+<a name="16"><span class="lineNum">      16 </span>            :   parameter PTR_WIDTH = $clog2(DEPTH);</a>
+<a name="17"><span class="lineNum">      17 </span>            :  </a>
+<a name="18"><span class="lineNum">      18 </span><span class="lineCov">         28 :   logic [PTR_WIDTH:0] g_wptr_sync, g_rptr_sync;</span></a>
+<a name="19"><span class="lineNum">      19 </span><span class="lineCov">         56 :   logic  [PTR_WIDTH:0] b_wptr, b_rptr;</span></a>
+<a name="20"><span class="lineNum">      20 </span><span class="lineCov">         28 :   logic [PTR_WIDTH:0] g_wptr, g_rptr;</span></a>
+<a name="21"><span class="lineNum">      21 </span>            : </a>
+<a name="22"><span class="lineNum">      22 </span><span class="lineNoCov">          0 :   logic [PTR_WIDTH-1:0] waddr, raddr;</span></a>
+<a name="23"><span class="lineNum">      23 </span>            : </a>
+<a name="24"><span class="lineNum">      24 </span>            :   synchronizer #(PTR_WIDTH) sync_wptr (rclk, rrst_n, g_wptr, g_wptr_sync); //write pointer to read clock domain</a>
+<a name="25"><span class="lineNum">      25 </span>            :   synchronizer #(PTR_WIDTH) sync_rptr (wclk, wrst_n, g_rptr, g_rptr_sync); //read pointer to write clock domain </a>
+<a name="26"><span class="lineNum">      26 </span>            :   </a>
+<a name="27"><span class="lineNum">      27 </span>            :   wptr_handler #(PTR_WIDTH) wptr_h(wclk, wrst_n, w_en,g_rptr_sync,b_wptr,g_wptr,full);</a>
+<a name="28"><span class="lineNum">      28 </span>            :   rptr_handler #(PTR_WIDTH) rptr_h(rclk, rrst_n, r_en,g_wptr_sync,b_rptr,g_rptr,empty);</a>
+<a name="29"><span class="lineNum">      29 </span>            :   fifo_mem #(.DATA_WIDTH(DATA_WIDTH),.PTR_WIDTH(PTR_WIDTH),.DEPTH(DEPTH)) fifom(wclk, w_en, rclk, r_en,b_wptr, b_rptr, data_in,full,empty, data_out);</a>
+<a name="30"><span class="lineNum">      30 </span>            : </a>
+<a name="31"><span class="lineNum">      31 </span>            : endmodule</a>
+<a name="32"><span class="lineNum">      32 </span>            : </a>
+</pre>
+      </td>
+    </tr>
+  </table>
+  <br>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="ruler"><img src="../../../../../../../glass.png" width=3 height=3 alt=""></td></tr>
+    <tr><td class="versionInfo">Generated by: <a href="http://ltp.sourceforge.net/coverage/lcov.php" target="_parent">LCOV version 1.14</a></td></tr>
+  </table>
+  <br>
+
+</body>
+</html>

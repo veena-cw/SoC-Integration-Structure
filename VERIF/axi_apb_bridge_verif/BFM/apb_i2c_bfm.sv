@@ -22,6 +22,7 @@ module apb_i2c_bfm #(
     reg [31:0] ctrl_reg;
     reg [31:0] clk_div_reg;
     reg [31:0] irq_status_reg;
+    reg [31:0] status_reg;
 
     reg [31:0] wait_count;
 
@@ -38,9 +39,9 @@ module apb_i2c_bfm #(
         else if (!PREADY)
             wait_count <= wait_count + 1;
     end
-
+  // Read register map
     always @(*) begin
-        PRDATA = 32'h0;
+        PRDATA = 32'h0000_0000;
 
         if (PSEL) begin
             case (PADDR[7:0])
@@ -49,17 +50,19 @@ module apb_i2c_bfm #(
                 8'h08: PRDATA = 32'h0000_0001;   // STATUS: ready
                 8'h0C: PRDATA = clk_div_reg;     // CLK_DIV
                 8'h10: PRDATA = irq_status_reg;  // IRQ_STATUS
-                default: PRDATA = 32'h0;
+                default: PRDATA = 32'h0000_0000;
             endcase
         end
     end
 
+    // Write register map
     always @(posedge PCLK or negedge PRESETn) begin
         if (!PRESETn) begin
-            data_reg       <= 0;
-            ctrl_reg       <= 0;
-            clk_div_reg    <= 1;
-            irq_status_reg <= 0;
+            data_reg       <= 32'h0;
+            ctrl_reg       <= 32'h0;
+            status_reg     <= 32'h0;
+            clk_div_reg    <= 32'h1;
+            irq_status_reg <= 32'h0;    
         end
         else if (PREADY && PWRITE) begin
             case (PADDR[7:0])
@@ -70,7 +73,7 @@ module apb_i2c_bfm #(
                     if (PSTRB[3]) data_reg[31:24] <= PWDATA[31:24];
                 end
 
-                8'h04: ctrl_reg <= PWDATA;
+                8'h04: begin ctrl_reg <= PWDATA; end
                 8'h0C: clk_div_reg <= PWDATA;
 
                 // Write-one-to-clear

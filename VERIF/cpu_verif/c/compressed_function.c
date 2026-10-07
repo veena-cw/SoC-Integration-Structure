@@ -8,19 +8,10 @@
  */
 
 #include <stdint.h>
+#include "dual_core.h"
 
-#define TOHOST_ADDR  ((volatile uint64_t *)0x00102000UL)
-#define RESULT_ADDR  ((volatile uint64_t *)0x80005000UL)
+#define RESULT_ADDR  ((volatile uint64_t *)HART_DRAM(0x80005000UL))
 #define ALIAS_STRIDE 0x4000UL
-
-static void tohost_exit(uint64_t code)
-{
-  __asm__ volatile ("fence rw, rw" ::: "memory");
-  *TOHOST_ADDR = code;
-  while (1) {
-    /* Wait for the simulation harness to observe the tohost write. */
-  }
-}
 
 /*
  * Output slots written by this routine:
@@ -93,14 +84,14 @@ static void compressed_ops(volatile uint64_t *out)
 static void flush_result_line(void)
 {
   uintptr_t addr = (uintptr_t)RESULT_ADDR;
-  __asm__ volatile (".insn i 0x0f, 2, x0, %0, 2" :: "r"(addr) : "memory");
+  cbo_flush(addr);
 }
 
 static void evict_result_line(void)
 {
   for (uint64_t i = 1; i <= 20; i++) {
     volatile uint64_t *alias =
-      (volatile uint64_t *)(0x80005000UL + (i * ALIAS_STRIDE));
+      (volatile uint64_t *)(HART_DRAM(0x80005000UL) + (i * ALIAS_STRIDE));
     *alias = 0xC019000000000000ULL | i;
   }
 }
@@ -111,7 +102,7 @@ __attribute__((naked, section(".text.start"), used))
 void _start(void)
 {
   __asm__ volatile (
-    "li sp, 0x80004000\n"
+    DUAL_CORE_STACK_INIT
     "jal ra, start_main\n"
     "1: j 1b\n"
   );

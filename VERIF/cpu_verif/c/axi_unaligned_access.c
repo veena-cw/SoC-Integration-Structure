@@ -4,10 +4,11 @@
  *
  * The region at AXI_TEST_BASE is outside DRAM, so every access below goes
  * BedRock I/O -> bp_bedrock_axi4_bridge -> AXI4 -> cpu_axi_mem_model.
- * The AXI bus is 16 bytes wide, so an access at (addr % 16) != 0 uses the
- * upper byte lanes of WDATA/WSTRB and RDATA. The bridge must move the read
- * data from those lanes back to where BedRock expects it; a bridge that
- * passes RDATA through unchanged only works at offset 0.
+ * The AXI bus is 16 bytes wide. Under the MMIO lane convention
+ * (bp_bedrock_axi4_bridge) every access here (1-8 bytes) travels in
+ * WDATA/RDATA[63:0] at byte (addr % 8), with WSTRB[15:8] = 0, for every
+ * offset 0-15; the AXI monitor flags any MMIO beat that uses [127:64]. The
+ * offsets 8-15 are where a lane mismatch between bridge and slave shows.
  *
  * For each size in {1, 2, 4, 8} and each naturally aligned offset in a
  * 16-byte beat, the test stores a size/offset-unique pattern, loads it back
@@ -21,9 +22,9 @@
  */
 
 #include <stdint.h>
+#include "dual_core.h"
 
-#define TOHOST_ADDR   ((volatile uint64_t *)0x00102000UL)
-#define AXI_TEST_BASE 0x30020000UL
+#define AXI_TEST_BASE HART_IO(0x30020000UL)
 #define AXI_BEAT_BYTES 16
 
 #define KIND_UNSIGNED 1
@@ -32,16 +33,6 @@
 static inline void io_fence(void)
 {
   __asm__ volatile ("fence iorw, iorw" ::: "memory");
-}
-
-static void tohost_exit(uint64_t code)
-{
-  *TOHOST_ADDR = code;
-  io_fence();
-
-  while (1) {
-    /* Wait for the simulation harness to observe tohost. */
-  }
 }
 
 /* Every byte differs per size/offset and the top bit of each byte is set,
@@ -137,7 +128,7 @@ __attribute__((naked, section(".text.start"), used))
 void _start(void)
 {
   __asm__ volatile (
-    "li sp, 0x80004000\n"
+    DUAL_CORE_STACK_INIT
     "jal ra, start_main\n"
     "1: j 1b\n"
   );

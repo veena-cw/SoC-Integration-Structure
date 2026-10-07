@@ -11,18 +11,17 @@
  *   hart 1 : 0x0010_4100 - 0x0010_41FF
  *
  * The blocks are in the host-device window (0x0010_xxxx, where tohost also
- * lives) rather than at 0x3002_xxxx as in BP-DV-028/029: in the two-core
- * build, bp_me_addr_to_cce_id routes 0x3xxx_xxxx to CCE id addr[30:24]
- * (0x30), which does not exist, so those accesses never reach AXI. Move
- * the blocks back once that window is routed to the I/O port.
+ * lives). BP-DV-031 (axi_block_dual_core_3002.c) runs this same program at
+ * 0x3002_0000, so both I/O windows are covered on two cores.
  *
  * Each hart runs three separate phases:
  *   1. write : 32 x SD, one 8-byte pattern per dword
  *   2. read  : 32 x LD of the same addresses into a buffer in DRAM
  *   3. check : compare the buffer against the expected patterns
  *
- * Every ...8 dword is on AXI lanes 8-15. A bridge that does not move read
- * data from those lanes down to [63:0] fails 16 of the 32 dwords per hart.
+ * MMIO lane convention (bp_bedrock_axi4_bridge): every dword travels in
+ * WDATA/RDATA[63:0], including the 16 per hart at ...8 addresses; a lane
+ * mismatch between bridge and slave would fail those.
  *
  * Result handshake: hart 1 posts its result and then a DONE marker to the
  * AXI region at offsets 0xF00 / 0xF10. Both have addr[3] = 0, so the lane
@@ -39,7 +38,11 @@
 #include <stdint.h>
 
 #define TOHOST_ADDR      ((volatile uint64_t *)0x00102000UL)
+/* Overridable so BP-DV-031 (axi_block_dual_core_3002.c) can run this same
+ * program at 0x3002_0000. */
+#ifndef AXI_BLOCK_BASE
 #define AXI_BLOCK_BASE   0x00104000UL
+#endif
 #define AXI_BLOCK_BYTES  0x100
 #define NUM_DWORDS       (AXI_BLOCK_BYTES / 8)
 #define NUM_HARTS        2

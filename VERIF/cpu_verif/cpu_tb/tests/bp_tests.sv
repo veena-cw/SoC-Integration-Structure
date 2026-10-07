@@ -14,6 +14,11 @@ class bp_base_test extends uvm_test;
   function void build_phase(uvm_phase phase);
     super.build_phase(phase);
     env = bp_env::type_id::create("env", this);
+    // Watchdog: most tests wait for tohost with no bound of their own. A
+    // passing two-core test finishes well under 0.5 ms; a hung core must
+    // fail the run instead of stalling make sim / make regression.
+    // Override with +UVM_TIMEOUT=<time>.
+    uvm_top.set_timeout(2ms, 1);
   endfunction
 
   // Keep reset generation in one place and use the active reset agent before
@@ -539,6 +544,247 @@ class bp_dv_030_axi_block_dual_core_test extends bp_base_test;
 
 endclass
 
+// Test ID: BP-DV-031 | Feature: BP-DV-030 with the blocks at 0x3002_0000
+// Same sequence and checks as BP-DV-030; only the boot image differs
+// (axi_block_dual_core_3002.nbf). Requires the two-core build (BP_CFG_ID=9).
+// Checks that 0x3xxx_xxxx is routed to the AXI bridge on two cores.
+class bp_dv_031_axi_block_dual_core_3002_test extends bp_dv_030_axi_block_dual_core_test;
+  `uvm_component_utils(bp_dv_031_axi_block_dual_core_3002_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+endclass
+
+// Test IDs: BP-DV-032/033/034 | Feature: Zicbom cache-block operations
+// One test per operation (cbo.clean / cbo.flush / cbo.inval) so a hang in
+// one cannot hide another. A hung core shows up as a BP032_TIMEOUT fatal;
+// the AXI log's progress markers (c/cbo_ops.c) show the step it reached.
+class bp_dv_032_cbo_clean_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_032_cbo_clean_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    cbo_test_seq seq;
+    bit timeout;
+
+    phase.raise_objection(this);
+    apply_cpu_reset();
+    seq = cbo_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        #(500us);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("BP032_TIMEOUT",
+                 "cache-block operation test did not write tohost within 500 us (core hung in the CBO op?)")
+
+    phase.drop_objection(this);
+  endtask
+endclass
+
+class bp_dv_033_cbo_flush_test extends bp_dv_032_cbo_clean_test;
+  `uvm_component_utils(bp_dv_033_cbo_flush_test)
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+endclass
+
+class bp_dv_034_cbo_inval_test extends bp_dv_032_cbo_clean_test;
+  `uvm_component_utils(bp_dv_034_cbo_inval_test)
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+endclass
+
+// Test ID: BP-DV-035 | Feature: M/S/U privilege modes, medeleg/mideleg, mret/sret
+class bp_dv_035_priv_modes_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_035_priv_modes_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    priv_modes_test_seq seq;
+    bit timeout;
+
+    phase.raise_objection(this);
+    apply_cpu_reset();
+    seq = priv_modes_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        #(500us);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("BP035_TIMEOUT",
+                 "privilege-mode test did not write tohost within 500 us")
+
+    phase.drop_objection(this);
+  endtask
+endclass
+
+// Test ID: BP-DV-036 | Feature: Sv39 virtual memory (walks, TLB, 4K/2M/1G,
+// page faults, A/D, SUM, sfence.vma)
+class bp_dv_036_vm_sv39_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_036_vm_sv39_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    vm_sv39_test_seq seq;
+    bit timeout;
+
+    phase.raise_objection(this);
+    apply_cpu_reset();
+    seq = vm_sv39_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        #(1ms);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("BP036_TIMEOUT", "Sv39 test did not write tohost within 1 ms")
+
+    phase.drop_objection(this);
+  endtask
+endclass
+
+// Test ID: BP-DV-037 | Feature: Sv39 instruction page fault (step 6 of
+// vm_sv39.c on its own). Currently fails: after the fault the handler's mret
+// continues at address 0 instead of mepc, so tohost is never written.
+class bp_dv_037_vm_ifetch_fault_test extends bp_dv_036_vm_sv39_test;
+  `uvm_component_utils(bp_dv_037_vm_ifetch_fault_test)
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+endclass
+
+// Test ID: BP-DV-038 | Feature: two-core atomics and cache coherence
+// (AMO / LR-SC / spinlock on shared counters, false sharing, message
+// passing with fences, amoor/amomax). Two-core build only.
+class bp_dv_038_smp_atomics_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_038_smp_atomics_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    smp_atomics_test_seq seq;
+    bit timeout;
+
+    phase.raise_objection(this);
+    apply_cpu_reset();
+    seq = smp_atomics_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        #(1800us);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("BP038_TIMEOUT", "two-core atomics test did not write tohost within 1.8 ms")
+
+    phase.drop_objection(this);
+  endtask
+endclass
+
+// Test ID: BP-DV-039 | Feature: RV64 F/D floating point (both harts)
+class bp_dv_039_fpu_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_039_fpu_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    fpu_test_seq seq;
+    bit timeout;
+
+    phase.raise_objection(this);
+    apply_cpu_reset();
+    seq = fpu_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        #(1ms);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("BP039_TIMEOUT", "FPU test did not write tohost within 1 ms")
+
+    phase.drop_objection(this);
+  endtask
+endclass
+
+// Test ID: BP-DV-040 | Feature: Zba/Zbb/Zbs bit manipulation (both harts)
+class bp_dv_040_bitmanip_test extends bp_dv_039_fpu_test;
+  `uvm_component_utils(bp_dv_040_bitmanip_test)
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+endclass
+
+// Test ID: BP-DV-041 | Feature: Zba sh1add/sh2add/sh3add(.uw). Currently fails:
+// shift amount taken from rs2[5:0] instead of 1/2/3 (bp_be_pipe_int.sv).
+class bp_dv_041_bitmanip_shadd_test extends bp_dv_039_fpu_test;
+  `uvm_component_utils(bp_dv_041_bitmanip_shadd_test)
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+endclass
+
 // Supplemental I2C model smoke test (BP-DV-027, outside the supplied plan).
 class bp_i2c_write_read_test extends bp_base_test;
   `uvm_component_utils(bp_i2c_write_read_test)
@@ -549,11 +795,29 @@ class bp_i2c_write_read_test extends bp_base_test;
 
   task run_phase(uvm_phase phase);
     i2c_write_read_seq seq;
+    bit timeout;
     phase.raise_objection(this);
 
     apply_cpu_reset();
     seq = i2c_write_read_seq::type_id::create("seq");
     seq.start(env.bedrock_agt.bedrock_sqr);
+
+    // On two cores hart 1 runs its I2C checks after hart 0, so do not rely
+    // on the sequence's fixed delay: wait for tohost, bounded.
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        #(500us);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("I2C_TIMEOUT", "I2C test did not write tohost within 500 us")
 
     phase.drop_objection(this);
   endtask

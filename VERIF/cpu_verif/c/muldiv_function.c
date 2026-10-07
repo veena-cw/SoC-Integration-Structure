@@ -5,20 +5,11 @@
  */
 
 #include <stdint.h>
+#include "dual_core.h"
 
-#define TOHOST_ADDR ((volatile uint64_t *)0x00102000UL)
-#define MULDIV_RESULTS_ADDR ((volatile uint64_t *)0x80005000UL)
+#define MULDIV_RESULTS_ADDR ((volatile uint64_t *)HART_DRAM(0x80005000UL))
 #define MULDIV_RESULT_COUNT 25UL
 #define CACHE_LINE_BYTES 64UL
-
-static void tohost_exit(uint64_t code)
-{
-  __asm__ volatile ("fence rw, rw" ::: "memory");
-  *TOHOST_ADDR = code;
-  while (1) {
-    /* Wait for the simulation harness to observe tohost. */
-  }
-}
 
 static void record_and_check(uint64_t result, uint64_t expected,
                              uint64_t test_number)
@@ -43,7 +34,7 @@ static void flush_results(void)
 {
   for (uint64_t line = 0; line < (MULDIV_RESULT_COUNT + 7) / 8; line++) {
     uintptr_t addr = (uintptr_t)MULDIV_RESULTS_ADDR + (line * CACHE_LINE_BYTES);
-    __asm__ volatile (".insn i 0x0f, 2, x0, %0, 2" :: "r"(addr) : "memory");
+    cbo_flush(addr);
   }
 }
 
@@ -64,7 +55,7 @@ __attribute__((naked, section(".text.start"), used))
 void _start(void)
 {
   __asm__ volatile (
-    "li sp, 0x80004000\n"
+    DUAL_CORE_STACK_INIT
     "jal ra, start_main\n"
     "1: j 1b\n"
   );

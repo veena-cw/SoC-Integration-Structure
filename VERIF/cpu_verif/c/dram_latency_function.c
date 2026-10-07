@@ -1,7 +1,7 @@
 #include <stdint.h>
+#include "dual_core.h"
 
-#define TOHOST_ADDR       ((volatile uint64_t *)0x00102000UL)
-#define RESULT_ADDR       ((volatile uint64_t *)0x80005000UL)
+#define RESULT_ADDR       ((volatile uint64_t *)HART_DRAM(0x80005000UL))
 #define DATA_LINES        512UL
 #define TEST_ROUNDS       4UL
 
@@ -136,20 +136,13 @@ static volatile uint64_t latency_data[DATA_LINES] __attribute__((aligned(64), us
   0xD024000000000000ULL | 508ULL, 0xD024000000000000ULL | 509ULL, 0xD024000000000000ULL | 510ULL, 0xD024000000000000ULL | 511ULL
 };
 
-static void tohost_exit(uint64_t code)
-{
-  __asm__ volatile ("fence rw, rw" ::: "memory");
-  *TOHOST_ADDR = code;
-  while (1) { }
-}
-
 static void start_main(void);
 
 __attribute__((naked, section(".text.start"), used))
 void _start(void)
 {
   __asm__ volatile (
-    "li sp, 0x80004000\n"
+    DUAL_CORE_STACK_INIT
     "jal ra, start_main\n"
     "1: j 1b\n"
   );

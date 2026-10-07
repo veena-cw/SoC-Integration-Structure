@@ -67,6 +67,11 @@ class cpu_axi_agent_monitor #(
           "AW handshake addr=%h AWLEN=%0d beats=%0d AWSIZE=%0d AWBURST=%b",
           write_addr, write_burst_len, write_burst_beats,
           write_awsize, write_burst_type), UVM_LOW)
+        // Design rule: the CPU -> AXI bridge issues single-beat transactions only.
+        if (write_burst_len != 0)
+          `uvm_error("AXI_SINGLE_BEAT", $sformatf(
+            "AW addr=%h has AWLEN=%0d; the CPU AXI bridge must issue single-beat (AWLEN=0) transactions",
+            write_addr, write_burst_len))
       end
 
       if (write_pending && vif.axi_mon_cb.m_axi_wvalid &&
@@ -85,6 +90,22 @@ class cpu_axi_agent_monitor #(
         tr.last        = vif.axi_mon_cb.m_axi_wlast;
         ap.write(tr);
         `uvm_info("AXI_MON", $sformatf("AXI WRITE %s", tr.convert2string()), UVM_LOW)
+
+        // MMIO lane-convention check (bp_bedrock_axi4_bridge): a transfer
+        // narrower than the bus (<= 8 B) must use only WDATA/WSTRB[63:0],
+        // with exactly its bytes strobed at lane (addr % 8).
+        if (write_bytes < STRB_WIDTH) begin
+          bit [STRB_WIDTH-1:0] exp_strb;
+          exp_strb = ((STRB_WIDTH'(1) << write_bytes) - 1) << (write_addr % 8);
+          if (tr.strb !== exp_strb)
+            `uvm_error("AXI_MMIO_LANE", $sformatf(
+              "MMIO write addr=%h size=%0dB: WSTRB=%h, expected %h (lanes addr%%8 within [7:0])",
+              write_addr, write_bytes, tr.strb, exp_strb))
+          if (tr.data[DATA_WIDTH-1:64] !== '0)
+            `uvm_error("AXI_MMIO_LANE", $sformatf(
+              "MMIO write addr=%h size=%0dB: WDATA[%0d:64]=%h, expected 0",
+              write_addr, write_bytes, DATA_WIDTH-1, tr.data[DATA_WIDTH-1:64]))
+        end
 
         if (tr.last || (write_len == 0)) begin
           write_pending = 1'b0;
@@ -109,6 +130,10 @@ class cpu_axi_agent_monitor #(
           "AR handshake addr=%h ARLEN=%0d beats=%0d ARSIZE=%0d ARBURST=%b",
           read_addr, read_burst_len, read_burst_beats,
           read_awsize, read_burst_type), UVM_LOW)
+        if (read_burst_len != 0)
+          `uvm_error("AXI_SINGLE_BEAT", $sformatf(
+            "AR addr=%h has ARLEN=%0d; the CPU AXI bridge must issue single-beat (ARLEN=0) transactions",
+            read_addr, read_burst_len))
 
         tr = txn_t::type_id::create("axi_read");
         tr.direction  = txn_t::AXI_READ;

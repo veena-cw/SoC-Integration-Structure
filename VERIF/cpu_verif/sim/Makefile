@@ -31,6 +31,8 @@ VERILATOR    ?= /opt/verilator-5.048/bin/verilator
 VERILATOR_COVERAGE ?= /opt/verilator-5.048/bin/verilator_coverage
 RISCV_MARCH  ?= rv64ima
 RISCV_OPT    ?= -O0
+# Extra C flags for the test programs, e.g. -DDUAL_CORE_USE_CBO_FLUSH
+RISCV_CFLAGS ?=
 
 TEST         ?= bp_base_test
 TOP          ?= cpu_tb_top
@@ -50,9 +52,9 @@ BURST_ARGS =
 ifeq ($(TEST),bp_dv_024_dram_latency_test)
 DRAM_ARGS := +DRAM_LATENCY_MIN=1 +DRAM_LATENCY_MAX=8
 endif
-ifeq ($(TEST),bp_dv_025_axi_burst_test)
-BURST_ARGS := +REQUIRE_AXI_BURST=1
-endif
+# BP-DV-025 no longer requires an AXI burst: by design the CPU -> AXI bridge
+# issues single-beat transactions only (checked in every test by the AXI
+# monitor, AXI_SINGLE_BEAT). Pass +REQUIRE_AXI_BURST=1 by hand to re-enable.
 
 UVM_RUN_ARGS = \
 	+UVM_TESTNAME=$(TEST) \
@@ -140,6 +142,40 @@ else ifeq ($(TEST),bp_dv_030_axi_block_dual_core_test)
 TCNAME       ?= axi_block_dual_core
 TEST_ID      ?= 30
 BP_CFG_ID    ?= 9
+else ifeq ($(TEST),bp_dv_031_axi_block_dual_core_3002_test)
+TCNAME       ?= axi_block_dual_core_3002
+TEST_ID      ?= 31
+BP_CFG_ID    ?= 9
+else ifeq ($(TEST),bp_dv_032_cbo_clean_test)
+TCNAME       ?= cbo_clean
+TEST_ID      ?= 32
+else ifeq ($(TEST),bp_dv_033_cbo_flush_test)
+TCNAME       ?= cbo_flush
+TEST_ID      ?= 33
+else ifeq ($(TEST),bp_dv_034_cbo_inval_test)
+TCNAME       ?= cbo_inval
+TEST_ID      ?= 34
+else ifeq ($(TEST),bp_dv_035_priv_modes_test)
+TCNAME       ?= priv_modes
+TEST_ID      ?= 35
+else ifeq ($(TEST),bp_dv_036_vm_sv39_test)
+TCNAME       ?= vm_sv39
+TEST_ID      ?= 36
+else ifeq ($(TEST),bp_dv_037_vm_ifetch_fault_test)
+TCNAME       ?= vm_sv39_ifetch_fault
+TEST_ID      ?= 37
+else ifeq ($(TEST),bp_dv_038_smp_atomics_test)
+TCNAME       ?= smp_atomics
+TEST_ID      ?= 38
+else ifeq ($(TEST),bp_dv_039_fpu_test)
+TCNAME       ?= fpu_ops
+TEST_ID      ?= 39
+else ifeq ($(TEST),bp_dv_040_bitmanip_test)
+TCNAME       ?= bitmanip_ops
+TEST_ID      ?= 40
+else ifeq ($(TEST),bp_dv_041_bitmanip_shadd_test)
+TCNAME       ?= bitmanip_shadd
+TEST_ID      ?= 41
 else ifeq ($(TEST),bp_i2c_write_read_test)
 TCNAME       ?= i2c_write_read
 TEST_ID      ?= 27
@@ -151,10 +187,11 @@ TCNAME       ?= add_function
 TEST_ID      ?= 3
 endif
 
-# BlackParrot configuration (bp_params_e value). 0 = e_bp_default_cfg
-# (unicore); 9 = e_bp_multicore_2_cfg (two cores), selected automatically by
-# the multicore tests above. IDs 0-5 are unicore configs, 6+ are multicore.
-BP_CFG_ID    ?= 0
+# BlackParrot configuration (bp_params_e value). Default 9 =
+# e_bp_multicore_2_cfg (two cores): every C test runs on both harts (see
+# c/dual_core.h). 0 = e_bp_default_cfg (unicore) is still buildable with
+# BP_CFG_ID=0. IDs 0-5 are unicore configs, 6+ are multicore.
+BP_CFG_ID    ?= 9
 ifeq ($(filter $(BP_CFG_ID),0 1 2 3 4 5),)
 BP_MULTICORE := 1
 # In the multicore build, bsg_mem_1r1w's read/write-same-address assertion
@@ -164,6 +201,18 @@ BP_MULTICORE := 1
 # By default Verilator stops at the first $error, so allow it to continue.
 # Every $error is still printed in the log - check them after a run.
 UVM_RUN_ARGS += +verilator+error+limit+1000
+endif
+
+# Programs that need extra ISA extensions. Selected by program name (TCNAME)
+# so make sim and make regression (which compiles with TCNAME=...) agree.
+ifeq ($(TCNAME),fpu_ops)
+RISCV_MARCH  := rv64imafd
+endif
+ifneq ($(filter $(TCNAME),bitmanip_ops bitmanip_shadd),)
+RISCV_MARCH  := rv64ima_zba_zbb_zbs
+endif
+ifeq ($(TCNAME),dram_latency_function)
+RISCV_MARCH  := rv64imac
 endif
 
 LOG_DIR      := $(SIM_DIR)/logs
@@ -300,7 +349,7 @@ all: compile sim
 
 compile: $(TCNAME).nbf
 
-$(TCNAME).elf: $(C_DIR)/$(TCNAME).c $(C_DIR)/link.ld
+$(TCNAME).elf: $(C_DIR)/$(TCNAME).c $(C_DIR)/link.ld $(C_DIR)/dual_core.h $(wildcard $(C_DIR)/cbo_ops.c $(C_DIR)/axi_block_dual_core.c $(C_DIR)/vm_sv39.c)
 	@mkdir -p $(LOG_DIR)
 	@echo "=================================================="
 	@echo " Compiling RISC-V C test"
@@ -310,7 +359,7 @@ $(TCNAME).elf: $(C_DIR)/$(TCNAME).c $(C_DIR)/link.ld
 		-mabi=lp64 \
 		-mcmodel=medany \
 		-nostdlib \
-		$(RISCV_OPT) \
+		$(RISCV_OPT) $(RISCV_CFLAGS) \
 		-T $(C_DIR)/link.ld \
 		$< -o $@ 2>&1 | tee -a $(COMPILE_LOG)
 
@@ -427,7 +476,7 @@ print_exe:
 ###############################################################################
 
 # Regression rows contain: UVM test class, BP test ID, boot image (.nbf), and
-# optionally cfg=<BP_CFG_ID> (default 0, unicore). Each row runs on the
+# optionally cfg=<BP_CFG_ID> (default $(BP_CFG_ID), i.e. 9 = two cores). Each row runs on the
 # simulator built for its config; a config whose simulator does not exist
 # yet is built once (make build BP_CFG_ID=<n>) before its first row.
 REGR_FILE ?= $(SIM_DIR)/../testlist/testlist.f
@@ -464,7 +513,7 @@ regression: check_uvm
 		line=$$(echo "$$line" | sed 's/#.*//' | xargs); \
 		[ -z "$$line" ] && continue; \
 		read -r t test_id nbf opt extra <<< "$$line"; \
-		cfg=0; \
+		cfg=$(BP_CFG_ID); \
 		if [[ "$$opt" =~ ^cfg=([0-9]+)$$ ]]; then cfg=$${BASH_REMATCH[1]}; opt=; fi; \
 		if [ -z "$$t" ] || [ -z "$$test_id" ] || [ -z "$$nbf" ] || [ -n "$$opt" ] || [ -n "$$extra" ] || [[ ! "$$test_id" =~ ^[0-9]+$$ ]] || [[ "$$nbf" != *.nbf ]]; then \
 			echo "ERROR: Invalid regression row: $$line"; \
@@ -493,7 +542,6 @@ regression: check_uvm
 			continue; \
 		fi; \
 		run_args=; \
-		if [[ "$$t" == "bp_dv_025_axi_burst_test" ]]; then run_args="+REQUIRE_AXI_BURST=1"; fi; \
 		case "$$cfg" in 0|1|2|3|4|5) ;; *) run_args="$$run_args +verilator+error+limit+1000";; esac; \
 		if "$$exe" \
 			+UVM_TESTNAME=$$t \

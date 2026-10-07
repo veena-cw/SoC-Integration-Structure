@@ -669,4 +669,19 @@ module bp_bedrock_axi4_bridge
     end
   end
 
+  // ----------------------------------------------------------------------
+  // Design rule: the CPU -> AXI bridge issues single-beat AXI transactions
+  // only (AWLEN = ARLEN = 0). The CPU sends MMIO messages of at most 8 bytes
+  // here; cacheable line traffic uses the DMA port. Flag any accepted
+  // BedRock message that would need more than one AXI beat.
+  // ----------------------------------------------------------------------
+`ifndef SYNTHESIS
+  always_ff @(posedge axi_clk_i)
+    if (axi_reset_i && (cur_state == ST_IDLE) && bridge_fwd_v && bridge_fwd_ready
+        && (num_beats(bridge_fwd_header_cast_i.size) > 1))
+      $error("bp_bedrock_axi4_bridge: addr %h size %0d B needs %0d AXI beats; only single-beat transactions are supported",
+             bridge_fwd_header_cast_i.addr, size_bytes(bridge_fwd_header_cast_i.size),
+             num_beats(bridge_fwd_header_cast_i.size));
+`endif
+
 endmodule

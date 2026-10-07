@@ -52,7 +52,9 @@ bp_dv_011_memory_backpressure_test 11 memory_backpressure_function.nbf
 # BP-DV-020 - Cache replacement/eviction under same-set conflicts
 bp_dv_020_cache_replacement_test 20 cache_replacement_function.nbf
 
-# BP-DV-025 - Cache-line refill and AXI AWLEN/ARLEN burst observation
+# BP-DV-025 - Cache-line refill/writeback traffic (on the DMA port). The CPU
+# AXI port stays single-beat by design (AWLEN = ARLEN = 0, checked by the
+# AXI monitor in every test); no AXI burst is required.
 bp_dv_025_axi_burst_test 25 cache_burst_function.nbf
 
 # BP-DV-024 - Variable DRAM latency under memory-intensive traffic

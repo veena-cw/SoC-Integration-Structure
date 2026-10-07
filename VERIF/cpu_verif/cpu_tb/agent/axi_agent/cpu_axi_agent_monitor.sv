@@ -67,6 +67,11 @@ class cpu_axi_agent_monitor #(
           "AW handshake addr=%h AWLEN=%0d beats=%0d AWSIZE=%0d AWBURST=%b",
           write_addr, write_burst_len, write_burst_beats,
           write_awsize, write_burst_type), UVM_LOW)
+        // Design rule: the CPU -> AXI bridge issues single-beat transactions only.
+        if (write_burst_len != 0)
+          `uvm_error("AXI_SINGLE_BEAT", $sformatf(
+            "AW addr=%h has AWLEN=%0d; the CPU AXI bridge must issue single-beat (AWLEN=0) transactions",
+            write_addr, write_burst_len))
       end
 
       if (write_pending && vif.axi_mon_cb.m_axi_wvalid &&
@@ -125,6 +130,10 @@ class cpu_axi_agent_monitor #(
           "AR handshake addr=%h ARLEN=%0d beats=%0d ARSIZE=%0d ARBURST=%b",
           read_addr, read_burst_len, read_burst_beats,
           read_awsize, read_burst_type), UVM_LOW)
+        if (read_burst_len != 0)
+          `uvm_error("AXI_SINGLE_BEAT", $sformatf(
+            "AR addr=%h has ARLEN=%0d; the CPU AXI bridge must issue single-beat (ARLEN=0) transactions",
+            read_addr, read_burst_len))
 
         tr = txn_t::type_id::create("axi_read");
         tr.direction  = txn_t::AXI_READ;

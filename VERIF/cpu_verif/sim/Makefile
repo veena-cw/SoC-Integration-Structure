@@ -52,9 +52,9 @@ BURST_ARGS =
 ifeq ($(TEST),bp_dv_024_dram_latency_test)
 DRAM_ARGS := +DRAM_LATENCY_MIN=1 +DRAM_LATENCY_MAX=8
 endif
-ifeq ($(TEST),bp_dv_025_axi_burst_test)
-BURST_ARGS := +REQUIRE_AXI_BURST=1
-endif
+# BP-DV-025 no longer requires an AXI burst: by design the CPU -> AXI bridge
+# issues single-beat transactions only (checked in every test by the AXI
+# monitor, AXI_SINGLE_BEAT). Pass +REQUIRE_AXI_BURST=1 by hand to re-enable.
 
 UVM_RUN_ARGS = \
 	+UVM_TESTNAME=$(TEST) \
@@ -518,7 +518,6 @@ regression: check_uvm
 			continue; \
 		fi; \
 		run_args=; \
-		if [[ "$$t" == "bp_dv_025_axi_burst_test" ]]; then run_args="+REQUIRE_AXI_BURST=1"; fi; \
 		case "$$cfg" in 0|1|2|3|4|5) ;; *) run_args="$$run_args +verilator+error+limit+1000";; esac; \
 		if "$$exe" \
 			+UVM_TESTNAME=$$t \

@@ -102,7 +102,7 @@ module uart_top #(
   logic        tx_fifo_empty;
   logic [8:0]  tx_fifo_data;
   logic        tx_data_ready;
-  logic        tx_busy;
+//  logic        tx_busy;
   logic [$clog2(TX_FIFO_DEPTH+1)-1:0] tx_lvl;
 
   // Pop the head of the TX FIFO when the serializer is ready and we have

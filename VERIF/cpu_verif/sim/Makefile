@@ -164,6 +164,18 @@ TEST_ID      ?= 36
 else ifeq ($(TEST),bp_dv_037_vm_ifetch_fault_test)
 TCNAME       ?= vm_sv39_ifetch_fault
 TEST_ID      ?= 37
+else ifeq ($(TEST),bp_dv_038_smp_atomics_test)
+TCNAME       ?= smp_atomics
+TEST_ID      ?= 38
+else ifeq ($(TEST),bp_dv_039_fpu_test)
+TCNAME       ?= fpu_ops
+TEST_ID      ?= 39
+else ifeq ($(TEST),bp_dv_040_bitmanip_test)
+TCNAME       ?= bitmanip_ops
+TEST_ID      ?= 40
+else ifeq ($(TEST),bp_dv_041_bitmanip_shadd_test)
+TCNAME       ?= bitmanip_shadd
+TEST_ID      ?= 41
 else ifeq ($(TEST),bp_i2c_write_read_test)
 TCNAME       ?= i2c_write_read
 TEST_ID      ?= 27
@@ -189,6 +201,18 @@ BP_MULTICORE := 1
 # By default Verilator stops at the first $error, so allow it to continue.
 # Every $error is still printed in the log - check them after a run.
 UVM_RUN_ARGS += +verilator+error+limit+1000
+endif
+
+# Programs that need extra ISA extensions. Selected by program name (TCNAME)
+# so make sim and make regression (which compiles with TCNAME=...) agree.
+ifeq ($(TCNAME),fpu_ops)
+RISCV_MARCH  := rv64imafd
+endif
+ifneq ($(filter $(TCNAME),bitmanip_ops bitmanip_shadd),)
+RISCV_MARCH  := rv64ima_zba_zbb_zbs
+endif
+ifeq ($(TCNAME),dram_latency_function)
+RISCV_MARCH  := rv64imac
 endif
 
 LOG_DIR      := $(SIM_DIR)/logs

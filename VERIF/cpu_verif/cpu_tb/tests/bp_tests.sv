@@ -694,6 +694,97 @@ class bp_dv_037_vm_ifetch_fault_test extends bp_dv_036_vm_sv39_test;
   endfunction
 endclass
 
+// Test ID: BP-DV-038 | Feature: two-core atomics and cache coherence
+// (AMO / LR-SC / spinlock on shared counters, false sharing, message
+// passing with fences, amoor/amomax). Two-core build only.
+class bp_dv_038_smp_atomics_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_038_smp_atomics_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    smp_atomics_test_seq seq;
+    bit timeout;
+
+    phase.raise_objection(this);
+    apply_cpu_reset();
+    seq = smp_atomics_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        #(1800us);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("BP038_TIMEOUT", "two-core atomics test did not write tohost within 1.8 ms")
+
+    phase.drop_objection(this);
+  endtask
+endclass
+
+// Test ID: BP-DV-039 | Feature: RV64 F/D floating point (both harts)
+class bp_dv_039_fpu_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_039_fpu_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    fpu_test_seq seq;
+    bit timeout;
+
+    phase.raise_objection(this);
+    apply_cpu_reset();
+    seq = fpu_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        #(1ms);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("BP039_TIMEOUT", "FPU test did not write tohost within 1 ms")
+
+    phase.drop_objection(this);
+  endtask
+endclass
+
+// Test ID: BP-DV-040 | Feature: Zba/Zbb/Zbs bit manipulation (both harts)
+class bp_dv_040_bitmanip_test extends bp_dv_039_fpu_test;
+  `uvm_component_utils(bp_dv_040_bitmanip_test)
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+endclass
+
+// Test ID: BP-DV-041 | Feature: Zba sh1add/sh2add/sh3add(.uw). Currently fails:
+// shift amount taken from rs2[5:0] instead of 1/2/3 (bp_be_pipe_int.sv).
+class bp_dv_041_bitmanip_shadd_test extends bp_dv_039_fpu_test;
+  `uvm_component_utils(bp_dv_041_bitmanip_shadd_test)
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+endclass
+
 // Supplemental I2C model smoke test (BP-DV-027, outside the supplied plan).
 class bp_i2c_write_read_test extends bp_base_test;
   `uvm_component_utils(bp_i2c_write_read_test)

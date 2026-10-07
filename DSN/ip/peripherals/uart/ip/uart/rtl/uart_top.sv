@@ -150,7 +150,7 @@ assign rx_data_valid_o = rx_data_valid;
   logic       rx_frame_err_pulse;
   logic       rx_parity_err_pulse;
   logic       rx_break_pulse;
-  logic       rx_busy;
+//  logic       rx_busy;
   logic [$clog2(RX_FIFO_DEPTH+1)-1:0] rx_lvl;
   logic       rx_fifo_full;
 

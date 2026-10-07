@@ -85,6 +85,8 @@ module uart_apb_top(
   logic         stop_2_i;
   logic [1:0]   data_bits_i;        // 2-bit CR field
   logic [3:0]   data_bits_w;        // 4-bit value uart_top expects (5..9)
+  logic flow_en_i;               //added
+  logic [4:0] rts_thresh_i;       //added width is 5 bit based on uart_top module declaration
 
   //=====================================================
   // Interrupt Enable Signals
@@ -92,6 +94,7 @@ module uart_apb_top(
   logic         tx_empty_irq_en_i;
   logic         rx_irq_en_i;
   logic         err_irq_en_i;
+  logic        rx_full_irq_en_i; //added
 
   //=====================================================
   // Signals from uart_top
@@ -163,7 +166,7 @@ module uart_apb_top(
       //------------------------------------------------------------------
       always_ff @(posedge clk or negedge rst_n)
           if (!rst_n) {cr_reg_vld, cr_reg} <= 33'h0;
-          else if (PSEL & PENABLE & PWRITE & (addr == ADDR_CR)) {cr_reg_vld, cr_reg} <= {1'b1,{24'h0, PWDATA[7:0]}};
+          else if (PSEL & PENABLE & PWRITE & (addr == ADDR_CR)) {cr_reg_vld, cr_reg} <= {1'b1,{18'h0, PWDATA[13:0]}};
 
       assign tx_wr_en_i          = cr_reg[0];
       assign rx_rd_en_i          = cr_reg[1];
@@ -171,6 +174,8 @@ module uart_apb_top(
       assign parity_mode_i       = cr_reg[4:3];       
       assign stop_2_i            = cr_reg[5];       // 0 = 1 stop bit, 1 = 2 stop bits
       assign data_bits_i         = cr_reg[7:6];	 
+      assign flow_en_i           = cr_reg[8];
+      assign rts_thresh_i         = cr_reg[13:9]
       //------------------------------------------------------------------
       // BRDR : read/write register - Baud Rate Divisor Register
       //------------------------------------------------------------------
@@ -183,11 +188,12 @@ module uart_apb_top(
       //------------------------------------------------------------------
       always_ff @(posedge clk or negedge rst_n)
           if (!rst_n) {ier_reg_vld, ier_reg} <= 33'h0;
-          else if (PSEL & PENABLE & PWRITE & (uart_irq_en) & (addr == ADDR_IER)) {ier_reg_vld, ier_reg} <= {1'b1, {29'h0,PWDATA[2:0]}};
+          else if (PSEL & PENABLE & PWRITE & (uart_irq_en) & (addr == ADDR_IER)) {ier_reg_vld, ier_reg} <= {1'b1, {28'h0,PWDATA[3:0]}};
  
       assign tx_empty_irq_en_i = ier_reg[0];
       assign rx_irq_en_i       = ier_reg[1];
       assign err_irq_en_i      = ier_reg[2];
+      assign rx_full_irq_en_i  = ier_reg[3];
 
   //------------------------------------------------------------------
   // ISR : read-only status register, cleared on CPU read
@@ -229,8 +235,8 @@ module uart_apb_top(
     .parity_en_i       (parity_en_i),
     .parity_mode_i     (parity_mode_i),
     .stop_2_i          (stop_2_i),
-    .flow_en_i         (1'b1),                 // CTS flow control not exposed in CR
-    .rts_thresh_i      (5'h0E),                // RTS de-asserts when RX level > 14
+    .flow_en_i        (flow_en_i),
+    .rts_thresh_i      (rts_thresh_i),                // RTS de-asserts when RX level > 14
     .tx_wr_en_i        (tx_wr_en_i),
     .tx_wr_data_i      (thr_reg[8:0]),
     .tx_full_o         (tx_full_o),
@@ -251,7 +257,7 @@ module uart_apb_top(
     .clear_errors_i    (clear_errors),
 
     .rx_irq_en_i       (rx_irq_en_i),
-    .rx_full_irq_en_i  (1'b1),                 // no IER bit for it
+    .rx_full_irq_en_i (rx_full_irq_en_i),               // no IER bit for it
     .tx_empty_irq_en_i (tx_empty_irq_en_i),
     .err_irq_en_i      (err_irq_en_i),
     .uart_irq          (uart_irq),

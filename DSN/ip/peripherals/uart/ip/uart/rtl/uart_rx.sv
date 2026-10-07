@@ -54,7 +54,7 @@ module uart_rx (
   output logic        break_o,
 
   // Liveness.
-  output logic        busy_o
+  //output logic        busy_o
 );
 
   // ---------- Synchroniser ----------
@@ -103,7 +103,7 @@ module uart_rx (
   assign parity_err_o = parity_err_pulse_q;
   assign break_o      = break_pulse_q;
   assign data_o       = data_q;
-  assign busy_o       = (state_q != S_IDLE);
+  //assign busy_o       = (state_q != S_IDLE);
 
   // Compute expected parity from received data + mode.
   function automatic logic exp_parity(input logic [8:0] d,

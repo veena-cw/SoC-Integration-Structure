@@ -185,7 +185,7 @@ assign rx_rd_en_i = cr_reg[1] & ~cr1_q;
       assign stop_2_i            = cr_reg[5];       // 0 = 1 stop bit, 1 = 2 stop bits
       assign data_bits_i         = cr_reg[7:6];	 
       assign flow_en_i           = cr_reg[8];
-      assign rts_thresh_i         = cr_reg[13:9]
+     assign rts_thresh_i         = cr_reg[13:9];
       //------------------------------------------------------------------
       // BRDR : read/write register - Baud Rate Divisor Register
       //------------------------------------------------------------------
@@ -267,7 +267,7 @@ assign rx_rd_en_i = cr_reg[1] & ~cr1_q;
     .clear_errors_i    (clear_errors),
 
     .rx_irq_en_i       (rx_irq_en_i),
-    .rx_full_irq_en_i (rx_full_irq_en_i),               // no IER bit for it
+    .rx_full_irq_en_i (rx_full_irq_en_i),               
     .tx_empty_irq_en_i (tx_empty_irq_en_i),
     .err_irq_en_i      (err_irq_en_i),
     .uart_irq          (uart_irq),

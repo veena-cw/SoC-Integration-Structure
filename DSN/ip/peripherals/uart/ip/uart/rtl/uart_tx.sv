@@ -98,9 +98,9 @@ module uart_tx (
   // Accept new frame when idle, baud-armed, and (if flow enabled) CTS asserted.
   logic accept_frame;
   assign accept_frame = (state_q == S_IDLE) && data_valid_i &&
-    !(flow_en_i && cts_n_i) & tick_x1_i;
+    !(flow_en_i && cts_n_i) && tick_x1_i;
 
-  assign data_ready_o = (state_q == S_IDLE) && !(flow_en_i && cts_n_i) & tick_x1_i;
+  assign data_ready_o = (state_q == S_IDLE) && !(flow_en_i && cts_n_i) && tick_x1_i;
   assign tx_o         = tx_q;
   //assign busy_o       = (state_q != S_IDLE);
 

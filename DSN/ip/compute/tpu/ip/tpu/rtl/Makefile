@@ -1,156 +1,205 @@
-.PHONY: test compile clean all help
+#================DO NOT MODIFY BELOW===================== Compiler and simulator settings
+IVERILOG = iverilog
+VVP = vvp
+COCOTB_PREFIX = $(shell cocotb-config --prefix)
 
-# Cocotb configuration
+
+COCOTB_LIBS = $(COCOTB_PREFIX)/cocotb/libs
+
+# Windows (iverilog uses .vpl extension, no 'lib' prefix)
+# Linux uses libcocotbvpi_icarus (.so); Windows uses cocotbvpi_icarus (.vpl)
+ifeq ($(OS),Windows_NT)
+  COCOTB_VPI_MODULE = cocotbvpi_icarus
+else
+  COCOTB_VPI_MODULE = libcocotbvpi_icarus
+endif
+
+SIM_BUILD_DIR = sim_build
+SIM_VVP = $(SIM_BUILD_DIR)/sim.vvp
+
+# Force bash shell on Windows so ! negation and Unix commands work
+SHELL = C:/Program Files/Git/bin/sh.exe
+.SHELLFLAGS = -c
+
+# Environment variables
+export COCOTB_REDUCED_LOG_FMT=1
 export LIBPYTHON_LOC=$(shell cocotb-config --libpython)
-export PYGPI_PYTHON_BIN=$(shell which python)
-COCOTB_LIB_DIR=$(shell cocotb-config --lib-dir)
+ifeq ($(OS),Windows_NT)
+  export PYTHONPATH := $(abspath test);$(PYTHONPATH)
+else
+  export PYTHONPATH := $(abspath test):$(PYTHONPATH)
+endif
 
-# Directories
-SRC_DIR = src
-BUILD_DIR = build
-TEST_DIR = test
+#=============== MODIFY BELOW ======================
+# ********** IF YOU HAVE A NEW VERILOG FILE, ADD IT TO THE SOURCES VARIABLE
+SOURCES = src/pe.sv \
+          src/leaky_relu_child.sv \
+          src/leaky_relu_parent.sv \
+          src/leaky_relu_derivative_child.sv \
+          src/leaky_relu_derivative_parent.sv \
+          src/systolic.sv \
+          src/bias_child.sv \
+          src/bias_parent.sv \
+          src/fixedpoint.sv \
+          src/control_unit.sv \
+          src/unified_buffer.sv \
+          src/vpu.sv \
+          src/loss_parent.sv \
+		  src/loss_child.sv \
+		  src/tpu.sv \
+		  src/gradient_descent.sv
 
-# Source files
-SV_SOURCES = $(wildcard $(SRC_DIR)/*.sv)
+# MODIFY 1) variable next to -s 
+# MODIFY 2) variable next to $(SOURCES)
+# MODIFY 3) variable right of MODULE=
+# MODIFY 4) file name next to mv (i.e. pe.vcd)
 
-# Default target
-all: compile
-
-# Help target
-help:
-	@echo "tiny-tpu Build System"
-	@echo "====================="
-	@echo ""
-	@echo "Available targets:"
-	@echo "  make compile        - Compile all SystemVerilog to Verilog"
-	@echo "  make test_pe        - Run PE testbench"
-	@echo "  make test_systolic  - Run systolic array testbench"
-	@echo "  make test_matmul    - Run matrix multiply testbench"
-	@echo "  make test_softmax   - Run softmax unit testbench"
-	@echo "  make test_layernorm - Run layernorm unit testbench"
-	@echo "  make test_activation - Run activation unit testbench"
-	@echo "  make test_decoder   - Run decoder testbench"
-	@echo "  make test_all       - Run all tests"
-	@echo "  make demo           - Run quick demo"
-	@echo "  make clean          - Remove build artifacts"
-	@echo ""
-	@echo "Example: make test_softmax"
-
-# Compile all SystemVerilog sources
-compile: $(BUILD_DIR)/tpu.v
-
-$(BUILD_DIR)/tpu.v: $(SV_SOURCES)
-	mkdir -p $(BUILD_DIR)
-	@echo "Converting SystemVerilog to Verilog..."
-	sv2v -I $(SRC_DIR)/* -w $(BUILD_DIR)/tpu.v
-	@echo '`timescale 1ns/1ns' > $(BUILD_DIR)/temp.v
-	@cat $(BUILD_DIR)/tpu.v >> $(BUILD_DIR)/temp.v
-	@mv $(BUILD_DIR)/temp.v $(BUILD_DIR)/tpu.v
-	@echo "Compilation complete: $(BUILD_DIR)/tpu.v"
-
-# Compile individual modules
-compile_pe: $(BUILD_DIR)/pe.v
-$(BUILD_DIR)/pe.v: $(SRC_DIR)/pe.sv
-	mkdir -p $(BUILD_DIR)
-	sv2v -w $(BUILD_DIR)/pe.v $(SRC_DIR)/pe.sv
-	@echo '`timescale 1ns/1ns' > $(BUILD_DIR)/temp.v
-	@cat $(BUILD_DIR)/pe.v >> $(BUILD_DIR)/temp.v
-	@mv $(BUILD_DIR)/temp.v $(BUILD_DIR)/pe.v
-
-compile_systolic: $(BUILD_DIR)/systolic_array.v
-$(BUILD_DIR)/systolic_array.v: $(SRC_DIR)/pe.sv $(SRC_DIR)/systolic_array.sv
-	mkdir -p $(BUILD_DIR)
-	sv2v -w $(BUILD_DIR)/systolic_array.v $(SRC_DIR)/pe.sv $(SRC_DIR)/systolic_array.sv
-	@echo '`timescale 1ns/1ns' > $(BUILD_DIR)/temp.v
-	@cat $(BUILD_DIR)/systolic_array.v >> $(BUILD_DIR)/temp.v
-	@mv $(BUILD_DIR)/temp.v $(BUILD_DIR)/systolic_array.v
-
-compile_softmax: $(BUILD_DIR)/softmax_unit.v
-$(BUILD_DIR)/softmax_unit.v: $(SRC_DIR)/softmax_unit.sv
-	mkdir -p $(BUILD_DIR)
-	sv2v -w $(BUILD_DIR)/softmax_unit.v $(SRC_DIR)/softmax_unit.sv
-	@echo '`timescale 1ns/1ns' > $(BUILD_DIR)/temp.v
-	@cat $(BUILD_DIR)/softmax_unit.v >> $(BUILD_DIR)/temp.v
-	@mv $(BUILD_DIR)/temp.v $(BUILD_DIR)/softmax_unit.v
-
-compile_layernorm: $(BUILD_DIR)/layernorm_unit.v
-$(BUILD_DIR)/layernorm_unit.v: $(SRC_DIR)/layernorm_unit.sv
-	mkdir -p $(BUILD_DIR)
-	sv2v -w $(BUILD_DIR)/layernorm_unit.v $(SRC_DIR)/layernorm_unit.sv
-	@echo '`timescale 1ns/1ns' > $(BUILD_DIR)/temp.v
-	@cat $(BUILD_DIR)/layernorm_unit.v >> $(BUILD_DIR)/temp.v
-	@mv $(BUILD_DIR)/temp.v $(BUILD_DIR)/layernorm_unit.v
-
-compile_activation: $(BUILD_DIR)/activation_unit.v
-$(BUILD_DIR)/activation_unit.v: $(SRC_DIR)/activation_unit.sv
-	mkdir -p $(BUILD_DIR)
-	sv2v -w $(BUILD_DIR)/activation_unit.v $(SRC_DIR)/activation_unit.sv
-	@echo '`timescale 1ns/1ns' > $(BUILD_DIR)/temp.v
-	@cat $(BUILD_DIR)/activation_unit.v >> $(BUILD_DIR)/temp.v
-	@mv $(BUILD_DIR)/temp.v $(BUILD_DIR)/activation_unit.v
-
-compile_decoder: $(BUILD_DIR)/decoder.v
-$(BUILD_DIR)/decoder.v: $(SRC_DIR)/decoder.sv
-	mkdir -p $(BUILD_DIR)
-	sv2v -w $(BUILD_DIR)/decoder.v $(SRC_DIR)/decoder.sv
-	@echo '`timescale 1ns/1ns' > $(BUILD_DIR)/temp.v
-	@cat $(BUILD_DIR)/decoder.v >> $(BUILD_DIR)/temp.v
-	@mv $(BUILD_DIR)/temp.v $(BUILD_DIR)/decoder.v
 
 # Test targets
-test_pe: compile_pe
-	@echo "Running PE testbench..."
-	iverilog -o $(BUILD_DIR)/pe_sim.vvp -s pe -g2012 $(BUILD_DIR)/pe.v
-	PYTHONPATH=$(TEST_DIR) COCOTB_TEST_MODULES=test.test_pe vvp -M $(COCOTB_LIB_DIR) -m cocotbvpi_icarus $(BUILD_DIR)/pe_sim.vvp
+test_pe: $(SIM_BUILD_DIR)
+	$(IVERILOG) -o $(SIM_VVP) -s pe -s dump -g2012 $(SOURCES) test/dump_pe.sv
+	PYTHONOPTIMIZE=$(NOASSERT) MODULE=test_pe $(VVP) -M $(COCOTB_LIBS) -m $(COCOTB_VPI_MODULE) $(SIM_VVP)
+	python -c "f=open('results.xml').read();exit(1 if 'failure' in f else 0)"
+	mv pe.vcd waveforms/ 2>/dev/null || true
 
-test_systolic: compile_systolic
-	@echo "Running Systolic Array testbench..."
-	iverilog -o $(BUILD_DIR)/systolic_sim.vvp -s systolic_array -g2012 $(BUILD_DIR)/systolic_array.v
-	PYTHONPATH=$(TEST_DIR) COCOTB_TEST_MODULES=test.test_systolic vvp -M $(COCOTB_LIB_DIR) -m cocotbvpi_icarus $(BUILD_DIR)/systolic_sim.vvp
+test_leaky_relu: $(SIM_BUILD_DIR)
+	$(IVERILOG) -o $(SIM_VVP) -s leaky_relu -s dump -g2012 $(SOURCES) test/dump_leaky_relu.sv
+	PYTHONOPTIMIZE=$(NOASSERT) MODULE=test_leaky_relu $(VVP) -M $(COCOTB_LIBS) -m $(COCOTB_VPI_MODULE) $(SIM_VVP)
+	python -c "f=open('results.xml').read();exit(1 if 'failure' in f else 0)"
+	mv test.vcd waveforms/ 2>/dev/null || true
 
-test_matmul: compile_systolic
-	@echo "Running Matrix Multiply testbench..."
-	iverilog -o $(BUILD_DIR)/matmul_sim.vvp -s systolic_array -g2012 $(BUILD_DIR)/systolic_array.v
-	PYTHONPATH=$(TEST_DIR) COCOTB_TEST_MODULES=test.test_matmul vvp -M $(COCOTB_LIB_DIR) -m cocotbvpi_icarus $(BUILD_DIR)/matmul_sim.vvp
+test_systolic: $(SIM_BUILD_DIR)
+	$(IVERILOG) -o $(SIM_VVP) -s systolic -s dump -g2012 $(SOURCES) test/dump_systolic.sv
+	PYTHONOPTIMIZE=$(NOASSERT) MODULE=test_systolic $(VVP) -M $(COCOTB_LIBS) -m $(COCOTB_VPI_MODULE) $(SIM_VVP)
+	python -c "f=open('results.xml').read();exit(1 if 'failure' in f else 0)"
+	mv systolic.vcd waveforms/ 2>/dev/null || true
 
-test_softmax: compile_softmax
-	@echo "Running Softmax Unit testbench..."
-	iverilog -o $(BUILD_DIR)/softmax_sim.vvp -s softmax_unit -g2012 $(BUILD_DIR)/softmax_unit.v
-	PYTHONPATH=$(TEST_DIR) COCOTB_TEST_MODULES=test.test_softmax_unit vvp -M $(COCOTB_LIB_DIR) -m cocotbvpi_icarus $(BUILD_DIR)/softmax_sim.vvp
+test_nn: $(SIM_BUILD_DIR)
+	$(IVERILOG) -o $(SIM_VVP) -s nn -s dump -g2012 $(SOURCES) test/dump_nn.sv
+	PYTHONOPTIMIZE=$(NOASSERT) MODULE=test_nn $(VVP) -M $(COCOTB_LIBS) -m $(COCOTB_VPI_MODULE) $(SIM_VVP)
+	python -c "f=open('results.xml').read();exit(1 if 'failure' in f else 0)"
+	mv nn.vcd waveforms/ 2>/dev/null || true
 
-test_layernorm: compile_layernorm
-	@echo "Running LayerNorm Unit testbench..."
-	iverilog -o $(BUILD_DIR)/layernorm_sim.vvp -s layernorm_unit -g2012 $(BUILD_DIR)/layernorm_unit.v
-	PYTHONPATH=$(TEST_DIR) COCOTB_TEST_MODULES=test.test_layernorm_unit vvp -M $(COCOTB_LIB_DIR) -m cocotbvpi_icarus $(BUILD_DIR)/layernorm_sim.vvp
+test_bias: $(SIM_BUILD_DIR)
+	$(IVERILOG) -o $(SIM_VVP) -s bias -s dump -g2012 $(SOURCES) test/dump_bias.sv
+	PYTHONOPTIMIZE=$(NOASSERT) MODULE=test_bias $(VVP) -M $(COCOTB_LIBS) -m $(COCOTB_VPI_MODULE) $(SIM_VVP)
+	python -c "f=open('results.xml').read();exit(1 if 'failure' in f else 0)"
+	mv bias.vcd waveforms/ 2>/dev/null || true
 
-test_activation: compile_activation
-	@echo "Running Activation Unit testbench..."
-	iverilog -o $(BUILD_DIR)/activation_sim.vvp -s activation_unit -g2012 $(BUILD_DIR)/activation_unit.v
-	PYTHONPATH=$(TEST_DIR) COCOTB_TEST_MODULES=test.test_activation_unit vvp -M $(COCOTB_LIB_DIR) -m cocotbvpi_icarus $(BUILD_DIR)/activation_sim.vvp
+test_input_acc: $(SIM_BUILD_DIR)
+	$(IVERILOG) -o $(SIM_VVP) -s input_acc -s dump -g2012 $(SOURCES) test/dump_input_acc.sv
+	PYTHONOPTIMIZE=$(NOASSERT) MODULE=test_input_acc $(VVP) -M $(COCOTB_LIBS) -m $(COCOTB_VPI_MODULE) $(SIM_VVP)
+	python -c "f=open('results.xml').read();exit(1 if 'failure' in f else 0)"
+	mv input_acc.vcd waveforms/ 2>/dev/null || true
 
-test_decoder: compile_decoder
-	@echo "Running Decoder testbench..."
-	iverilog -o $(BUILD_DIR)/decoder_sim.vvp -s decoder -g2012 $(BUILD_DIR)/decoder.v
-	PYTHONPATH=$(TEST_DIR) COCOTB_TEST_MODULES=test.test_decoder vvp -M $(COCOTB_LIB_DIR) -m cocotbvpi_icarus $(BUILD_DIR)/decoder_sim.vvp
+test_weight_acc: $(SIM_BUILD_DIR)
+	$(IVERILOG) -o $(SIM_VVP) -s weight_acc -s dump -g2012 $(SOURCES) test/dump_weight_acc.sv
+	PYTHONOPTIMIZE=$(NOASSERT) MODULE=test_weight_acc $(VVP) -M $(COCOTB_LIBS) -m $(COCOTB_VPI_MODULE) $(SIM_VVP)
+	python -c "f=open('results.xml').read();exit(1 if 'failure' in f else 0)"
+	mv weight_acc.vcd waveforms/ 2>/dev/null || true
 
-test_all: test_pe test_systolic test_matmul test_softmax test_layernorm test_activation test_decoder
-	@echo "All tests completed!"
+test_cu: $(SIM_BUILD_DIR)
+	$(IVERILOG) -o $(SIM_VVP) -s control_unit -s dump -g2012 $(SOURCES) test/dump_cu.sv
+	PYTHONOPTIMIZE=$(NOASSERT) MODULE=test_cu $(VVP) -M $(COCOTB_LIBS) -m $(COCOTB_VPI_MODULE) $(SIM_VVP)
+	python -c "f=open('results.xml').read();exit(1 if 'failure' in f else 0)"
+	mv cu.vcd waveforms/ 2>/dev/null || true
 
-demo:
-	@echo "=== tiny-tpu Demo ==="
-	@python -c "from tiny_tpu.simulator import Simulator; s = Simulator(); print('Simulator loaded!')"
+test_unified_buffer: $(SIM_BUILD_DIR)
+	$(IVERILOG) -o $(SIM_VVP) -s unified_buffer -s dump -g2012 $(SOURCES) test/dump_unified_buffer.sv
+	PYTHONOPTIMIZE=$(NOASSERT) MODULE=test_unified_buffer $(VVP) -M $(COCOTB_LIBS) -m $(COCOTB_VPI_MODULE) $(SIM_VVP)
+	python -c "f=open('results.xml').read();exit(1 if 'failure' in f else 0)"
+	mv unified_buffer.vcd waveforms/ 2>/dev/null || true
 
-# Clean build artifacts
+# Loss module test
+
+test_loss_child: $(SIM_BUILD_DIR)
+	$(IVERILOG) -o $(SIM_VVP) -s loss_child -s dump -g2012 $(SOURCES) test/dump_loss_child.sv
+	PYTHONOPTIMIZE=$(NOASSERT) MODULE=test_loss_child $(VVP) -M $(COCOTB_LIBS) -m $(COCOTB_VPI_MODULE) $(SIM_VVP)
+	python -c "f=open('results.xml').read();exit(1 if 'failure' in f else 0)"
+	mv loss_child.vcd waveforms/ 2>/dev/null || true
+
+test_loss_parent: $(SIM_BUILD_DIR)
+	$(IVERILOG) -o $(SIM_VVP) -s loss_parent -s dump -g2012 $(SOURCES) test/dump_loss_parent.sv
+	PYTHONOPTIMIZE=$(NOASSERT) MODULE=test_loss_parent $(VVP) -M $(COCOTB_LIBS) -m $(COCOTB_VPI_MODULE) $(SIM_VVP)
+	python -c "f=open('results.xml').read();exit(1 if 'failure' in f else 0)"
+	mv loss_parent.vcd waveforms/ 2>/dev/null || true
+
+# Leaky ReLU module tests
+test_leaky_relu_child: $(SIM_BUILD_DIR)
+	$(IVERILOG) -o $(SIM_VVP) -s leaky_relu_child -s dump -g2012 $(SOURCES) test/dump_leaky_relu_child.sv
+	PYTHONOPTIMIZE=$(NOASSERT) MODULE=test_leaky_relu_child $(VVP) -M $(COCOTB_LIBS) -m $(COCOTB_VPI_MODULE) $(SIM_VVP)
+	python -c "f=open('results.xml').read();exit(1 if 'failure' in f else 0)"
+	mv leaky_relu_child.vcd waveforms/ 2>/dev/null || true
+
+test_leaky_relu_parent: $(SIM_BUILD_DIR)
+	$(IVERILOG) -o $(SIM_VVP) -s leaky_relu_parent -s dump -g2012 $(SOURCES) test/dump_leaky_relu_parent.sv
+	PYTHONOPTIMIZE=$(NOASSERT) MODULE=test_leaky_relu_parent $(VVP) -M $(COCOTB_LIBS) -m $(COCOTB_VPI_MODULE) $(SIM_VVP)
+	python -c "f=open('results.xml').read();exit(1 if 'failure' in f else 0)"
+	mv leaky_relu_parent.vcd waveforms/ 2>/dev/null || true
+
+test_leaky_relu_derivative_child: $(SIM_BUILD_DIR)
+	$(IVERILOG) -o $(SIM_VVP) -s leaky_relu_derivative_child -s dump -g2012 $(SOURCES) test/dump_leaky_relu_derivative_child.sv
+	PYTHONOPTIMIZE=$(NOASSERT) MODULE=test_leaky_relu_derivative_child $(VVP) -M $(COCOTB_LIBS) -m $(COCOTB_VPI_MODULE) $(SIM_VVP)
+	python -c "f=open('results.xml').read();exit(1 if 'failure' in f else 0)"
+	mv leaky_relu_derivative_child.vcd waveforms/ 2>/dev/null || true
+
+test_leaky_relu_derivative_parent: $(SIM_BUILD_DIR)
+	$(IVERILOG) -o $(SIM_VVP) -s leaky_relu_derivative_parent -s dump -g2012 $(SOURCES) test/dump_leaky_relu_derivative_parent.sv
+	PYTHONOPTIMIZE=$(NOASSERT) MODULE=test_leaky_relu_derivative_parent $(VVP) -M $(COCOTB_LIBS) -m $(COCOTB_VPI_MODULE) $(SIM_VVP)
+	python -c "f=open('results.xml').read();exit(1 if 'failure' in f else 0)"
+	mv leaky_relu_derivative_parent.vcd waveforms/ 2>/dev/null || true
+
+# Bias module tests
+test_bias_child: $(SIM_BUILD_DIR)
+	$(IVERILOG) -o $(SIM_VVP) -s bias_child -s dump -g2012 $(SOURCES) test/dump_bias_child.sv
+	PYTHONOPTIMIZE=$(NOASSERT) MODULE=test_bias_child $(VVP) -M $(COCOTB_LIBS) -m $(COCOTB_VPI_MODULE) $(SIM_VVP)
+	python -c "f=open('results.xml').read();exit(1 if 'failure' in f else 0)"
+	mv bias_child.vcd waveforms/ 2>/dev/null || true
+
+test_bias_parent: $(SIM_BUILD_DIR)
+	$(IVERILOG) -o $(SIM_VVP) -s bias_parent -s dump -g2012 $(SOURCES) test/dump_bias_parent.sv
+	PYTHONOPTIMIZE=$(NOASSERT) MODULE=test_bias_parent $(VVP) -M $(COCOTB_LIBS) -m $(COCOTB_VPI_MODULE) $(SIM_VVP)
+	python -c "f=open('results.xml').read();exit(1 if 'failure' in f else 0)"
+	mv bias_parent.vcd waveforms/ 2>/dev/null || true
+
+# Vector Processing unit test
+test_vpu: $(SIM_BUILD_DIR)
+	$(IVERILOG) -o $(SIM_VVP) -s vpu -s dump -g2012 $(SOURCES) test/dump_vpu.sv
+	PYTHONOPTIMIZE=$(NOASSERT) MODULE=test_vpu $(VVP) -M $(COCOTB_LIBS) -m $(COCOTB_VPI_MODULE) $(SIM_VVP)
+	python -c "f=open('results.xml').read();exit(1 if 'failure' in f else 0)"
+	mv vpu.vcd waveforms/ 2>/dev/null || true
+
+test_tpu: $(SIM_BUILD_DIR)
+	$(IVERILOG) -o $(SIM_VVP) -s tpu -s dump -g2012 $(SOURCES) test/dump_tpu.sv
+	PYTHONOPTIMIZE=$(NOASSERT) MODULE=test_tpu $(VVP) -M $(COCOTB_LIBS) -m $(COCOTB_VPI_MODULE) $(SIM_VVP)
+	python -c "f=open('results.xml').read();exit(1 if 'failure' in f else 0)"
+	mv tpu.vcd waveforms/ 2>/dev/null || true
+
+test_gradient_descent: $(SIM_BUILD_DIR)
+	$(IVERILOG) -o $(SIM_VVP) -s gradient_descent -s dump -g2012 $(SOURCES) test/dump_gradient_descent.sv
+	PYTHONOPTIMIZE=$(NOASSERT) MODULE=test_gradient_descent $(VVP) -M $(COCOTB_LIBS) -m $(COCOTB_VPI_MODULE) $(SIM_VVP)
+	python -c "f=open('results.xml').read();exit(1 if 'failure' in f else 0)"
+	mv gradient_descent.vcd waveforms/ 2>/dev/null || true
+
+
+# ============ DO NOT MODIFY BELOW THIS LINE ==============
+
+# Create simulation build directory and waveforms directory
+$(SIM_BUILD_DIR):
+	mkdir -p $(SIM_BUILD_DIR)
+	mkdir -p waveforms
+
+# Waveform viewing
+show_%: waveforms/%.vcd waveforms/%.gtkw
+	gtkwave $^
+
+# Linting
+lint:
+	verible-verilog-lint src/*sv --rules_config verible.rules
+
+# Cleanup
 clean:
-	rm -rf $(BUILD_DIR)/*.v $(BUILD_DIR)/*.vvp $(BUILD_DIR)/*.vcd
-	rm -rf __pycache__ $(TEST_DIR)/__pycache__ $(TEST_DIR)/helpers/__pycache__
-	rm -rf results.xml
+	rm -rf waveforms/*vcd $(SIM_BUILD_DIR) test/__pycache__
 
-# Generate VCD waveforms
-test_%_waves: compile_systolic
-	iverilog -o $(BUILD_DIR)/$*_sim.vvp -s systolic_array -g2012 $(BUILD_DIR)/systolic_array.v
-	PYTHONPATH=$(TEST_DIR) COCOTB_TEST_MODULES=test.test_$* WAVES=1 vvp -M $(COCOTB_LIB_DIR) -m cocotbvpi_icarus $(BUILD_DIR)/$*_sim.vvp
+.PHONY: clean	
 
-# View waveforms with GTKWave
-view_%: $(BUILD_DIR)/%.vcd
-	gtkwave $<

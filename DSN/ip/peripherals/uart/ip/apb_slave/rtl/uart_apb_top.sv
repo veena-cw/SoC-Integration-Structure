@@ -139,7 +139,7 @@ module uart_apb_top(
   always_ff @(posedge clk or negedge rst_n)
       if (!rst_n) {rhr_reg_vld, rhr_reg} <= 33'h0;
      // else if (data_valid_o & (addr == ADDR_RHR)) {rhr_reg_vld, rhr_reg} <= {1'b1, 23'd0,rx_rd_data_o};
-     else if (!rx_empty_o) {rhr_reg_vld, rhr_reg} <= {1'b1, 23'h0,rx_rd_data_o};
+  else if (!rx_empty_o & (addr == ADDR_RHR)) {rhr_reg_vld, rhr_reg} <= {1'b1, 23'h0,rx_rd_data_o};
      else  {rhr_reg_vld, rhr_reg} <= 33'h0;
 /* SR (0x08) - read-only, live status
 // bit0 : tx_empty_o   - 1 = TX FIFO empty
@@ -168,8 +168,18 @@ module uart_apb_top(
           if (!rst_n) {cr_reg_vld, cr_reg} <= 33'h0;
           else if (PSEL & PENABLE & PWRITE & (addr == ADDR_CR)) {cr_reg_vld, cr_reg} <= {1'b1,{18'h0, PWDATA[13:0]}};
 
-      assign tx_wr_en_i          = cr_reg[0];
-      assign rx_rd_en_i          = cr_reg[1];
+     // assign tx_wr_en_i          = cr_reg[0];
+    //  assign rx_rd_en_i          = cr_reg[1];
+  logic cr0_q, cr1_q;
+
+always_ff @(posedge clk or negedge rst_n)
+    if (!rst_n)
+        {cr1_q, cr0_q} <= 2'b00;
+    else
+        {cr1_q, cr0_q} <= cr_reg[1:0];
+
+assign tx_wr_en_i = cr_reg[0] & ~cr0_q;
+assign rx_rd_en_i = cr_reg[1] & ~cr1_q;
       assign parity_en_i         = cr_reg[2];        // bit2
       assign parity_mode_i       = cr_reg[4:3];       
       assign stop_2_i            = cr_reg[5];       // 0 = 1 stop bit, 1 = 2 stop bits

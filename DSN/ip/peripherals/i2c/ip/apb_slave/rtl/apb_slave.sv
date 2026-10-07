@@ -57,20 +57,49 @@ module apb_slave #(
    logic [7:0] reg_addr;
 
    //==========================================================
-   // ADDRESS DECODE (moved here from i2c_top)
+   // ADDRESS DECODE
    //
-   // i2c_sel    : address inside the I2C window
-   // psel_in    : psel qualified by the window -> used by ALL
-   //              internal logic instead of raw i_psel
-   // decode_err : master selected us, address outside window
+   // A transfer is VALID only if the FULL address matches one of
+   // the four implemented registers:
+   //
+   //    BASE + 0x10 : CTRL
+   //    BASE + 0x14 : STATUS
+   //    BASE + 0x18 : TXDATA
+   //    BASE + 0x1C : RXDATA
+   //
+   // Anything else gets the error response, whether it is
+   //   - outside the I2C window, or
+   //   - inside the window but not one of the four registers
+   //     (unused/reserved, unaligned, or aliasing a register
+   //      offset such as BASE + 0x110).
+   //
+   // in_window  : address inside [BASE, END]
+   // reg_hit    : address equals one of the four register addresses
+   // i2c_sel    : valid register address (in_window && reg_hit)
+   // psel_in    : psel qualified by i2c_sel -> used by ALL internal
+   //              logic instead of raw i_psel
+   // decode_err : master selected us, address is not a valid register
    //==========================================================
+   localparam logic [AW-1:0] CTRL_ADDR   = I2C_BASE_ADDR + AW'(CTRL_OFFSET);
+   localparam logic [AW-1:0] STATUS_ADDR = I2C_BASE_ADDR + AW'(STATUS_OFFSET);
+   localparam logic [AW-1:0] TXDATA_ADDR = I2C_BASE_ADDR + AW'(TXDATA_OFFSET);
+   localparam logic [AW-1:0] RXDATA_ADDR = I2C_BASE_ADDR + AW'(RXDATA_OFFSET);
+
+   logic in_window;
+   logic reg_hit;
    logic i2c_sel;
    logic psel_in;
    logic decode_err;
    logic decode_err_q;
    logic err_resp;          // error response (access phase only)
 
-   assign i2c_sel    = (i_paddr >= I2C_BASE_ADDR) && (i_paddr <= I2C_END_ADDR);
+   assign in_window  = (i_paddr >= I2C_BASE_ADDR) && (i_paddr <= I2C_END_ADDR);
+   assign reg_hit    = (i_paddr == CTRL_ADDR)   ||
+                       (i_paddr == STATUS_ADDR) ||
+                       (i_paddr == TXDATA_ADDR) ||
+                       (i_paddr == RXDATA_ADDR);
+
+   assign i2c_sel    = in_window && reg_hit;
    assign psel_in    = i_psel && i2c_sel;
    assign decode_err = i_psel && !i2c_sel;
 
@@ -129,7 +158,7 @@ module apb_slave #(
          // ... set wins over clear
          if (i2c_done) done_sticky      <= 1'b1;
          if (i2c_nack) nack_sticky      <= 1'b1;
-         if (err_resp) range_err_sticky <= 1'b1;   // out-of-range access
+         if (err_resp) range_err_sticky <= 1'b1;   // invalid address access
       end
    end
 
@@ -187,7 +216,7 @@ module apb_slave #(
       endcase
    end
 
-   // Final ready: in-range response OR out-of-range error response
+   // Final ready: valid-register response OR invalid-address error response
    assign o_pready = in_pready | err_resp;
 
    always_ff @(posedge pclk or negedge presetn) begin
@@ -242,11 +271,11 @@ module apb_slave #(
    assign fifo_wr_data  = txdata_reg;
    assign fifo_wr_en    = fifo_wr_pulse & ~fifo_full;
 
-   // PSLVERR: NACK (in-range) or out-of-range decode error
+   // PSLVERR: NACK (valid address) or invalid-address decode error
    assign o_pslverr = err_resp ||
                       (i2c_nack && psel_in && i_penable && in_pready);
 
-   // PRDATA: req_rd is already gated by psel_in, so out-of-range reads 0
+   // PRDATA: req_rd is already gated by psel_in, so invalid reads give 0
    always_comb begin
       o_prdata = '0;
       if (req_rd) begin

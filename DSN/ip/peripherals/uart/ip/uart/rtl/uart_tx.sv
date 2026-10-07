@@ -47,11 +47,11 @@ module uart_tx (
   // Data input handshake (handshake at posedge clk).
   input  logic        data_valid_i,
   output logic        data_ready_o,
-  input  logic [8:0]  data_i,  
+  input  logic [8:0]  data_i,
 
   // Serial output.
   output logic        tx_o,
-  output logic        busy_o
+  //output logic        busy_o
 );
 
   // FSM states
@@ -98,11 +98,11 @@ module uart_tx (
   // Accept new frame when idle, baud-armed, and (if flow enabled) CTS asserted.
   logic accept_frame;
   assign accept_frame = (state_q == S_IDLE) && data_valid_i &&
-    !(flow_en_i && cts_n_i) && tick_x1_i;
+                        !(flow_en_i && cts_n_i);
 
-  assign data_ready_o = (state_q == S_IDLE) && !(flow_en_i && cts_n_i) && tick_x1_i;
+  assign data_ready_o = (state_q == S_IDLE) && !(flow_en_i && cts_n_i);
   assign tx_o         = tx_q;
-  assign busy_o       = (state_q != S_IDLE);
+  //assign busy_o       = (state_q != S_IDLE);
 
   always_ff @(posedge clk_i) begin
     if (!rst_ni) begin

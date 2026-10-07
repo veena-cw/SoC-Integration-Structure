@@ -56,7 +56,7 @@ module uart_top #(
   // RX user-side FIFO pop.
   input  logic                              rx_rd_en_i,
   output logic [8:0]                        rx_rd_data_o,
-  output logic                              rx_data_valid_o,
+  output logic 			            rx_data_valid_o,
   output logic                              rx_full_o,
   output logic                              rx_empty_o,
   output logic [$clog2(RX_FIFO_DEPTH+1)-1:0] rx_level_o,
@@ -81,7 +81,7 @@ module uart_top #(
   input  logic                              cts_n_i,
   output logic                              rts_n_o
 );
-assign rx_data_valid_o = rx_data_valid;
+
   // ---------------------------------------------------------------------
   // Baud generator.
   // ---------------------------------------------------------------------
@@ -123,7 +123,8 @@ assign rx_data_valid_o = rx_data_valid;
   );
   assign tx_empty_o = tx_fifo_empty;
   assign tx_level_o = tx_lvl;
-
+  //assign rx_data_valid_o = data_valid_o;
+assign rx_data_valid_o = rx_data_valid;
   uart_tx u_tx (
     .clk_i         (clk_i),
     .rst_ni        (rst_ni),
@@ -137,8 +138,8 @@ assign rx_data_valid_o = rx_data_valid;
     .data_valid_i  (!tx_fifo_empty),
     .data_ready_o  (tx_data_ready),
     .data_i        (tx_fifo_data),
-    .tx_o          (tx_o),
-    .busy_o        (tx_busy)
+    .tx_o          (tx_o)
+   // .busy_o        (tx_busy)
   );
 
   // ---------------------------------------------------------------------
@@ -166,8 +167,8 @@ assign rx_data_valid_o = rx_data_valid;
     .data_o        (rx_data),
     .frame_err_o   (rx_frame_err_pulse),
     .parity_err_o  (rx_parity_err_pulse),
-    .break_o       (rx_break_pulse),
-    .busy_o        (rx_busy)
+    .break_o       (rx_break_pulse)
+    //.busy_o        (rx_busy)
   );
 
   // RX FIFO. A push to a full FIFO sets the overrun flag and is
@@ -239,7 +240,7 @@ assign rx_data_valid_o = rx_data_valid;
                    (err_irq_en_i      && any_err);
 
   // Tie-off unused.
-  logic _unused;
-  assign _unused = tx_busy | rx_busy;
+  //logic _unused;
+  //assign _unused = tx_busy | rx_busy;
 
 endmodule

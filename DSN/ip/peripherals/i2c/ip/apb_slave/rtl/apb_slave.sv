@@ -165,14 +165,19 @@ module apb_slave #(
    // [3]=range_err  [2]=nack  [1]=done  [0]=busy
    assign status_reg = {28'b0, range_err_sticky, nack_sticky, done_sticky, i2c_busy};
 
-   // RX Register captures i_rd_data when I2C finishes
-   always_ff @(posedge pclk or negedge presetn) begin
-      if(!presetn) rxdata_reg <= 8'h00;
-      else if(i2c_done) rxdata_reg <= i_rd_data;
-   end
+   //==========================================================
+   // RXDATA : byte received from the I2C slave
+   //
+   // Comes straight from the RX FIFO output register (i_rd_data),
+   // which is updated when the received byte is popped from the
+   // RX FIFO. It no longer depends on the i2c_done pulse and is
+   // not touched by I2C write transactions.
+   //==========================================================
+   assign rxdata_reg = {{(DW-8){1'b0}}, i_rd_data};
 
    logic ctrl_valid;
    logic tx_valid;
+   logic both_valid, both_valid_d, fifo_wr_pulse;   // declared before first use
 
    logic ctrl_write_blocked;
    logic tx_write_blocked;
@@ -186,7 +191,7 @@ module apb_slave #(
          IDLE: begin
             if (req_wr && i_penable && psel_in &&
                 !fifo_full && !i2c_busy &&
-                !ctrl_write_blocked && !tx_write_blocked)
+                !both_valid)
                in_pready = 1'b1;
 
             if (req_rd && i_penable && psel_in)
@@ -200,7 +205,7 @@ module apb_slave #(
          W_ACCESS: begin
             if (req_wr && i_penable &&
                 !fifo_full && !i2c_busy &&
-                !ctrl_write_blocked && !tx_write_blocked)
+                !both_valid)
                in_pready = 1'b1;
 
             if (req_rd && i_penable)
@@ -258,8 +263,6 @@ module apb_slave #(
       end
    end
 
-   logic both_valid, both_valid_d, fifo_wr_pulse;
-
    assign both_valid = (ctrl_valid == 1) && (tx_valid == 1);
 
    always_ff @(posedge pclk or negedge presetn) begin
@@ -276,6 +279,8 @@ module apb_slave #(
                       (i2c_nack && psel_in && i_penable && in_pready);
 
    // PRDATA: req_rd is already gated by psel_in, so invalid reads give 0
+   //   CTRL / STATUS / TXDATA : APB register reads
+   //   RXDATA                 : byte received from the I2C slave
    always_comb begin
       o_prdata = '0;
       if (req_rd) begin

@@ -28,6 +28,10 @@
   //   for a different address space
   localparam boot_base_addr_gp         = 40'h00_0011_0000;
   localparam dram_base_addr_gp         = 40'h00_8000_0000;
+  
+  //Added for Low speed peripherals
+  localparam soc_periph_base_addr_gp  = 40'h00_3000_0000;
+  localparam soc_periph_limit_addr_gp = 40'h00_3FFF_FFFF;
 
 `endif
 

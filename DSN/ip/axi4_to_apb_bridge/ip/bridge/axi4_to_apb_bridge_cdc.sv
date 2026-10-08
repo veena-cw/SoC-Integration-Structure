@@ -372,6 +372,21 @@ module axi4_to_apb_bridge_cdc #(
         sub_wdata = wdata_reg[sub_cnt_r*APB_DATA_WIDTH +: APB_DATA_WIDTH];
         sub_wstrb = wstrb_reg[sub_cnt_r*APB_STRB_WIDTH +: APB_STRB_WIDTH];
     end
+	logic [SUB_CNT_WIDTH-1:0] next_valid_sub;
+    logic                     next_valid_found;
+
+	always_comb begin
+		next_valid_found = 1'b0;
+		next_valid_sub   = sub_cnt_r;
+
+		for (int i = sub_cnt_r + 1; i < RATIO; i++) begin
+			if (|wstrb_reg[i*APB_STRB_WIDTH +: APB_STRB_WIDTH]) begin
+				next_valid_sub   = SUB_CNT_WIDTH'(i);
+				next_valid_found = 1'b1;
+				break;
+			end
+		end
+	end
 
     // Next-value of the read reassembly accumulator / error OR, formed
     // combinationally from the just-arrived RESP_FIFO word so it can be
@@ -445,18 +460,47 @@ module axi4_to_apb_bridge_cdc #(
                         axi_state <= A_WR_PUSH_CMD;
                     end
                 end
-
-                A_WR_PUSH_CMD: begin
+//change 2
+               /* A_WR_PUSH_CMD: begin
                     // cmd_wr_en (comb, below) is high whenever we're here and
                     // !cmd_full, so the push happens on this same edge.
                     if (!cmd_full) axi_state <= A_WR_WAIT_RESP;
-                end
+                end */
+				A_WR_PUSH_CMD: begin
+						if (!(|sub_wstrb)) begin
+							// Skip invalid 32-bit slice
+							if (!next_valid_found) begin
+								sub_cnt_r <= '0;
 
+								if (beat_cnt_r == len_r) begin
+									bid_r     <= id_r;
+									bresp_r   <= (wresp_err_r | resp_data_out[RESP_WIDTH-1]) ?
+												 XRESP_SLVERR : XRESP_OKAY;
+									bvalid_r  <= 1'b1;
+									axi_state <= A_WR_RESP;
+								end
+								else begin
+									cur_addr_r <= axi_next_addr(cur_addr_r, burst_r, size_r, len_r);
+									beat_cnt_r <= beat_cnt_r + 1'b1;
+									axi_state  <= A_WR_DATA_WAIT;
+								end
+							end
+							else begin
+								// Jump directly to the next valid 32-bit slice
+								sub_cnt_r <= next_valid_sub;
+								axi_state <= A_WR_PUSH_CMD;
+							end
+						end
+						else begin
+							if (!cmd_full)
+								axi_state <= A_WR_WAIT_RESP;
+						end
+					end
                 A_WR_WAIT_RESP: begin
                     if (!resp_empty) begin
                         wresp_err_r <= wresp_err_r | resp_data_out[RESP_WIDTH-1];
 
-                        if (sub_cnt_r == SUB_CNT_WIDTH'(RATIO - 1)) begin
+                       if (!next_valid_found)  begin
                             // Last sub-transfer of this AXI beat done.
                             sub_cnt_r <= '0;
                             if (beat_cnt_r == len_r) begin
@@ -469,11 +513,33 @@ module axi4_to_apb_bridge_cdc #(
                                 beat_cnt_r <= beat_cnt_r + 8'd1;
                                 axi_state  <= A_WR_DATA_WAIT;
                             end
-                        end else begin
+                        end 
+						else begin
                             // More sub-transfers remain within this beat.
-                            sub_cnt_r <= sub_cnt_r + SUB_CNT_WIDTH'(1);
-                            axi_state <= A_WR_PUSH_CMD;
-                        end
+                           /* sub_cnt_r <= sub_cnt_r + SUB_CNT_WIDTH'(1);
+                            axi_state <= A_WR_PUSH_CMD; */
+							if (next_valid_found) begin
+								sub_cnt_r <= next_valid_sub;
+								axi_state <= A_WR_PUSH_CMD;
+							end
+							else begin
+								sub_cnt_r <= '0';
+
+								if (beat_cnt_r == len_r) begin
+									bid_r     <= id_r;
+									bresp_r   <= (wresp_err_r | resp_data_out[RESP_WIDTH-1]) ?
+												 XRESP_SLVERR : XRESP_OKAY;
+									bvalid_r  <= 1'b1;
+									axi_state <= A_WR_RESP;
+								end
+								else begin
+									cur_addr_r <= axi_next_addr(cur_addr_r, burst_r, size_r, len_r);
+									beat_cnt_r <= beat_cnt_r + 1'b1;
+									axi_state  <= A_WR_DATA_WAIT;
+								end
+							end
+                        end 
+						
                     end
                 end
 
@@ -531,32 +597,6 @@ module axi4_to_apb_bridge_cdc #(
             endcase
         end
     end
-
-    // AXI-side combinational outputs / FIFO handshake
-    /*always_comb begin
-        AWREADY = (axi_state == A_IDLE) && AWVALID;
-        ARREADY = (axi_state == A_IDLE) && !AWVALID && ARVALID;
-        WREADY  = (axi_state == A_WR_DATA_WAIT);
-
-        BID    = bid_r;
-        BRESP  = bresp_r;
-        BVALID = bvalid_r;
-
-        RID    = rid_r;
-        RDATA  = rdata_r;
-        RRESP  = rresp_r;
-        RLAST  = rlast_r;
-        RVALID = rvalid_r;
-
-        cmd_wr_en = ((axi_state == A_WR_PUSH_CMD) || (axi_state == A_RD_PUSH_CMD)) && !cmd_full;
-
-        if (axi_state == A_WR_PUSH_CMD)
-            cmd_data_in = {1'b1, prot_r, sub_addr, sub_wstrb, sub_wdata};
-        else
-            cmd_data_in = {1'b0, prot_r, sub_addr, {APB_STRB_WIDTH{1'b0}}, {APB_DATA_WIDTH{1'b0}}};
-
-        resp_rd_en = ((axi_state == A_WR_WAIT_RESP) || (axi_state == A_RD_WAIT_RESP)) && !resp_empty;
-    end */
 always_comb begin
  
 	    // AXI handshake signals
@@ -573,11 +613,14 @@ always_comb begin
 	    RRESP  = rresp_r;
 	    RLAST  = rlast_r;
 	    RVALID = rvalid_r;
- 
-	    cmd_wr_en = ((axi_state == A_WR_PUSH_CMD) ||
+ //change 1
+	    /*cmd_wr_en = ((axi_state == A_WR_PUSH_CMD) ||
 		         (axi_state == A_RD_PUSH_CMD)) &&
-		         !cmd_full;
- 
+		         !cmd_full;*/
+	cmd_wr_en = (
+               ((axi_state == A_WR_PUSH_CMD) && (|sub_wstrb)) ||
+               (axi_state == A_RD_PUSH_CMD)
+            ) && !cmd_full;
 	    if (axi_state == A_WR_PUSH_CMD)
 		cmd_data_in = {1'b1, prot_r, sub_addr,
 		               sub_wstrb, sub_wdata};
@@ -648,11 +691,19 @@ always_comb begin
                     end
                 end
 
-                P_PUSH_RESP: begin
+                /*P_PUSH_RESP: begin
                     // resp_wr_en (comb, below) is high whenever we're here and
                     // !resp_full, so the push happens on this same edge.
                     if (!resp_full) apb_state <= P_IDLE;
-                end
+                end */
+				P_PUSH_RESP: begin
+					if (!resp_full) begin
+						if (!cmd_empty)
+							apb_state <= P_SETUP;
+						else
+							apb_state <= P_IDLE;
+					end
+				end
 
                 default: apb_state <= P_IDLE;
 
@@ -668,8 +719,8 @@ always_comb begin
     // the shared PADDR/PWDATA/PWRITE bus at it.
     //-------------------------------------------------------------------
     logic psel_active;
-    assign psel_active = (apb_state == P_SETUP) || (apb_state == P_ACCESS);
-
+ 
+assign psel_active =((apb_state == P_SETUP) || (apb_state == P_ACCESS)) && (|p_wstrb_r);
     logic spi_psel_dec, i2c_psel_dec, uart_psel_dec, gpio_psel_dec,
           mipi_psel_dec, hdmi_psel_dec, timer_psel_dec, debug_psel_dec;
 
@@ -687,29 +738,30 @@ always_comb begin
 
     // APB-side combinational outputs / FIFO handshake
     always_comb begin
-        PADDR   = p_addr_r;
-        PWRITE  = p_write_r;
-        PPROT   = p_prot_r;
-        PWDATA  = p_wdata_r;
+    PADDR  = p_addr_r;
+    PWRITE = p_write_r;
+    PPROT  = p_prot_r;
+
+    if (|p_wstrb_r) begin
         PSTRB   = p_wstrb_r;
-
+        PWDATA  = p_wdata_r;
         PENABLE = (apb_state == P_ACCESS);
-
-        // Gate the decoder's one-hot outputs with bridge activity so a
-        // slave's *_psel is only ever asserted during SETUP/ACCESS.
-        spi_psel   = psel_active & spi_psel_dec;
-        i2c_psel   = psel_active & i2c_psel_dec;
-        uart_psel  = psel_active & uart_psel_dec;
-        gpio_psel  = psel_active & gpio_psel_dec;
-        mipi_psel  = psel_active & mipi_psel_dec;
-        hdmi_psel  = psel_active & hdmi_psel_dec;
-        timer_psel = psel_active & timer_psel_dec;
-        debug_psel = psel_active & debug_psel_dec;
-
-        cmd_rd_en    = (apb_state == P_IDLE) && !cmd_empty;
-        resp_wr_en   = (apb_state == P_PUSH_RESP) && !resp_full;
-        resp_data_in = {p_err_r, p_rdata_r};
     end
+    else begin
+        PSTRB   = '0;
+        PWDATA  = '0;
+        PENABLE = 1'b0;
+    end
+
+    spi_psel   = psel_active & spi_psel_dec;
+    i2c_psel   = psel_active & i2c_psel_dec;
+    uart_psel  = psel_active & uart_psel_dec;
+    gpio_psel  = psel_active & gpio_psel_dec;
+    mipi_psel  = psel_active & mipi_psel_dec;
+    hdmi_psel  = psel_active & hdmi_psel_dec;
+    timer_psel = psel_active & timer_psel_dec;
+    debug_psel = psel_active & debug_psel_dec;
+end
 
     //-------------------------------------------------------------------
     // Simulation-only protocol checks (no synthesis impact)
@@ -738,4 +790,3 @@ always_comb begin
 endmodule
 
 `default_nettype wire
-

@@ -80,35 +80,35 @@ module bp_multicore
   bp_dma_ready_and_link_s [S:N][cc_x_dim_p-1:0] dma_link_li, dma_link_lo;
   
      // PLIC connections between bp_core_complex and shared PLIC
-  bp_bedrock_mem_fwd_header_s
-    plic_fwd_header_lo [cc_x_dim_p-1:0];
+  bp_bedrock_mem_fwd_header_s [cc_x_dim_p-1:0]
+    plic_fwd_header_lo;
 
-  logic [bedrock_fill_width_p-1:0]
-    plic_fwd_data_lo [cc_x_dim_p-1:0];
+  logic [cc_x_dim_p-1:0][bedrock_fill_width_p-1:0]
+    plic_fwd_data_lo;
 
-  logic
-    plic_fwd_v_lo [cc_x_dim_p-1:0];
+  logic [cc_x_dim_p-1:0]
+    plic_fwd_v_lo;
 
-  logic
-    plic_fwd_ready_and_li [cc_x_dim_p-1:0];
+  logic [cc_x_dim_p-1:0]
+    plic_fwd_ready_and_li;
 
-  bp_bedrock_mem_rev_header_s
-    plic_rev_header_li [cc_x_dim_p-1:0];
+  bp_bedrock_mem_rev_header_s [cc_x_dim_p-1:0]
+    plic_rev_header_li;
 
-  logic [bedrock_fill_width_p-1:0]
-    plic_rev_data_li [cc_x_dim_p-1:0];
+  logic [cc_x_dim_p-1:0][bedrock_fill_width_p-1:0]
+    plic_rev_data_li;
 
-  logic
-    plic_rev_v_li [cc_x_dim_p-1:0];
+  logic [cc_x_dim_p-1:0]
+    plic_rev_v_li;
 
-  logic
-    plic_rev_ready_and_lo [cc_x_dim_p-1:0];
+  logic [cc_x_dim_p-1:0]
+    plic_rev_ready_and_lo;
 
-  logic
-    plic_m_external_irq_li [cc_x_dim_p-1:0];
+  logic [cc_x_dim_p-1:0]
+    plic_m_external_irq_li;
 
-  logic
-    plic_s_external_irq_li [cc_x_dim_p-1:0];
+  logic [cc_x_dim_p-1:0]
+    plic_s_external_irq_li;
 
 
   logic [3:0] plic_irq_lo;
@@ -383,4 +383,3 @@ module bp_multicore
      );
 
 endmodule
-

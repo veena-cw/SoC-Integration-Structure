@@ -285,7 +285,12 @@ module bp_io_tile
   assign global_addr_lo = mem_fwd_header_lo.addr;
   assign local_addr_lo  = mem_fwd_header_lo.addr;
 
-  wire is_host_addr = (~local_addr_lo.nonlocal && (local_addr_lo.dev inside {host_dev_gp}));
+  //Added for low speed peripherals
+  wire is_soc_periph_addr = (mem_fwd_header_lo.addr >= soc_periph_base_addr_gp) && (mem_fwd_header_lo.addr <= soc_periph_limit_addr_gp);
+  
+  //wire is_host_addr = (~local_addr_lo.nonlocal && (local_addr_lo.dev inside {host_dev_gp}));
+  //Added for low speed peripherals
+  wire is_host_addr = is_soc_periph_addr || (~local_addr_lo.nonlocal && (local_addr_lo.dev inside {host_dev_gp}));
   wire [mem_noc_did_width_p-1:0] dst_did_lo = is_host_addr ? host_did_i : global_addr_lo.hio;
 
   `declare_bsg_ready_and_link_sif_s(mem_noc_flit_width_p, bsg_ready_and_link_sif_s);

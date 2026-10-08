@@ -691,11 +691,19 @@ always_comb begin
                     end
                 end
 
-                P_PUSH_RESP: begin
+                /*P_PUSH_RESP: begin
                     // resp_wr_en (comb, below) is high whenever we're here and
                     // !resp_full, so the push happens on this same edge.
                     if (!resp_full) apb_state <= P_IDLE;
-                end
+                end */
+				P_PUSH_RESP: begin
+					if (!resp_full) begin
+						if (!cmd_empty)
+							apb_state <= P_SETUP;
+						else
+							apb_state <= P_IDLE;
+					end
+				end
 
                 default: apb_state <= P_IDLE;
 
@@ -711,8 +719,8 @@ always_comb begin
     // the shared PADDR/PWDATA/PWRITE bus at it.
     //-------------------------------------------------------------------
     logic psel_active;
-    assign psel_active = (apb_state == P_SETUP) || (apb_state == P_ACCESS);
-
+ 
+assign psel_active =((apb_state == P_SETUP) || (apb_state == P_ACCESS)) && (|p_wstrb_r);
     logic spi_psel_dec, i2c_psel_dec, uart_psel_dec, gpio_psel_dec,
           mipi_psel_dec, hdmi_psel_dec, timer_psel_dec, debug_psel_dec;
 
@@ -730,29 +738,30 @@ always_comb begin
 
     // APB-side combinational outputs / FIFO handshake
     always_comb begin
-        PADDR   = p_addr_r;
-        PWRITE  = p_write_r;
-        PPROT   = p_prot_r;
-        PWDATA  = p_wdata_r;
+    PADDR  = p_addr_r;
+    PWRITE = p_write_r;
+    PPROT  = p_prot_r;
+
+    if (|p_wstrb_r) begin
         PSTRB   = p_wstrb_r;
-
+        PWDATA  = p_wdata_r;
         PENABLE = (apb_state == P_ACCESS);
-
-        // Gate the decoder's one-hot outputs with bridge activity so a
-        // slave's *_psel is only ever asserted during SETUP/ACCESS.
-        spi_psel   = psel_active & spi_psel_dec;
-        i2c_psel   = psel_active & i2c_psel_dec;
-        uart_psel  = psel_active & uart_psel_dec;
-        gpio_psel  = psel_active & gpio_psel_dec;
-        mipi_psel  = psel_active & mipi_psel_dec;
-        hdmi_psel  = psel_active & hdmi_psel_dec;
-        timer_psel = psel_active & timer_psel_dec;
-        debug_psel = psel_active & debug_psel_dec;
-
-        cmd_rd_en    = (apb_state == P_IDLE) && !cmd_empty;
-        resp_wr_en   = (apb_state == P_PUSH_RESP) && !resp_full;
-        resp_data_in = {p_err_r, p_rdata_r};
     end
+    else begin
+        PSTRB   = '0;
+        PWDATA  = '0;
+        PENABLE = 1'b0;
+    end
+
+    spi_psel   = psel_active & spi_psel_dec;
+    i2c_psel   = psel_active & i2c_psel_dec;
+    uart_psel  = psel_active & uart_psel_dec;
+    gpio_psel  = psel_active & gpio_psel_dec;
+    mipi_psel  = psel_active & mipi_psel_dec;
+    hdmi_psel  = psel_active & hdmi_psel_dec;
+    timer_psel = psel_active & timer_psel_dec;
+    debug_psel = psel_active & debug_psel_dec;
+end
 
     //-------------------------------------------------------------------
     // Simulation-only protocol checks (no synthesis impact)

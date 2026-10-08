@@ -506,6 +506,48 @@ module cpu_tb_top
     end
   end
 
+  // --------------------------------------------------------------------
+  // AXI W log: each W beat with its strobe. "written" is what a byte-lane
+  // slave stores (the WDATA bytes whose WSTRB bit is set, packed from the
+  // lowest set lane); "expected" is the store data at the MMIO lane
+  // (addr % 8 in [63:0]). STRB OK when WSTRB covers exactly those lanes,
+  // STRB WRONG otherwise - the slave then writes the wrong bytes.
+  // --------------------------------------------------------------------
+  logic [`CPU_AXI_ADDR_WIDTH-1:0] axi_log_aw_addr;
+  int unsigned                    axi_log_aw_bytes;
+
+  always @(posedge clk) begin : axi_write_strb_log
+    logic [`CPU_AXI_DATA_WIDTH/8-1:0] exp_strb;
+    logic [63:0] written, expected;
+    int unsigned lane, n;
+
+    if (reset) begin
+      if (cpu_axi_vif.m_axi_awvalid && cpu_axi_vif.m_axi_awready) begin
+        axi_log_aw_addr  = cpu_axi_vif.m_axi_awaddr;
+        axi_log_aw_bytes = 1 << cpu_axi_vif.m_axi_awsize;
+      end
+
+      if (cpu_axi_vif.m_axi_wvalid && cpu_axi_vif.m_axi_wready) begin
+        lane     = axi_log_lane(axi_log_aw_addr, axi_log_aw_bytes);
+        expected = axi_log_bytes(cpu_axi_vif.m_axi_wdata, lane, axi_log_aw_bytes);
+        exp_strb = (axi_log_aw_bytes >= AXI_LOG_BUS_BYTES)
+                   ? '1 : (((1 << axi_log_aw_bytes) - 1) << lane);
+        written  = '0;
+        n        = 0;
+        for (int i = 0; i < `CPU_AXI_DATA_WIDTH/8; i++)
+          if (cpu_axi_vif.m_axi_wstrb[i] && (n < 8)) begin
+            written[8*n +: 8] = cpu_axi_vif.m_axi_wdata[8*i +: 8];
+            n++;
+          end
+        $display("AXI W    addr=%h size=%0dB wdata=%h wstrb=%h exp_wstrb=%h written=%h expected=%h %s time=%0t",
+                 axi_log_aw_addr, axi_log_aw_bytes, cpu_axi_vif.m_axi_wdata,
+                 cpu_axi_vif.m_axi_wstrb, exp_strb, written, expected,
+                 (cpu_axi_vif.m_axi_wstrb == exp_strb) ? "STRB OK" : "STRB WRONG",
+                 $time);
+      end
+    end
+  end
+
 `ifndef BP_MULTICORE
   // --------------------------------------------------------------------
   // CPU-side proof of which response bits an uncached load uses.

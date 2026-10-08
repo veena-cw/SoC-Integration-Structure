@@ -133,7 +133,7 @@ module uart_apb_top(
   // Read write Register
   always_ff @(posedge clk or negedge rst_n) 
     if (!rst_n)  {thr_reg_vld,thr_reg}  <= 33'h0;
-    else if (PSEL & PENABLE & PWRITE & (addr == ADDR_THR))  {thr_reg_vld,thr_reg} <= {1'b1,23'd0,PWDATA[31:0]} ; 
+  else if (PSEL & PENABLE & PWRITE & (addr == ADDR_THR))  {thr_reg_vld,thr_reg} <= {1'b1,23'd0,PWDATA[8:0]} ; 
       //assign thr_data = thr_reg;
   // Read only register
   always_ff @(posedge clk or negedge rst_n)

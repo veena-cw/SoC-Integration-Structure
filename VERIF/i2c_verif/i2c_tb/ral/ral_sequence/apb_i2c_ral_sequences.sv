@@ -2069,11 +2069,6 @@ class apb_i2c_invalid_addr_seq extends apb_i2c_ral_base_seq;
 
 endclass
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-=======
->>>>>>> 1de4f7b (Adding IRQ AGENT)
 
 
 class apb_i2c_irq_reg_write_seq extends apb_i2c_ral_base_seq;
@@ -2088,21 +2083,18 @@ class apb_i2c_irq_reg_write_seq extends apb_i2c_ral_base_seq;
   rand bit        read_write;
    bit [31:0] tx_data;
   rand bit [7:0] tx_data_lower;
-<<<<<<< HEAD
+
        bit  irq_en;
      
-=======
 
->>>>>>> 1de4f7b (Adding IRQ AGENT)
+
+
  //============================================================
   // Constraints
   //============================================================
 
-<<<<<<< HEAD
+
   constraint valid_addr_range {
-=======
-  constraint wrong_addr_c {
->>>>>>> 1de4f7b (Adding IRQ AGENT)
     slave_addr == 7'h55;
   }
 
@@ -2115,11 +2107,8 @@ class apb_i2c_irq_reg_write_seq extends apb_i2c_ral_base_seq;
   // IRQ sequencer handle
   //============================================================
 
-<<<<<<< HEAD
+
  // i2c_irq_sequencer irq_seqr;
-=======
-  i2c_irq_sequencer irq_seqr;
->>>>>>> 1de4f7b (Adding IRQ AGENT)
 
 
   //============================================================
@@ -2169,26 +2158,7 @@ class apb_i2c_irq_reg_write_seq extends apb_i2c_ral_base_seq;
     end
 
 
-    //==========================================================
-    // Check IRQ sequencer
-    //==========================================================
-<<<<<<< HEAD
-/*
-=======
 
->>>>>>> 1de4f7b (Adding IRQ AGENT)
-    if (irq_seqr == null) begin
-
-      `uvm_fatal(
-        "I2C_IRQ",
-        "IRQ sequencer is NULL"
-      )
-
-<<<<<<< HEAD
-    end*/
-=======
-    end
->>>>>>> 1de4f7b (Adding IRQ AGENT)
 
 
     //==========================================================
@@ -2196,7 +2166,6 @@ class apb_i2c_irq_reg_write_seq extends apb_i2c_ral_base_seq;
     //==========================================================
 
     if (!uvm_config_db#(virtual i2c_irq_if)::get(
-<<<<<<< HEAD
         null,
         "",
         "irq_vif",
@@ -2210,20 +2179,6 @@ class apb_i2c_irq_reg_write_seq extends apb_i2c_ral_base_seq;
 
 end
 
-
-=======
-          irq_seqr,
-          "",
-          "irq_vif",
-          irq_vif
-        )) begin
-
-      `uvm_fatal(
-        "I2C_IRQ",
-        "Failed to get irq_vif using IRQ sequencer"
-      )
-
-    end
 
 /*
     //==========================================================
@@ -2254,7 +2209,7 @@ end
       UVM_MEDIUM
     );
 */
->>>>>>> 1de4f7b (Adding IRQ AGENT)
+
 //==========================================================
     // Randomize transaction
     //==========================================================
@@ -2287,8 +2242,7 @@ end
       "Waiting for BUSY = 0",
       UVM_MEDIUM
     )
-<<<<<<< HEAD
-=======
+
 /*
     do begin
 
@@ -2327,7 +2281,6 @@ end
 
 */
  // @(posedge irq_vif.i2c_irq);
->>>>>>> 1de4f7b (Adding IRQ AGENT)
   
       model.STATUS_REG.read(
         status,
@@ -2368,11 +2321,9 @@ end
 
     ctrl_value[6:0] = slave_addr;
     ctrl_value[7]   = read_write;
-<<<<<<< HEAD
     ctrl_value[8] = 1;
 =======
 
->>>>>>> 1de4f7b (Adding IRQ AGENT)
 
     `uvm_info(
       "I2C_WRITE",
@@ -2614,7 +2565,7 @@ class apb_i2c_valid_addr_unused_seq extends apb_i2c_ral_base_seq;
 
 endclass   
 
-<<<<<<< HEAD
+
 class apb_i2c_reg_write_push_seq extends apb_i2c_ral_base_seq;
 
   `uvm_object_utils(apb_i2c_reg_write_push_seq)
@@ -2885,7 +2836,4 @@ repeat(5) begin
 
 endclass
 
->>>>>>> 193e2a9 (Update I2C verification)
-=======
->>>>>>> 1de4f7b (Adding IRQ AGENT)
 endpackage

@@ -37,8 +37,14 @@ module bp_me_addr_to_cce_id
   localparam max_ioc_cce_lp = max_sac_cce_lp + num_io_p;
 
   wire external_io_v_li = (global_addr_li.hio > 2'd1);
+  
+  //Added for external low peripheral devices
+  wire soc_periph_v_li = (paddr_i >= soc_periph_base_addr_gp) && (paddr_i <= soc_periph_limit_addr_gp);
+  
   wire local_addr_v_li = (paddr_i < dram_base_addr_gp);
   wire dram_addr_v_li = (paddr_i >= dram_base_addr_gp) && ~|paddr_i[paddr_width_p-1:daddr_width_p];
+  
+
 
   localparam block_offset_lp = `BSG_SAFE_CLOG2(bedrock_block_width_p/8);
   localparam lg_num_cce_lp = `BSG_SAFE_CLOG2(num_cce_p);
@@ -65,7 +71,8 @@ module bp_me_addr_to_cce_id
       if (local_addr_v_li && (local_addr_li.dev inside {clint_dev_gp}))
         // split coordinate to be more compatible with standard clint
         cce_id_o = (num_core_p > 1) ? local_addr_li[3+:core_id_width_p] : '0;
-      if (external_io_v_li || (local_addr_v_li && (local_addr_li.dev inside {host_dev_gp})))
+     // if (external_io_v_li || (local_addr_v_li && (local_addr_li.dev inside {host_dev_gp})))
+     else if (soc_periph_v_li || external_io_v_li || (local_addr_v_li && (local_addr_li.dev inside {host_dev_gp})))
         // Stripe by 4kiB page, start at io CCE id
         cce_id_o = (num_io_p > 1)
                    ? max_sac_cce_lp + paddr_i[page_offset_width_gp+: (num_io_p > 1 ? `BSG_SAFE_CLOG2(num_io_p) : 1)]

@@ -155,7 +155,10 @@ module uart_rx (
         // we treat that as a break.
         if (rx_sync_q == 1'b0) begin
           if (break_cnt_q != 13'h1fff) break_cnt_q <= break_cnt_q + 13'd1;
-          if (break_cnt_q == 13'd175 && !break_armed_q) begin
+		  if (break_cnt_q == ((data_bits_q == 4'd9 && parity_en_q && 
+							(parity_mode_q == 2'b00 || parity_mode_q == 2'b11))? 13'd191 : 13'd175) && (!break_armed_q)) 
+		  begin
+         // if (break_cnt_q == 13'd175 && !break_armed_q) begin
             break_pulse_q <= 1'b1;
             break_armed_q <= 1'b1;
           end

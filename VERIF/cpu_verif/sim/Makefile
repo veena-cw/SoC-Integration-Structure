@@ -176,6 +176,9 @@ TEST_ID      ?= 40
 else ifeq ($(TEST),bp_dv_041_bitmanip_shadd_test)
 TCNAME       ?= bitmanip_shadd
 TEST_ID      ?= 41
+else ifeq ($(TEST),bp_dv_042_plic_reg_test)
+TCNAME       ?= plic_reg_access
+TEST_ID      ?= 42
 else ifeq ($(TEST),bp_i2c_write_read_test)
 TCNAME       ?= i2c_write_read
 TEST_ID      ?= 27
@@ -584,6 +587,22 @@ regression: check_uvm
 # Waveforms
 ###############################################################################
 
+# PLIC-only waveform: Verilator always dumps the whole design to
+# sim/cpu_tb_top.vcd, so cut the PLIC path out of it afterwards into
+# sim/plic.vcd (open in Vaporview / GTKWave). Run after make sim.
+#   shared_plic and everything below it (core0/core1 ports, arbiter, AHB
+#   bridge, AHB bus, PLIC registers/core) + the plic_* signals of
+#   bp_multicore (plic_src_i, IRQ synchronizers, external IRQs per core).
+PLIC_SCOPE = cpu_tb_top.dut.u_bp.m.multicore
+plic_vcd:
+	python3 $(SIM_DIR)/../scripts/vcd_filter.py $(SIM_DIR)/cpu_tb_top.vcd $(SIM_DIR)/plic.vcd \
+		--keep $(PLIC_SCOPE).shared_plic --match $(PLIC_SCOPE):plic
+	@ls -l $(SIM_DIR)/plic.vcd
+
+# GTKWave only: plic.vcd with the PLIC signals pre-grouped (sim/plic.gtkw).
+wave_plic: plic_vcd
+	gtkwave $(SIM_DIR)/plic.vcd $(SIM_DIR)/plic.gtkw &
+
 wave:
 	@echo ""
 	@echo "=================================================="
@@ -592,6 +611,7 @@ wave:
 	@find $(VERILATOR_BUILD_DIR) -type f \
 		\( -name "*.vcd" -o -name "*.fst" \) \
 		2>/dev/null || true
+	@ls -l $(SIM_DIR)/*.vcd 2>/dev/null || true
 	@echo ""
 	@echo "Open a waveform with:"
 	@echo "  gtkwave <waveform_file>"
@@ -665,6 +685,8 @@ help:
 	@echo ""
 	@echo "WAVEFORM"
 	@echo "  make wave"
+	@echo "  make plic_vcd         PLIC-only waveform sim/plic.vcd (after make sim)"
+	@echo "  make wave_plic        plic.vcd in GTKWave with grouped signals"
 	@echo "  gtkwave <waveform_file>"
 	@echo ""
 	@echo "CLEAN"

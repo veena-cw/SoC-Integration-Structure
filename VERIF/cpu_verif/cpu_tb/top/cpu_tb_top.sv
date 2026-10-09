@@ -56,6 +56,9 @@ module cpu_tb_top;
   );
 
   // Waveform dump for debugging with GTKWave or another VCD viewer.
+  // Verilator ignores the scope arguments of $dumpvars, so the whole design
+  // is always dumped. For the PLIC path use the saved view: make wave_plic
+  // (sim/plic.gtkw).
   initial begin
     $dumpfile("cpu_tb_top.vcd");
     $dumpvars(0, cpu_tb_top);
@@ -97,11 +100,31 @@ module cpu_tb_top
 
   `declare_bp_bedrock_if(paddr_width_p, lce_id_width_p, cce_id_width_p, did_width_p, lce_assoc_p);
 
-  bit clk;
+  // SoC clock plan (all from CPU_PLL; the domains are treated as
+  // asynchronous - the bridges cross them with async FIFOs):
+  //   CLK_CPU  1.5 GHz : cores, L1/L2 caches, DMA port + DRAM model
+  //   CLK_GIC  400 MHz : shared PLIC (AHB side, plic_ahb_clk_i)
+  //   CLK_AXI  400 MHz : CPU -> AXI4 bridge AXI side + AXI agent
+  // Half periods in ns (timescale 1ns/1ps); override with +define+, e.g.
+  // +define+CLK_CPU_HALF_NS=5 for the old 100 MHz single clock.
+`ifndef CLK_CPU_HALF_NS
+  `define CLK_CPU_HALF_NS 0.333
+`endif
+`ifndef CLK_GIC_HALF_NS
+  `define CLK_GIC_HALF_NS 1.25
+`endif
+`ifndef CLK_AXI_HALF_NS
+  `define CLK_AXI_HALF_NS 1.25
+`endif
+  bit clk;       // CLK_CPU
+  bit plic_clk;  // CLK_GIC
+  bit axi_clk;   // CLK_AXI
   wire reset;
   cpu_reset_if reset_vif();
   assign reset = reset_vif.reset;
-  always #5 clk = ~clk;
+  always #(`CLK_CPU_HALF_NS) clk      = ~clk;
+  always #(`CLK_GIC_HALF_NS) plic_clk = ~plic_clk;
+  always #(`CLK_AXI_HALF_NS) axi_clk  = ~axi_clk;
   // Match bp_top/test/tb/bp_tethered/wrapper.sv.  The processor uses a
   // slower real-time clock for the core-side control path; tying rt_clk_i to
   // clk can make the first cache response arrive before its credit is posted.
@@ -123,7 +146,7 @@ module cpu_tb_top
     .ID_WIDTH(`CPU_AXI_ID_WIDTH),
     .ADDR_WIDTH(`CPU_AXI_ADDR_WIDTH),
     .DATA_WIDTH(`CPU_AXI_DATA_WIDTH)
-  ) cpu_axi_vif (.axi_clk_i(clk));
+  ) cpu_axi_vif (.axi_clk_i(axi_clk));
   assign cpu_axi_vif.axi_reset_i = reset;
 
   // struct wires that sit directly on the DUT's real ports
@@ -237,10 +260,10 @@ module cpu_tb_top
   ) dut
    ( .clk_i(clk), .rt_clk_i(rt_clk), .reset_i(reset)
    // Shared PLIC (multicore only; unused by the unicore build). The AHB
-   // side runs on the core clock here and no external interrupt is raised.
-   , .plic_ahb_clk_i(clk), .plic_src_i('0)
+   // side runs on CLK_GIC; no external interrupt is raised.
+   , .plic_ahb_clk_i(plic_clk), .plic_src_i('0)
    , .my_did_i(proc_did), .host_did_i(host_did)
-   , .axi_clk_i(clk), .axi_reset_i(reset)
+   , .axi_clk_i(axi_clk), .axi_reset_i(reset)
    , .m_axi_awid(cpu_axi_vif.m_axi_awid), .m_axi_awaddr(cpu_axi_vif.m_axi_awaddr)
    , .m_axi_awlen(cpu_axi_vif.m_axi_awlen), .m_axi_awsize(cpu_axi_vif.m_axi_awsize)
    , .m_axi_awburst(cpu_axi_vif.m_axi_awburst), .m_axi_awlock(cpu_axi_vif.m_axi_awlock)
@@ -426,12 +449,7 @@ module cpu_tb_top
   logic [63:0]                    axi_log_r_bytes;
   bit                             axi_log_r_seen;
 
-  always @(posedge clk) begin : axi_read_data_log
-    bp_bedrock_mem_rev_header_s cpu_rev_hdr;
-    int unsigned cpu_bytes;
-    logic [63:0] cpu_view;
-    string       verdict;
-
+  always @(posedge axi_clk) begin : axi_read_data_log
     // reset is active-low: 1 means the DUT is running.
     if (!reset) begin
       axi_log_r_seen = 1'b0;
@@ -452,7 +470,17 @@ module cpu_tb_top
                  axi_log_lane(axi_log_ar_addr, axi_log_ar_bytes),
                  cpu_axi_vif.m_axi_rdata, axi_log_r_bytes, $time);
       end
+    end
+  end
 
+  // AXI->CPU: the bridge's BedRock response, in the core clock domain.
+  always @(posedge clk) begin : axi_to_cpu_log
+    bp_bedrock_mem_rev_header_s cpu_rev_hdr;
+    int unsigned cpu_bytes;
+    logic [63:0] cpu_view;
+    string       verdict;
+
+    if (reset) begin
       cpu_rev_hdr = dut.rev_hdr;
       if (dut.rev_v && dut.rev_ready
           && (cpu_rev_hdr.msg_type.rev == e_bedrock_mem_rd)) begin
@@ -506,6 +534,185 @@ module cpu_tb_top
     end
   end
 
+`ifdef BP_MULTICORE
+  // --------------------------------------------------------------------
+  // PLIC AHB log: every AHB transfer between bp_bedrock_ahb3lite_bridge and
+  // ahb3lite_plic_top in the shared PLIC (bp_multicore.shared_plic).
+  //   PLIC AHB WRITE/READ haddr=<offset from 0x0050_0000> reg=<name>
+  //   data=<HWDATA or HRDATA> hresp=<0 OKAY / 1 ERROR>
+  // Register names follow the 64-source / 4-target / 8-priority map (see
+  // c/plic_reg_access.c). Address phase is captured, data is logged when
+  // the data phase completes (HREADYOUT = 1).
+  // --------------------------------------------------------------------
+  function automatic string plic_reg_name(input logic [31:0] off);
+    case (off[31:2])
+      30'h00: return "CONFIG0";
+      30'h01: return "CONFIG1";
+      30'h02, 30'h03: return $sformatf("EL%0d", off[2]);
+      default: ;
+    endcase
+    if (off >= 32'h10 && off < 32'h30) return $sformatf("PRIORITY%0d", (off - 32'h10) >> 2);
+    if (off >= 32'h30 && off < 32'h50) return $sformatf("IE[t%0d][%0d]", (off - 32'h30) >> 3, off[2]);
+    if (off >= 32'h50 && off < 32'h60) return $sformatf("THRESHOLD[t%0d]", (off - 32'h50) >> 2);
+    if (off >= 32'h60 && off < 32'h70) return $sformatf("ID[t%0d]", (off - 32'h60) >> 2);
+    return "UNMAPPED";
+  endfunction
+
+  logic        plic_ahb_dp_v;
+  logic [31:0] plic_ahb_dp_addr;
+  logic        plic_ahb_dp_write;
+  logic [2:0]  plic_ahb_dp_size;
+  logic [31:0] plic_ahb_last_rdata;
+
+  always @(posedge plic_clk) begin : plic_ahb_log
+    if (!dut.u_bp.m.multicore.shared_plic.ahb_rstn) begin
+      plic_ahb_dp_v = 1'b0;
+    end
+    else begin
+      // Data phase of the previous transfer
+      if (plic_ahb_dp_v && dut.u_bp.m.multicore.shared_plic.ahb_hreadyout) begin
+        $display("PLIC AHB %s haddr=%h reg=%s size=%0dB data=%h hresp=%0d time=%0t",
+                 plic_ahb_dp_write ? "WRITE" : "READ ",
+                 plic_ahb_dp_addr, plic_reg_name(plic_ahb_dp_addr),
+                 1 << plic_ahb_dp_size,
+                 plic_ahb_dp_write ? dut.u_bp.m.multicore.shared_plic.ahb_hwdata
+                                   : dut.u_bp.m.multicore.shared_plic.ahb_hrdata,
+                 dut.u_bp.m.multicore.shared_plic.ahb_hresp, $time);
+        if (!plic_ahb_dp_write)
+          plic_ahb_last_rdata = dut.u_bp.m.multicore.shared_plic.ahb_hrdata;
+        plic_ahb_dp_v = 1'b0;
+      end
+      // Address phase of a new transfer
+      if (dut.u_bp.m.multicore.shared_plic.ahb_hsel
+          && dut.u_bp.m.multicore.shared_plic.ahb_htrans[1]
+          && dut.u_bp.m.multicore.shared_plic.ahb_hreadyout) begin
+        plic_ahb_dp_v     = 1'b1;
+        plic_ahb_dp_addr  = dut.u_bp.m.multicore.shared_plic.ahb_haddr_full[31:0];
+        plic_ahb_dp_write = dut.u_bp.m.multicore.shared_plic.ahb_hwrite;
+        plic_ahb_dp_size  = dut.u_bp.m.multicore.shared_plic.ahb_hsize;
+      end
+    end
+  end
+
+  // --------------------------------------------------------------------
+  // CPU <-> PLIC message log, on each core's port of bp_plic_shared_top.
+  //
+  // CPU->PLIC core<n> WRITE/READ: request from the core (core<n>_fwd_*).
+  //   fwd_data[63:0]: [63:0] of the request; store_val: the bytes at lane
+  //   addr % 8 (what the CPU stored).
+  // PLIC->CPU core<n> READ : read response (core<n>_rev_*). The core takes a
+  //   load of N bytes from lane addr % 8 of rev_data[63:0] (cpu_gets);
+  //   MATCH if that equals what the PLIC returned on AHB (ahb_hrdata).
+  // PLIC->CPU core<n> WR-ACK: write acknowledgement.
+  // --------------------------------------------------------------------
+  function automatic logic [63:0] plic_lane_bytes(input logic [63:0] word,
+                                                  input int unsigned lane,
+                                                  input int unsigned nbytes);
+    logic [63:0] mask;
+    mask = (nbytes >= 8) ? '1 : ((64'd1 << (8 * nbytes)) - 64'd1);
+    return (word >> (8 * lane)) & mask;
+  endfunction
+
+  task automatic plic_fwd_log(input int core,
+                              input logic [mem_fwd_header_width_lp-1:0] hdr_bits,
+                              input logic [bedrock_fill_width_p-1:0]    data);
+    bp_bedrock_mem_fwd_header_s hdr;
+    int unsigned nbytes, lane;
+
+    hdr    = hdr_bits;
+    nbytes = 1 << hdr.size;
+    lane   = hdr.addr % 8;
+    if (hdr.msg_type.fwd == e_bedrock_mem_wr)
+      $display("CPU->PLIC core%0d WRITE addr=%h reg=%s size=%0dB lane=%0d fwd_data[63:0]=%h store_val=%h time=%0t",
+               core, hdr.addr, plic_reg_name(hdr.addr - 32'h0050_0000), nbytes, lane,
+               data[63:0], plic_lane_bytes(data[63:0], lane, nbytes), $time);
+    else
+      $display("CPU->PLIC core%0d READ  addr=%h reg=%s size=%0dB lane=%0d time=%0t",
+               core, hdr.addr, plic_reg_name(hdr.addr - 32'h0050_0000), nbytes, lane, $time);
+  endtask
+
+  task automatic plic_rev_log(input int core,
+                              input logic [mem_rev_header_width_lp-1:0] hdr_bits,
+                              input logic [bedrock_fill_width_p-1:0]    data);
+    bp_bedrock_mem_rev_header_s hdr;
+    int unsigned nbytes, lane;
+    logic [63:0] got, exp;
+
+    hdr    = hdr_bits;
+    nbytes = 1 << hdr.size;
+    lane   = hdr.addr % 8;
+    if (hdr.msg_type.rev != e_bedrock_mem_rd) begin
+      $display("PLIC->CPU core%0d WR-ACK addr=%h reg=%s size=%0dB time=%0t",
+               core, hdr.addr, plic_reg_name(hdr.addr - 32'h0050_0000), nbytes, $time);
+      return;
+    end
+    got = plic_lane_bytes(data[63:0], lane, nbytes);
+    exp = plic_lane_bytes({32'h0, plic_ahb_last_rdata}, 0, nbytes);
+    $display("PLIC->CPU core%0d READ  addr=%h reg=%s size=%0dB lane=%0d rev_data[63:0]=%h cpu_gets=%h ahb_hrdata=%h %s time=%0t",
+             core, hdr.addr, plic_reg_name(hdr.addr - 32'h0050_0000), nbytes, lane,
+             data[63:0], got, plic_ahb_last_rdata,
+             (got == exp) ? "MATCH" : "MISMATCH", $time);
+  endtask
+
+  always @(posedge clk) begin : cpu_plic_msg_log
+    if (dut.u_bp.m.multicore.shared_plic.ahb_rstn) begin
+      if (dut.u_bp.m.multicore.shared_plic.core0_fwd_v_i
+          && dut.u_bp.m.multicore.shared_plic.core0_fwd_ready_and_o)
+        plic_fwd_log(0, dut.u_bp.m.multicore.shared_plic.core0_fwd_header_i,
+                        dut.u_bp.m.multicore.shared_plic.core0_fwd_data_i);
+      if (dut.u_bp.m.multicore.shared_plic.core1_fwd_v_i
+          && dut.u_bp.m.multicore.shared_plic.core1_fwd_ready_and_o)
+        plic_fwd_log(1, dut.u_bp.m.multicore.shared_plic.core1_fwd_header_i,
+                        dut.u_bp.m.multicore.shared_plic.core1_fwd_data_i);
+      if (dut.u_bp.m.multicore.shared_plic.core0_rev_v_o
+          && dut.u_bp.m.multicore.shared_plic.core0_rev_ready_and_i)
+        plic_rev_log(0, dut.u_bp.m.multicore.shared_plic.core0_rev_header_o,
+                        dut.u_bp.m.multicore.shared_plic.core0_rev_data_o);
+      if (dut.u_bp.m.multicore.shared_plic.core1_rev_v_o
+          && dut.u_bp.m.multicore.shared_plic.core1_rev_ready_and_i)
+        plic_rev_log(1, dut.u_bp.m.multicore.shared_plic.core1_rev_header_o,
+                        dut.u_bp.m.multicore.shared_plic.core1_rev_data_o);
+    end
+  end
+
+  // --------------------------------------------------------------------
+  // PLIC interrupt lines: logged whenever they change.
+  //   PLIC SRC: plic_src_i[63:0] into the PLIC (external sources)
+  //   PLIC IRQ: plic_irq_o[3:0] out of the PLIC (t0/t1 = core0 M/S,
+  //             t2/t3 = core1 M/S) and the synchronized M/S external
+  //             interrupt each core receives
+  // --------------------------------------------------------------------
+  logic [63:0] plic_src_q;
+  logic [3:0]  plic_irq_q;
+  logic [1:0]  plic_meip_q, plic_seip_q;
+
+  always @(posedge clk) begin : plic_irq_log
+    if (!dut.u_bp.m.multicore.shared_plic.ahb_rstn) begin
+      plic_src_q  = '0;
+      plic_irq_q  = '0;
+      plic_meip_q = '0;
+      plic_seip_q = '0;
+    end
+    else begin
+      if (dut.u_bp.m.multicore.plic_src_i !== plic_src_q) begin
+        $display("PLIC SRC plic_src_i=%h (was %h) time=%0t",
+                 dut.u_bp.m.multicore.plic_src_i, plic_src_q, $time);
+        plic_src_q = dut.u_bp.m.multicore.plic_src_i;
+      end
+      if ((dut.u_bp.m.multicore.plic_irq_lo !== plic_irq_q)
+          || (dut.u_bp.m.multicore.plic_m_external_irq_li !== plic_meip_q)
+          || (dut.u_bp.m.multicore.plic_s_external_irq_li !== plic_seip_q)) begin
+        plic_irq_q  = dut.u_bp.m.multicore.plic_irq_lo;
+        plic_meip_q = dut.u_bp.m.multicore.plic_m_external_irq_li;
+        plic_seip_q = dut.u_bp.m.multicore.plic_s_external_irq_li;
+        $display("PLIC IRQ plic_irq_o=%b (t3..t0) core0 M=%0b S=%0b core1 M=%0b S=%0b time=%0t",
+                 plic_irq_q, plic_meip_q[0], plic_seip_q[0],
+                 plic_meip_q[1], plic_seip_q[1], $time);
+      end
+    end
+  end
+`endif
+
   // --------------------------------------------------------------------
   // AXI W log: each W beat with its strobe. "written" is what a byte-lane
   // slave stores (the WDATA bytes whose WSTRB bit is set, packed from the
@@ -516,7 +723,7 @@ module cpu_tb_top
   logic [`CPU_AXI_ADDR_WIDTH-1:0] axi_log_aw_addr;
   int unsigned                    axi_log_aw_bytes;
 
-  always @(posedge clk) begin : axi_write_strb_log
+  always @(posedge axi_clk) begin : axi_write_strb_log
     logic [`CPU_AXI_DATA_WIDTH/8-1:0] exp_strb;
     logic [63:0] written, expected;
     int unsigned lane, n;

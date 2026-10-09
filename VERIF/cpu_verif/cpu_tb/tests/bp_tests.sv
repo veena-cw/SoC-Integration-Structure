@@ -785,6 +785,44 @@ class bp_dv_041_bitmanip_shadd_test extends bp_dv_039_fpu_test;
   endfunction
 endclass
 
+// Test ID: BP-DV-042 | Feature: CPU writes/reads shared PLIC registers via AHB
+// (both harts; PLIC at 0x0050_0000, see c/plic_reg_access.c)
+class bp_dv_042_plic_reg_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_042_plic_reg_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    plic_reg_test_seq seq;
+    bit timeout;
+
+    phase.raise_objection(this);
+    apply_cpu_reset();
+    seq = plic_reg_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        #(500us);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("BP042_TIMEOUT",
+                 "BP-DV-042 did not write tohost within 500 us (a PLIC access may have hung)")
+
+    phase.drop_objection(this);
+  endtask
+endclass
+
 // Supplemental I2C model smoke test (BP-DV-027, outside the supplied plan).
 class bp_i2c_write_read_test extends bp_base_test;
   `uvm_component_utils(bp_i2c_write_read_test)

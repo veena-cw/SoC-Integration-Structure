@@ -141,5 +141,12 @@ bp_dv_040_bitmanip_test 40 bitmanip_ops.nbf
 # the hardware uses rs2[5:0] as the shift amount instead of 1/2/3 (Jira).
 bp_dv_041_bitmanip_shadd_test 41 bitmanip_shadd.nbf
 
+# BP-DV-042 - CPU writes/reads the shared PLIC registers over AHB
+# (0x0050_0000: CONFIG, EL, PRIORITY, IE, THRESHOLD, ID) on both harts, one
+# after the other; hart 1 also reads hart 0's values. Nonzero tohost per
+# hart: (fail_count << 16) | 0x4200 | first failing check
+# (c/plic_reg_access.c).
+bp_dv_042_plic_reg_test 42 plic_reg_access.nbf
+
 # Supplemental CPU smoke test retained from earlier development
 bp_dv_007_load_add_store_test 9  load_add_store.nbf

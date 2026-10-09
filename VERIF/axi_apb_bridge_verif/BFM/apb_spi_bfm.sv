@@ -169,7 +169,7 @@ module apb_spi_bfm #(
  
         end
         else if (apb_done && PWRITE) begin
- 
+ $display($time, " APB WRITE: ADDR=%h DATA=%h STRB=%b", PADDR, PWDATA, PSTRB);
             if (PSTRB[0])
                 spi_mem[PADDR[9:2]][7:0] <= PWDATA[7:0];
  

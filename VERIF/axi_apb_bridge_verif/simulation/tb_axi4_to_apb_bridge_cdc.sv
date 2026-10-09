@@ -1382,7 +1382,7 @@ module tb_axi4_to_apb_bridge_cdc;
             PADDR
         );
  
-        $finish;
+       $finish;
  
     end
  

@@ -47,16 +47,15 @@ class uart_reg_access_test extends uart_base_test;
         $display("========================================");
         $display("      APB_UART -- RAL REG ACCESS TEST");
         $display("========================================");
-        $display("  DUT           : apb_uart_top (d1 only)");
+        $display("  DUT           : uart_apb_top (d1 only)");
         $display("  Register Map  :");
-        $display("    DIVISOR   0x00  RW  (baud divisor)");
-        $display("    FRAME     0x04  RW  (data bits / parity / stop)");
-        $display("    FLOW      0x08  RW  (flow control enable / RTS threshold)");
-        $display("    TXDATA    0x0C  WO  (not exercised by this test)");
-        $display("    RXDATA    0x10  RO  (not exercised by this test)");
-        $display("    STATUS    0x14  RO  (FIFO levels / error flags / irq)");
-        $display("    IRQ       0x18  RW  (interrupt enables)");
-        $display("    CLEAR     0x1C  WO  (sticky-error clear pulse)");
+        $display("    THR   0x00  RW  (TX holding reg -- not exercised by this test)");
+        $display("    RHR   0x04  RO  (RX holding reg -- not exercised by this test)");
+        $display("    SR    0x08  RO  (live status: empty/full flags)");
+        $display("    CR    0x0C  RW  (push/pop enables, data bits / parity / stop)");
+        $display("    BRDR  0x10  RW  (baud divisor)");
+        $display("    IER   0x14  RW  (interrupt enables)");
+        $display("    ISR   0x18  RO  (error flags -- reading this clears them)");
         $display("========================================");
 
         // ---- reset ----

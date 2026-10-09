@@ -1,4 +1,8 @@
-uart_base_test
 uart_reg_access_test
 uart_apb_transaction_test
 uart_smoke_test
+uart_fifo_test
+uart_error_test
+uart_irq_gen_test
+uart_spec_test
+uart_stress_test

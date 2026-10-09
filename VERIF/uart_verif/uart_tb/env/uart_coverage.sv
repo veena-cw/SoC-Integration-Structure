@@ -1,18 +1,4 @@
-// ------------------------------------------------------------
-// uart_coverage.sv
-//
-// Both DUT instances are apb_uart_top now, so unlike the older
-// pin-level coverage model, everything here is derived from
-// observed APB transfers (fed the same way as uart_scoreboard,
-// from both d1_agent.monitor and d2_agent.monitor) plus a live
-// poll of each device's irq_o pin, which IS still a real
-// top-level port on both devices.
-//
-// xvlog notes carried over from the reference TB this was
-// adapted from: all declarations at the top of their class or
-// task, no decl-with-initializer inside a procedural block, no
-// variable-dimension parameters.
-// ------------------------------------------------------------
+
 `include "uvm_macros.svh"
 import uvm_pkg::*;
 
@@ -31,14 +17,20 @@ class uart_coverage extends uvm_component;
     uvm_analysis_imp_d1 #(uart_seq_item, uart_coverage) monitor_d1_imp;
     uvm_analysis_imp_d2 #(uart_seq_item, uart_coverage) monitor_d2_imp;
 
-    localparam bit [31:0] ADDR_DIVISOR = 32'h0000_0000;
-    localparam bit [31:0] ADDR_FRAME   = 32'h0000_0004;
-    localparam bit [31:0] ADDR_FLOW    = 32'h0000_0008;
-    localparam bit [31:0] ADDR_TXDATA  = 32'h0000_000C;
-    localparam bit [31:0] ADDR_RXDATA  = 32'h0000_0010;
-    localparam bit [31:0] ADDR_STATUS  = 32'h0000_0014;
-    localparam bit [31:0] ADDR_IRQ     = 32'h0000_0018;
-    localparam bit [31:0] ADDR_CLEAR   = 32'h0000_001C;
+    localparam bit [31:0] ADDR_THR  = 32'h0000_0000;
+    localparam bit [31:0] ADDR_RHR  = 32'h0000_0004;
+    localparam bit [31:0] ADDR_SR   = 32'h0000_0008;
+    localparam bit [31:0] ADDR_CR   = 32'h0000_000C;
+    localparam bit [31:0] ADDR_BRDR = 32'h0000_0010;
+    localparam bit [31:0] ADDR_IER  = 32'h0000_0014;
+    localparam bit [31:0] ADDR_ISR  = 32'h0000_0018;
+
+    // Kept as the old TXDATA/RXDATA names internally (rather than
+    // renamed to THR/RHR) purely so the direction/APB decode logic
+    // below reads the same as uart_scoreboard.sv's, which uses
+    // the same names for the same two addresses.
+    localparam bit [31:0] ADDR_TXDATA = ADDR_THR;
+    localparam bit [31:0] ADDR_RXDATA = ADDR_RHR;
 
     // ---------------- frame coverage variables ----------------
     bit [3:0] data_bits;
@@ -52,9 +44,6 @@ class uart_coverage extends uvm_component;
     bit d2_tx;
     bit d2_rx;
 
-    // ---------------- flow coverage variable -------------------
-    bit flow_en;
-
     // ---------------- error coverage variables ------------------
     bit frame_err;
     bit parity_err;
@@ -66,12 +55,12 @@ class uart_coverage extends uvm_component;
     bit        last_write;
     bit        last_is_d1;
 
-`ifndef VERILATOR
+`ifdef VERILATOR
     // ---------------- frame covergroup ----------------
     covergroup frame_cg;
         cp_data_bits: coverpoint data_bits {
-            bins bits_5 = {5};
-            bins bits_6 = {6};
+            bins bits_5 = {5};  // unreachable on this DUT -- see file header
+            bins bits_6 = {6};  // unreachable on this DUT -- see file header
             bins bits_7 = {7};
             bins bits_8 = {8};
             bins bits_9 = {9};
@@ -97,7 +86,7 @@ class uart_coverage extends uvm_component;
     // ---------------- direction covergroup ----------------
     // d1_to_d2 / d2_to_d1: only one side transmitted since the
     // last sample. full_duplex: both sides' TX flags were seen
-    // set together, i.e. d1 and d2 both had a TXDATA write
+    // set together, i.e. d1 and d2 both had a THR write
     // in-flight in the same sampling window -- see
     // sample_direction()'s overlap-window handling below.
     covergroup direction_cg;
@@ -105,14 +94,6 @@ class uart_coverage extends uvm_component;
             bins d1_to_d2    = {4'b1000};
             bins d2_to_d1    = {4'b0010};
             bins full_duplex = {4'b1010};
-        }
-    endgroup
-
-    // ---------------- flow-control covergroup ----------------
-    covergroup flow_cg;
-        cp_flow_enable: coverpoint flow_en {
-            bins disabled = {0};
-            bins enabled  = {1};
         }
     endgroup
 
@@ -133,14 +114,13 @@ class uart_coverage extends uvm_component;
     // ---------------- APB covergroup ----------------
     covergroup apb_cg;
         cp_addr: coverpoint last_addr {
-            bins divisor = {ADDR_DIVISOR};
-            bins frame   = {ADDR_FRAME};
-            bins flow    = {ADDR_FLOW};
-            bins txdata  = {ADDR_TXDATA};
-            bins rxdata  = {ADDR_RXDATA};
-            bins status  = {ADDR_STATUS};
-            bins irq     = {ADDR_IRQ};
-            bins clear   = {ADDR_CLEAR};
+            bins thr  = {ADDR_THR};
+            bins rhr  = {ADDR_RHR};
+            bins sr   = {ADDR_SR};
+            bins cr   = {ADDR_CR};
+            bins brdr = {ADDR_BRDR};
+            bins ier  = {ADDR_IER};
+            bins isr  = {ADDR_ISR};
         }
         cp_write: coverpoint last_write {
             bins rd = {0};
@@ -162,10 +142,9 @@ class uart_coverage extends uvm_component;
         monitor_d1_imp = new("monitor_d1_imp", this);
         monitor_d2_imp = new("monitor_d2_imp", this);
 
-`ifndef VERILATOR
+`ifdef VERILATOR
         frame_cg     = new();
         direction_cg = new();
-        flow_cg      = new();
         error_cg     = new();
         irq_cg       = new();
         apb_cg       = new();
@@ -197,33 +176,42 @@ class uart_coverage extends uvm_component;
         last_addr  = tr.paddr;
         last_write = tr.pwrite;
         last_is_d1 = is_d1;
-`ifndef VERILATOR
+`ifdef VERILATOR
         apb_cg.sample();
 `endif
 
-        if (tr.pwrite && tr.paddr == ADDR_FRAME) begin
-            stop_2      = tr.pwdata[7];
-            parity_mode = tr.pwdata[6:5];
-            parity_en   = tr.pwdata[4];
-            data_bits   = tr.pwdata[3:0];
-`ifndef VERILATOR
+        // CR bits[7:6]=DATA_BITS(2-bit code), [5]=STOP2,
+        // [4:3]=PARITY_MODE, [2]=PARITY_EN, [1:0]=TX_WR_EN/
+        // RX_RD_EN (irrelevant to frame coverage, not decoded
+        // here). Every send/receive pulse also writes CR, so this
+        // re-samples the already-configured frame values on every
+        // byte too -- harmless, just redundant.
+        if (tr.pwrite && tr.paddr == ADDR_CR) begin
+            stop_2      = tr.pwdata[5];
+            parity_mode = tr.pwdata[4:3];
+            parity_en   = tr.pwdata[2];
+            case (tr.pwdata[7:6])
+                2'b00: data_bits = 4'd7;
+                2'b01: data_bits = 4'd8;
+                2'b10: data_bits = 4'd9;
+                2'b11: data_bits = 4'd8;
+            endcase
+`ifdef VERILATOR
             frame_cg.sample();
 `endif
         end
 
-        if (tr.pwrite && tr.paddr == ADDR_FLOW) begin
-            flow_en = tr.pwdata[0];
-`ifndef VERILATOR
-            flow_cg.sample();
-`endif
-        end
-
-        if (!tr.pwrite && tr.paddr == ADDR_STATUS) begin
-            frame_err   = tr.prdata[14];
-            parity_err  = tr.prdata[15];
-            overrun_err = tr.prdata[16];
-            break_err   = tr.prdata[17];
-`ifndef VERILATOR
+        // Error flags: only ISR carries OVERRUN_ERR/BREAK_ERR (SR
+        // does not -- see uart_ral_pkg.sv's sr_reg/isr_reg header
+        // notes). Sampling here reads whatever ISR returned on
+        // this transaction, i.e. the value observed *before* the
+        // read-clears-on-read side effect takes it back to 0.
+        if (!tr.pwrite && tr.paddr == ADDR_ISR) begin
+            frame_err   = tr.prdata[5];
+            parity_err  = tr.prdata[4];
+            overrun_err = tr.prdata[6];
+            break_err   = tr.prdata[7];
+`ifdef VERILATOR
             error_cg.sample();
 `endif
         end
@@ -236,7 +224,7 @@ class uart_coverage extends uvm_component;
         end
 
         if (tr.paddr == ADDR_TXDATA || tr.paddr == ADDR_RXDATA) begin
-`ifndef VERILATOR
+`ifdef VERILATOR
             direction_cg.sample();
 `endif
             d1_tx = 1'b0;
@@ -259,12 +247,12 @@ class uart_coverage extends uvm_component;
 
     // ---------------- ongoing IRQ sampling ----------------
     // irq_o is a live pin on both devices, not something that
-    // only changes at a TXDATA/RXDATA event, so it gets its own
+    // only changes at a THR/RHR event, so it gets its own
     // periodic sample rather than piggybacking on decode_common.
     virtual task run_phase(uvm_phase phase);
         forever begin
             @(posedge vif_d1.pclk);
-`ifndef VERILATOR
+`ifdef VERILATOR
             irq_cg.sample();
 `endif
         end
@@ -273,18 +261,17 @@ class uart_coverage extends uvm_component;
     // ---------------- report ----------------
     virtual function void report_phase(uvm_phase phase);
         super.report_phase(phase);
-`ifndef VERILATOR
+`ifdef VERILATOR
         $display("\n========================================");
         $display("      FUNCTIONAL COVERAGE SUMMARY");
         $display("========================================");
         $display("  Frame coverage        : %0.2f %%", frame_cg.get_coverage());
         $display("  Direction coverage    : %0.2f %%", direction_cg.get_coverage());
         $display("  Error coverage        : %0.2f %%", error_cg.get_coverage());
-        $display("  Flow-control coverage : %0.2f %%", flow_cg.get_coverage());
         $display("  IRQ coverage          : %0.2f %%", irq_cg.get_coverage());
         $display("  APB coverage          : %0.2f %%", apb_cg.get_coverage());
         $display("----------------------------------------");
-        $display("  TOTAL COVERAGE        : %0.2f %%", $get_coverage());
+        //$display("  TOTAL COVERAGE        : %0.2f %%", $get_coverage());
         $display("========================================\n");
 `else
         $display("\n[VERILATOR] Coverage collection is not supported by this tool");

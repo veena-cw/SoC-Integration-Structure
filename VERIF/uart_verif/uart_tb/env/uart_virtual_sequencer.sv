@@ -1,13 +1,4 @@
-// ------------------------------------------------------------
-// uart_virtual_sequencer.sv
-//
-// Holds one sequencer handle per agent, plus the shared RAL
-// model and adapter -- uart_virtual_sequence needs both handles
-// to redirect ral_model.default_map between d1_sequencer and
-// d2_sequencer depending on which device is sending/receiving
-// for the current transfer (see redirect_to_d1()/redirect_to_d2()
-// in uart_virtual_sequence.sv).
-// ------------------------------------------------------------
+
 `include "uvm_macros.svh"
 import uvm_pkg::*;
 
@@ -29,8 +20,14 @@ class uart_virtual_sequencer extends uvm_sequencer;
     // discard_d2_to_d1_pending() for why this matters.
     uart_scoreboard scoreboard;
 
+    // Raw UART interfaces used by the virtual sequence only for
+    // observing RTS/CTS during the flow-control test.
+    virtual uart_if d1_vif;
+    virtual uart_if d2_vif;
+
     function new(string name = "uart_virtual_sequencer", uvm_component parent = null);
         super.new(name, parent);
     endfunction
 
 endclass
+

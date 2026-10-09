@@ -1,9 +1,12 @@
 // ------------------------------------------------------------
 // uart_ral_block.sv
 //
-// The top-level register block. Base address 0x0. 4-byte stride.
-// Endianness little. This is what the predictor + adapter will
-// operate on, and what env.register_db exposes to sequences.
+// The top-level register block for the NEW uart_apb_top.sv map.
+// Base address 0x0, 4-byte stride, little endian -- same
+// mapping conventions as before, just different registers:
+// THR(0x00) / RHR(0x04) / SR(0x08) / CR(0x0C) / BRDR(0x10) /
+// IER(0x14) / ISR(0x18). Flow-control configuration is represented
+// by CR[8] and CR[13:9], and RX-full IRQ enable by IER[3].
 // ------------------------------------------------------------
 `include "uvm_macros.svh"
 
@@ -13,14 +16,13 @@ import uvm_pkg::*;
     class uart_ral_block extends uvm_reg_block;
         `uvm_object_utils(uart_ral_block)
 
-        rand divisor_reg DIVISOR;
-        rand frame_reg   FRAME;
-        rand flow_reg    FLOW;
-        rand txdata_reg  TXDATA;
-        rand rxdata_reg  RXDATA;
-        rand status_reg  STATUS;
-        rand irq_reg     IRQ;
-        rand clear_reg   CLEAR;
+        rand thr_reg  THR;
+        rand rhr_reg  RHR;
+        rand sr_reg   SR;
+        rand cr_reg   CR;
+        rand brdr_reg BRDR;
+        rand ier_reg  IER;
+        rand isr_reg  ISR;
 
         uvm_reg_map default_map;
 
@@ -31,45 +33,40 @@ import uvm_pkg::*;
         virtual function void build();
             default_map = create_map("default_map", 'h0, 4, UVM_LITTLE_ENDIAN, 0);
 
-            DIVISOR = divisor_reg::type_id::create("DIVISOR");
-            DIVISOR.configure(this, null, "");
-            DIVISOR.build();
-            default_map.add_reg(DIVISOR, 'h00, "RW");
+            THR = thr_reg::type_id::create("THR");
+            THR.configure(this, null, "");
+            THR.build();
+            default_map.add_reg(THR, 'h00, "RW");
 
-            FRAME = frame_reg::type_id::create("FRAME");
-            FRAME.configure(this, null, "");
-            FRAME.build();
-            default_map.add_reg(FRAME, 'h04, "RW");
+            RHR = rhr_reg::type_id::create("RHR");
+            RHR.configure(this, null, "");
+            RHR.build();
+            default_map.add_reg(RHR, 'h04, "RO");
 
-            FLOW = flow_reg::type_id::create("FLOW");
-            FLOW.configure(this, null, "");
-            FLOW.build();
-            default_map.add_reg(FLOW, 'h08, "RW");
+            SR = sr_reg::type_id::create("SR");
+            SR.configure(this, null, "");
+            SR.build();
+            default_map.add_reg(SR, 'h08, "RO");
 
-            TXDATA = txdata_reg::type_id::create("TXDATA");
-            TXDATA.configure(this, null, "");
-            TXDATA.build();
-            default_map.add_reg(TXDATA, 'h0C, "WO");
+            CR = cr_reg::type_id::create("CR");
+            CR.configure(this, null, "");
+            CR.build();
+            default_map.add_reg(CR, 'h0C, "RW");
 
-            RXDATA = rxdata_reg::type_id::create("RXDATA");
-            RXDATA.configure(this, null, "");
-            RXDATA.build();
-            default_map.add_reg(RXDATA, 'h10, "RO");
+            BRDR = brdr_reg::type_id::create("BRDR");
+            BRDR.configure(this, null, "");
+            BRDR.build();
+            default_map.add_reg(BRDR, 'h10, "RW");
 
-            STATUS = status_reg::type_id::create("STATUS");
-            STATUS.configure(this, null, "");
-            STATUS.build();
-            default_map.add_reg(STATUS, 'h14, "RO");
+            IER = ier_reg::type_id::create("IER");
+            IER.configure(this, null, "");
+            IER.build();
+            default_map.add_reg(IER, 'h14, "RW");
 
-            IRQ = irq_reg::type_id::create("IRQ");
-            IRQ.configure(this, null, "");
-            IRQ.build();
-            default_map.add_reg(IRQ, 'h18, "RW");
-
-            CLEAR = clear_reg::type_id::create("CLEAR");
-            CLEAR.configure(this, null, "");
-            CLEAR.build();
-            default_map.add_reg(CLEAR, 'h1C, "WO");
+            ISR = isr_reg::type_id::create("ISR");
+            ISR.configure(this, null, "");
+            ISR.build();
+            default_map.add_reg(ISR, 'h18, "RO");
 
             lock_model();
         endfunction

@@ -56,8 +56,16 @@ endif
 # issues single-beat transactions only (checked in every test by the AXI
 # monitor, AXI_SINGLE_BEAT). Pass +REQUIRE_AXI_BURST=1 by hand to re-enable.
 
+# NO_VCD=1: no waveform dump (+NO_VCD). Use for regressions and long or
+# hanging runs; a full dump grows by ~100 MB per simulated us.
+NO_VCD ?= 0
+ifeq ($(NO_VCD),1)
+VCD_ARGS := +NO_VCD
+endif
+
 UVM_RUN_ARGS = \
 	+UVM_TESTNAME=$(TEST) \
+	$(VCD_ARGS) \
 	+BP_TEST_ID=$(TEST_ID) \
 	+UVM_VERBOSITY=UVM_LOW \
 	+NBF_FILE=$(SIM_DIR)/$(TCNAME).nbf \
@@ -118,7 +126,6 @@ TEST_ID      ?= 16
 else ifeq ($(TEST),bp_dv_017_multicore_shared_memory_test)
 TCNAME       ?= multicore_shared_memory
 TEST_ID      ?= 17
-BP_CFG_ID    ?= 9
 else ifeq ($(TEST),bp_dv_019_compressed_test)
 TCNAME       ?= compressed_function
 TEST_ID      ?= 19
@@ -141,11 +148,9 @@ TEST_ID      ?= 29
 else ifeq ($(TEST),bp_dv_030_axi_block_dual_core_test)
 TCNAME       ?= axi_block_dual_core
 TEST_ID      ?= 30
-BP_CFG_ID    ?= 9
 else ifeq ($(TEST),bp_dv_031_axi_block_dual_core_3002_test)
 TCNAME       ?= axi_block_dual_core_3002
 TEST_ID      ?= 31
-BP_CFG_ID    ?= 9
 else ifeq ($(TEST),bp_dv_032_cbo_clean_test)
 TCNAME       ?= cbo_clean
 TEST_ID      ?= 32
@@ -190,21 +195,21 @@ TCNAME       ?= add_function
 TEST_ID      ?= 3
 endif
 
-# BlackParrot configuration (bp_params_e value). Default 9 =
-# e_bp_multicore_2_cfg (two cores): every C test runs on both harts (see
-# c/dual_core.h). 0 = e_bp_default_cfg (unicore) is still buildable with
-# BP_CFG_ID=0. IDs 0-5 are unicore configs, 6+ are multicore.
+# BlackParrot configuration (bp_params_e value): 9 = e_bp_multicore_2_cfg
+# (two cores). Every C test runs on both harts (see c/dual_core.h). The
+# single-core configurations (0-5) are not supported by this testbench.
 BP_CFG_ID    ?= 9
-ifeq ($(filter $(BP_CFG_ID),0 1 2 3 4 5),)
+ifneq ($(filter $(BP_CFG_ID),0 1 2 3 4 5),)
+$(error BP_CFG_ID=$(BP_CFG_ID) is a single-core configuration; this testbench is two-core only (BP_CFG_ID=9))
+endif
 BP_MULTICORE := 1
 # In the multicore build, bsg_mem_1r1w's read/write-same-address assertion
-# fires once per FIFO on the first clock edge (t=5ns): its guard expects the
+# fires once per FIFO on the first clock edge: its guard expects the
 # internal reset flops to start as X (4-state), but Verilator starts them at
 # 0 before the pipelined reset reaches them. It never fires after reset.
 # By default Verilator stops at the first $error, so allow it to continue.
 # Every $error is still printed in the log - check them after a run.
 UVM_RUN_ARGS += +verilator+error+limit+1000
-endif
 
 # Programs that need extra ISA extensions. Selected by program name (TCNAME)
 # so make sim and make regression (which compiles with TCNAME=...) agree.
@@ -239,13 +244,8 @@ SIM_DISPLAY_FILTER = sed -E '/^\#\# work\.bsg_mem_.*: instantiating /d'
 CPU_FLIST    ?= $(CPU_DIR)/dsn/rtl/cpu_top.f
 TB_FILELIST  ?= $(SIM_DIR)/tb_filelist.f
 
-# Verilator build directory. Each BP configuration gets its own, so the
-# unicore and multicore builds do not overwrite each other.
-ifeq ($(BP_CFG_ID),0)
-VERILATOR_BUILD_DIR ?= $(SIM_DIR)/obj_dir
-else
+# Verilator build directory, one per BP configuration.
 VERILATOR_BUILD_DIR ?= $(SIM_DIR)/obj_dir_cfg$(BP_CFG_ID)
-endif
 VERILATOR_EXE       := $(VERILATOR_BUILD_DIR)/V$(TOP)
 
 export BP_DIR REPO_ROOT CPU_DIR CPU_RTL_DIR CPU_FLIST UVM_HOME TB_DIR
@@ -461,8 +461,7 @@ sim: $(TCNAME).nbf check_uvm
 run: sim
 
 # Compile the simulator for one BP configuration without running a test.
-#   make build                 # unicore  -> obj_dir/
-#   make build BP_CFG_ID=9     # 2 cores  -> obj_dir_cfg9/
+#   make build                 # 2 cores (BP_CFG_ID=9) -> obj_dir_cfg9/
 # Note: per-test defines (BP_DV_011/020/024) are only added by make sim
 # TEST=..., so a plain build has none of them.
 build: check_uvm
@@ -479,9 +478,9 @@ print_exe:
 ###############################################################################
 
 # Regression rows contain: UVM test class, BP test ID, boot image (.nbf), and
-# optionally cfg=<BP_CFG_ID> (default $(BP_CFG_ID), i.e. 9 = two cores). Each row runs on the
-# simulator built for its config; a config whose simulator does not exist
-# yet is built once (make build BP_CFG_ID=<n>) before its first row.
+# optionally cfg=<BP_CFG_ID> (default $(BP_CFG_ID) = 9, two cores; multicore
+# configurations only). Each row runs on the simulator built for its config;
+# a missing simulator is built once (make build BP_CFG_ID=<n>) first.
 REGR_FILE ?= $(SIM_DIR)/../testlist/testlist.f
 
 # Merge per-test Verilator coverage.dat files and generate both LCOV and HTML
@@ -549,6 +548,7 @@ regression: check_uvm
 		if "$$exe" \
 			+UVM_TESTNAME=$$t \
 			+BP_TEST_ID=$$test_id \
+			$(VCD_ARGS) \
 			+NBF_FILE=$(SIM_DIR)/$$nbf \
 			+NBF_PRELOAD_ONLY=1 \
 			+UVM_VERBOSITY=UVM_LOW \

@@ -1,6 +1,6 @@
 # CPU formal regression list
-# Columns: UVM test class, BP test ID, boot image (.nbf) [, cfg=<BP_CFG_ID>].
-# cfg defaults to the Makefile's BP_CFG_ID = 9 (two cores, sim/obj_dir_cfg9).
+# Columns: UVM test class, BP test ID, boot image (.nbf).
+# All tests run on the two-core build (BP_CFG_ID = 9, sim/obj_dir_cfg9).
 # Every test runs on both harts (c/dual_core.h); a nonzero tohost is
 # (hart1_result << 32) | hart0_result, hart1_result 0xFFFFFFFF = no report.
 
@@ -61,8 +61,7 @@ bp_dv_025_axi_burst_test 25 cache_burst_function.nbf
 bp_dv_024_dram_latency_test 24 dram_latency_function.nbf
 
 # BP-DV-017 - Multicore shared-memory test.
-# Requires a separate two-core RTL build (BP_CFG_ID=9).
-bp_dv_017_multicore_shared_memory_test 17 multicore_shared_memory.nbf cfg=9
+bp_dv_017_multicore_shared_memory_test 17 multicore_shared_memory.nbf
 
 # BP-DV-027 - I2C write/read test aliases.
 bp_i2c_write_read_test       27 i2c_write_read.nbf
@@ -80,15 +79,15 @@ bp_dv_029_axi_block_test 29 axi_block_access.nbf
 
 # BP-DV-030 - BP-DV-029 on both cores at once (hart 0: 0x0010_4000-40FF,
 # hart 1: 0x0010_4100-41FF; host-device window - BP-DV-031 covers the same
-# test at 0x3002_0000). Requires the two-core build (BP_CFG_ID=9):
+# test at 0x3002_0000):
 #   make sim TEST=bp_dv_030_axi_block_dual_core_test
 # Nonzero tohost encodes (hart1_result << 32) | hart0_result.
-bp_dv_030_axi_block_dual_core_test 30 axi_block_dual_core.nbf cfg=9
+bp_dv_030_axi_block_dual_core_test 30 axi_block_dual_core.nbf
 
 # BP-DV-031 - BP-DV-030 with the blocks at 0x3002_0000 (two cores).
 # Checks that 0x3xxx_xxxx reaches the AXI bridge on two cores (routing fix
 # in bp_me_addr_to_cce_id / bp_io_tile). Without it: 0xffffffff_00201000.
-bp_dv_031_axi_block_dual_core_3002_test 31 axi_block_dual_core_3002.nbf cfg=9
+bp_dv_031_axi_block_dual_core_3002_test 31 axi_block_dual_core_3002.nbf
 
 # BP-DV-032/033/034 - Zicbom cache-block operations on both harts, one test
 # per op: store -> cbo.<op> -> read back (c/cbo_ops.c). cbo.flush currently

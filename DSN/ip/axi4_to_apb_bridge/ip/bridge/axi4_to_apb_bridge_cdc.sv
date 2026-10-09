@@ -617,10 +617,8 @@ always_comb begin
 	    /*cmd_wr_en = ((axi_state == A_WR_PUSH_CMD) ||
 		         (axi_state == A_RD_PUSH_CMD)) &&
 		         !cmd_full;*/
-	cmd_wr_en = (
-               ((axi_state == A_WR_PUSH_CMD) && (|sub_wstrb)) ||
-               (axi_state == A_RD_PUSH_CMD)
-            ) && !cmd_full;
+	cmd_wr_en = (((axi_state == A_WR_PUSH_CMD) && (|sub_wstrb)) ||(axi_state == A_RD_PUSH_CMD) ) && !cmd_full;
+	cmd_rd_en =((apb_state == P_IDLE) || ((apb_state == P_PUSH_RESP) && !resp_full)) && !cmd_empty;
 	    if (axi_state == A_WR_PUSH_CMD)
 		cmd_data_in = {1'b1, prot_r, sub_addr,
 		               sub_wstrb, sub_wdata};
@@ -698,19 +696,24 @@ always_comb begin
                 end */
 				P_PUSH_RESP: begin
 					if (!resp_full) begin
-						if (!cmd_empty)
+						if (!cmd_empty) begin
+							{p_write_r,
+							 p_prot_r,
+							 p_addr_r,
+							 p_wstrb_r,
+							 p_wdata_r} <= cmd_data_out;
+
 							apb_state <= P_SETUP;
-						else
+						end
+						else begin
 							apb_state <= P_IDLE;
+						end
 					end
 				end
 
-                default: apb_state <= P_IDLE;
-
-            endcase
-        end
-    end
-
+default:apb_state <= P_IDLE;
+	endcase
+	end
     //-------------------------------------------------------------------
     // Slave-select decode, integrated into the bridge.
     // apb_slave_decoder itself is pure address decode with no notion of

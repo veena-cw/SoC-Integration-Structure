@@ -1,4 +1,5 @@
-//=====================================================================
+
+//====================================================================
 // Module: lpddr5c_cmd_scheduler
 // Description: LPDDR5 Command Scheduler
 // Features:
@@ -75,7 +76,11 @@ module lpddr5c_cmd_scheduler #(
     output logic [NUM_CHANNELS-1:0]       dfi_cke,
     output logic [5:0]                    dfi_ca,
     output logic                         dfi_rw,
-    output logic [ADDR_WIDTH-1:0]        dfi_addr
+    output logic [ADDR_WIDTH-1:0]        dfi_addr,
+	output logic cmd_activity,
+    output logic rd_activity,
+    output logic wr_activity,
+	output logic lp_idle
 );
 
     //========================================================================
@@ -569,6 +574,22 @@ module lpddr5c_cmd_scheduler #(
     //========================================================================
 
     assign cmd_ready = free_found;     // <<< CHANGED (was !cmd_queue_full && entries < DEPTH)
+	
+	
+	// Activity signals
+	
+wire   cmd_queue_empty = (cmd_queue_entries == 0);
+
+assign cmd_activity = found;
+
+assign rd_activity = found && (cand_cmd[best_candidate_idx] == CMD_READ);
+
+assign wr_activity = found && (cand_cmd[best_candidate_idx] == CMD_WRITE);
+	
+assign lp_idle = cmd_queue_empty &&
+               !cmd_activity &&
+               !rd_activity &&
+               !wr_activity;	
 
     always_comb begin
         integer c;
@@ -593,4 +614,3 @@ module lpddr5c_cmd_scheduler #(
     end
 
 endmodule
-

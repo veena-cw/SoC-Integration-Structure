@@ -523,7 +523,7 @@ module axi4_to_apb_bridge_cdc #(
 								axi_state <= A_WR_PUSH_CMD;
 							end
 							else begin
-								sub_cnt_r <= '0';
+								sub_cnt_r <= 0;
 
 								if (beat_cnt_r == len_r) begin
 									bid_r     <= id_r;
@@ -714,6 +714,7 @@ always_comb begin
 default:apb_state <= P_IDLE;
 	endcase
 	end
+    end
     //-------------------------------------------------------------------
     // Slave-select decode, integrated into the bridge.
     // apb_slave_decoder itself is pure address decode with no notion of
@@ -722,10 +723,11 @@ default:apb_state <= P_IDLE;
     // the shared PADDR/PWDATA/PWRITE bus at it.
     //-------------------------------------------------------------------
     logic psel_active;
- 
+  logic spi_psel_dec, i2c_psel_dec, uart_psel_dec, gpio_psel_dec,mipi_psel_dec, hdmi_psel_dec, timer_psel_dec, debug_psel_dec;
+
+
 assign psel_active =((apb_state == P_SETUP) || (apb_state == P_ACCESS)) && (|p_wstrb_r);
-    logic spi_psel_dec, i2c_psel_dec, uart_psel_dec, gpio_psel_dec,
-          mipi_psel_dec, hdmi_psel_dec, timer_psel_dec, debug_psel_dec;
+   
 
     apb_slave_decoder u_apb_slave_decoder (
         .addr       (p_addr_r),

@@ -422,6 +422,16 @@ module bp_bedrock_axi4_bridge
     end
   endfunction
 
+  // Uncached write strobe lane restriction: when the BedRock uncached flag
+  // is set on a scalar (<= 8 byte) transfer, only lanes 7:0 may be strobed
+  // and lanes 15:8 are forced to 8'b0000_0000. 
+  localparam logic [DATA_WIDTH/8-1:0] UC_LO_LANES = 8'hFF;
+
+  wire uc_wr_lo_only = req_hdr_r.payload.uncached
+                     & (req_hdr_r.size <= e_bedrock_msg_size_8);
+
+  wire [DATA_WIDTH/8-1:0] wstrb_lane_mask = uc_wr_lo_only ? UC_LO_LANES : '1;
+
   // ----------------------------------------------------------------------
   // 1. State register
   // ----------------------------------------------------------------------
@@ -531,7 +541,7 @@ module bp_bedrock_axi4_bridge
         if (beat_count_r == 0) begin
           wdata_valid = 1'b1;
           wdata       = req_first_data_r;
-          wstrb       = beat_strb(req_hdr_r.addr, req_hdr_r.size);
+          wstrb       = beat_strb(req_hdr_r.addr, req_hdr_r.size) & wstrb_lane_mask;// Uncached scalar write: upper lanes 15:8 masked to 0.
         end else begin
           wdata_valid = bridge_fwd_v;
           wdata       = bridge_fwd_data;

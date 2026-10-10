@@ -13,7 +13,7 @@
 
 module lpddr5c_refresh_ctrl #(
     parameter REFRESH_COUNTER_WIDTH  = 16,
-    parameter NUM_CHANNELS           = 2,
+    parameter NUM_CHANNELS           = 1,
     parameter NUM_RANKS              = 1,
     parameter NUM_BANKS              = 8
 ) (

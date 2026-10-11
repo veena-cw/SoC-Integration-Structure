@@ -159,7 +159,7 @@ module axi4_usb_slave #(
         .USB_CLK_FREQ(USB_CLK_FREQ)
     ) u_usbh_host (
         .clk_i                  (usb_clk),
-        .rst_i                  (~usb_resetn),
+        .rst_i                  (usb_resetn),
  
         .cfg_awvalid_i          (cfg_awvalid),
         .cfg_awaddr_i           (cfg_awaddr),

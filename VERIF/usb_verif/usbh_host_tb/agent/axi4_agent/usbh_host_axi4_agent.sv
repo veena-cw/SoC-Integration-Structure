@@ -36,7 +36,7 @@ class usbh_host_axi4_agent extends uvm_agent;
 
   usbh_host_axi4_agent_driver    driver;
   usbh_host_axi4_agent_sequencer sequencer;
-  usbh_host_axi4_agent_monitor   monitor;
+  //usbh_host_axi4_agent_monitor   monitor;
   virtual usbh_host_axi4_if         vif;
 
   function new(string name = "usbh_host_axi4_agent", uvm_component parent = null);
@@ -63,7 +63,7 @@ class usbh_host_axi4_agent extends uvm_agent;
     uvm_resource_db#(virtual usbh_host_axi4_if)::set(
         {get_full_name(), ".*"}, "vif", vif, this);
 
-    monitor = usbh_host_axi4_agent_monitor::type_id::create("monitor", this);
+    //monitor = usbh_host_axi4_agent_monitor::type_id::create("monitor", this);
 
     if (is_active == UVM_ACTIVE) begin
       driver    = usbh_host_axi4_agent_driver::type_id::create("driver", this);

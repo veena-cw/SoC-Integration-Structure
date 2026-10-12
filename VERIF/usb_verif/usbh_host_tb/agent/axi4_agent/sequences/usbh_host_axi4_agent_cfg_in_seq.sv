@@ -21,7 +21,7 @@ class usbh_host_axi4_agent_cfg_in_seq extends usbh_host_axi4_agent_base_seq;
     // IN transfer has no TX payload.
     // Therefore TX length = 0.
     //==========================================================================
-    pkt = usbh_host_axi4_agent_seq_item::type_id::create("in_xfer_data");
+   /* pkt = usbh_host_axi4_agent_seq_item::type_id::create("in_xfer_data");
 
     start_item(pkt);
 
@@ -30,7 +30,7 @@ class usbh_host_axi4_agent_cfg_in_seq extends usbh_host_axi4_agent_base_seq;
       pkt.data  = 32'h0000_0000;
       pkt.strb  = 4'b1111;
 
-    finish_item(pkt);
+    finish_item(pkt);*/
 
     //==========================================================================
     // 2. Program USB_XFER_TOKEN
@@ -43,7 +43,7 @@ class usbh_host_axi4_agent_cfg_in_seq extends usbh_host_axi4_agent_base_seq;
     // [15:9]  DEV_ADDR   = 1
     // [8:5]   EP_ADDR    = 0
     //==========================================================================
-    pkt = usbh_host_axi4_agent_seq_item::type_id::create("in_token_config");
+   /* pkt = usbh_host_axi4_agent_seq_item::type_id::create("in_token_config");
 
     start_item(pkt);
 
@@ -64,7 +64,7 @@ class usbh_host_axi4_agent_cfg_in_seq extends usbh_host_axi4_agent_base_seq;
 
       pkt.strb = 4'b1111;
 
-    finish_item(pkt);
+    finish_item(pkt);*/
 
     //==========================================================================
     // 3. START = 1
@@ -72,12 +72,9 @@ class usbh_host_axi4_agent_cfg_in_seq extends usbh_host_axi4_agent_base_seq;
     // This triggers the actual USB IN transaction.
     //==========================================================================
     pkt = usbh_host_axi4_agent_seq_item::type_id::create("in_transfer_start");
-
     start_item(pkt);
-
       pkt.write = 1'b1;
       pkt.addr  = `USB_XFER_TOKEN;
-
       pkt.data = {
         1'b1,       // START = 1
         1'b1,       // IN
@@ -89,15 +86,46 @@ class usbh_host_axi4_agent_cfg_in_seq extends usbh_host_axi4_agent_base_seq;
         4'd0,       // EP_ADDR
         5'b00000    // Reserved
       };
-
       pkt.strb = 4'b1111;
-
     finish_item(pkt);
-
-    `uvm_info("CFG_IN_SEQ",
-              "IN transfer START issued",
-              UVM_MEDIUM)
-
+    `uvm_info("CFG_IN_SEQ", "IN transfer START issued", UVM_MEDIUM)
+    //==========================================================================
+    // 4. Wait for USB IN transaction to complete
+    //#100;
+    
+    // 5. Read USB_RX_STAT       
+    //==========================================================================         
+    pkt = usbh_host_axi4_agent_seq_item::type_id::create("rx_status_read");
+    start_item(pkt);
+      pkt.write = 1'b0;
+      pkt.addr  = `USB_RX_STAT;
+      pkt.data  = 32'h0;
+      pkt.strb  = 4'b0000;
+    finish_item(pkt);
+    
+    /*//Read USB_IRQ_STS
+    pkt = usbh_host_axi4_agent_seq_item::type_id::create("rx_status_read");
+    start_item(pkt);
+      pkt.write = 1'b0;
+      pkt.addr  = `USB_IRQ_STS;
+      pkt.data  = 32'h0;
+      pkt.strb  = 4'b0000;
+    finish_item(pkt);*/
+    
+    //==========================================================================
+    // 6. Read USB_RD_DATA
+    //==========================================================================
+    for( int i=0; i<4; i++) begin
+	    pkt = usbh_host_axi4_agent_seq_item::type_id::create("rx_data_read");
+	    start_item(pkt);
+	      pkt.write = 1'b0;
+	      pkt.addr  = `USB_RD_DATA;
+	      pkt.data  = 32'h0;
+	      pkt.strb  = 4'b0000;
+	    finish_item(pkt);
+	    `uvm_info("IN_TEST", $sformatf("RX DATA = %08h", pkt.data), UVM_MEDIUM)
+    end
+    
   endtask
 
 endclass : usbh_host_axi4_agent_cfg_in_seq

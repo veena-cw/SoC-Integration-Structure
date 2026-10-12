@@ -100,44 +100,6 @@ module usb_device_bfm #(
     logic cfg_rvalid_o;
     logic cfg_rdata_o;
     logic cfg_rresp_o;
-    // ============================================================
-    // DUT Instance
-    // ============================================================    
-    usbh_host dut (
-         .clk_i(clk_i),
-        .rst_i(rst_i),
-        .cfg_awvalid_i(axi4_vif.cfg_awvalid_i),
-        .cfg_awaddr_i(axi4_vif.cfg_awaddr_i),
-        .cfg_wvalid_i(axi4_vif.cfg_wvalid_i),
-        .cfg_wdata_i(axi4_vif.cfg_wdata_i),
-        .cfg_wstrb_i(axi4_vif.cfg_wstrb_i),
-        .cfg_bready_i(axi4_vif.cfg_bready_i),
-        .cfg_arvalid_i(axi4_vif.cfg_arvalid_i),
-        .cfg_araddr_i(axi4_vif.cfg_araddr_i),
-        .cfg_rready_i(axi4_vif.cfg_rready_i),
-        .utmi_data_in_i(utmi_vif.utmi_data_in_i),
-        .utmi_txready_i(utmi_vif.utmi_txready_i),
-        .utmi_rxvalid_i(utmi_vif.utmi_rxvalid_i),
-        .utmi_rxactive_i(utmi_vif.utmi_rxactive_i),
-        .utmi_rxerror_i(utmi_vif.utmi_rxerror_i),
-        .utmi_linestate_i(utmi_vif.utmi_linestate_i),
-        .cfg_awready_o(axi4_vif.cfg_awready_o),
-        .cfg_wready_o(axi4_vif.cfg_wready_o),
-        .cfg_bvalid_o(axi4_vif.cfg_bvalid_o),
-        .cfg_bresp_o(axi4_vif.cfg_bresp_o),
-        .cfg_arready_o(axi4_vif.cfg_arready_o),
-        .cfg_rvalid_o(axi4_vif.cfg_rvalid_o),
-        .cfg_rdata_o(axi4_vif.cfg_rdata_o),
-        .cfg_rresp_o(axi4_vif.cfg_rresp_o),
-        .intr_o(axi4_vif.intr_o),
-        .utmi_data_out_o(utmi_vif.utmi_data_out_o),
-        .utmi_txvalid_o(utmi_vif.utmi_txvalid_o),
-        .utmi_op_mode_o(utmi_vif.utmi_op_mode_o),
-        .utmi_xcvrselect_o(utmi_vif.utmi_xcvrselect_o),
-        .utmi_termselect_o(utmi_vif.utmi_termselect_o),
-        .utmi_dppulldown_o(utmi_vif.utmi_dppulldown_o),
-        .utmi_dmpulldown_o(utmi_vif.utmi_dmpulldown_o)
-   );
     
     
     // ============================================================
@@ -178,6 +140,8 @@ module usb_device_bfm #(
     // Reset / default values
     // ============================================================
     initial begin
+        $display("[%0t] DEVICE BFM: ===========*** BFM STARTED ***============", $time);
+    
         utmi_data_in_i  = 8'h00;
         utmi_txready_i  = 1'b0;
 
@@ -187,7 +151,7 @@ module usb_device_bfm #(
         // Full-Speed device idle J state.
         // DUT only checks for non-zero for device detection.
         utmi_linestate_i = 2'b01;
-        device_addr = 7'd0;
+        device_addr = 7'd1;
         response_mode = RESP_NORMAL;
         in_data_len = 4;
         in_data[0] = 8'h11;
@@ -202,6 +166,12 @@ module usb_device_bfm #(
         pending_addr      = 7'd0;
         pending_ep        = 4'd0;
     end
+    
+    /*always @(posedge clk_i) begin
+         $display("[%0t] DEVICE BFM: clk=%b rst=%b txvalid=%b txready=%b",
+             $time, clk_i, rst_i,
+             utmi_txvalid_o, utmi_txready_i);
+    end*/
     // ============================================================
     // Initialize toggles
     // ============================================================
@@ -553,6 +523,7 @@ module usb_device_bfm #(
                 utmi_rxvalid_i  <= 1'b1;
                 utmi_rxerror_i  <= 1'b0;
                 utmi_data_in_i  <= payload[i];
+                //$display("[%0t] DEVICE BFM -> DUT: RXVALID=%0b RXACTIVE=%0b DATA=%02h", $time, utmi_rxvalid_i, utmi_rxactive_i, utmi_data_in_i);
             end
             // ----------------------------------------------------
             // CRC low byte
@@ -569,13 +540,17 @@ module usb_device_bfm #(
             utmi_rxvalid_i  <= 1'b1;
             utmi_data_in_i  <= tx_crc[15:8];
             // ----------------------------------------------------
-            // End packet
+            // End packet - stop sending data
             // ----------------------------------------------------
             @(posedge clk_i);
             utmi_rxactive_i <= 1'b0;
             utmi_rxvalid_i  <= 1'b0;
             utmi_rxerror_i  <= 1'b0;
             utmi_data_in_i  <= 8'h00;
+            // ----------------------------------------------------
+            // Generate USB EOP: SE0 for 2 clocks, then J
+	    // ----------------------------------------------------
+	    generate_eop();           
         end
     endtask
     // ============================================================

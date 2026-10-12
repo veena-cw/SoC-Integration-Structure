@@ -1,3 +1,12 @@
+/*  
+//Commands to RUN
+xvlog -sv -L uvm -f filelist.f
+xelab usbh_top_tb -s usb_host_sim -L uvm --timescale 1ns/1ps
+ (or)   xelab usbh_top_tb -s usb_host_sim
+xsim usb_host_sim -runall
+gtkwave usbh_top_tb.vcd 
+*/
+
 //==================================================================================
 //  Copyright (c) 2024 Chipweave Technologies Private Limited. All rights reserved.
 //  THIS PROGRAM IS AN UNPUBLISHED WORK FULLY PROTECTED BY
@@ -32,81 +41,88 @@
  // each to the DUT, and publishes every group's virtual interface into
  // uvm_resource_db (global scope "*") so any agent can read it by name.
  // Dedicated reset_if + reset_agent drive reset via resource_db.
+ 
+ `timescale 1ns/1ps
  `include "uvm_macros.svh"
  import uvm_pkg::*;
- /*
- `include "usbh_host_pkg.sv"
- `include "usbh_host_axi4_if.sv"
- `include "usbh_host_utmi_if.sv"
- `include "reset_if.sv"
- `include "reset_transaction.sv"
- `include "reset_sequencer.sv "
- `include "reset_driver.sv "
- `include "reset_monitor.sv "
- `include "reset_agent.sv "
- `include "usbh_host_axi4_agent_seq_item.sv"
- `include "usbh_host_axi4_agent_sequencer.sv"
- `include "usbh_host_axi4_agent_driver.sv"
- `include "usbh_host_axi4_agent_monitor.sv"
- `include "usbh_host_axi4_agent.sv"
- `include "usbh_host_axi4_agent_coverage.sv"
- `include "usbh_host_axi4_agent_base_seq.sv"
- `include "usbh_host_utmi_agent_seq_item.sv"
- `include "usbh_host_utmi_agent_sequencer.sv"
- `include "usbh_host_utmi_agent_driver.sv"
- `include "usbh_host_utmi_agent_monitor.sv"
- `include "usbh_host_utmi_agent.sv"
- `include "usbh_host_utmi_agent_coverage.sv"
- `include "usbh_host_utmi_agent_base_seq.sv"
- `include "usbh_host_scoreboard.sv"
- `include "usbh_host_env.sv"
- `include "base_test.sv"
- `include "usb_device_bfm.sv"*/
 
  module usbh_top_tb;
-
-   logic clk_i;
-  logic rst_i;
+   // AXI4 clock domain : aclk       (400 MHz in the SoC)
+   logic  aclk_i;
+   logic  areset_i;
+   // USB clock domain  : usb_clk    (250 MHz in the SoC)
+   logic  usb_clk_i;
+   logic  usb_reset_i;
 
    //reset_if rst_i_vif();
 
-   usbh_host_axi4_if axi4_vif (.clk_i(clk_i));
-  assign axi4_vif.rst_i = rst_i;
+   usbh_host_axi4_if axi4_vif (.clk_i(aclk_i));
+   assign axi4_vif.rst_i = areset_i;
 
-  usbh_host_utmi_if utmi_vif (.clk_i(clk_i));
-  assign utmi_vif.rst_i = rst_i;
+   usbh_host_utmi_if utmi_vif (.clk_i(usb_clk_i));
+   assign utmi_vif.rst_i = usb_reset_i;
 
    //assign rst_i = rst_i_vif.rst_i;
    
-   
-
-   usbh_host dut (
-         .clk_i(clk_i),
-        .rst_i(rst_i),
-        .cfg_awvalid_i(axi4_vif.cfg_awvalid_i),
-        .cfg_awaddr_i(axi4_vif.cfg_awaddr_i),
-        .cfg_wvalid_i(axi4_vif.cfg_wvalid_i),
-        .cfg_wdata_i(axi4_vif.cfg_wdata_i),
-        .cfg_wstrb_i(axi4_vif.cfg_wstrb_i),
-        .cfg_bready_i(axi4_vif.cfg_bready_i),
-        .cfg_arvalid_i(axi4_vif.cfg_arvalid_i),
-        .cfg_araddr_i(axi4_vif.cfg_araddr_i),
-        .cfg_rready_i(axi4_vif.cfg_rready_i),
+   axi4_usb_slave dut (
+   	//AXI4 clk and rst
+        .aclk(aclk_i),
+        .aresetn(~areset_i),
+        //USB clk and rst
+        .usb_clk(usb_clk_i),
+        .usb_resetn(~usb_reset_i),
+        //Write Address Channel
+        .s_axi_awid(axi4_vif.cfg_awid_i),
+        .s_axi_awaddr(axi4_vif.cfg_awaddr_i),
+        .s_axi_awlen(axi4_vif.cfg_awlen_i),
+        .s_axi_awsize(axi4_vif.cfg_awsize_i),
+        .s_axi_awburst(axi4_vif.cfg_awburst_i),
+        .s_axi_awlock(axi4_vif.cfg_awlock_i),
+        .s_axi_awcache(axi4_vif.cfg_awcache_i),
+        .s_axi_awprot(axi4_vif.cfg_awprot_i),
+        .s_axi_awqos(axi4_vif.cfg_awqos_i),
+        .s_axi_awvalid(axi4_vif.cfg_awvalid_i),
+        .s_axi_awready(axi4_vif.cfg_awready_o),
+        //Write Data Channel
+        .s_axi_wdata(axi4_vif.cfg_wdata_i),
+        .s_axi_wstrb(axi4_vif.cfg_wstrb_i),
+        .s_axi_wlast(axi4_vif.cfg_wlast_i),
+        .s_axi_wvalid(axi4_vif.cfg_wvalid_i),
+        .s_axi_wready(axi4_vif.cfg_wready_o),
+        //Write Response Channel
+        .s_axi_bready(axi4_vif.cfg_bready_i),
+        .s_axi_bid(axi4_vif.cfg_bid_o),
+        .s_axi_bresp(axi4_vif.cfg_bresp_o),
+        .s_axi_bvalid(axi4_vif.cfg_bvalid_o),
+        //Read Address Channel
+        .s_axi_arid(axi4_vif.cfg_arid_i),
+        .s_axi_araddr(axi4_vif.cfg_araddr_i),
+        .s_axi_arlen(axi4_vif.cfg_arlen_i),
+        .s_axi_arsize(axi4_vif.cfg_arsize_i),
+        .s_axi_arburst(axi4_vif.cfg_arburst_i),
+        .s_axi_arlock(axi4_vif.cfg_arlock_i),
+        .s_axi_arcache(axi4_vif.cfg_arcache_i),
+        .s_axi_arprot(axi4_vif.cfg_arprot_i),
+        .s_axi_arqos(axi4_vif.cfg_arqos_i),
+        .s_axi_arvalid(axi4_vif.cfg_arvalid_i),
+        .s_axi_arready(axi4_vif.cfg_arready_o),
+        //Read Data Channel
+        .s_axi_rready(axi4_vif.cfg_rready_i),
+        .s_axi_rid(axi4_vif.cfg_rid_o),
+        .s_axi_rdata(axi4_vif.cfg_rdata_o),
+        .s_axi_rresp(axi4_vif.cfg_rresp_o),
+        .s_axi_rlast(axi4_vif.cfg_rlast_o),        
+        .s_axi_rvalid(axi4_vif.cfg_rvalid_o),
+                
+        .intr_o(axi4_vif.intr_o),
+        
+        //UTMI
         .utmi_data_in_i(utmi_vif.utmi_data_in_i),
         .utmi_txready_i(utmi_vif.utmi_txready_i),
         .utmi_rxvalid_i(utmi_vif.utmi_rxvalid_i),
         .utmi_rxactive_i(utmi_vif.utmi_rxactive_i),
         .utmi_rxerror_i(utmi_vif.utmi_rxerror_i),
         .utmi_linestate_i(utmi_vif.utmi_linestate_i),
-        .cfg_awready_o(axi4_vif.cfg_awready_o),
-        .cfg_wready_o(axi4_vif.cfg_wready_o),
-        .cfg_bvalid_o(axi4_vif.cfg_bvalid_o),
-        .cfg_bresp_o(axi4_vif.cfg_bresp_o),
-        .cfg_arready_o(axi4_vif.cfg_arready_o),
-        .cfg_rvalid_o(axi4_vif.cfg_rvalid_o),
-        .cfg_rdata_o(axi4_vif.cfg_rdata_o),
-        .cfg_rresp_o(axi4_vif.cfg_rresp_o),
-        .intr_o(axi4_vif.intr_o),
         .utmi_data_out_o(utmi_vif.utmi_data_out_o),
         .utmi_txvalid_o(utmi_vif.utmi_txvalid_o),
         .utmi_op_mode_o(utmi_vif.utmi_op_mode_o),
@@ -121,8 +137,8 @@
       .DEVICE_IFS_CLKS(7),
       .MAX_IN_DATA(64)
    ) device_bfm (
-            .clk_i(clk_i),
-	    .rst_i(rst_i),
+            .clk_i(usb_clk_i),
+	    .rst_i(usb_reset_i),
 
 	    // DUT -> Device BFM
 	    .utmi_data_out_o   (utmi_vif.utmi_data_out_o),
@@ -142,15 +158,26 @@
 	    .utmi_linestate_i  (utmi_vif.utmi_linestate_i)  
    );
    
-   initial clk_i = 0;
-  always #5 clk_i = ~clk_i;   // 100MHz; TODO: adjust to target frequency
+   //CLOCK GENERATION
+   // AXI4 clock domain : aclk       (400 MHz in the SoC)
+   initial aclk_i = 0;
+   always #1.25 aclk_i = ~aclk_i;   // 400MHz; TODO: adjust to target frequency (2.5ns)
+   // USB clock domain  : usb_clk    (250 MHz in the SoC)
+   initial usb_clk_i = 0;
+   always #2 usb_clk_i = ~usb_clk_i;   // 250MHz; TODO: adjust to target frequency (4ns)
+   
+   //RESET GENERATION 
+   //Active Low Reset was used in the Design.(previously Active High)
+   initial begin
+       usb_reset_i = 1'b1; //usb_reset_i was passed to usbh_host.sv in the wrapper.
+       repeat (5) @(posedge usb_clk_i);
+       usb_reset_i = 1'b0;
+   end
    
    initial begin
-       rst_i = 1'b1;
-       repeat (5) @(posedge clk_i);
-       rst_i = 1'b0;
-       //repeat (5) @(posedge clk_i);
-       //rst_i = 1'b0;
+       areset_i = 1'b1;
+       repeat (5) @(posedge aclk_i);
+       areset_i = 1'b0;
    end   
    
    initial begin
@@ -160,11 +187,12 @@
 
    initial begin
      uvm_resource_db#(virtual usbh_host_axi4_if)::set("*", "vif", axi4_vif);
-    uvm_resource_db#(virtual usbh_host_utmi_if)::set("*", "vif", utmi_vif);
-    //uvm_resource_db#(virtual reset_if)::set("uvm_test_top.env.reset_agent_rst_i.*", "vif", rst_i_vif);
-    //uvm_resource_db#(virtual reset_if)::set("*", "vif", rst_i_vif); // fallback wildcard
-     run_test("pid_data0_test"); //do reset_test also
+     uvm_resource_db#(virtual usbh_host_utmi_if)::set("*", "vif", utmi_vif);
+     //uvm_resource_db#(virtual reset_if)::set("uvm_test_top.env.reset_agent_rst_i.*", "vif", rst_i_vif);
+     //uvm_resource_db#(virtual reset_if)::set("*", "vif", rst_i_vif); // fallback wildcard
+     //run_test("pid_data0_test"); //do reset_test also
      //run_test("reset_test_1"); //do reset_test also
+     run_test("IN_updated_test");
      
    end
 

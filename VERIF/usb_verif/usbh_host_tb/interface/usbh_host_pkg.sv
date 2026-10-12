@@ -86,6 +86,21 @@
   parameter int UTMI_TERMSELECT_O_W = 1;  // output 
   parameter int UTMI_DPPULLDOWN_O_W = 1;  // output 
   parameter int UTMI_DMPULLDOWN_O_W = 1;  // output 
+  
+  //For AXI4 newly added signals
+  parameter int ID_WIDTH = 4;
+  parameter int AWLEN_W = 8;
+  parameter int AWSIZE_W = 3;
+  parameter int AWBURST_W = 2;
+  parameter int AWCACHE_W = 4;
+  parameter int AWPROT_W = 3;
+  parameter int AWQOS_W = 4;
+  parameter int ARLEN_W = 8;
+  parameter int ARSIZE_W = 3;
+  parameter int ARBURST_W = 2;
+  parameter int ARCACHE_W = 4;
+  parameter int ARPROT_W = 3;
+  parameter int ARREADY_W = 4;
 
  endpackage : usbh_host_pkg
  `endif

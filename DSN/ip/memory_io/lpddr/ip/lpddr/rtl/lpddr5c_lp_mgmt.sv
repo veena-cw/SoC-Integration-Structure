@@ -1,4 +1,5 @@
-//============================================================================
+
+	//============================================================================
 // Module: lpddr5c_lp_mgmt
 // Description: LPDDR5 Low Power Management
 // Features:
@@ -12,7 +13,7 @@
 `timescale 1ns/1ps
 
 module lpddr5c_lp_mgmt #(
-    parameter NUM_CHANNELS      = 2,
+    parameter NUM_CHANNELS      = 1,
     parameter NUM_RANKS         = 1,
     parameter IDLE_THRESHOLD    = 256,
     parameter SR_THRESHOLD      = 1024
@@ -26,7 +27,7 @@ module lpddr5c_lp_mgmt #(
     //========================================================================
     // Configuration
     //========================================================================
-    input  wire [31:0]                  lp_cfg,
+   // input  wire [31:0]                  lp_cfg,
     
     //========================================================================
     // Control Interface
@@ -42,6 +43,7 @@ module lpddr5c_lp_mgmt #(
     input  wire                         cmd_activity,
     input  wire                         rd_activity,
     input  wire                         wr_activity,
+    input wire lp_idle,
     
     //========================================================================
     // DFI Interface
@@ -66,7 +68,7 @@ module lpddr5c_lp_mgmt #(
     //========================================================================
     input  wire                         wakeup_req,
     output wire                         wakeup_ack,
-    output logic [7:0]                    wakeup_latency
+    output logic [7:0]                  wakeup_latency
 );
 
     //========================================================================
@@ -94,11 +96,11 @@ module lpddr5c_lp_mgmt #(
     // Configuration Register Fields
     //========================================================================
     
-    wire                               auto_pd_en      = lp_cfg[0];
-    wire                               auto_sr_en      = lp_cfg[1];
-    wire                               auto_ds_en      = lp_cfg[2];
-    wire [15:0]                        pd_threshold    = lp_cfg[31:16];
-    wire [15:0]                        sr_threshold    = lp_cfg[15:0];
+    //wire                               auto_pd_en      = lp_cfg[0];
+    //wire                               auto_sr_en      = lp_cfg[1];
+    //wire                               auto_ds_en      = lp_cfg[2];
+    //wire [15:0]                        pd_threshold    = lp_cfg[31:16];
+    //wire [15:0]                        sr_threshold    = lp_cfg[15:0];
     wire [7:0]                         t_xp            = 8'd8;      // Power-down exit latency
     wire [7:0]                         t_xsr           = 8'd100;    // Self-refresh exit latency
     wire [7:0]                         t_dpd           = 8'd200;    // Deep sleep exit latency
@@ -184,9 +186,9 @@ module lpddr5c_lp_mgmt #(
                     state_timer <= '0;
                     
                     // Check for manual low-power requests
-                    if (lp_req_pd) begin
+                    if (lp_req_pd ) begin
                         state <= LP_PD_ENTRY;
-                        lp_ack_reg <= 1'b1;
+                       // lp_ack_reg <= 1'b1;
                     end else if (lp_req_sr) begin
                         state <= LP_SR_ENTRY;
                         lp_ack_reg <= 1'b1;
@@ -195,13 +197,13 @@ module lpddr5c_lp_mgmt #(
                         lp_ack_reg <= 1'b1;
                     end
                     // Check for auto low-power
-                    else if (auto_pd_en && idle_counter >= pd_threshold) begin
+                    /*else if (auto_pd_en && idle_counter >= pd_threshold) begin
                         state <= LP_PD_ENTRY;
                         pd_entry_counter <= pd_entry_counter + 1'b1;
                     end else if (auto_sr_en && idle_counter >= sr_threshold) begin
                         state <= LP_SR_ENTRY;
                         sr_entry_counter <= sr_entry_counter + 1'b1;
-                    end
+                    end*/
                 end
                 
                 //================================================================
@@ -214,7 +216,10 @@ module lpddr5c_lp_mgmt #(
                     end else begin
                         // Drop CKE to enter power-down
                         cke_reg <= '0;
-                        state <= LP_PD;
+                        if(lp_idle & lp_req_pd ) begin
+                            state <= LP_PD;
+                            lp_ack_reg <= 1'b1;end
+                        else state <= LP_PD_ENTRY;
                         state_timer <= '0;
                     end
                 end
@@ -223,9 +228,10 @@ module lpddr5c_lp_mgmt #(
                     cke_reg <= '0;
                     
                     // Check for wakeup condition
-                    if (wakeup_req || any_activity || lp_req_pd == 0) begin
+                    //if (wakeup_req || any_activity || lp_req_pd == 0) begin
+                    if ((wakeup_req & lp_req_pd == 0) || !lp_idle) begin
                         state <= LP_PD_EXIT;
-                        wakeup_ack_reg <= 1'b1;
+                    //    wakeup_ack_reg <= 1'b1;
                     end
                 end
                 
@@ -320,6 +326,7 @@ module lpddr5c_lp_mgmt #(
                         state_timer <= state_timer + 1'b1;
                     end else begin
                         state <= LP_NORMAL;
+                        wakeup_ack_reg <= 1'b1;
                         state_timer <= '0;
                         idle_counter <= '0;
                     end

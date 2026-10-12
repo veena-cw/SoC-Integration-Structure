@@ -7,8 +7,8 @@
  */
 
 #include <stdint.h>
+#include "dual_core.h"
 
-#define TOHOST_ADDR  ((volatile uint64_t *)0x00102000UL)
 #define I2C_CMD_ADDR ((volatile uint64_t *)0x30010000UL)
 #define I2C_WRITE 0
 
@@ -23,16 +23,6 @@ static inline uint64_t i2c_command(uint8_t slave_addr, uint8_t rw,
 static inline void io_fence(void)
 {
   __asm__ volatile ("fence iorw, iorw" ::: "memory");
-}
-
-static void tohost_exit(uint64_t code)
-{
-  *TOHOST_ADDR = code;
-  io_fence();
-
-  while (1) {
-    /* Wait for the simulation harness to observe tohost. */
-  }
 }
 
 static void check_i2c_write_read(uint8_t slave_addr, uint8_t write_data,
@@ -59,7 +49,7 @@ __attribute__((naked, section(".text.start"), used))
 void _start(void)
 {
   __asm__ volatile (
-    "li sp, 0x80004000\n"
+    DUAL_CORE_STACK_INIT
     "jal ra, start_main\n"
     "1: j 1b\n"
   );
@@ -67,6 +57,10 @@ void _start(void)
 
 static void start_main(void)
 {
+  /* One I2C model register is shared by both harts: hart 1 waits for
+   * hart 0 to finish its write/read checks before starting its own. */
+  dual_turn_wait();
+
   const uint8_t slave_addr = 0x50;
 
   check_i2c_write_read(slave_addr, 0x00, 1);
@@ -74,5 +68,6 @@ static void start_main(void)
   check_i2c_write_read(slave_addr, 0xFF, 3);
 
   /* Zero on the BP nonsynth host is the pass indication. */
+  dual_turn_pass();
   tohost_exit(0);
 }

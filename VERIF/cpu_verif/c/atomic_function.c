@@ -7,20 +7,11 @@
  */
 
 #include <stdint.h>
+#include "dual_core.h"
 
-#define TOHOST_ADDR         ((volatile uint64_t *)0x00102000UL)
-#define ATOMIC_ADDR         ((volatile uint64_t *)0x80006000UL)
-#define ATOMIC_RESULTS_ADDR ((volatile uint64_t *)0x80005000UL)
+#define ATOMIC_ADDR         ((volatile uint64_t *)HART_DRAM(0x80006000UL))
+#define ATOMIC_RESULTS_ADDR ((volatile uint64_t *)HART_DRAM(0x80005000UL))
 #define RESULT_COUNT        20UL
-
-static void tohost_exit(uint64_t code)
-{
-  __asm__ volatile ("fence rw, rw" ::: "memory");
-  *TOHOST_ADDR = code;
-  while (1) {
-    /* Wait for the simulation harness to observe tohost. */
-  }
-}
 
 static uint64_t amo_swap_d(volatile uint64_t *addr, uint64_t value)
 {
@@ -135,14 +126,14 @@ static uint64_t sc_d(volatile uint64_t *addr, uint64_t value)
 static void flush_result_line(void)
 {
   uintptr_t addr = (uintptr_t)ATOMIC_RESULTS_ADDR;
-  __asm__ volatile (".insn i 0x0f, 2, x0, %0, 2" :: "r"(addr) : "memory");
+  cbo_flush(addr);
 }
 
 static void evict_result_line(void)
 {
   for (uint64_t i = 1; i <= 20; i++) {
     volatile uint64_t *conflict_addr =
-      (volatile uint64_t *)(0x80005000UL + (i * 0x4000UL));
+      (volatile uint64_t *)(HART_DRAM(0x80005000UL) + (i * 0x4000UL));
     *conflict_addr = 0xA700000000000000UL | i;
   }
 }
@@ -153,7 +144,7 @@ __attribute__((naked, section(".text.start"), used))
 void _start(void)
 {
   __asm__ volatile (
-    "li sp, 0x80004000\n"
+    DUAL_CORE_STACK_INIT
     "jal ra, start_main\n"
     "1: j 1b\n"
   );

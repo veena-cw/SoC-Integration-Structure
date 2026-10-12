@@ -29,6 +29,12 @@ interface uart_if (
     logic        pslverr;
 
     // ---- Serial side -------------------------------------------
+    // TB-only serial RX override. These controls are used only by
+    // the specification-level test to inject a real UART waveform
+    // directly onto the DUT rx_i pin. They do not alter DUT RTL.
+    logic        spec_rx_drive_en = 1'b0;
+    logic        spec_rx_drive    = 1'b1;
+
     wire         rx_i;
     wire         tx_o;
 

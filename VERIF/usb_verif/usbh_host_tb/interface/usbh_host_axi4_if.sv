@@ -40,68 +40,148 @@ interface usbh_host_axi4_if (
 );
 
     logic rst_i;
-
-    logic cfg_awvalid_i;  // input
-    logic [CFG_AWADDR_I_W-1:0] cfg_awaddr_i;  // input [31:0]
-    logic cfg_wvalid_i;  // input
+    
+    //AW
+    logic                            cfg_awvalid_i;  // input
+    logic [CFG_AWADDR_I_W-1:0]       cfg_awaddr_i;  // input [31:0]
+    logic [ID_WIDTH-1:0]             cfg_awid_i;
+    logic [AWLEN_W-1:0]               cfg_awlen_i;
+    logic [AWSIZE_W-1:0]               cfg_awsize_i;
+    logic [AWBURST_W-1:0]            cfg_awburst_i;
+    logic                            cfg_awlock_i;
+    logic [AWCACHE_W-1:0]             cfg_awcache_i;
+    logic [AWPROT_W-1:0]             cfg_awprot_i;
+    logic [AWQOS_W-1:0]              cfg_awqos_i;    
+    logic                            cfg_awready_o;  // output    
+    //W
+    logic                     cfg_wvalid_i;  // input
     logic [CFG_WDATA_I_W-1:0] cfg_wdata_i;  // input [31:0]
     logic [CFG_WSTRB_I_W-1:0] cfg_wstrb_i;  // input [3:0]
-    logic cfg_bready_i;  // input
-    logic cfg_arvalid_i;  // input
-    logic [CFG_ARADDR_I_W-1:0] cfg_araddr_i;  // input [31:0]
-    logic cfg_rready_i;  // input
-    logic cfg_awready_o;  // output
-    logic cfg_wready_o;  // output
-    logic cfg_bvalid_o;  // output
+    logic                     cfg_wlast_i;
+    logic                     cfg_wready_o;  // output
+    //B
+    logic                     cfg_bready_i;  // input   
+    logic                     cfg_bvalid_o;  // output
     logic [CFG_BRESP_O_W-1:0] cfg_bresp_o;  // output [1:0]
-    logic cfg_arready_o;  // output
-    logic cfg_rvalid_o;  // output
+    logic [ID_WIDTH-1:0]      cfg_bid_o;
+    //AR
+    logic                      cfg_arvalid_i;  // input
+    logic [CFG_ARADDR_I_W-1:0] cfg_araddr_i;  // input [31:0]
+    logic [ID_WIDTH-1:0]       cfg_arid_i;
+    logic [ARLEN_W-1:0]        cfg_arlen_i;
+    logic [ARSIZE_W-1:0]       cfg_arsize_i;
+    logic [ARBURST_W-1:0]      cfg_arburst_i;
+    logic                      cfg_arlock_i;
+    logic [ARCACHE_W-1:0]      cfg_arcache_i;
+    logic [ARPROT_W-1:0]       cfg_arprot_i;
+    logic [ARREADY_W-1:0]      cfg_arqos_i;
+    logic                      cfg_arready_o;  // output    
+    //R
+    logic                     cfg_rready_i;  // input
+    logic [ID_WIDTH-1:0]      cfg_rid_o;
+    logic                     cfg_rlast_o;
+    logic                     cfg_rvalid_o;  // output
     logic [CFG_RDATA_O_W-1:0] cfg_rdata_o;  // output [31:0]
     logic [CFG_RRESP_O_W-1:0] cfg_rresp_o;  // output [1:0]
+    //Interrupt
     logic intr_o;  // output
 
     clocking drv_cb @(posedge clk_i);
-        default input #1step output #1step;
-        output cfg_awvalid_i;
-        output cfg_awaddr_i;
-        output cfg_wvalid_i;
-        output cfg_wdata_i;
-        output cfg_wstrb_i;
-        output cfg_bready_i;
-        output cfg_arvalid_i;
-        output cfg_araddr_i;
-        output cfg_rready_i;
-        input cfg_awready_o;
-        input cfg_wready_o;
-        input cfg_bvalid_o;
-        input cfg_bresp_o;
-        input cfg_arready_o;
-        input cfg_rvalid_o;
-        input cfg_rdata_o;
-        input cfg_rresp_o;
-        input intr_o;
+	    default input #1step output #1step;
+
+	    // AW (driven by TB into DUT, except awready)
+	    output cfg_awvalid_i;
+	    output cfg_awaddr_i;
+	    output cfg_awid_i;
+	    output cfg_awlen_i;
+	    output cfg_awsize_i;
+	    output cfg_awburst_i;
+	    output cfg_awlock_i;
+	    output cfg_awcache_i;
+	    output cfg_awprot_i;
+	    output cfg_awqos_i;
+	    input  cfg_awready_o;
+	    // W
+	    output cfg_wvalid_i;
+	    output cfg_wdata_i;
+	    output cfg_wstrb_i;
+	    output cfg_wlast_i;
+	    input  cfg_wready_o;
+	    // B
+	    output cfg_bready_i;
+	    input  cfg_bvalid_o;
+	    input  cfg_bresp_o;
+	    input  cfg_bid_o;
+	    // AR
+	    output cfg_arvalid_i;
+	    output cfg_araddr_i;
+	    output cfg_arid_i;
+	    output cfg_arlen_i;
+	    output cfg_arsize_i;
+	    output cfg_arburst_i;
+	    output cfg_arlock_i;
+	    output cfg_arcache_i;
+	    output cfg_arprot_i;
+	    output cfg_arqos_i;
+	    input  cfg_arready_o;
+	    // R
+	    output cfg_rready_i;
+	    input  cfg_rlast_o;
+	    input  cfg_rvalid_o;
+	    input  cfg_rdata_o;
+	    input  cfg_rresp_o;
+	    input  cfg_rid_o;
+	    // Interrupt
+	    input  intr_o;
     endclocking
 
     clocking mon_cb @(posedge clk_i);
-        default input #1step;
-        input cfg_awvalid_i;
-        input cfg_awaddr_i;
-        input cfg_wvalid_i;
-        input cfg_wdata_i;
-        input cfg_wstrb_i;
-        input cfg_bready_i;
-        input cfg_arvalid_i;
-        input cfg_araddr_i;
-        input cfg_rready_i;
-        input cfg_awready_o;
-        input cfg_wready_o;
-        input cfg_bvalid_o;
-        input cfg_bresp_o;
-        input cfg_arready_o;
-        input cfg_rvalid_o;
-        input cfg_rdata_o;
-        input cfg_rresp_o;
-        input intr_o;
+	    default input #1step;
+
+	    // AW
+	    input cfg_awvalid_i;
+	    input cfg_awaddr_i;
+	    input cfg_awid_i;
+	    input cfg_awlen_i;
+	    input cfg_awsize_i;
+	    input cfg_awburst_i;
+	    input cfg_awlock_i;
+	    input cfg_awcache_i;
+	    input cfg_awprot_i;
+	    input cfg_awqos_i;
+	    input cfg_awready_o;
+	    // W
+	    input cfg_wvalid_i;
+	    input cfg_wdata_i;
+	    input cfg_wstrb_i;
+	    input cfg_wlast_i;
+	    input cfg_wready_o;
+	    // B
+	    input cfg_bready_i;
+	    input cfg_bvalid_o;
+	    input cfg_bresp_o;
+	    input cfg_bid_o;
+	    // AR
+	    input cfg_arvalid_i;
+	    input cfg_araddr_i;
+	    input cfg_arid_i;
+	    input cfg_arlen_i;
+	    input cfg_arsize_i;
+	    input cfg_arburst_i;
+	    input cfg_arlock_i;
+	    input cfg_arcache_i;
+	    input cfg_arprot_i;
+	    input cfg_arqos_i;
+	    input cfg_arready_o;
+	    // R
+	    input cfg_rready_i;
+	    input cfg_rlast_o;
+	    input cfg_rvalid_o;
+	    input cfg_rdata_o;
+	    input cfg_rresp_o;
+	    input cfg_rid_o;
+	    // Interrupt
+	    input intr_o;
     endclocking
 
     modport DRIVER (clocking drv_cb, input clk_i, output rst_i);

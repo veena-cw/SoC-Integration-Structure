@@ -57,7 +57,7 @@ module usbh_host
     ,input logic [31:0] cfg_awaddr_i
     ,input logic cfg_wvalid_i
     ,input logic [31:0] cfg_wdata_i
-//    ,input logic [3:0] cfg_wstrb_i
+   ,input logic [3:0] cfg_wstrb_i
     ,input logic cfg_bready_i
     ,input logic cfg_arvalid_i
     ,input logic [31:0] cfg_araddr_i

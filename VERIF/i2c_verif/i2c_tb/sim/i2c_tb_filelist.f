@@ -35,7 +35,9 @@
 ../ral/apb_i2c_apb_predictor.sv
 ../ral/ral_sequence/apb_i2c_ral_sequences.sv
 
+../env/apb_i2c_coverage.sv
 ../env/apb_i2c_scoreboard.sv
+
 ../env/apb_i2c_ral_env.sv
 ../tests/apb_i2c_ral_test.sv
 

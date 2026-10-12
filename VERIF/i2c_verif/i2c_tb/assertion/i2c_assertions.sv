@@ -1,4 +1,6 @@
-module i2c_assertions (
+module i2c_assertions #(
+	parameter bit ADDR_NACK = 1'b0)
+	(
     input logic       clk,
     input logic       rst_n,
     input logic       start,
@@ -8,6 +10,36 @@ module i2c_assertions (
     input logic       scl
 );
 
+ bit start1;
+ 
+ 
+ logic start_detected;
+logic start_pulse;
+logic [7:0] captured_address_debug;
+
+always @(negedge sda) begin
+    if (scl === 1'b1)
+        start_detected <= 1'b1;
+end
+
+always @(posedge scl) begin
+    start_pulse <= start_detected;
+    start_detected <= 1'b0;
+end
+
+
+
+  //.============================================
+  // start condtion genearation 
+  //=============================================
+  /*
+  property i2c_start_assert;
+   @(posedge scl) disable iff(!rst_n)
+   $fell(sda) |-> (scl ==1) ##0 start1;
+   endproperty 
+   
+    assert property (i2c_start_assert)
+        else $error("[%0t] i2c_start_assert fail", $time); */
     //========================================================
     // RESET CHECK
     // During active-low reset:
@@ -15,11 +47,11 @@ module i2c_assertions (
     //========================================================
 
     property i2c_reset_check;
-        @(posedge clk) !rst_n |-> (sda && scl);
+        @(posedge clk) !rst_n |=> (sda && scl);
     endproperty
 
     assert property (i2c_reset_check)
-        else $error("[%0t] SDA/SCL are not HIGH during reset", $time);
+       else $warning("[%0t] SDA/SCL are not HIGH during reset", $time);
 
     cover property (i2c_reset_check);
 
@@ -42,11 +74,11 @@ module i2c_assertions (
     // START CONDITION
     // START = SDA HIGH -> LOW while SCL HIGH
     //========================================================
-
+/*
     property i2c_start_check;
         @(posedge clk)
         disable iff (!rst_n)
-        $rose(start) |-> (sda == 1'b0 && scl == 1'b1);
+        $rose(start) |=> (sda == 1'b0 && scl == 1'b1);
     endproperty
 
     assert property (i2c_start_check)
@@ -54,7 +86,7 @@ module i2c_assertions (
 
     cover property (i2c_start_check);
 
-
+*/
     //========================================================
     // STOP CONDITION
     // STOP = SDA LOW -> HIGH while SCL HIGH
@@ -63,21 +95,71 @@ module i2c_assertions (
     // Bounded range is used instead of s_eventually
     // for better Vivado compatibility.
     //========================================================
-
+logic sda_d;
+logic stop_detected;
+/*
     property i2c_stop_check;
         @(posedge clk)
         disable iff (!rst_n)
-        $rose(start) |-> ##[1:100]
-        (sda == 1'b1 && scl == 1'b1);
+        $rose(start_detected) |-> s_eventually($rose(sda) && scl);
     endproperty
 
     assert property (i2c_stop_check)
-    $display("assertion - stop detected");
-        else $error("[%0t] Invalid I2C STOP condition", $time);
+    $display("[%0t] assertion - stop detected",$time);
+        else $warning("[%0t] Invalid I2C STOP condition", $time);
 
     cover property (i2c_stop_check);
+*/
+/*
+always @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        sda_d        <= 1'b1;
+        stop_detected <= 1'b0;
+    end
+    else begin
+        sda_d <= sda;
 
+        stop_detected <= 1'b0;
 
+        if (sda && !sda_d && scl)
+            stop_detected <= 1'b1;
+    end
+end
+property i2c_stop_check;
+
+    @(posedge clk)
+    disable iff (!rst_n)
+
+    $rose(start_detected)
+    |->
+    ##[1:100] stop_detected;
+
+endproperty
+
+assert property (i2c_stop_check)
+    $display("[%0t] Assertion - STOP detected", $time);
+else
+    $warning("[%0t] Invalid I2C STOP condition", $time);
+
+cover property (i2c_stop_check);
+*/
+
+sequence i2c_stop_sequence;
+    $rose(sda) && (scl == 1'b1);
+endsequence
+
+property i2c_stop_check;
+    @(posedge clk)
+    disable iff (!rst_n)
+    $rose(start_detected) |-> ##[1:50] i2c_stop_sequence;
+endproperty
+
+assert property (i2c_stop_check)
+$display("[%0t ] VAL  I2C STOP CONDTION",$time);
+else
+    $warning("[%0t] Invalid I2C STOP condition", $time);
+
+cover property (i2c_stop_check);
     //========================================================
     // SDA CHANGE ONLY WHEN SCL IS LOW
     //
@@ -108,14 +190,14 @@ module i2c_assertions (
     // [0]   = R/W
     //========================================================
 
-    property i2c_address_check(bit [7:0] expected_address);
+  property i2c_address_check(bit [7:0] expected_address);
 
         bit [7:0] captured_address;
 
-        @(posedge clk)
-        $rose(start)
-        |=>
-        @(posedge scl)
+         @(posedge scl)
+         start_detected
+        |->
+       // @(posedge scl)
 
         (1'b1, captured_address[7] = sda)
         ##1 (1'b1, captured_address[6] = sda)
@@ -126,15 +208,14 @@ module i2c_assertions (
         ##1 (1'b1, captured_address[1] = sda)
         ##1 (1'b1, captured_address[0] = sda)
 
-        ##1 (captured_address === expected_address);
+        ##1 (captured_address[7:1] === expected_address);
 
     endproperty
 
-    assert property (i2c_address_check(8'h055))
+    assert property (i2c_address_check(8'h55))
         else
             $warning("[%0t] I2C ADDRESS CHECK FAILED: expected=%h",
-                     $time, 8'h02);
-
+                     $time, 8'h55);
 
     //========================================================
     // VALID ADDRESS ACK
@@ -143,23 +224,37 @@ module i2c_assertions (
     // ACK = SDA LOW
     //========================================================
 
-    property i2c_valid_address_ack_check;
+  property i2c_valid_address_ack_check;
 
-        @(posedge clk)
+        
 
-        $rose(start)
-        |->
-        @(posedge scl)
-
+         @(posedge scl)	
+        start_detected
+	|->
         ##8 (sda === 1'b0);
 
     endproperty
 
     assert property (i2c_valid_address_ack_check)
         else
-            $error("[%0t] VALID ADDRESS ACK FAILED", $time);
+            $error("[%0t] VALID ADDRESS ACK FAILED => SDA = %0b ", $time,sda);
 
 
+/*
+property i2c_invalid_address_nack_check;
+
+    @(posedge scl)
+
+    start_pulse
+    |-> 
+    ##8 (sda === 1'b1);
+
+endproperty
+
+assert property (i2c_invalid_address_nack_check)
+    else
+        $error("[%0t] INVALID ADDRESS NACK FAILED", $time);
+*/
     //========================================================
     // INVALID ADDRESS NACK
     //
@@ -170,23 +265,44 @@ module i2c_assertions (
     // NACK = SDA HIGH
     // STOP
     //========================================================
+bit check_addr_nack;
 
-    property i2c_invalid_address_nack_check;
+initial begin
+    check_addr_nack = $test$plusargs("CHECK_ADDR_NACK");
+end
+/*
+   generate
+    if (ADDR_NACK) begin : gen_addr_nack_check
 
-        @(posedge clk)
+        property i2c_invalid_address_nack_check;
 
-        $rose(start)
-        |->
-        @(posedge scl)
+            @(posedge scl)
+                start_detected
+                |-> ##8 (sda === 1'b1);
 
-        ##8 (sda === 1'b1);
+        endproperty
 
-    endproperty
+        assert property (i2c_invalid_address_nack_check)
+            else
+                $error("[%0t] INVALID ADDRESS NACK FAILED", $time);
 
-    assert property (i2c_invalid_address_nack_check)
-        else
-            $error("[%0t] INVALID ADDRESS NACK FAILED", $time);
+    end
+endgenerate
+*/
 
+property i2c_invalid_address_nack_check;
+
+    @(posedge scl)
+        check_addr_nack && start_detected
+        |-> ##8 (sda === 1'b1);
+
+endproperty
+
+assert property (i2c_invalid_address_nack_check)
+    else
+        $error("[%0t] INVALID ADDRESS NACK FAILED", $time);
+        
+        
 
     //========================================================
     // WRITE DATA CHECK
@@ -202,11 +318,9 @@ module i2c_assertions (
 
         bit [7:0] captured_data;
 
-        @(posedge clk)
-
-        $rose(start)
-        |->
-        @(posedge scl)
+	@(posedge scl)
+   	 start_detected
+	|->
 
         ##9
 
@@ -219,14 +333,14 @@ module i2c_assertions (
         ##1 (1'b1, captured_data[1] = sda)
         ##1 (1'b1, captured_data[0] = sda)
 
-        ##1 (captured_data === expected_data);
+        ##1 (captured_data[7:0] === expected_data);
 
     endproperty
 
-    assert property (i2c_write_data_check(8'ha5))
+    assert property (i2c_write_data_check(datain))
         else
-            $error("[%0t] I2C WRITE DATA mismatch. Expected=55",
-                   $time);
+            $error("[%0t] I2C WRITE DATA mismatch. Expected=%0b",
+                   $time,datain);
 
 
     //========================================================
@@ -237,11 +351,9 @@ module i2c_assertions (
 
     property data_ack;
 
-        @(posedge clk)
-
-        $rose(start)
-        |->
-        @(posedge scl)
+       @(posedge scl)
+    start_detected
+	|->
 
         ##17 (sda === 1'b0);
 

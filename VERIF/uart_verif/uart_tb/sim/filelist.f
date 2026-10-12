@@ -4,13 +4,15 @@
 # ============================================================
 
 # ---------- RTL ----------
-../rtl/uart_baudgen.sv
-../rtl/uart_tx_fifo.sv
-../rtl/uart_rx_fifo.sv
-../rtl/uart_tx.sv
-../rtl/uart_rx.sv
-../rtl/uart_top.sv
-../rtl/apb_uart_top.sv
+# ---------- RTL ----------
+../../../../DSN/ip/peripherals/uart/ip/uart/rtl/uart_baudgen.sv
+../../../../DSN/ip/peripherals/uart/ip/uart/rtl/uart_fifo.sv
+../../../../DSN/ip/peripherals/uart/ip/uart/rtl/uart_tx.sv
+../../../../DSN/ip/peripherals/uart/ip/uart/rtl/uart_rx.sv
+../../../../DSN/ip/peripherals/uart/ip/uart/rtl/uart_top.sv
+../../../../DSN/ip/peripherals/uart/dsn/rtl/uart_apb_top.sv
+
+# kept in the tree for reference, no longer compiled.
 
 # ---------- Interfaces ----------
 ../interface/uart_if.sv
@@ -29,12 +31,12 @@
 ../agent/reset_sequencer.sv
 
 # ---------- RAL model (register pkg + block; no bus dependency) ----------
-../env/uart_ral_pkg.sv
-../env/uart_ral_block.sv
+../ral/uart_ral_pkg.sv
+../ral/uart_ral_block.sv
 
 # ---------- RAL bus glue (needs uart_seq_item) ----------
-../env/uart_apb_adapter.sv
-../env/uart_apb_predictor.sv
+../ral/uart_apb_adapter.sv
+../ral/uart_apb_predictor.sv
 
 # ---------- Drivers ----------
 ../agent/uart_driver.sv
@@ -56,7 +58,7 @@
 ../agent/sequences/reset_sequence.sv
 
 # ---------- RAL regression sequences (d1-only; needs ral_block) ----------
-../env/uart_ral_sequences.sv
+../ral/ral_sequence/uart_ral_sequences.sv
 
 # ---------- Scoreboard / coverage ----------
 ../env/uart_scoreboard.sv
@@ -76,6 +78,11 @@
 ../tests/uart_smoke_test.sv
 ../tests/uart_reg_access_test.sv
 ../tests/uart_apb_transaction_test.sv
+../tests/uart_stress_test.sv
+../tests/uart_fifo_test.sv
+../tests/uart_spec_test.sv
+../tests/uart_error_test.sv
+../tests/uart_irq_gen_test.sv
 
 # ---------- Assertions (module; needs uart_if/reset_if) ----------
 ../assertions/uart_assertions.sv

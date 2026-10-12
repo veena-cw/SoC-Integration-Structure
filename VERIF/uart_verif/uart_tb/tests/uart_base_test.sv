@@ -56,12 +56,16 @@ class uart_base_test extends uvm_test;
     endfunction
 
     protected task run_scenario(uart_virtual_sequence::mode_e mode,
-                                 int unsigned num_bytes = 4);
+                                 int unsigned num_bytes = 4,
+                                 bit flow_en = 1'b0,
+                                 bit [4:0] rts_thresh = 5'd14);
         uart_virtual_sequence vseq;
 
         vseq = uart_virtual_sequence::type_id::create("vseq");
-        vseq.mode      = mode;
-        vseq.num_bytes = num_bytes;
+        vseq.mode       = mode;
+        vseq.num_bytes  = num_bytes;
+        vseq.flow_en    = flow_en;
+        vseq.rts_thresh = rts_thresh;
 
         vseq.start(env.virt_seqr);
     endtask

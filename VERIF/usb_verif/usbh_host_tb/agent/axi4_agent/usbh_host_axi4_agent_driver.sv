@@ -68,7 +68,12 @@ class usbh_host_axi4_agent_driver extends uvm_driver #(usbh_host_axi4_agent_seq_
 	      `uvm_info("AXI_DRV", "Waiting for AXI sequence item", UVM_LOW)
 	      seq_item_port.get_next_item(req);
 	      `uvm_info("AXI_DRV", "Got AXI sequence item", UVM_LOW)
-	      drive_item(req);
+	      
+	      if (req.write) 
+		  drive_write(req); 
+	      else 
+		  drive_read(req);
+	    
 	      seq_item_port.item_done();
     end
   endtask
@@ -79,7 +84,7 @@ class usbh_host_axi4_agent_driver extends uvm_driver #(usbh_host_axi4_agent_seq_
     // Drive interface to reset/idle state while reset is applied
     @(vif.drv_cb);
     // TODO: drive reset defaults for axi4 (e.g., valid->0)
-    vif.drv_cb.cfg_awvalid_i <= 1'b0;
+      vif.drv_cb.cfg_awvalid_i <= 1'b0;
       vif.drv_cb.cfg_awaddr_i <= '0;
       vif.drv_cb.cfg_wvalid_i <= 1'b0;
       vif.drv_cb.cfg_wdata_i <= '0;
@@ -88,6 +93,25 @@ class usbh_host_axi4_agent_driver extends uvm_driver #(usbh_host_axi4_agent_seq_
       vif.drv_cb.cfg_arvalid_i <= 1'b0;
       vif.drv_cb.cfg_araddr_i <= '0;
       vif.drv_cb.cfg_rready_i <= 1'b0;
+      
+      vif.drv_cb.cfg_awlen_i <= 8'b0;
+      vif.drv_cb.cfg_awsize_i <= 3'd0;
+      vif.drv_cb.cfg_awburst_i <= '0;
+      vif.drv_cb.cfg_awlock_i  <= 1'b0;
+      vif.drv_cb.cfg_awcache_i <= '0;
+      vif.drv_cb.cfg_awprot_i  <= '0;
+      vif.drv_cb.cfg_awqos_i   <= '0;
+      vif.drv_cb.cfg_wlast_i  <= 1'b0;
+      
+      vif.drv_cb.cfg_arlock_i  <= 1'b0;
+      vif.drv_cb.cfg_arcache_i <= '0;
+      vif.drv_cb.cfg_arprot_i  <= '0;
+      vif.drv_cb.cfg_arqos_i   <= '0;
+      vif.drv_cb.cfg_arlen_i <= '0;
+      vif.drv_cb.cfg_arsize_i <= '0;
+      vif.drv_cb.cfg_arid_i <= '0;
+      vif.drv_cb.cfg_arburst_i <= '0;
+      
     
   endtask
 
@@ -106,20 +130,37 @@ class usbh_host_axi4_agent_driver extends uvm_driver #(usbh_host_axi4_agent_seq_
       `uvm_info("AXI4_DRV", $sformatf("WRITE ADDR=%08h DATA=%08h STRB=%h", req.addr, req.data, req.strb), UVM_MEDIUM)
       //------------------ 1. WRITE ADDRESS CHANNEL --------------------------------
       vif.drv_cb.cfg_awaddr_i <= req.addr; 
-      vif.drv_cb.cfg_awvalid_i <= 1'b1; 
+      vif.drv_cb.cfg_awvalid_i <= 1'b1;
+      
+      vif.drv_cb.cfg_awid_i <= req.id;
+      vif.drv_cb.cfg_awburst_i <= req.burst; //2'b0;
+      vif.drv_cb.cfg_awlen_i <= req.len; //8'b0;
+      vif.drv_cb.cfg_awsize_i <= req.size; //3'd2;
+      
+      vif.drv_cb.cfg_arlock_i  <= 1'b0;
+      vif.drv_cb.cfg_arcache_i <= '0;
+      vif.drv_cb.cfg_arprot_i  <= '0;
+      vif.drv_cb.cfg_arqos_i   <= '0;
+      
+      
       `uvm_info("AXI_DRV", "AWVALID is asserted , Waiting for AWREADY", UVM_MEDIUM)
       // Wait for AWREADY 
       do begin 
-          @(vif.drv_cb); 
+          @(vif.drv_cb);
+          timeout++;
+          if (timeout >= 1000)
+              `uvm_fatal("AXI_AW_TIMEOUT", "AWREADY timeout")
       end 
       while (!vif.drv_cb.cfg_awready_o); 
       `uvm_info("AXI_DRV", "AW handshake completed", UVM_MEDIUM)
       // AW handshake completed 
       vif.drv_cb.cfg_awvalid_i <= 1'b0;
+      vif.drv_cb.cfg_wlast_i  <= 1'b0;
       //------------------ 2. WRITE DATA CHANNEL -----------------------------------
       vif.drv_cb.cfg_wdata_i <= req.data; 
       vif.drv_cb.cfg_wstrb_i <= req.strb; 
       vif.drv_cb.cfg_wvalid_i <= 1'b1; 
+      vif.drv_cb.cfg_wlast_i  <= 1'b1;
       `uvm_info("AXI_DRV", "Asserted WVALID", UVM_MEDIUM)
       `uvm_info("AXI_DRV", "Waiting for WREADY", UVM_MEDIUM)
       // Wait for WREADY
@@ -140,6 +181,7 @@ class usbh_host_axi4_agent_driver extends uvm_driver #(usbh_host_axi4_agent_seq_
       
       // W handshake completed 
       vif.drv_cb.cfg_wvalid_i <= 1'b0;
+      vif.drv_cb.cfg_wlast_i  <= 1'b0;
       
       //------------------ 3. WRITE RESPONSE CHANNEL --------------------------------
       vif.drv_cb.cfg_bready_i <= 1'b1; 
@@ -159,35 +201,70 @@ class usbh_host_axi4_agent_driver extends uvm_driver #(usbh_host_axi4_agent_seq_
       while (!vif.drv_cb.cfg_bvalid_o); */
       // Capture write response 
       req.resp = vif.drv_cb.cfg_bresp_o;
-      `uvm_info("AXI_DRV", "B handshake completed", UVM_MEDIUM) // B handshake completed       
+      `uvm_info("AXI_DRV", "B handshake completed", UVM_MEDIUM) // B handshake completed             
+      req.resp_id = vif.drv_cb.cfg_bid_o; 
+      if (req.resp_id != req.id)
+          `uvm_error("AXI_BID", $sformatf( "BID mismatch: expected=%0h received=%0h", req.id, req.resp_id))
       vif.drv_cb.cfg_bready_i <= 1'b0;      
-      `uvm_info("AXI4_DRV", $sformatf("WRITE COMPLETE ADDR=%08h DATA=%08h STRB=%0b RESP=%0d", req.addr, req.data, req.strb, req.resp), UVM_MEDIUM)       
+      `uvm_info("AXI4_DRV", $sformatf("WRITE COMPLETE ADDR=%08h DATA=%08h STRB=%0b BRESP=%0d ID=%0b"
+              , req.addr, req.data, req.strb, req.resp, req.id), UVM_MEDIUM)     
   endtask
+  
+  
   //============================================================= // READ transaction //=============================================================
   task drive_read(usbh_host_axi4_agent_seq_item req);
+      int timeout;
+      timeout = 0;
+      
       `uvm_info("AXI4_DRV", $sformatf("READ ADDR=%08h", req.addr), UVM_MEDIUM)
       //-------------------- 1. READ ADDRESS CHANNEL ----------------------------------
-      vif.drv_cb.cfg_araddr_i <= req.addr; 
+      vif.drv_cb.cfg_araddr_i <= req.addr;
+      vif.drv_cb.cfg_arid_i    <= req.id;
+      vif.drv_cb.cfg_arlen_i   <= req.len;
+      vif.drv_cb.cfg_arsize_i  <= req.size;
+      vif.drv_cb.cfg_arburst_i <= req.burst;
+      
+      vif.drv_cb.cfg_arlock_i  <= 1'b0;
+      vif.drv_cb.cfg_arcache_i <= '0;
+      vif.drv_cb.cfg_arprot_i  <= '0;
+      vif.drv_cb.cfg_arqos_i   <= '0; 
+      
       vif.drv_cb.cfg_arvalid_i <= 1'b1; 
+  
       // Wait for ARREADY 
       do begin 
           @(vif.drv_cb); 
+          timeout++;
+          if (timeout >= 1000)
+              `uvm_fatal("AXI4_DRV: AXI_AR_TIMEOUT", "ARREADY timeout")
       end while (!vif.drv_cb.cfg_arready_o); 
       // AR handshake completed 
       vif.drv_cb.cfg_arvalid_i <= 1'b0;
       //-------------------- 2. READ DATA CHANNEL -------------------------------------
       vif.drv_cb.cfg_rready_i <= 1'b1; 
       // Wait for RVALID 
+      timeout=0;
       do begin 
           @(vif.drv_cb); 
+          timeout++;
+          if (timeout >= 1000)
+              `uvm_fatal("AXI$_DRV: AXI_R_TIMEOUT", "RVALID timeout")
       end while (!vif.drv_cb.cfg_rvalid_o); 
       // Capture read response 
       req.rdata = vif.drv_cb.cfg_rdata_o; 
       req.resp = vif.drv_cb.cfg_rresp_o; 
+      req.resp_id = vif.drv_cb.cfg_rid_o;
+      req.rlast   = vif.drv_cb.cfg_rlast_o;
+      
+      if (req.resp_id != req.id)
+          `uvm_error("AXI_RID", $sformatf( "RID mismatch: expected=%0h received=%0h", req.id, req.resp_id))
+      if (req.rlast !== 1'b1)
+          `uvm_error("AXI_RLAST", "RLAST was not asserted for single-beat read")
+    
       // R handshake completed 
       vif.drv_cb.cfg_rready_i <= 1'b0;
       
-      `uvm_info("AXI4_DRV", $sformatf("READ COMPLETE ADDR=%08h RDATA=%08h RESP=%0d", req.addr, req.rdata, req.resp), UVM_MEDIUM) 
+      `uvm_info("AXI4_DRV", $sformatf("READ COMPLETE ADDR=%08h ID=%0h RDATA=%08h RESP=%0d RLAST=%0b", req.addr, req.id, req.rdata, req.resp, req.rlast), UVM_MEDIUM) 
   endtask
   
 endclass : usbh_host_axi4_agent_driver

@@ -43,7 +43,10 @@ class uart_apb_read_sequence extends uart_base_sequence;
                 req.paddr,
                 req.prdata
             ),
-            UVM_LOW
+            // Raw APB reads are used in pairs during full-duplex servicing.
+            // Keep this as an opt-in debug trace so normal UVM_MEDIUM logs
+            // show the deterministic scoreboard/RHR results only.
+            UVM_HIGH
         )
 
     endtask

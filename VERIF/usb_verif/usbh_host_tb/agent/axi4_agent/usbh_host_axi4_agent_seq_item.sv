@@ -26,16 +26,29 @@
 // NOTE: Foundational scaffold -- extend all TODOs.
 //----------------------------------------------------------------------
 
-
+import usbh_host_pkg::*;
 // Sequence item for agent "axi4_agent" (bound to interface group "axi4").
 class usbh_host_axi4_agent_seq_item extends uvm_sequence_item;
 
   	rand bit write; // Transaction type
-	rand bit [31:0] addr; // Write / Read address
-	rand bit [31:0] data; // Write data
-	rand bit [ 3:0] strb; // Write strobe
-	bit [31:0] rdata; // Response / Read data 
-	bit [ 1:0] resp; // These are filled by the driver/monitor	
+	rand bit [CFG_AWADDR_I_W-1:0] addr; // Write / Read address
+	rand bit [CFG_WDATA_I_W-1:0] data; // Write data
+	rand bit [CFG_WSTRB_I_W-1:0] strb; // Write strobe
+
+	bit [CFG_RDATA_O_W-1:0] rdata; // Response / Read data 
+	bit [ 1:0] resp; // These are filled by the driver/monitor
+	
+	//New signals fron AXI4 interface.
+	rand bit [AWLEN_W-1:0] len;
+	rand bit [ID_WIDTH-1:0] id;
+	rand bit [AWSIZE_W-1:0] size;
+	rand bit [1:0] burst;
+	
+	bit [ID_WIDTH-1:0] resp_id;
+	// AXI4 last-beat signals
+	bit wlast;
+	bit rlast;
+		
 
   `uvm_object_utils_begin(usbh_host_axi4_agent_seq_item)
     `uvm_field_int(write, UVM_ALL_ON)
@@ -44,6 +57,14 @@ class usbh_host_axi4_agent_seq_item extends uvm_sequence_item;
     `uvm_field_int(strb, UVM_ALL_ON)
     `uvm_field_int(rdata, UVM_ALL_ON)
     `uvm_field_int(resp, UVM_ALL_ON)
+    
+    `uvm_field_int(len, UVM_ALL_ON)
+    `uvm_field_int(id, UVM_ALL_ON)
+    `uvm_field_int(size, UVM_ALL_ON)
+    `uvm_field_int(burst, UVM_ALL_ON)
+    `uvm_field_int(resp_id, UVM_ALL_ON)
+    `uvm_field_int(wlast, UVM_ALL_ON)
+    `uvm_field_int(rlast, UVM_ALL_ON)       
   `uvm_object_utils_end
 
   function new(string name = "usbh_host_axi4_agent_seq_item");
@@ -74,6 +95,16 @@ class usbh_host_axi4_agent_seq_item extends uvm_sequence_item;
 			32'h00000020  // USB_WR_DATA / USB_RD_DATA
 		    };
 	}
+	
+	
+	//=============================================================
+        // Initial wrapper support: one 32-bit beat per transaction
+        //=============================================================
+        constraint c_single_beat {
+	    len   == 0;
+	    size  == 3'd2;
+	    burst inside {2'b00, 2'b01}; // FIXED or INCR
+	  }
 	
 	//=============================================================
         // Write strobe constraint

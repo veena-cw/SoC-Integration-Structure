@@ -31,6 +31,8 @@ VERILATOR    ?= /opt/verilator-5.048/bin/verilator
 VERILATOR_COVERAGE ?= /opt/verilator-5.048/bin/verilator_coverage
 RISCV_MARCH  ?= rv64ima
 RISCV_OPT    ?= -O0
+# Extra C flags for the test programs, e.g. -DDUAL_CORE_USE_CBO_FLUSH
+RISCV_CFLAGS ?=
 
 TEST         ?= bp_base_test
 TOP          ?= cpu_tb_top
@@ -50,12 +52,20 @@ BURST_ARGS =
 ifeq ($(TEST),bp_dv_024_dram_latency_test)
 DRAM_ARGS := +DRAM_LATENCY_MIN=1 +DRAM_LATENCY_MAX=8
 endif
-ifeq ($(TEST),bp_dv_025_axi_burst_test)
-BURST_ARGS := +REQUIRE_AXI_BURST=1
+# BP-DV-025 no longer requires an AXI burst: by design the CPU -> AXI bridge
+# issues single-beat transactions only (checked in every test by the AXI
+# monitor, AXI_SINGLE_BEAT). Pass +REQUIRE_AXI_BURST=1 by hand to re-enable.
+
+# NO_VCD=1: no waveform dump (+NO_VCD). Use for regressions and long or
+# hanging runs; a full dump grows by ~100 MB per simulated us.
+NO_VCD ?= 0
+ifeq ($(NO_VCD),1)
+VCD_ARGS := +NO_VCD
 endif
 
 UVM_RUN_ARGS = \
 	+UVM_TESTNAME=$(TEST) \
+	$(VCD_ARGS) \
 	+BP_TEST_ID=$(TEST_ID) \
 	+UVM_VERBOSITY=UVM_LOW \
 	+NBF_FILE=$(SIM_DIR)/$(TCNAME).nbf \
@@ -132,6 +142,48 @@ RISCV_MARCH  := rv64imac
 else ifeq ($(TEST),bp_dv_028_axi_unaligned_test)
 TCNAME       ?= axi_unaligned_access
 TEST_ID      ?= 28
+else ifeq ($(TEST),bp_dv_029_axi_block_test)
+TCNAME       ?= axi_block_access
+TEST_ID      ?= 29
+else ifeq ($(TEST),bp_dv_030_axi_block_dual_core_test)
+TCNAME       ?= axi_block_dual_core
+TEST_ID      ?= 30
+else ifeq ($(TEST),bp_dv_031_axi_block_dual_core_3002_test)
+TCNAME       ?= axi_block_dual_core_3002
+TEST_ID      ?= 31
+else ifeq ($(TEST),bp_dv_032_cbo_clean_test)
+TCNAME       ?= cbo_clean
+TEST_ID      ?= 32
+else ifeq ($(TEST),bp_dv_033_cbo_flush_test)
+TCNAME       ?= cbo_flush
+TEST_ID      ?= 33
+else ifeq ($(TEST),bp_dv_034_cbo_inval_test)
+TCNAME       ?= cbo_inval
+TEST_ID      ?= 34
+else ifeq ($(TEST),bp_dv_035_priv_modes_test)
+TCNAME       ?= priv_modes
+TEST_ID      ?= 35
+else ifeq ($(TEST),bp_dv_036_vm_sv39_test)
+TCNAME       ?= vm_sv39
+TEST_ID      ?= 36
+else ifeq ($(TEST),bp_dv_037_vm_ifetch_fault_test)
+TCNAME       ?= vm_sv39_ifetch_fault
+TEST_ID      ?= 37
+else ifeq ($(TEST),bp_dv_038_smp_atomics_test)
+TCNAME       ?= smp_atomics
+TEST_ID      ?= 38
+else ifeq ($(TEST),bp_dv_039_fpu_test)
+TCNAME       ?= fpu_ops
+TEST_ID      ?= 39
+else ifeq ($(TEST),bp_dv_040_bitmanip_test)
+TCNAME       ?= bitmanip_ops
+TEST_ID      ?= 40
+else ifeq ($(TEST),bp_dv_041_bitmanip_shadd_test)
+TCNAME       ?= bitmanip_shadd
+TEST_ID      ?= 41
+else ifeq ($(TEST),bp_dv_042_plic_reg_test)
+TCNAME       ?= plic_reg_access
+TEST_ID      ?= 42
 else ifeq ($(TEST),bp_i2c_write_read_test)
 TCNAME       ?= i2c_write_read
 TEST_ID      ?= 27
@@ -142,9 +194,39 @@ else
 TCNAME       ?= add_function
 TEST_ID      ?= 3
 endif
+
+# BlackParrot configuration (bp_params_e value): 9 = e_bp_multicore_2_cfg
+# (two cores). Every C test runs on both harts (see c/dual_core.h). The
+# single-core configurations (0-5) are not supported by this testbench.
+BP_CFG_ID    ?= 9
+ifneq ($(filter $(BP_CFG_ID),0 1 2 3 4 5),)
+$(error BP_CFG_ID=$(BP_CFG_ID) is a single-core configuration; this testbench is two-core only (BP_CFG_ID=9))
+endif
+BP_MULTICORE := 1
+# In the multicore build, bsg_mem_1r1w's read/write-same-address assertion
+# fires once per FIFO on the first clock edge: its guard expects the
+# internal reset flops to start as X (4-state), but Verilator starts them at
+# 0 before the pipelined reset reaches them. It never fires after reset.
+# By default Verilator stops at the first $error, so allow it to continue.
+# Every $error is still printed in the log - check them after a run.
+UVM_RUN_ARGS += +verilator+error+limit+1000
+
+# Programs that need extra ISA extensions. Selected by program name (TCNAME)
+# so make sim and make regression (which compiles with TCNAME=...) agree.
+ifeq ($(TCNAME),fpu_ops)
+RISCV_MARCH  := rv64imafd
+endif
+ifneq ($(filter $(TCNAME),bitmanip_ops bitmanip_shadd),)
+RISCV_MARCH  := rv64ima_zba_zbb_zbs
+endif
+ifeq ($(TCNAME),dram_latency_function)
+RISCV_MARCH  := rv64imac
+endif
+
 LOG_DIR      := $(SIM_DIR)/logs
 COMPILE_LOG  := $(LOG_DIR)/compile.log
 SIM_LOG      := $(LOG_DIR)/simulation.log
+BUILD_LOG    := $(LOG_DIR)/build_cfg$(BP_CFG_ID).log
 REGR_DIR     := $(LOG_DIR)/regression
 COVERAGE_DIR := $(LOG_DIR)/coverage
 COVERAGE_MERGED := $(COVERAGE_DIR)/coverage.dat
@@ -162,8 +244,8 @@ SIM_DISPLAY_FILTER = sed -E '/^\#\# work\.bsg_mem_.*: instantiating /d'
 CPU_FLIST    ?= $(CPU_DIR)/dsn/rtl/cpu_top.f
 TB_FILELIST  ?= $(SIM_DIR)/tb_filelist.f
 
-# Verilator build directory.
-VERILATOR_BUILD_DIR ?= $(SIM_DIR)/obj_dir
+# Verilator build directory, one per BP configuration.
+VERILATOR_BUILD_DIR ?= $(SIM_DIR)/obj_dir_cfg$(BP_CFG_ID)
 VERILATOR_EXE       := $(VERILATOR_BUILD_DIR)/V$(TOP)
 
 export BP_DIR REPO_ROOT CPU_DIR CPU_RTL_DIR CPU_FLIST UVM_HOME TB_DIR
@@ -220,7 +302,12 @@ VERILATOR_DEFINES = \
 	-DUVM_NO_DPI \
 	-DCPU_AXI_DATA_WIDTH=$(CPU_AXI_DATA_WIDTH) \
 	-DCPU_AXI_ADDR_WIDTH=$(CPU_AXI_ADDR_WIDTH) \
-	-DCPU_AXI_ID_WIDTH=$(CPU_AXI_ID_WIDTH)
+	-DCPU_AXI_ID_WIDTH=$(CPU_AXI_ID_WIDTH) \
+	-DBP_CFG_ID=$(BP_CFG_ID)
+
+ifdef BP_MULTICORE
+VERILATOR_DEFINES += -DBP_MULTICORE
+endif
 
 # BP-DV-020 needs only cache/DRAM traffic diagnostics; suppress unrelated ALU logs.
 ifeq ($(TEST),bp_dv_011_memory_backpressure_test)
@@ -255,7 +342,7 @@ VERILATOR_SRCS = -f $(TB_FILELIST)
 # Targets
 ###############################################################################
 
-.PHONY: all compile sim run regression coverage_report wave check_uvm sim_info clean help
+.PHONY: all compile sim run build print_exe regression coverage_report wave check_uvm sim_info clean help
 
 all: compile sim
 
@@ -265,7 +352,7 @@ all: compile sim
 
 compile: $(TCNAME).nbf
 
-$(TCNAME).elf: $(C_DIR)/$(TCNAME).c $(C_DIR)/link.ld
+$(TCNAME).elf: $(C_DIR)/$(TCNAME).c $(C_DIR)/link.ld $(C_DIR)/dual_core.h $(wildcard $(C_DIR)/cbo_ops.c $(C_DIR)/axi_block_dual_core.c $(C_DIR)/vm_sv39.c)
 	@mkdir -p $(LOG_DIR)
 	@echo "=================================================="
 	@echo " Compiling RISC-V C test"
@@ -275,7 +362,7 @@ $(TCNAME).elf: $(C_DIR)/$(TCNAME).c $(C_DIR)/link.ld
 		-mabi=lp64 \
 		-mcmodel=medany \
 		-nostdlib \
-		$(RISCV_OPT) \
+		$(RISCV_OPT) $(RISCV_CFLAGS) \
 		-T $(C_DIR)/link.ld \
 		$< -o $@ 2>&1 | tee -a $(COMPILE_LOG)
 
@@ -333,6 +420,15 @@ check_uvm:
 # Verilator compile
 ###############################################################################
 
+# Shared by sim and build.
+VERILATOR_CMD = $(VERILATOR) \
+	$(VERILATOR_FLAGS) \
+	$(VERILATOR_WARNINGS) \
+	$(VERILATOR_DEFINES) \
+	$(VERILATOR_INCDIRS) \
+	$(VERILATOR_SRCS) \
+	-o V$(TOP)
+
 sim: $(TCNAME).nbf check_uvm
 	@mkdir -p $(LOG_DIR) $(VERILATOR_BUILD_DIR)
 	@echo ""
@@ -345,14 +441,7 @@ sim: $(TCNAME).nbf check_uvm
 	@echo "BUILD DIR = $(VERILATOR_BUILD_DIR)"
 	@echo ""
 
-	set -o pipefail; $(VERILATOR) \
-		$(VERILATOR_FLAGS) \
-		$(VERILATOR_WARNINGS) \
-		$(VERILATOR_DEFINES) \
-		$(VERILATOR_INCDIRS) \
-		$(VERILATOR_SRCS) \
-		-o V$(TOP) \
-		2>&1 | tee $(SIM_LOG)
+	set -o pipefail; $(VERILATOR_CMD) 2>&1 | tee $(SIM_LOG)
 
 	@echo ""
 	@echo "=================================================="
@@ -371,11 +460,27 @@ sim: $(TCNAME).nbf check_uvm
 # Alias.
 run: sim
 
+# Compile the simulator for one BP configuration without running a test.
+#   make build                 # 2 cores (BP_CFG_ID=9) -> obj_dir_cfg9/
+# Note: per-test defines (BP_DV_011/020/024) are only added by make sim
+# TEST=..., so a plain build has none of them.
+build: check_uvm
+	@mkdir -p $(LOG_DIR) $(VERILATOR_BUILD_DIR)
+	@echo "Building BP_CFG_ID=$(BP_CFG_ID) into $(VERILATOR_BUILD_DIR)"
+	set -o pipefail; $(VERILATOR_CMD) 2>&1 | tee $(BUILD_LOG)
+
+# Simulator path for the selected BP_CFG_ID (used by regression).
+print_exe:
+	@echo $(VERILATOR_EXE)
+
 ###############################################################################
 # Regression
 ###############################################################################
 
-# Regression rows contain: UVM test class, BP test ID, and boot image (.nbf).
+# Regression rows contain: UVM test class, BP test ID, boot image (.nbf), and
+# optionally cfg=<BP_CFG_ID> (default $(BP_CFG_ID) = 9, two cores; multicore
+# configurations only). Each row runs on the simulator built for its config;
+# a missing simulator is built once (make build BP_CFG_ID=<n>) first.
 REGR_FILE ?= $(SIM_DIR)/../testlist/testlist.f
 
 # Merge per-test Verilator coverage.dat files and generate both LCOV and HTML
@@ -399,46 +504,57 @@ regression: check_uvm
 	@mkdir -p $(REGR_DIR) $(COVERAGE_DIR)
 	@rm -f "$(COVERAGE_DIR)"/*.dat "$(COVERAGE_MERGED)" "$(COVERAGE_INFO)" "$(COVERAGE_SUMMARY)"
 	@rm -rf "$(COVERAGE_HTML_DIR)"
-	@if [ ! -f "$(VERILATOR_EXE)" ]; then \
-		echo "ERROR: Verilator executable not found:"; \
-		echo "  $(VERILATOR_EXE)"; \
-		exit 1; \
-	fi
 	@if [ ! -f "$(REGR_FILE)" ]; then \
 		echo "ERROR: Regression file not found:"; \
 		echo "  $(REGR_FILE)"; \
 		exit 1; \
 	fi
 	@fail=0; \
+	built_cfgs=" "; \
 	while IFS= read -r line || [ -n "$$line" ]; do \
 		line=$$(echo "$$line" | sed 's/#.*//' | xargs); \
 		[ -z "$$line" ] && continue; \
-		read -r t test_id nbf extra <<< "$$line"; \
-		if [ -z "$$t" ] || [ -z "$$test_id" ] || [ -z "$$nbf" ] || [ -n "$$extra" ] || [[ ! "$$test_id" =~ ^[0-9]+$$ ]] || [[ "$$nbf" != *.nbf ]]; then \
+		read -r t test_id nbf opt extra <<< "$$line"; \
+		cfg=$(BP_CFG_ID); \
+		if [[ "$$opt" =~ ^cfg=([0-9]+)$$ ]]; then cfg=$${BASH_REMATCH[1]}; opt=; fi; \
+		if [ -z "$$t" ] || [ -z "$$test_id" ] || [ -z "$$nbf" ] || [ -n "$$opt" ] || [ -n "$$extra" ] || [[ ! "$$test_id" =~ ^[0-9]+$$ ]] || [[ "$$nbf" != *.nbf ]]; then \
 			echo "ERROR: Invalid regression row: $$line"; \
 			fail=1; \
 			continue; \
 		fi; \
 		tcname=$${nbf%.nbf}; \
 		echo "=================================================="; \
-		echo "=== Running test: $$t (ID=$$test_id, NBF=$$nbf)"; \
+		echo "=== Running test: $$t (ID=$$test_id, NBF=$$nbf, cfg=$$cfg)"; \
 		echo "=================================================="; \
+		exe=$$($(MAKE) --no-print-directory -s print_exe BP_CFG_ID=$$cfg); \
+		if [ ! -f "$$exe" ] && [[ "$$built_cfgs" != *" $$cfg "* ]]; then \
+			echo "Simulator for cfg=$$cfg not found ($$exe); building it"; \
+			$(MAKE) --no-print-directory build BP_CFG_ID=$$cfg > /dev/null 2>&1 \
+				|| echo "ERROR: build for cfg=$$cfg failed - see $(LOG_DIR)/build_cfg$$cfg.log"; \
+			built_cfgs="$$built_cfgs$$cfg "; \
+		fi; \
+		if [ ! -f "$$exe" ]; then \
+			echo ">>> FAIL: $$t (no simulator for cfg=$$cfg)"; \
+			fail=1; \
+			continue; \
+		fi; \
 		if ! $(MAKE) --no-print-directory compile TCNAME=$$tcname; then \
 			echo ">>> FAIL: $$t (NBF build failed)"; \
 			fail=1; \
 			continue; \
 		fi; \
-		burst_args=; \
-		if [[ "$$t" == "bp_dv_025_axi_burst_test" ]]; then burst_args="+REQUIRE_AXI_BURST=1"; fi; \
-		if $(VERILATOR_EXE) \
+		run_args=; \
+		case "$$cfg" in 0|1|2|3|4|5) ;; *) run_args="$$run_args +verilator+error+limit+1000";; esac; \
+		if "$$exe" \
 			+UVM_TESTNAME=$$t \
 			+BP_TEST_ID=$$test_id \
+			$(VCD_ARGS) \
 			+NBF_FILE=$(SIM_DIR)/$$nbf \
 			+NBF_PRELOAD_ONLY=1 \
 			+UVM_VERBOSITY=UVM_LOW \
 			+UVM_OBJECTION_TRACE \
 			'+uvm_set_action=*,UVM/COMP/NAME,UVM_WARNING,UVM_NO_ACTION' \
-			$$burst_args \
+			$$run_args \
 			2>&1 | $(SIM_DISPLAY_FILTER) | tee "$(REGR_DIR)/$$tcname.log"; then \
 			:; \
 		else \
@@ -471,6 +587,22 @@ regression: check_uvm
 # Waveforms
 ###############################################################################
 
+# PLIC-only waveform: Verilator always dumps the whole design to
+# sim/cpu_tb_top.vcd, so cut the PLIC path out of it afterwards into
+# sim/plic.vcd (open in Vaporview / GTKWave). Run after make sim.
+#   shared_plic and everything below it (core0/core1 ports, arbiter, AHB
+#   bridge, AHB bus, PLIC registers/core) + the plic_* signals of
+#   bp_multicore (plic_src_i, IRQ synchronizers, external IRQs per core).
+PLIC_SCOPE = cpu_tb_top.dut.u_bp.m.multicore
+plic_vcd:
+	python3 $(SIM_DIR)/../scripts/vcd_filter.py $(SIM_DIR)/cpu_tb_top.vcd $(SIM_DIR)/plic.vcd \
+		--keep $(PLIC_SCOPE).shared_plic --match $(PLIC_SCOPE):plic
+	@ls -l $(SIM_DIR)/plic.vcd
+
+# GTKWave only: plic.vcd with the PLIC signals pre-grouped (sim/plic.gtkw).
+wave_plic: plic_vcd
+	gtkwave $(SIM_DIR)/plic.vcd $(SIM_DIR)/plic.gtkw &
+
 wave:
 	@echo ""
 	@echo "=================================================="
@@ -479,6 +611,7 @@ wave:
 	@find $(VERILATOR_BUILD_DIR) -type f \
 		\( -name "*.vcd" -o -name "*.fst" \) \
 		2>/dev/null || true
+	@ls -l $(SIM_DIR)/*.vcd 2>/dev/null || true
 	@echo ""
 	@echo "Open a waveform with:"
 	@echo "  gtkwave <waveform_file>"
@@ -552,6 +685,8 @@ help:
 	@echo ""
 	@echo "WAVEFORM"
 	@echo "  make wave"
+	@echo "  make plic_vcd         PLIC-only waveform sim/plic.vcd (after make sim)"
+	@echo "  make wave_plic        plic.vcd in GTKWave with grouped signals"
 	@echo "  gtkwave <waveform_file>"
 	@echo ""
 	@echo "CLEAN"

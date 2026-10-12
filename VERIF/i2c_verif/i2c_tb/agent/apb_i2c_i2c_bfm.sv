@@ -41,7 +41,8 @@ bit scl_pos_edge;
 bit scl_neg_edge;
 
 logic sda_drive_low;
-
+// ack nack control
+bit generate_nack = 1'b0;
  
   function new(string name,uvm_component parent);
    super.new(name,parent);
@@ -53,7 +54,17 @@ logic sda_drive_low;
 
    if(!uvm_resource_db#(virtual apb_i2c_i2c_if)::read_by_name(get_full_name(), "vif", vif))
     `uvm_fatal("apb_i2c_i2c_if","interface missing")
+    if (!uvm_resource_db#(bit)::read_by_name(
+            get_full_name(),
+            "generate_nack",
+            generate_nack)) begin
 
+        generate_nack = 1'b0;
+
+        `uvm_info("I2C_BFM",
+                  "generate_nack not configured, defaulting to 0",
+                  UVM_LOW)
+   end
   endfunction
 
 
@@ -370,8 +381,11 @@ begin
  @(vif.driver_cb);
    if((vif.i2c_scl == 0) & scl_last==1'b1)
    begin 
-   scl_neg_edge = 1'b1; 
+   scl_neg_edge = 1'b1;
+   if(!generate_nack) 
     	vif.sda_drive_low=1;
+    else
+    	vif.sda_drive_low=0;
    end  
       scl_last = vif.i2c_scl;  
 end

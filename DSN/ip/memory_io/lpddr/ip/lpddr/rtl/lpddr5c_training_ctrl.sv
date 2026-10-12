@@ -12,7 +12,7 @@
 `timescale 1ns/1ps
 
 module lpddr5c_training_ctrl #(
-    parameter NUM_CHANNELS      = 2,
+    parameter NUM_CHANNELS      = 1,
     parameter DQ_WIDTH          = 16,
     parameter CA_WIDTH          = 6,
     parameter TRAIN_STEPS       = 64,

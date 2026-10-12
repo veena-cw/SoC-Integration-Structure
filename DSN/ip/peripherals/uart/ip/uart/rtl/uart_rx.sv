@@ -54,7 +54,7 @@ module uart_rx (
   output logic        break_o,
 
   // Liveness.
-  output logic        busy_o
+  //output logic        busy_o
 );
 
   // ---------- Synchroniser ----------
@@ -103,7 +103,7 @@ module uart_rx (
   assign parity_err_o = parity_err_pulse_q;
   assign break_o      = break_pulse_q;
   assign data_o       = data_q;
-  assign busy_o       = (state_q != S_IDLE);
+  //assign busy_o       = (state_q != S_IDLE);
 
   // Compute expected parity from received data + mode.
   function automatic logic exp_parity(input logic [8:0] d,
@@ -155,7 +155,10 @@ module uart_rx (
         // we treat that as a break.
         if (rx_sync_q == 1'b0) begin
           if (break_cnt_q != 13'h1fff) break_cnt_q <= break_cnt_q + 13'd1;
-          if (break_cnt_q == 13'd175 && !break_armed_q) begin
+		  if (break_cnt_q == ((data_bits_q == 4'd9 && parity_en_q && 
+							(parity_mode_q == 2'b00 || parity_mode_q == 2'b11))? 13'd191 : 13'd175) && (!break_armed_q)) 
+		  begin
+         // if (break_cnt_q == 13'd175 && !break_armed_q) begin
             break_pulse_q <= 1'b1;
             break_armed_q <= 1'b1;
           end
@@ -163,7 +166,15 @@ module uart_rx (
           break_cnt_q   <= 13'd0;
           break_armed_q <= 1'b0;
         end
-
+if (break_armed_q) begin
+      state_q      <= S_IDLE;
+      sample_q     <= 4'd0;
+      bit_idx_q    <= 4'd0;
+      votes0_q     <= 1'b0;
+      votes1_q     <= 1'b0;
+      parity_bit_q <= 1'b0;
+    end
+    else begin
         case (state_q)
           S_IDLE: begin
             // Detect falling edge: rx_sync transitions to 0.
@@ -294,6 +305,7 @@ module uart_rx (
 
           default: state_q <= S_IDLE;
         endcase
+        end
       end
     end
   end

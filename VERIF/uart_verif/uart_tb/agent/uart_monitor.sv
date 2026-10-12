@@ -10,14 +10,14 @@
 // once (a transfer is either a write or a read, never both):
 //
 //   * tx_monitor_task -- watches completed WRITEs. The write
-//     that matters for UART content is TXDATA (0x0C) -- "byte
+//     that matters for UART content is THR (0x00) -- "byte
 //     transmitted" -- but this task reports every write (e.g.
-//     DIVISOR/FRAME/FLOW/IRQ/CLEAR too) so the RAL predictor on
-//     d1 can keep its mirror in sync for the whole register
-//     file, not just the data FIFOs.
+//     BRDR/CR/IER too) so the RAL predictor on d1 can keep its
+//     mirror in sync for the whole register file, not just the
+//     data FIFOs.
 //
 //   * rx_monitor_task -- watches completed READs, the same way.
-//     The read that matters for UART content is RXDATA (0x10)
+//     The read that matters for UART content is RHR (0x04)
 //     -- "byte received".
 //
 // Both publish the same uart_seq_item shape on the one
@@ -37,8 +37,8 @@ class uart_monitor extends uvm_monitor;
 
     uvm_analysis_port #(uart_seq_item) analysis_port;
 
-    localparam bit [31:0] ADDR_TXDATA = 32'h0000_000C;
-    localparam bit [31:0] ADDR_RXDATA = 32'h0000_0010;
+    localparam bit [31:0] ADDR_TXDATA = 32'h0000_0000;  // THR
+    localparam bit [31:0] ADDR_RXDATA = 32'h0000_0004;  // RHR
 
     function new(string name = "uart_monitor", uvm_component parent = null);
         super.new(name, parent);

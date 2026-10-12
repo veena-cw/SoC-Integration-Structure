@@ -56,7 +56,12 @@ module cpu_tb_top;
   );
 
   // Waveform dump for debugging with GTKWave or another VCD viewer.
-  initial begin
+  // Verilator ignores the scope arguments of $dumpvars, so the whole design
+  // is always dumped. For the PLIC path cut it out afterwards: make plic_vcd
+  // (sim/plic.vcd).
+  // +NO_VCD turns the dump off (long or hanging runs, regressions): a full
+  // dump grows by ~100 MB per simulated us at the 1.5 GHz core clock.
+  initial if (!$test$plusargs("NO_VCD")) begin
     $dumpfile("cpu_tb_top.vcd");
     $dumpvars(0, cpu_tb_top);
   end
@@ -74,13 +79,19 @@ endmodule
 `include "bp_common_defines.svh"
 `include "bp_me_defines.svh"
 
+// BlackParrot configuration: two cores only, 9 = e_bp_multicore_2_cfg
+// (the single-core configurations are not supported by this testbench).
+`ifndef BP_CFG_ID
+  `define BP_CFG_ID 9
+`endif
+
 module cpu_tb_top
   import uvm_pkg::*;
   import bp_uvm_pkg::*;
   import bp_common_pkg::*;
   import bp_me_pkg::*;
   #(
-    parameter bp_params_e bp_params_p = e_bp_default_cfg
+    parameter bp_params_e bp_params_p = bp_params_e'(`BP_CFG_ID)
     `declare_bp_proc_params(bp_params_p)
     `declare_bp_bedrock_if_widths(paddr_width_p, lce_id_width_p, cce_id_width_p, did_width_p, lce_assoc_p)
   )
@@ -89,11 +100,31 @@ module cpu_tb_top
 
   `declare_bp_bedrock_if(paddr_width_p, lce_id_width_p, cce_id_width_p, did_width_p, lce_assoc_p);
 
-  bit clk;
+  // SoC clock plan (all from CPU_PLL; the domains are treated as
+  // asynchronous - the bridges cross them with async FIFOs):
+  //   CLK_CPU  1.5 GHz : cores, L1/L2 caches, DMA port + DRAM model
+  //   CLK_GIC  400 MHz : shared PLIC (AHB side, plic_ahb_clk_i)
+  //   CLK_AXI  400 MHz : CPU -> AXI4 bridge AXI side + AXI agent
+  // Half periods in ns (timescale 1ns/1ps); override with +define+, e.g.
+  // +define+CLK_CPU_HALF_NS=5 for the old 100 MHz single clock.
+`ifndef CLK_CPU_HALF_NS
+  `define CLK_CPU_HALF_NS 0.333
+`endif
+`ifndef CLK_GIC_HALF_NS
+  `define CLK_GIC_HALF_NS 1.25
+`endif
+`ifndef CLK_AXI_HALF_NS
+  `define CLK_AXI_HALF_NS 1.25
+`endif
+  bit clk;       // CLK_CPU
+  bit plic_clk;  // CLK_GIC
+  bit axi_clk;   // CLK_AXI
   wire reset;
   cpu_reset_if reset_vif();
   assign reset = reset_vif.reset;
-  always #5 clk = ~clk;
+  always #(`CLK_CPU_HALF_NS) clk      = ~clk;
+  always #(`CLK_GIC_HALF_NS) plic_clk = ~plic_clk;
+  always #(`CLK_AXI_HALF_NS) axi_clk  = ~axi_clk;
   // Match bp_top/test/tb/bp_tethered/wrapper.sv.  The processor uses a
   // slower real-time clock for the core-side control path; tying rt_clk_i to
   // clk can make the first cache response arrive before its credit is posted.
@@ -115,7 +146,7 @@ module cpu_tb_top
     .ID_WIDTH(`CPU_AXI_ID_WIDTH),
     .ADDR_WIDTH(`CPU_AXI_ADDR_WIDTH),
     .DATA_WIDTH(`CPU_AXI_DATA_WIDTH)
-  ) cpu_axi_vif (.axi_clk_i(clk));
+  ) cpu_axi_vif (.axi_clk_i(axi_clk));
   assign cpu_axi_vif.axi_reset_i = reset;
 
   // struct wires that sit directly on the DUT's real ports
@@ -228,8 +259,11 @@ module cpu_tb_top
     .AXI_DATA_WIDTH(`CPU_AXI_DATA_WIDTH)
   ) dut
    ( .clk_i(clk), .rt_clk_i(rt_clk), .reset_i(reset)
+   // Shared PLIC. The AHB side runs on CLK_GIC; no external interrupt is
+   // raised.
+   , .plic_ahb_clk_i(plic_clk), .plic_src_i('0)
    , .my_did_i(proc_did), .host_did_i(host_did)
-   , .axi_clk_i(clk), .axi_reset_i(reset)
+   , .axi_clk_i(axi_clk), .axi_reset_i(reset)
    , .m_axi_awid(cpu_axi_vif.m_axi_awid), .m_axi_awaddr(cpu_axi_vif.m_axi_awaddr)
    , .m_axi_awlen(cpu_axi_vif.m_axi_awlen), .m_axi_awsize(cpu_axi_vif.m_axi_awsize)
    , .m_axi_awburst(cpu_axi_vif.m_axi_awburst), .m_axi_awlock(cpu_axi_vif.m_axi_awlock)
@@ -277,10 +311,13 @@ module cpu_tb_top
      ,.host_mem_data_i(incoming_vif.mem_fwd_data)
      );
 
-`ifdef BP_DV_020_LOG
-  // Observe only the processor-to-DRAM DMA interface. These are accepted
-  // external-memory requests; cache hits do not create a DRAM request, and a
-  // CPU store may appear here later as a cache-line writeback.
+  // Observe only the processor-to-DRAM DMA interface (L2 <-> bp_nonsynth_dram),
+  // in every test. These are accepted external-memory requests; cache hits do
+  // not create a DRAM request, and a CPU store may appear here later as a
+  // cache-line writeback (or after a CBO.FLUSH). Lines:
+  //   CPU DRAM READ/WRITE request cce=<n> dma=<n> addr=<line> time=<t>
+  //   CPU DRAM READ/WRITE data    cce=<n> dma=<n> data=<beat> time=<t>
+  // BP-DV-020 additionally counts conflict-range traffic (BP_DV_020_LOG).
   always @(posedge clk) begin : dram_dma_interface_log
     if (!reset) begin
       dma_log_pkt_seen       <= '0;
@@ -290,15 +327,16 @@ module cpu_tb_top
       dma_log_last_write     <= '0;
       dma_log_last_read_data <= '0;
       dma_log_last_write_data <= '0;
+`ifdef BP_DV_020_LOG
       bp020_conflict_read_count <= 0;
       bp020_conflict_write_count <= 0;
       bp020_activity_checked <= 1'b0;
+`endif
     end
     else begin
       for (int cce = 0; cce < num_cce_p; cce++) begin
         for (int dma = 0; dma < l2_dmas_p; dma++) begin
-          // Print a request only when its address or direction changes from
-          // the last accepted request on this DMA channel.
+`ifdef BP_DV_020_LOG
           if (dma_pkt_v[cce][dma] && dma_pkt_yumi[cce][dma]
               && (dma_pkt[cce][dma].addr >= BP020_CONFLICT_BASE)
               && (dma_pkt[cce][dma].addr <= BP020_CONFLICT_LAST)) begin
@@ -307,6 +345,10 @@ module cpu_tb_top
             else
               bp020_conflict_read_count++;
           end
+`endif
+
+          // Print a request only when its address or direction changes from
+          // the last accepted request on this DMA channel.
 
           if (dma_pkt_v[cce][dma] && dma_pkt_yumi[cce][dma]
               && (!dma_log_pkt_seen[cce][dma]
@@ -346,6 +388,7 @@ module cpu_tb_top
         end
       end
 
+`ifdef BP_DV_020_LOG
       // The final tohost write is the completion point for the C test. Check
       // the actual accepted DMA traffic before allowing BP-DV-020 to pass.
       if (!bp020_activity_checked
@@ -364,16 +407,18 @@ module cpu_tb_top
                    bp020_conflict_read_count, bp020_conflict_write_count);
         end
       end
+`endif
     end
   end
-`endif
 
   // --------------------------------------------------------------------
   // AXI read data log: what the AXI slave returned vs what the bridge
   // handed to the CPU.
   //
-  //   AXI R    : R-channel beat at the AXI master port, plus the bytes that
-  //              AXI places on lane (araddr % bus_bytes) for that transfer.
+  //   AXI R    : R-channel beat at the AXI master port, plus the transfer's
+  //              bytes at lane (araddr % 8) for MMIO (<= 8 B: RDATA[63:0],
+  //              the bridge's MMIO lane convention) or (araddr % 16) for
+  //              full-width beats.
   //   AXI->CPU : BedRock read response from bp_bedrock_axi4_bridge into
   //              bp_processor, plus the bytes the core takes from it -
   //              data[63:0] starting at byte (addr % 8).
@@ -383,6 +428,11 @@ module cpu_tb_top
   // allows one outstanding read, so each response pairs with the last beat.
   // --------------------------------------------------------------------
   localparam int AXI_LOG_BUS_BYTES = `CPU_AXI_DATA_WIDTH / 8;
+
+  function automatic int unsigned axi_log_lane(input logic [`CPU_AXI_ADDR_WIDTH-1:0] addr,
+                                               input int unsigned nbytes);
+    return (nbytes < AXI_LOG_BUS_BYTES) ? (addr % 8) : (addr % AXI_LOG_BUS_BYTES);
+  endfunction
 
   function automatic logic [63:0] axi_log_bytes(
       input logic [`CPU_AXI_DATA_WIDTH-1:0] data,
@@ -399,12 +449,7 @@ module cpu_tb_top
   logic [63:0]                    axi_log_r_bytes;
   bit                             axi_log_r_seen;
 
-  always @(posedge clk) begin : axi_read_data_log
-    bp_bedrock_mem_rev_header_s cpu_rev_hdr;
-    int unsigned cpu_bytes;
-    logic [63:0] cpu_view;
-    string       verdict;
-
+  always @(posedge axi_clk) begin : axi_read_data_log
     // reset is active-low: 1 means the DUT is running.
     if (!reset) begin
       axi_log_r_seen = 1'b0;
@@ -417,15 +462,25 @@ module cpu_tb_top
 
       if (cpu_axi_vif.m_axi_rvalid && cpu_axi_vif.m_axi_rready) begin
         axi_log_r_bytes = axi_log_bytes(cpu_axi_vif.m_axi_rdata,
-                                        axi_log_ar_addr % AXI_LOG_BUS_BYTES,
+                                        axi_log_lane(axi_log_ar_addr, axi_log_ar_bytes),
                                         axi_log_ar_bytes);
         axi_log_r_seen  = 1'b1;
         $display("AXI R    addr=%h size=%0dB lane=%0d rdata=%h bytes=%h time=%0t",
                  axi_log_ar_addr, axi_log_ar_bytes,
-                 axi_log_ar_addr % AXI_LOG_BUS_BYTES,
+                 axi_log_lane(axi_log_ar_addr, axi_log_ar_bytes),
                  cpu_axi_vif.m_axi_rdata, axi_log_r_bytes, $time);
       end
+    end
+  end
 
+  // AXI->CPU: the bridge's BedRock response, in the core clock domain.
+  always @(posedge clk) begin : axi_to_cpu_log
+    bp_bedrock_mem_rev_header_s cpu_rev_hdr;
+    int unsigned cpu_bytes;
+    logic [63:0] cpu_view;
+    string       verdict;
+
+    if (reset) begin
       cpu_rev_hdr = dut.rev_hdr;
       if (dut.rev_v && dut.rev_ready
           && (cpu_rev_hdr.msg_type.rev == e_bedrock_mem_rd)) begin
@@ -446,342 +501,257 @@ module cpu_tb_top
   end
 
   // --------------------------------------------------------------------
-  // CPU-side proof of which response bits an uncached load uses.
-  //
-  // In bp_uce.sv (state e_uc_read_wait) the D$ uncached-load engine builds
-  // the data handed to the D$ as
-  //   {(fill_width_p/64){fsm_rev_data_li[63:0]}}
-  // i.e. only bits [63:0] of the BedRock response are kept and replicated;
-  // bits [fill_width_p-1:64] are discarded. The D$ then picks the loaded
-  // bytes from that dword at (addr % 8). This logs the response as the UCE
-  // received it and what it actually passed to the D$.
-  //
-  // bp_uce runs on the inverted core clock (negedge_clk in bp_unicore_lite).
-  // Unicore build only - same hierarchy as the ALU logs below.
+  // CPU write data log: the BedRock write request bp_processor hands to
+  // bp_bedrock_axi4_bridge (before any lane steering in the bridge). For
+  // each uncached write it shows where the CPU placed the store data in the
+  // 128-bit flit and classifies the upper half:
+  //   upper=0      : data only in [63:0], [127:64] all zero
+  //   upper=copy   : [127:64] == [63:0] (data copied into both halves)
+  //   upper=OTHER  : [127:64] holds something else
+  // The AXI W beat that follows is logged by the AXI monitor ("AXI WRITE").
   // --------------------------------------------------------------------
-  always @(posedge dut.u_bp.u.unicore.unicore_lite.dcache_uce.clk_i) begin : cpu_uncached_load_log
-    logic [`CPU_AXI_DATA_WIDTH-1:0] uce_rev_data;
-    logic [`CPU_AXI_DATA_WIDTH-1:0] uce_to_dcache;
-    logic [`CPU_AXI_DATA_WIDTH-1:0] uce_dropped;
-    logic [63:0]                    uce_used;
-    string                          uce_note;
+  always @(posedge clk) begin : cpu_write_data_log
+    bp_bedrock_mem_fwd_header_s cpu_fwd_hdr;
+    logic [63:0] wr_lo, wr_hi;
+    string       wr_class;
 
-    if (reset
-        && dut.u_bp.u.unicore.unicore_lite.dcache_uce.data_mem_pkt_v_o
-        && dut.u_bp.u.unicore.unicore_lite.dcache_uce.data_mem_pkt_yumi_i
-        && (dut.u_bp.u.unicore.unicore_lite.dcache_uce.data_mem_pkt_cast_o.opcode
-            == e_cache_data_mem_uncached)) begin
-      uce_rev_data  = dut.u_bp.u.unicore.unicore_lite.dcache_uce.fsm_rev_data_li;
-      uce_to_dcache = dut.u_bp.u.unicore.unicore_lite.dcache_uce.data_mem_pkt_cast_o.data;
-      uce_used      = uce_rev_data[63:0];
-      uce_dropped   = uce_rev_data >> 64;
-      uce_note      = (uce_dropped != '0) ? " <- nonzero upper bits DISCARDED by bp_uce" : "";
-      $display("CPU UCE  addr=%h rev_data=%h used[63:0]=%h dropped[%0d:64]=%h to_dcache=%h%s time=%0t",
-               dut.u_bp.u.unicore.unicore_lite.dcache_uce.fsm_rev_addr_li,
-               uce_rev_data, uce_used,
-               `CPU_AXI_DATA_WIDTH - 1, uce_dropped[`CPU_AXI_DATA_WIDTH-65:0],
-               uce_to_dcache, uce_note, $time);
-    end
-  end
-
-`ifndef BP_DV_020_LOG
-`ifndef BP_DV_024_LATENCY
-`ifndef BP_DV_011_BACKPRESSURE
-  // Observe the catch-up integer result. This stage has the forwarded source
-  // operands for dependent instructions; the early reservation can still
-  // contain stale operands while a producer is completing.
-  int add_exec_count;
-  int sub_exec_count;
-  int and_exec_count;
-  int or_exec_count;
-  int xor_exec_count;
-  int slt_exec_count;
-  int sltu_exec_count;
-  int addi_exec_count;
-  int slti_exec_count;
-  int sltiu_exec_count;
-  int andi_exec_count;
-  int ori_exec_count;
-  int xori_exec_count;
-  int sll_exec_count;
-  int srl_exec_count;
-  int sra_exec_count;
-  int slli_exec_count;
-  int srli_exec_count;
-  int srai_exec_count;
-  int muldiv_exec_count;
-  int add_retire_count;
-  int srl_retire_count;
-  int muldiv_retire_count;
-  always @(posedge dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.pipe_int_catchup_data_v_lo) begin : alu_operation_log
-    logic [31:0] instr;
-    logic [6:0] opcode;
-    logic [2:0] funct3;
-    logic [6:0] funct7;
-    logic [63:0] operand_a, operand_b, alu_result, immediate;
-    string operation_name;
-
-    // Let the catch-up reservation and ALU combinational logic settle before
-    // sampling the forwarded operands and result.
-    #1ps;
-
-    instr = dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.instr;
-    opcode = instr[6:0];
-    funct3 = instr[14:12];
-    funct7 = instr[31:25];
-    immediate = {{52{instr[31]}}, instr[31:20]};
-    operand_a = dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.isrc1[63:0];
-    operand_b = dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.isrc2[63:0];
-    alu_result = dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.pipe_int_catchup_data_lo[63:0];
-    if (reset
-        && dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.v
-        && dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.decode.pipe_int_v) begin
-      if ((opcode == 7'b0110011) || (opcode == 7'b0111011)) begin
-        if (funct7 == 7'b0000001) begin
-          case ({opcode, funct3})
-            10'b0110011_000: operation_name = "MUL";
-            10'b0110011_001: operation_name = "MULH";
-            10'b0110011_010: operation_name = "MULHSU";
-            10'b0110011_011: operation_name = "MULHU";
-            10'b0110011_100: operation_name = "DIV";
-            10'b0110011_101: operation_name = "DIVU";
-            10'b0110011_110: operation_name = "REM";
-            10'b0110011_111: operation_name = "REMU";
-            10'b0111011_000: operation_name = "MULW";
-            10'b0111011_100: operation_name = "DIVW";
-            10'b0111011_101: operation_name = "DIVUW";
-            10'b0111011_110: operation_name = "REMW";
-            10'b0111011_111: operation_name = "REMUW";
-            default: operation_name = "M-EXT-UNKNOWN";
-          endcase
-          muldiv_exec_count++;
-          $display("TB MULDIV op=%s count=%0d pc=%h instr=%h a=%h b=%h result=%h time=%0t",
-                   operation_name, muldiv_exec_count,
-                   dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
-                   instr, operand_a, operand_b, alu_result, $time);
-        end
-        case (funct3)
-          3'b000: begin
-            if (funct7 == 7'b0000000) begin
-              add_exec_count++;
-              $display("TB ALU op=ADD count=%0d pc=%h instr=%h a=%h b=%h result=%h time=%0t",
-                       add_exec_count,
-                       dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
-                       instr, operand_a, operand_b, alu_result, $time);
-            end else if (funct7 == 7'b0100000) begin
-              sub_exec_count++;
-              $display("TB ALU op=SUB count=%0d pc=%h instr=%h a=%h b=%h result=%h time=%0t",
-                       sub_exec_count,
-                       dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
-                       instr, operand_a, operand_b, alu_result, $time);
-            end
-          end
-          3'b111: if ((opcode == 7'b0110011) && (funct7 == 7'b0000000)) begin
-            and_exec_count++;
-            $display("TB ALU op=AND count=%0d pc=%h instr=%h a=%h b=%h result=%h time=%0t",
-                     and_exec_count,
-                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
-                     instr, operand_a, operand_b, alu_result, $time);
-          end
-          3'b110: if ((opcode == 7'b0110011) && (funct7 == 7'b0000000)) begin
-            or_exec_count++;
-            $display("TB ALU op=OR count=%0d pc=%h instr=%h a=%h b=%h result=%h time=%0t",
-                     or_exec_count,
-                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
-                     instr, operand_a, operand_b, alu_result, $time);
-          end
-          3'b100: if ((opcode == 7'b0110011) && (funct7 == 7'b0000000)) begin
-            xor_exec_count++;
-            $display("TB ALU op=XOR count=%0d pc=%h instr=%h a=%h b=%h result=%h time=%0t",
-                     xor_exec_count,
-                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
-                     instr, operand_a, operand_b, alu_result, $time);
-          end
-          3'b010: if ((opcode == 7'b0110011) && (funct7 == 7'b0000000)) begin
-            slt_exec_count++;
-            $display("TB ALU op=SLT count=%0d pc=%h instr=%h a=%h b=%h result=%h time=%0t",
-                     slt_exec_count,
-                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
-                     instr, operand_a, operand_b, alu_result, $time);
-          end
-          3'b011: if ((opcode == 7'b0110011) && (funct7 == 7'b0000000)) begin
-            sltu_exec_count++;
-            $display("TB ALU op=SLTU count=%0d pc=%h instr=%h a=%h b=%h result=%h time=%0t",
-                     sltu_exec_count,
-                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
-                     instr, operand_a, operand_b, alu_result, $time);
-          end
-          3'b001: if (opcode == 7'b0110011 && funct7 == 7'b0000000) begin
-            sll_exec_count++;
-            $display("TB ALU op=SLL count=%0d pc=%h instr=%h a=%h shamt=%h result=%h time=%0t",
-                     sll_exec_count,
-                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
-                     instr, operand_a, operand_b, alu_result, $time);
-          end
-          3'b101: if (opcode == 7'b0110011) begin
-            if (funct7 == 7'b0000000) begin
-              srl_exec_count++;
-              $display("TB ALU op=SRL count=%0d pc=%h instr=%h a=%h shamt=%h result=%h time=%0t",
-                       srl_exec_count,
-                       dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
-                       instr, operand_a, operand_b, alu_result, $time);
-            end else if (funct7 == 7'b0100000) begin
-              sra_exec_count++;
-              $display("TB ALU op=SRA count=%0d pc=%h instr=%h a=%h shamt=%h result=%h time=%0t",
-                       sra_exec_count,
-                       dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
-                       instr, operand_a, operand_b, alu_result, $time);
-            end
-          end
-          default: ;
-        endcase
-      end else if (opcode == 7'b0010011) begin
-        case (funct3)
-          3'b000: begin
-            addi_exec_count++;
-            $display("TB ALU op=ADDI count=%0d pc=%h instr=%h a=%h imm=%h result=%h time=%0t",
-                     addi_exec_count,
-                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
-                     instr, operand_a, immediate, alu_result, $time);
-          end
-          3'b010: begin
-            slti_exec_count++;
-            $display("TB ALU op=SLTI count=%0d pc=%h instr=%h a=%h imm=%h result=%h time=%0t",
-                     slti_exec_count,
-                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
-                     instr, operand_a, immediate, alu_result, $time);
-          end
-          3'b011: begin
-            sltiu_exec_count++;
-            $display("TB ALU op=SLTIU count=%0d pc=%h instr=%h a=%h imm=%h result=%h time=%0t",
-                     sltiu_exec_count,
-                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
-                     instr, operand_a, immediate, alu_result, $time);
-          end
-          3'b111: begin
-            andi_exec_count++;
-            $display("TB ALU op=ANDI count=%0d pc=%h instr=%h a=%h imm=%h result=%h time=%0t",
-                     andi_exec_count,
-                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
-                     instr, operand_a, immediate, alu_result, $time);
-          end
-          3'b110: begin
-            ori_exec_count++;
-            $display("TB ALU op=ORI count=%0d pc=%h instr=%h a=%h imm=%h result=%h time=%0t",
-                     ori_exec_count,
-                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
-                     instr, operand_a, immediate, alu_result, $time);
-          end
-          3'b100: begin
-            xori_exec_count++;
-            $display("TB ALU op=XORI count=%0d pc=%h instr=%h a=%h imm=%h result=%h time=%0t",
-                     xori_exec_count,
-                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
-                     instr, operand_a, immediate, alu_result, $time);
-          end
-          3'b001: if (instr[31:26] == 6'b000000) begin
-            slli_exec_count++;
-            $display("TB ALU op=SLLI count=%0d pc=%h instr=%h a=%h shamt=%0d result=%h time=%0t",
-                     slli_exec_count,
-                     dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
-                     instr, operand_a, instr[25:20], alu_result, $time);
-          end
-          3'b101: begin
-            if (instr[31:26] == 6'b000000) begin
-              srli_exec_count++;
-              $display("TB ALU op=SRLI count=%0d pc=%h instr=%h a=%h shamt=%0d result=%h time=%0t",
-                       srli_exec_count,
-                       dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
-                       instr, operand_a, instr[25:20], alu_result, $time);
-            end else if (instr[31:26] == 6'b010000) begin
-              srai_exec_count++;
-              $display("TB ALU op=SRAI count=%0d pc=%h instr=%h a=%h shamt=%0d result=%h time=%0t",
-                       srai_exec_count,
-                       dut.u_bp.u.unicore.unicore_lite.core_minimal.be.calculator.catchup.catchup_reservation_r.pc,
-                       instr, operand_a, instr[25:20], alu_result, $time);
-            end
-          end
-          default: ;
-        endcase
+    if (reset) begin
+      cpu_fwd_hdr = dut.fwd_hdr;
+      if (dut.fwd_v && dut.fwd_ready
+          && (cpu_fwd_hdr.msg_type.fwd == e_bedrock_mem_wr)) begin
+        wr_lo = dut.fwd_data[63:0];
+        wr_hi = dut.fwd_data[127:64];
+        if (wr_hi == '0)
+          wr_class = "upper=0";
+        else if (wr_hi == wr_lo)
+          wr_class = "upper=copy";
+        else
+          wr_class = "upper=OTHER";
+        $display("CPU->AXI addr=%h size=%0dB data=%h lower=%h upper=%h %s time=%0t",
+                 cpu_fwd_hdr.addr, 1 << cpu_fwd_hdr.size, dut.fwd_data,
+                 wr_lo, wr_hi, wr_class, $time);
       end
     end
   end
 
-  // Check ADD at retirement.  This is independent of pipe_int_early.v_o,
-  // which can be low while the instruction is stalled or while the pipeline
-  // is carrying a non-valid reservation payload.
-  always @(posedge clk) begin
-    if (reset
-        && dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instret
-        && !dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.exception
-        && (dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr[6:0] == 7'b0110011)
-        && (dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr[14:12] == 3'b000)
-        && (dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr[31:25] == 7'b0000000)) begin
-      add_retire_count++;
-      $display("TB ADD RETIRED count=%0d pc=%h instr=%h time=%0t",
-               add_retire_count,
-               dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.pc,
-               dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr,
-               $time);
+  // --------------------------------------------------------------------
+  // PLIC AHB log: every AHB transfer between bp_bedrock_ahb3lite_bridge and
+  // ahb3lite_plic_top in the shared PLIC (bp_multicore.shared_plic).
+  //   PLIC AHB WRITE/READ haddr=<offset from 0x0050_0000> reg=<name>
+  //   data=<HWDATA or HRDATA> hresp=<0 OKAY / 1 ERROR>
+  // Register names follow the 64-source / 4-target / 8-priority map (see
+  // c/plic_reg_access.c). Address phase is captured, data is logged when
+  // the data phase completes (HREADYOUT = 1).
+  // --------------------------------------------------------------------
+  function automatic string plic_reg_name(input logic [31:0] off);
+    case (off[31:2])
+      30'h00: return "CONFIG0";
+      30'h01: return "CONFIG1";
+      30'h02, 30'h03: return $sformatf("EL%0d", off[2]);
+      default: ;
+    endcase
+    if (off >= 32'h10 && off < 32'h30) return $sformatf("PRIORITY%0d", (off - 32'h10) >> 2);
+    if (off >= 32'h30 && off < 32'h50) return $sformatf("IE[t%0d][%0d]", (off - 32'h30) >> 3, off[2]);
+    if (off >= 32'h50 && off < 32'h60) return $sformatf("THRESHOLD[t%0d]", (off - 32'h50) >> 2);
+    if (off >= 32'h60 && off < 32'h70) return $sformatf("ID[t%0d]", (off - 32'h60) >> 2);
+    return "UNMAPPED";
+  endfunction
+
+  logic        plic_ahb_dp_v;
+  logic [31:0] plic_ahb_dp_addr;
+  logic        plic_ahb_dp_write;
+  logic [2:0]  plic_ahb_dp_size;
+  logic [31:0] plic_ahb_last_rdata;
+
+  always @(posedge plic_clk) begin : plic_ahb_log
+    if (!dut.u_bp.m.multicore.shared_plic.ahb_rstn) begin
+      plic_ahb_dp_v = 1'b0;
     end
-  end
-
-  // Log SRL at retirement as well as at ALU execution, so the trace confirms
-  // that the decoded logical-right-shift instruction actually committed.
-  always @(posedge clk) begin
-    if (reset
-        && dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instret
-        && !dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.exception
-        && (dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr[6:0] == 7'b0110011)
-        && (dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr[14:12] == 3'b101)
-        && (dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr[31:25] == 7'b0000000)) begin
-      srl_retire_count++;
-      $display("TB SHIFT RETIRED op=SRL count=%0d pc=%h instr=%h time=%0t",
-               srl_retire_count,
-               dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.pc,
-               dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr,
-               $time);
-    end
-  end
-
-  always @(posedge clk) begin : muldiv_retirement_log
-    logic [31:0] retired_instr;
-    string operation_name;
-
-    retired_instr = dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instr;
-    operation_name = "";
-    if (reset
-        && dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.instret
-        && !dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.exception
-        && (retired_instr[31:25] == 7'b0000001)) begin
-      case ({retired_instr[6:0], retired_instr[14:12]})
-        10'b0110011_000: operation_name = "MUL";
-        10'b0110011_001: operation_name = "MULH";
-        10'b0110011_010: operation_name = "MULHSU";
-        10'b0110011_011: operation_name = "MULHU";
-        10'b0110011_100: operation_name = "DIV";
-        10'b0110011_101: operation_name = "DIVU";
-        10'b0110011_110: operation_name = "REM";
-        10'b0110011_111: operation_name = "REMU";
-        10'b0111011_000: operation_name = "MULW";
-        10'b0111011_100: operation_name = "DIVW";
-        10'b0111011_101: operation_name = "DIVUW";
-        10'b0111011_110: operation_name = "REMW";
-        10'b0111011_111: operation_name = "REMUW";
-        default: operation_name = "";
-      endcase
-      if (operation_name != "") begin
-        muldiv_retire_count++;
-        $display("TB MULDIV RETIRED op=%s count=%0d pc=%h instr=%h time=%0t",
-                 operation_name, muldiv_retire_count,
-                 dut.u_bp.u.unicore.unicore_lite.core_minimal.be.commit_pkt.pc,
-                 retired_instr, $time);
+    else begin
+      // Data phase of the previous transfer
+      if (plic_ahb_dp_v && dut.u_bp.m.multicore.shared_plic.ahb_hreadyout) begin
+        $display("PLIC AHB %s haddr=%h reg=%s size=%0dB data=%h hresp=%0d time=%0t",
+                 plic_ahb_dp_write ? "WRITE" : "READ ",
+                 plic_ahb_dp_addr, plic_reg_name(plic_ahb_dp_addr),
+                 1 << plic_ahb_dp_size,
+                 plic_ahb_dp_write ? dut.u_bp.m.multicore.shared_plic.ahb_hwdata
+                                   : dut.u_bp.m.multicore.shared_plic.ahb_hrdata,
+                 dut.u_bp.m.multicore.shared_plic.ahb_hresp, $time);
+        if (!plic_ahb_dp_write)
+          plic_ahb_last_rdata = dut.u_bp.m.multicore.shared_plic.ahb_hrdata;
+        plic_ahb_dp_v = 1'b0;
+      end
+      // Address phase of a new transfer
+      if (dut.u_bp.m.multicore.shared_plic.ahb_hsel
+          && dut.u_bp.m.multicore.shared_plic.ahb_htrans[1]
+          && dut.u_bp.m.multicore.shared_plic.ahb_hreadyout) begin
+        plic_ahb_dp_v     = 1'b1;
+        plic_ahb_dp_addr  = dut.u_bp.m.multicore.shared_plic.ahb_haddr_full[31:0];
+        plic_ahb_dp_write = dut.u_bp.m.multicore.shared_plic.ahb_hwrite;
+        plic_ahb_dp_size  = dut.u_bp.m.multicore.shared_plic.ahb_hsize;
       end
     end
   end
-`endif
-`endif
-`endif
+
+  // --------------------------------------------------------------------
+  // CPU <-> PLIC message log, on each core's port of bp_plic_shared_top.
+  //
+  // CPU->PLIC core<n> WRITE/READ: request from the core (core<n>_fwd_*).
+  //   fwd_data[63:0]: [63:0] of the request; store_val: the bytes at lane
+  //   addr % 8 (what the CPU stored).
+  // PLIC->CPU core<n> READ : read response (core<n>_rev_*). The core takes a
+  //   load of N bytes from lane addr % 8 of rev_data[63:0] (cpu_gets);
+  //   MATCH if that equals what the PLIC returned on AHB (ahb_hrdata).
+  // PLIC->CPU core<n> WR-ACK: write acknowledgement.
+  // --------------------------------------------------------------------
+  function automatic logic [63:0] plic_lane_bytes(input logic [63:0] word,
+                                                  input int unsigned lane,
+                                                  input int unsigned nbytes);
+    logic [63:0] mask;
+    mask = (nbytes >= 8) ? '1 : ((64'd1 << (8 * nbytes)) - 64'd1);
+    return (word >> (8 * lane)) & mask;
+  endfunction
+
+  task automatic plic_fwd_log(input int core,
+                              input logic [mem_fwd_header_width_lp-1:0] hdr_bits,
+                              input logic [bedrock_fill_width_p-1:0]    data);
+    bp_bedrock_mem_fwd_header_s hdr;
+    int unsigned nbytes, lane;
+
+    hdr    = hdr_bits;
+    nbytes = 1 << hdr.size;
+    lane   = hdr.addr % 8;
+    if (hdr.msg_type.fwd == e_bedrock_mem_wr)
+      $display("CPU->PLIC core%0d WRITE addr=%h reg=%s size=%0dB lane=%0d fwd_data[63:0]=%h store_val=%h time=%0t",
+               core, hdr.addr, plic_reg_name(hdr.addr - 32'h0050_0000), nbytes, lane,
+               data[63:0], plic_lane_bytes(data[63:0], lane, nbytes), $time);
+    else
+      $display("CPU->PLIC core%0d READ  addr=%h reg=%s size=%0dB lane=%0d time=%0t",
+               core, hdr.addr, plic_reg_name(hdr.addr - 32'h0050_0000), nbytes, lane, $time);
+  endtask
+
+  task automatic plic_rev_log(input int core,
+                              input logic [mem_rev_header_width_lp-1:0] hdr_bits,
+                              input logic [bedrock_fill_width_p-1:0]    data);
+    bp_bedrock_mem_rev_header_s hdr;
+    int unsigned nbytes, lane;
+    logic [63:0] got, exp;
+
+    hdr    = hdr_bits;
+    nbytes = 1 << hdr.size;
+    lane   = hdr.addr % 8;
+    if (hdr.msg_type.rev != e_bedrock_mem_rd) begin
+      $display("PLIC->CPU core%0d WR-ACK addr=%h reg=%s size=%0dB time=%0t",
+               core, hdr.addr, plic_reg_name(hdr.addr - 32'h0050_0000), nbytes, $time);
+      return;
+    end
+    got = plic_lane_bytes(data[63:0], lane, nbytes);
+    exp = plic_lane_bytes({32'h0, plic_ahb_last_rdata}, 0, nbytes);
+    $display("PLIC->CPU core%0d READ  addr=%h reg=%s size=%0dB lane=%0d rev_data[63:0]=%h cpu_gets=%h ahb_hrdata=%h %s time=%0t",
+             core, hdr.addr, plic_reg_name(hdr.addr - 32'h0050_0000), nbytes, lane,
+             data[63:0], got, plic_ahb_last_rdata,
+             (got == exp) ? "MATCH" : "MISMATCH", $time);
+  endtask
+
+  always @(posedge clk) begin : cpu_plic_msg_log
+    if (dut.u_bp.m.multicore.shared_plic.ahb_rstn) begin
+      if (dut.u_bp.m.multicore.shared_plic.core0_fwd_v_i
+          && dut.u_bp.m.multicore.shared_plic.core0_fwd_ready_and_o)
+        plic_fwd_log(0, dut.u_bp.m.multicore.shared_plic.core0_fwd_header_i,
+                        dut.u_bp.m.multicore.shared_plic.core0_fwd_data_i);
+      if (dut.u_bp.m.multicore.shared_plic.core1_fwd_v_i
+          && dut.u_bp.m.multicore.shared_plic.core1_fwd_ready_and_o)
+        plic_fwd_log(1, dut.u_bp.m.multicore.shared_plic.core1_fwd_header_i,
+                        dut.u_bp.m.multicore.shared_plic.core1_fwd_data_i);
+      if (dut.u_bp.m.multicore.shared_plic.core0_rev_v_o
+          && dut.u_bp.m.multicore.shared_plic.core0_rev_ready_and_i)
+        plic_rev_log(0, dut.u_bp.m.multicore.shared_plic.core0_rev_header_o,
+                        dut.u_bp.m.multicore.shared_plic.core0_rev_data_o);
+      if (dut.u_bp.m.multicore.shared_plic.core1_rev_v_o
+          && dut.u_bp.m.multicore.shared_plic.core1_rev_ready_and_i)
+        plic_rev_log(1, dut.u_bp.m.multicore.shared_plic.core1_rev_header_o,
+                        dut.u_bp.m.multicore.shared_plic.core1_rev_data_o);
+    end
+  end
+
+  // --------------------------------------------------------------------
+  // PLIC interrupt lines: logged whenever they change.
+  //   PLIC SRC: plic_src_i[63:0] into the PLIC (external sources)
+  //   PLIC IRQ: plic_irq_o[3:0] out of the PLIC (t0/t1 = core0 M/S,
+  //             t2/t3 = core1 M/S) and the synchronized M/S external
+  //             interrupt each core receives
+  // --------------------------------------------------------------------
+  logic [63:0] plic_src_q;
+  logic [3:0]  plic_irq_q;
+  logic [1:0]  plic_meip_q, plic_seip_q;
+
+  always @(posedge clk) begin : plic_irq_log
+    if (!dut.u_bp.m.multicore.shared_plic.ahb_rstn) begin
+      plic_src_q  = '0;
+      plic_irq_q  = '0;
+      plic_meip_q = '0;
+      plic_seip_q = '0;
+    end
+    else begin
+      if (dut.u_bp.m.multicore.plic_src_i !== plic_src_q) begin
+        $display("PLIC SRC plic_src_i=%h (was %h) time=%0t",
+                 dut.u_bp.m.multicore.plic_src_i, plic_src_q, $time);
+        plic_src_q = dut.u_bp.m.multicore.plic_src_i;
+      end
+      if ((dut.u_bp.m.multicore.plic_irq_lo !== plic_irq_q)
+          || (dut.u_bp.m.multicore.plic_m_external_irq_li !== plic_meip_q)
+          || (dut.u_bp.m.multicore.plic_s_external_irq_li !== plic_seip_q)) begin
+        plic_irq_q  = dut.u_bp.m.multicore.plic_irq_lo;
+        plic_meip_q = dut.u_bp.m.multicore.plic_m_external_irq_li;
+        plic_seip_q = dut.u_bp.m.multicore.plic_s_external_irq_li;
+        $display("PLIC IRQ plic_irq_o=%b (t3..t0) core0 M=%0b S=%0b core1 M=%0b S=%0b time=%0t",
+                 plic_irq_q, plic_meip_q[0], plic_seip_q[0],
+                 plic_meip_q[1], plic_seip_q[1], $time);
+      end
+    end
+  end
+
+  // --------------------------------------------------------------------
+  // AXI W log: each W beat with its strobe. "written" is what a byte-lane
+  // slave stores (the WDATA bytes whose WSTRB bit is set, packed from the
+  // lowest set lane); "expected" is the store data at the MMIO lane
+  // (addr % 8 in [63:0]). STRB OK when WSTRB covers exactly those lanes,
+  // STRB WRONG otherwise - the slave then writes the wrong bytes.
+  // --------------------------------------------------------------------
+  logic [`CPU_AXI_ADDR_WIDTH-1:0] axi_log_aw_addr;
+  int unsigned                    axi_log_aw_bytes;
+
+  always @(posedge axi_clk) begin : axi_write_strb_log
+    logic [`CPU_AXI_DATA_WIDTH/8-1:0] exp_strb;
+    logic [63:0] written, expected;
+    int unsigned lane, n;
+
+    if (reset) begin
+      if (cpu_axi_vif.m_axi_awvalid && cpu_axi_vif.m_axi_awready) begin
+        axi_log_aw_addr  = cpu_axi_vif.m_axi_awaddr;
+        axi_log_aw_bytes = 1 << cpu_axi_vif.m_axi_awsize;
+      end
+
+      if (cpu_axi_vif.m_axi_wvalid && cpu_axi_vif.m_axi_wready) begin
+        lane     = axi_log_lane(axi_log_aw_addr, axi_log_aw_bytes);
+        expected = axi_log_bytes(cpu_axi_vif.m_axi_wdata, lane, axi_log_aw_bytes);
+        exp_strb = (axi_log_aw_bytes >= AXI_LOG_BUS_BYTES)
+                   ? '1 : (((1 << axi_log_aw_bytes) - 1) << lane);
+        written  = '0;
+        n        = 0;
+        for (int i = 0; i < `CPU_AXI_DATA_WIDTH/8; i++)
+          if (cpu_axi_vif.m_axi_wstrb[i] && (n < 8)) begin
+            written[8*n +: 8] = cpu_axi_vif.m_axi_wdata[8*i +: 8];
+            n++;
+          end
+        $display("AXI W    addr=%h size=%0dB wdata=%h wstrb=%h exp_wstrb=%h written=%h expected=%h %s time=%0t",
+                 axi_log_aw_addr, axi_log_aw_bytes, cpu_axi_vif.m_axi_wdata,
+                 cpu_axi_vif.m_axi_wstrb, exp_strb, written, expected,
+                 (cpu_axi_vif.m_axi_wstrb == exp_strb) ? "STRB OK" : "STRB WRONG",
+                 $time);
+      end
+    end
+  end
 
   initial begin
     name_warning_catcher = new();
@@ -809,7 +779,7 @@ module cpu_tb_top
   end
 
    // Waveform dump for debugging with GTKWave or another VCD viewer.
-  initial begin
+  initial if (!$test$plusargs("NO_VCD")) begin
     $dumpfile("cpu_tb_top.vcd");
     $dumpvars(0, reset_vif);
     $dumpvars(0, incoming_vif);

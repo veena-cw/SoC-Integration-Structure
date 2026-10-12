@@ -1,22 +1,3 @@
-// ------------------------------------------------------------
-// uart_apb_transaction_test.sv
-//
-// Runs ONLY UART data-transfer scenarios (no d1-only register
-// regression -- that has its own dedicated test and report, see
-// uart_reg_access_test.sv). This is the "transaction" half of
-// verification: it exercises the four mandatory modes
-// (D1_TO_D2, D2_TO_D1, HALF_DUPLEX, FULL_DUPLEX) plus a frame-
-// format sweep (data-bit widths, parity, stop bits), covering
-// the categories from the verification-scope deck ("UART
-// Transmission: Start, 5-9 data bits, LSB-first, parity modes,
-// 1/2 stop bits"; "Basic TX/RX"; "Continuous Operation").
-//
-// All reporting is plain $display text (see uart_virtual_sequence
-// and uart_scoreboard), not `uvm_info. Each scenario's PASS/FAIL
-// delta is read directly off the shared scoreboard's counters
-// (public fields) before/after it runs, then printed as a
-// per-scenario summary, plus a grand total at the end.
-// ------------------------------------------------------------
 `include "uvm_macros.svh"
 import uvm_pkg::*;
 
@@ -25,127 +6,318 @@ class uart_apb_transaction_test extends uart_base_test;
     `uvm_component_utils(uart_apb_transaction_test)
 
     int unsigned scenario_num;
+    int unsigned local_pass_total;
+    int unsigned local_fail_total;
 
-    function new(string name = "uart_apb_transaction_test", uvm_component parent = null);
+    function new(
+        string name = "uart_apb_transaction_test",
+        uvm_component parent = null
+    );
         super.new(name, parent);
     endfunction
 
-    // ------------------------------------------------------------
-    // Runs one named scenario, printing a config header before it
-    // and a pass/fail delta summary after it -- mirrors the old
-    // reference log's per-test "config block + scoreboard summary"
-    // structure.
-    // ------------------------------------------------------------
     protected task run_named_scenario(
-        string                        test_case_name,
-        uart_virtual_sequence::mode_e mode,
-        int unsigned                  num_bytes,
-        bit [3:0]                     data_bits,
-        bit                           parity_en,
-        bit [1:0]                     parity_mode,
-        bit                           stop_2
+        string                              test_case_name,
+        uart_virtual_sequence::mode_e      mode,
+        int unsigned                        num_bytes,
+        bit [3:0]                           data_bits,
+        bit                                 parity_en,
+        bit [1:0]                           parity_mode,
+        bit                                 stop_2,
+        uart_virtual_sequence::data_mode_e data_mode =
+            uart_virtual_sequence::RANDOMIZED_DATA,
+        bit                                 flow_control_test = 1'b0,
+        bit                                 rts_hold_test     = 1'b0,
+        bit                                 flow_en            = 1'b0,
+        bit [4:0]                           rts_thresh         = 5'd14,
+        bit                                 spec_target_d1    = 1'b1
     );
         uart_virtual_sequence vseq;
-        int unsigned          pass_before, pass_after;
-        int unsigned          fail_before, fail_after;
-        string                parity_str;
-
-        case ({parity_en, parity_mode})
-            3'b0_00, 3'b0_01, 3'b0_10, 3'b0_11: parity_str = "disabled";
-            3'b1_00: parity_str = "even";
-            3'b1_01: parity_str = "odd";
-            3'b1_10: parity_str = "mark";
-            3'b1_11: parity_str = "space";
-            default: parity_str = "?";
-        endcase
+        int unsigned pass_before;
+        int unsigned pass_after;
+        int unsigned fail_before;
+        int unsigned fail_after;
+        int unsigned scenario_pass;
+        int unsigned scenario_fail;
+        int unsigned scenario_local_pass;
+        int unsigned scenario_local_fail;
+        string parity_str;
 
         scenario_num++;
+
+        case ({parity_en, parity_mode})
+            3'b0_00,
+            3'b0_01,
+            3'b0_10,
+            3'b0_11: parity_str = "disabled";
+            3'b1_00:  parity_str = "even";
+            3'b1_01:  parity_str = "odd";
+            3'b1_10:  parity_str = "mark";
+            3'b1_11:  parity_str = "space";
+            default:  parity_str = "?";
+        endcase
 
         $display("");
         $display("========================================");
         $display("   TEST CASE %0d : %s", scenario_num, test_case_name);
         $display("========================================");
         $display("  Mode          : %s", mode.name());
-        $display("  Bytes/rounds  : %0d", num_bytes);
-        $display("  Data bits     : %0d", data_bits);
+        $display("  Data count    : %0d", num_bytes);
+        if (mode == uart_virtual_sequence::SPEC_RX)
+            $display("  Stimulus bits : %0d (DUT configured for 7 bits)", data_bits);
+        else
+            $display("  Data bits     : %0d", data_bits);
+        $display("  Data source   : %s", data_mode.name());
         $display("  Parity        : %s", parity_str);
         $display("  Stop bits     : %0d", stop_2 ? 2 : 1);
+        $display("  Flow control  : %0b (%s)", flow_en, flow_en ? "RTS/CTS" : "disabled");
+        $display("  RTS threshold : %0d", rts_thresh);
+        if (rts_hold_test)
+            $display("  RTS test      : long hold with NO RHR reads");
         $display("========================================");
 
         pass_before = env.scoreboard.pass_count;
         fail_before = env.scoreboard.error_count;
 
         vseq = uart_virtual_sequence::type_id::create("vseq");
-        vseq.run_reg_tests = 1'b0;
-        vseq.mode          = mode;
-        vseq.num_bytes     = num_bytes;
-        vseq.data_bits     = data_bits;
-        vseq.parity_en     = parity_en;
-        vseq.parity_mode   = parity_mode;
-        vseq.stop_2        = stop_2;
+        vseq.run_reg_tests     = 1'b0;
+        vseq.mode              = mode;
+        vseq.num_bytes         = num_bytes;
+        vseq.parity_en         = parity_en;
+        vseq.parity_mode       = parity_mode;
+        vseq.stop_2            = stop_2;
+        vseq.data_mode         = data_mode;
+        vseq.flow_control_test = flow_control_test;
+        vseq.rts_hold_test     = rts_hold_test;
+        vseq.flow_en           = flow_en;
+        vseq.rts_thresh        = rts_thresh;
+
+        if (mode == uart_virtual_sequence::SPEC_RX) begin
+            // The DUT has no APB encoding for 5/6 data bits in the
+            // current CR[7:6] interface. Keep the DUT at its supported
+            // 7-bit configuration and inject the requested 5/6-bit
+            // UART waveform directly on rx_i.
+            vseq.data_bits       = 4'd7;
+            vseq.spec_data_bits = data_bits;
+            vseq.spec_dut_data_bits = 4'd7;
+            vseq.spec_target_d1  = spec_target_d1;
+        end
+        else begin
+            vseq.data_bits = data_bits;
+        end
 
         vseq.start(env.virt_seqr);
+
+        // A normal communication scenario is complete only when all
+        // APB TXDATA writes have a matching RHR read. Never carry stale
+        // expected data into the next scenario.
+        env.scoreboard.end_scenario_check(test_case_name);
 
         pass_after = env.scoreboard.pass_count;
         fail_after = env.scoreboard.error_count;
 
+        scenario_local_pass =
+            vseq.flow_pass_count + vseq.spec_pass_count;
+        scenario_local_fail =
+            vseq.flow_fail_count + vseq.spec_error_count;
+
+        scenario_pass = (pass_after - pass_before) + scenario_local_pass;
+        scenario_fail = (fail_after - fail_before) + scenario_local_fail;
+
+        local_pass_total += scenario_local_pass;
+        local_fail_total += scenario_local_fail;
+
         $display("----------------------------------------");
-        $display("   TEST CASE %0d SUMMARY : %s", scenario_num, test_case_name);
+        $display(" TEST CASE %0d SUMMARY : %s", scenario_num, test_case_name);
         $display("----------------------------------------");
-        $display("  PASS  : %0d", pass_after - pass_before);
-        $display("  FAIL  : %0d", fail_after - fail_before);
+        $display(" PASS  : %0d", scenario_pass);
+        $display(" FAIL  : %0d", scenario_fail);
         $display("========================================");
     endtask
 
     virtual task run_phase(uvm_phase phase);
-
         int unsigned grand_pass;
         int unsigned grand_fail;
 
         phase.raise_objection(this);
+        scenario_num      = 0;
+        local_pass_total  = 0;
+        local_fail_total  = 0;
 
         $display("");
         $display("========================================");
         $display("      APB_UART -- TRANSACTION TEST");
         $display("========================================");
-        $display("  DUT           : apb_uart_top d1 <-serial link-> apb_uart_top d2");
-        $display("  Register map  : TXDATA 0x0C (WO), RXDATA 0x10 (RO)");
-        $display("  Modes covered : D1_TO_D2, D2_TO_D1, HALF_DUPLEX, FULL_DUPLEX");
+        $display("  DUT           : uart_apb_top d1 <-serial link-> uart_apb_top d2");
+        $display("  Transaction   : continuous streams");
+        $display("  Full duplex   : TX and RX run in parallel");
+        $display("  Long transfers: 4/12 cases (>16 bytes)");
         $display("========================================");
 
-        // ---- the four mandatory modes, default 9N1 frame ----
-        run_named_scenario("uart_tx_basic_test / uart_rx_basic_test (D1_TO_D2)",
-            uart_virtual_sequence::D1_TO_D2, 4, 4'd9, 1'b0, 2'b00, 1'b0);
+        // 1. Directed D1 -> D2, 8 bytes, 9N1
+        run_named_scenario(
+            "Directed D1_TO_D2 continuous stream",
+            uart_virtual_sequence::D1_TO_D2,
+            8,
+            4'd9,
+            1'b0,
+            2'b00,
+            1'b0,
+            uart_virtual_sequence::DIRECTED_DATA
+        );
 
-        run_named_scenario("D2_TO_D1 unidirectional",
-            uart_virtual_sequence::D2_TO_D1, 4, 4'd9, 1'b0, 2'b00, 1'b0);
+        // 2. Random D2 -> D1, 8 bytes, 8N1
+        run_named_scenario(
+            "Randomized D2_TO_D1 continuous stream",
+            uart_virtual_sequence::D2_TO_D1,
+            8,
+            4'd8,
+            1'b0,
+            2'b00,
+            1'b0,
+            uart_virtual_sequence::RANDOMIZED_DATA
+        );
 
-        run_named_scenario("uart_half_duplex_test (Continuous Operation)",
-            uart_virtual_sequence::HALF_DUPLEX, 4, 4'd9, 1'b0, 2'b00, 1'b0);
+        // 3. Directed half duplex, 8 bytes per direction, 7N2
+        run_named_scenario(
+            "Directed HALF_DUPLEX continuous stream",
+            uart_virtual_sequence::HALF_DUPLEX,
+            8,
+            4'd7,
+            1'b0,
+            2'b00,
+            1'b1,
+            uart_virtual_sequence::DIRECTED_DATA
+        );
 
-        run_named_scenario("uart_full_duplex_test (Continuous Operation, simultaneous TX & RX)",
-            uart_virtual_sequence::FULL_DUPLEX, 4, 4'd9, 1'b0, 2'b00, 1'b0);
+        // 4. Random full duplex, 8 bytes per direction, 9N1
+        run_named_scenario(
+            "Randomized FULL_DUPLEX continuous stream",
+            uart_virtual_sequence::FULL_DUPLEX,
+            8,
+            4'd9,
+            1'b0,
+            2'b00,
+            1'b0,
+            uart_virtual_sequence::RANDOMIZED_DATA
+        );
 
-        // ---- data-bit-width sweep (5..9), per verification scope ----
-        run_named_scenario("uart_5bit_test", uart_virtual_sequence::FULL_DUPLEX, 2, 4'd5, 1'b0, 2'b00, 1'b0);
-        run_named_scenario("uart_6bit_test", uart_virtual_sequence::FULL_DUPLEX, 2, 4'd6, 1'b0, 2'b00, 1'b0);
-        run_named_scenario("uart_7bit_test", uart_virtual_sequence::FULL_DUPLEX, 2, 4'd7, 1'b0, 2'b00, 1'b0);
-        run_named_scenario("uart_8bit_test", uart_virtual_sequence::FULL_DUPLEX, 2, 4'd8, 1'b0, 2'b00, 1'b0);
-        run_named_scenario("uart_9bit_test", uart_virtual_sequence::FULL_DUPLEX, 2, 4'd9, 1'b0, 2'b00, 1'b0);
+        // 5. Long full duplex, 18 bytes per direction, even parity
+        run_named_scenario(
+            "Long FULL_DUPLEX randomized even parity",
+            uart_virtual_sequence::FULL_DUPLEX,
+            18,
+            4'd8,
+            1'b1,
+            2'b00,
+            1'b0,
+            uart_virtual_sequence::RANDOMIZED_DATA,
+            1'b1,
+            1'b0,
+            1'b1,
+            5'd14
+        );
 
-        // ---- parity sweep ----
-        run_named_scenario("uart_even_parity_test", uart_virtual_sequence::FULL_DUPLEX, 2, 4'd8, 1'b1, 2'b00, 1'b0);
-        run_named_scenario("uart_odd_parity_test",  uart_virtual_sequence::FULL_DUPLEX, 2, 4'd8, 1'b1, 2'b01, 1'b0);
-        run_named_scenario("uart_mark_parity_test", uart_virtual_sequence::FULL_DUPLEX, 2, 4'd8, 1'b1, 2'b10, 1'b0);
-        run_named_scenario("uart_space_parity_test",uart_virtual_sequence::FULL_DUPLEX, 2, 4'd8, 1'b1, 2'b11, 1'b0);
+        // 6. Long D1 -> D2, 17 bytes, directed odd parity, 2 stop
+        run_named_scenario(
+            "Long D1_TO_D2 directed odd parity",
+            uart_virtual_sequence::D1_TO_D2,
+            17,
+            4'd9,
+            1'b1,
+            2'b01,
+            1'b1,
+            uart_virtual_sequence::DIRECTED_DATA,
+            1'b1,
+            1'b0,
+            1'b1,
+            5'd14
+        );
 
-        // ---- stop-bit sweep ----
-        run_named_scenario("uart_single_stop_test", uart_virtual_sequence::FULL_DUPLEX, 2, 4'd8, 1'b0, 2'b00, 1'b0);
-        run_named_scenario("uart_two_stop_test",    uart_virtual_sequence::FULL_DUPLEX, 2, 4'd8, 1'b0, 2'b00, 1'b1);
+        // 7. Random half duplex, mark parity
+        run_named_scenario(
+            "Randomized HALF_DUPLEX mark parity",
+            uart_virtual_sequence::HALF_DUPLEX,
+            8,
+            4'd8,
+            1'b1,
+            2'b10,
+            1'b0,
+            uart_virtual_sequence::RANDOMIZED_DATA
+        );
 
-        // ---- grand total ----
-        grand_pass = env.scoreboard.pass_count;
-        grand_fail = env.scoreboard.error_count;
+        // 8. Directed full duplex, space parity, 2 stop
+        run_named_scenario(
+            "Directed FULL_DUPLEX space parity",
+            uart_virtual_sequence::FULL_DUPLEX,
+            8,
+            4'd8,
+            1'b1,
+            2'b11,
+            1'b1,
+            uart_virtual_sequence::DIRECTED_DATA
+        );
+
+        // 9. Random full duplex, 7-bit framing, 8 bytes per direction
+        // Kept at 8 bytes so the >16-byte transfer cases remain the
+        // dedicated flow-control scenarios below.
+        run_named_scenario(
+            "Randomized FULL_DUPLEX 7-bit data",
+            uart_virtual_sequence::FULL_DUPLEX,
+            8,
+            4'd7,
+            1'b0,
+            2'b00,
+            1'b0,
+            uart_virtual_sequence::RANDOMIZED_DATA
+        );
+
+        // 10. Random D1 -> D2, 8N2
+        run_named_scenario(
+            "Randomized D1_TO_D2 two-stop stream",
+            uart_virtual_sequence::D1_TO_D2,
+            8,
+            4'd8,
+            1'b0,
+            2'b00,
+            1'b1,
+            uart_virtual_sequence::RANDOMIZED_DATA
+        );
+
+        // 11. Long D2 -> D1 with repeated RTS threshold cycling
+        run_named_scenario(
+            "Long D2_TO_D1 RTS threshold cycling",
+            uart_virtual_sequence::D2_TO_D1,
+            18,
+            4'd8,
+            1'b1,
+            2'b00,
+            1'b0,
+            uart_virtual_sequence::RANDOMIZED_DATA,
+            1'b1,
+            1'b0,
+            1'b1,
+            5'd14
+        );
+
+        // 12. Final long RTS hold. No RHR reads during the hold.
+        run_named_scenario(
+            "Long D1_TO_D2 RTS hold with no RX reads",
+            uart_virtual_sequence::D1_TO_D2,
+            20,
+            4'd8,
+            1'b0,
+            2'b00,
+            1'b0,
+            uart_virtual_sequence::RANDOMIZED_DATA,
+            1'b1,
+            1'b1,
+            1'b1,
+            5'd14
+        );
+
+        grand_pass = env.scoreboard.pass_count + local_pass_total;
+        grand_fail = env.scoreboard.error_count + local_fail_total;
 
         $display("");
         $display("========================================");
@@ -156,16 +328,6 @@ class uart_apb_transaction_test extends uart_base_test;
         $display("  FAIL          : %0d", grand_fail);
         $display("========================================");
         $display("");
-        $display("  NOTE: this test covers frame-format variety");
-        $display("  (data bits, parity, stop bits) and the four");
-        $display("  mandatory transfer modes. It does NOT cover");
-        $display("  pin-level fault injection (invalid start bit,");
-        $display("  missing stop bit, RX glitch, break, forced");
-        $display("  overrun/frame/parity errors) or CTS-block/RTS-");
-        $display("  threshold flow-control tests from the");
-        $display("  verification-scope deck -- those need dedicated");
-        $display("  fault-injection sequences that don't exist yet.");
-        $display("========================================");
 
         phase.drop_objection(this);
     endtask

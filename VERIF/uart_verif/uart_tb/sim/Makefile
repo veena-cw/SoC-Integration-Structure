@@ -1,3 +1,4 @@
+
 # ============================================================
 # APB_UART_IP (apb_uart_tb) UVM Verification Makefile
 # Run from the sim/ directory: cd sim && make
@@ -6,6 +7,13 @@
 SHELL := /bin/bash
 
 PROJECT_DIR := $(CURDIR)
+
+# ---- SoC-Integration-Structure repository root ----
+SOC_ROOT := $(abspath $(PROJECT_DIR)/../../../..)
+
+# ---- UART RTL paths ----
+UART_CORE_RTL_DIR := $(SOC_ROOT)/DSN/ip/peripherals/uart/ip/uart/rtl
+UART_APB_RTL_DIR  := $(SOC_ROOT)/DSN/ip/peripherals/uart/dsn/rtl
 
 VIVADO_LOG_DIR     := $(PROJECT_DIR)/vivado_logs
 VIVADO_WORK_DIR    := $(PROJECT_DIR)/vivado_files
@@ -16,7 +24,7 @@ FILELIST := $(PROJECT_DIR)/filelist.f
 TOP      := tb_top
 
 # ---- UVM_HOME (only used by Verilator) ----
-UVM_HOME_DEFAULT := /home/cw032_kiran/Documents/UVM/uvm-1.2/src
+UVM_HOME_DEFAULT := $(SOC_ROOT)/VERIF/uvm-1.1d/src
 ifeq ($(UVM_HOME),)
   UVM_HOME := $(UVM_HOME_DEFAULT)
 endif
@@ -24,10 +32,10 @@ endif
 TESTNAME ?= uart_smoke_test
 SEED     ?= 1
 
-XVLOG := xvlog
-XELAB := xelab
-XSIM  := xsim
-VL    := verilator
+XVLOG     := xvlog
+XELAB     := xelab
+XSIM      := xsim
+VERILATOR := verilator
 
 .PHONY: all
 all: vivado
@@ -40,6 +48,7 @@ help:
 	@echo "  clean"
 	@echo ""
 	@echo "TESTNAME (default uart_smoke_test) selects the UVM test."
+	@echo "SOC_ROOT = $(SOC_ROOT)"
 	@echo "UVM_HOME (for Verilator) = $(UVM_HOME)"
 
 # UVM check -- needed ONLY for Verilator
@@ -54,6 +63,7 @@ check_uvm_home:
 # ============================================================
 # Vivado -- uses Vivado's OWN precompiled UVM via -L uvm
 # ============================================================
+
 .PHONY: vivado_compile
 vivado_compile:
 	@echo ""
@@ -63,7 +73,8 @@ vivado_compile:
 	@mkdir -p "$(VIVADO_LOG_DIR)" "$(VIVADO_WORK_DIR)"
 	$(XVLOG) -sv \
 		-L uvm \
-		-i "$(PROJECT_DIR)/../rtl" \
+		-i "$(UART_CORE_RTL_DIR)" \
+		-i "$(UART_APB_RTL_DIR)" \
 		-i "$(PROJECT_DIR)/../interface" \
 		-i "$(PROJECT_DIR)/../agent" \
 		-i "$(PROJECT_DIR)/../agent/sequences" \
@@ -115,8 +126,9 @@ vivado_clean:
 	@echo "Vivado clean complete."
 
 # ============================================================
-# Verilator -- uses external UVM_HOME
+# Verilator -- uses UVM_HOME from SoC-Integration-Structure
 # ============================================================
+
 .PHONY: verilator_lint
 verilator_lint: check_uvm_home
 	@echo ""
@@ -124,7 +136,7 @@ verilator_lint: check_uvm_home
 	@echo "  Verilator: lint"
 	@echo "=================================================="
 	@mkdir -p "$(VERILATOR_LOG_DIR)"
-	$(VL) --lint-only \
+	$(VERILATOR) --lint-only \
 		-sv \
 		--top-module $(TOP) \
 		--timescale 1ns/1ps \
@@ -136,6 +148,8 @@ verilator_lint: check_uvm_home
 		"$(UVM_HOME)/uvm_pkg.sv" \
 		-f "$(FILELIST)" \
 		+incdir+"$(UVM_HOME)" \
+		+incdir+"$(UART_CORE_RTL_DIR)" \
+		+incdir+"$(UART_APB_RTL_DIR)" \
 		+define+UVM_NO_DPI \
 		2>&1 | tee "$(VERILATOR_LOG_DIR)/verilator_lint.log"
 	@echo "Verilator lint finished."
@@ -148,7 +162,7 @@ verilator_compile: check_uvm_home
 	@echo "=================================================="
 	@mkdir -p "$(VERILATOR_LOG_DIR)" "$(VERILATOR_WORK_DIR)"
 	@set -o pipefail; \
-	$(VL) --binary \
+	$(VERILATOR) --binary \
 		-sv \
 		--Mdir "$(VERILATOR_WORK_DIR)" \
 		--top-module $(TOP) \
@@ -164,6 +178,8 @@ verilator_compile: check_uvm_home
 		"$(UVM_HOME)/uvm_pkg.sv" \
 		-f "$(FILELIST)" \
 		+incdir+"$(UVM_HOME)" \
+		+incdir+"$(UART_CORE_RTL_DIR)" \
+		+incdir+"$(UART_APB_RTL_DIR)" \
 		+define+UVM_NO_DPI \
 		2>&1 | tee "$(VERILATOR_LOG_DIR)/verilator_compile.log"
 	@if [ ! -f "$(VERILATOR_WORK_DIR)/V$(TOP)" ]; then \

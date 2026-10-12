@@ -1,27 +1,4 @@
-// ------------------------------------------------------------
-// uart_env.sv
-//
-//   d1_agent      (ACTIVE) -- drives/monitors apb_uart_top d1
-//   d2_agent      (ACTIVE) -- drives/monitors apb_uart_top d2
-//                             (same uart_agent class as d1,
-//                             dev_tag="d2" -- see uart_agent.sv)
-//   reset_agent   (ACTIVE) -- single rst_n source
-//   virt_seqr     -- holds d1/d2/reset sequencers + the shared
-//                    ral_model + adapter
-//   ral_model     -- the ONE uart_ral_block instance. Its
-//                    default_map is redirected between
-//                    d1_agent.sequencer and d2_agent.sequencer
-//                    by uart_virtual_sequence, per byte/step;
-//                    register-regression sequences always run
-//                    with it pointed at d1.
-//   adapter       -- uart_apb_adapter (shared, stateless)
-//   predictor     -- uart_apb_predictor, fed by BOTH monitors so
-//                    the one shared mirror stays in sync no
-//                    matter which device produced a transaction
-//   scoreboard    -- single uart_scoreboard, fed by both monitors
-//   cov           -- uart_coverage, fed by both monitors + both
-//                    devices' irq_o pins
-// ------------------------------------------------------------
+
 `include "uvm_macros.svh"
 import uvm_pkg::*;
 
@@ -83,6 +60,8 @@ class uart_env extends uvm_env;
         virt_seqr.ral_model    = ral_model;
         virt_seqr.adapter      = adapter;
         virt_seqr.scoreboard   = scoreboard;
+        virt_seqr.d1_vif       = d1_agent.vif;
+        virt_seqr.d2_vif       = d2_agent.vif;
 
         // ---- RAL hook: d1 is the map's default/home target.
         // uart_virtual_sequence redirects this to d2_agent.sequencer
@@ -118,3 +97,4 @@ class uart_env extends uvm_env;
     endfunction
 
 endclass
+

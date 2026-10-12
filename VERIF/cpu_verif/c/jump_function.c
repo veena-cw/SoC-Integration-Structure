@@ -6,18 +6,9 @@
  */
 
 #include <stdint.h>
+#include "dual_core.h"
 
-#define TOHOST_ADDR       ((volatile uint64_t *)0x00102000UL)
-#define JUMP_RESULTS_ADDR ((volatile uint64_t *)0x80005000UL)
-
-static void tohost_exit(uint64_t code)
-{
-  __asm__ volatile ("fence rw, rw" ::: "memory");
-  *TOHOST_ADDR = code;
-  while (1) {
-    /* Wait for the simulation harness to observe tohost. */
-  }
-}
+#define JUMP_RESULTS_ADDR ((volatile uint64_t *)HART_DRAM(0x80005000UL))
 
 /* Return zero when JAL reaches the target and writes PC+4 to its link rd. */
 __attribute__((noinline, used))
@@ -72,7 +63,7 @@ static void flush_jump_results(void)
   uintptr_t addr = (uintptr_t)JUMP_RESULTS_ADDR;
 
   /* CBO.FLUSH writes back and invalidates the result cache line. */
-  __asm__ volatile (".insn i 0x0f, 2, x0, %0, 2" :: "r"(addr) : "memory");
+  cbo_flush(addr);
 }
 
 static void evict_jump_results(void)
@@ -80,7 +71,7 @@ static void evict_jump_results(void)
   /* Force the dirty result line through the write-back hierarchy. */
   for (uint64_t i = 1; i <= 20; i++) {
     volatile uint64_t *conflict_addr =
-      (volatile uint64_t *)(0x80005000UL + (i * 0x4000UL));
+      (volatile uint64_t *)(HART_DRAM(0x80005000UL) + (i * 0x4000UL));
     *conflict_addr = 0x4A554D5000000000UL | i; /* ASCII "JUMP" marker */
   }
 }
@@ -91,7 +82,7 @@ __attribute__((naked, section(".text.start"), used))
 void _start(void)
 {
   __asm__ volatile (
-    "li sp, 0x80004000\n"
+    DUAL_CORE_STACK_INIT
     "jal ra, start_main\n"
     "1: j 1b\n"
   );

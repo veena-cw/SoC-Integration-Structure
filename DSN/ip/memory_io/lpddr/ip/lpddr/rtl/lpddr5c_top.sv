@@ -1,5 +1,4 @@
 
-
 //============================================================================
 // Module: lpddr5c_top
 // Description: LPDDR5 Controller Top Level
@@ -157,7 +156,17 @@ module lpddr5c_top #(
     //========================================================================
     // Debug
     //========================================================================
-    output wire [31:0]                  debug_bus
+    output wire [31:0]                  debug_bus,
+    
+    //========================================================================
+    // LOW POWER SIDEBAND SIGNALS
+    //========================================================================	
+	
+    input  wire                         lp_req_pd,
+    input  wire                         wakeup_req,
+    output logic lp_ack,
+    output logic wakeup_ack
+	
 );
 
     //========================================================================
@@ -175,6 +184,7 @@ logic [3:0]            cmd_type;
 logic                  cmd_valid;
 wire                   cmd_ready;
 logic [7:0]             cmd_id;
+wire lp_idle;
 
 
 
@@ -558,7 +568,11 @@ end
         .dfi_cke        (dfi_cke),
         .dfi_ca         (dfi_ca),
         .dfi_rw         (dfi_rw),
-        .dfi_addr       (dfi_addr)
+        .dfi_addr       (dfi_addr),
+        .cmd_activity(cmd_activity),
+        .rd_activity(rd_activity),
+        .wr_activity(wr_activity),
+        .lp_idle(lp_idle)
     );
     
     //========================================================================
@@ -666,8 +680,11 @@ end
         .clk            (clk),
         .rst_n          (rst_n),
         
+            .cmd_activity(cmd_activity),
+            .rd_activity(rd_activity),
+            .wr_activity(wr_activity),
         // Configuration
-        .lp_cfg         (reg_lp_cfg),
+        //.lp_cfg         (reg_lp_cfg),
         
         // Control
         .lp_req_pd      (lp_req_pd),
@@ -675,6 +692,10 @@ end
         .lp_req_ds      (lp_req_ds),
         .lp_ack         (lp_ack),
         .lp_state       (lp_state[0]),
+        .wakeup_req     (wakeup_req),
+        .lp_idle(lp_idle),
+        .wakeup_ack(wakeup_ack),
+       
         
         // Status
         .idle_count     (),
@@ -761,13 +782,3 @@ end
     };
 
 endmodule // lpddr5c_top
-
-
-
-
-
-
-
-
-
-

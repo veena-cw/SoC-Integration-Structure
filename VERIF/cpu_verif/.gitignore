@@ -1,0 +1,21 @@
+# CPU verification (Verilator + UVM) generated files.
+# Patterns are relative to VERIF/cpu_verif/.
+
+# Test programs built from c/*.c by "make compile" / "make sim"
+sim/*.elf
+sim/*.bin
+sim/*.nbf
+
+# Verilator builds, one per BP config (obj_dir, obj_dir_cfg9, ...)
+sim/obj_dir/
+sim/obj_dir_cfg*/
+
+# Logs, coverage and waveforms
+sim/logs/
+sim/coverage.dat
+sim/*.vcd
+sim/*.fst
+
+# Other simulation outputs
+sim/stdout_*.txt
+sim/*.signature

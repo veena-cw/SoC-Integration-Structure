@@ -8,30 +8,26 @@
  */
 
 #include <stdint.h>
+#include "dual_core.h"
 
-#define TOHOST_ADDR  ((volatile uint64_t *)0x00102000UL)
-#define RESULT_ADDR  ((volatile uint64_t *)0x80005000UL)
+#define RESULT_ADDR  ((volatile uint64_t *)HART_DRAM(0x80005000UL))
 #define ALIAS_STRIDE 0x4000UL
 
 /* [0] count, [1] last mcause, [2] last mepc, [3] handler error,
  * [4:5] causes, [6:7] mepcs for ECALL and EBREAK respectively. */
 __attribute__((aligned(64), used))
-volatile uint64_t trap_state[8] = { 0 };
-
-static void tohost_exit(uint64_t code)
-{
-  __asm__ volatile ("fence rw, rw" ::: "memory");
-  *TOHOST_ADDR = code;
-  while (1) {
-    /* Wait for the simulation harness to observe the tohost write. */
-  }
-}
+volatile uint64_t trap_state[NUM_HARTS * 8] = { 0 };
+/* This hart's 8-entry slice; the handler indexes it by mhartid too. */
+#define TRAP_STATE (trap_state + 8 * hart_id())
 
 __attribute__((naked, aligned(4), used))
 void env_trap_handler(void)
 {
   __asm__ volatile (
     "la t1, trap_state\n"
+    "csrr t3, mhartid\n"      /* per-hart slice: + mhartid * 64 B */
+    "slli t3, t3, 6\n"
+    "add t1, t1, t3\n"
     "ld t2, 0(t1)\n"
     "li t3, 2\n"
     "bgeu t2, t3, 2f\n"
@@ -105,14 +101,14 @@ static void install_trap_handler(void)
 static void flush_result_line(void)
 {
   uintptr_t addr = (uintptr_t)RESULT_ADDR;
-  __asm__ volatile (".insn i 0x0f, 2, x0, %0, 2" :: "r"(addr) : "memory");
+  cbo_flush(addr);
 }
 
 static void evict_result_line(void)
 {
   for (uint64_t i = 1; i <= 20; i++) {
     volatile uint64_t *alias =
-      (volatile uint64_t *)(0x80005000UL + (i * ALIAS_STRIDE));
+      (volatile uint64_t *)(HART_DRAM(0x80005000UL) + (i * ALIAS_STRIDE));
     *alias = 0xC016000000000000ULL | i;
   }
 }
@@ -123,7 +119,7 @@ __attribute__((naked, section(".text.start"), used))
 void _start(void)
 {
   __asm__ volatile (
-    "li sp, 0x80004000\n"
+    DUAL_CORE_STACK_INIT
     "jal ra, start_main\n"
     "1: j 1b\n"
   );
@@ -141,21 +137,21 @@ static void start_main(void)
   execute_ecall();
   execute_ebreak();
 
-  if (trap_state[0] != 2)
+  if (TRAP_STATE[0] != 2)
     fail |= 1ULL << 0;
-  if (trap_state[1] != 3 || trap_state[4] != 11 || trap_state[5] != 3)
+  if (TRAP_STATE[1] != 3 || TRAP_STATE[4] != 11 || TRAP_STATE[5] != 3)
     fail |= 1ULL << 1;
-  if (trap_state[3] != 0)
+  if (TRAP_STATE[3] != 0)
     fail |= 1ULL << 2;
-  if (trap_state[6] != expected_ecall_pc || trap_state[7] != expected_ebreak_pc)
+  if (TRAP_STATE[6] != expected_ecall_pc || TRAP_STATE[7] != expected_ebreak_pc)
     fail |= 1ULL << 3;
 
   RESULT_ADDR[0] = fail;
-  RESULT_ADDR[1] = trap_state[0];
-  RESULT_ADDR[2] = trap_state[4];
-  RESULT_ADDR[3] = trap_state[5];
-  RESULT_ADDR[4] = trap_state[6];
-  RESULT_ADDR[5] = trap_state[7];
+  RESULT_ADDR[1] = TRAP_STATE[0];
+  RESULT_ADDR[2] = TRAP_STATE[4];
+  RESULT_ADDR[3] = TRAP_STATE[5];
+  RESULT_ADDR[4] = TRAP_STATE[6];
+  RESULT_ADDR[5] = TRAP_STATE[7];
   RESULT_ADDR[6] = expected_ecall_pc;
   RESULT_ADDR[7] = expected_ebreak_pc;
   flush_result_line();

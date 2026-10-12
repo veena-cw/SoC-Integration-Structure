@@ -47,7 +47,7 @@ class usbh_host_axi4_agent_monitor extends uvm_monitor;
       `uvm_fatal("NOVIF", $sformatf("[%s] Virtual interface not found in resource_db", get_full_name()))
   endfunction
 
-  /*task run_phase(uvm_phase phase);
+  task run_phase(uvm_phase phase);
     usbh_host_axi4_agent_seq_item item;
     forever begin
       @(vif.mon_cb);
@@ -74,6 +74,6 @@ class usbh_host_axi4_agent_monitor extends uvm_monitor;
       ap.write(item);
     end
   endtask
-  */
+  
 
 endclass : usbh_host_axi4_agent_monitor

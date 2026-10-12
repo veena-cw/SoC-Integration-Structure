@@ -137,24 +137,44 @@ module lpddr5c_lp_mgmt #(
     
     assign any_activity = cmd_activity || rd_activity || wr_activity;
     
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            idle_counter <= '0;
-            activity_prev <= 1'b0;
-        end else begin
-            activity_prev <= any_activity;
+//    always_ff @(posedge clk or negedge rst_n) begin
+//        if (!rst_n) begin
+//            idle_counter <= '0;
+//            activity_prev <= 1'b0;
+//        end else begin
+//            activity_prev <= any_activity;
             
-            if (any_activity && !activity_prev) begin
-                // Activity detected - reset idle counter
-                idle_counter <= '0;
-            end else if (!any_activity) begin
-                // No activity - increment idle counter
-                if (idle_counter < 16'hFFFF) begin
-                    idle_counter <= idle_counter + 1'b1;
-                end
-            end
+//            if (any_activity && !activity_prev) begin
+//                // Activity detected - reset idle counter
+//                idle_counter <= '0;
+//            end else if (!any_activity) begin
+//                // No activity - increment idle counter
+//                if (idle_counter < 16'hFFFF) begin
+//                    idle_counter <= idle_counter + 1'b1;
+//                end
+//            end
+//        end
+//    end
+
+// Activity Detection and Idle Counter
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        idle_counter  <= '0;
+        activity_prev <= 1'b0;
+    end else begin
+        activity_prev <= any_activity;
+
+        // Reset the counter when activity starts or wakeup completes
+        if ((any_activity && !activity_prev) ||
+            (state == LP_WAKEUP && state_timer >= 4)) begin
+            idle_counter <= '0;
+        end else if (!any_activity) begin
+            // Increment while there is no activity
+            if (idle_counter < 16'hFFFF)
+                idle_counter <= idle_counter + 1'b1;
         end
     end
+end
     
     //========================================================================
     // Low Power State Machine
@@ -229,6 +249,8 @@ module lpddr5c_lp_mgmt #(
                     
                     // Check for wakeup condition
                     //if (wakeup_req || any_activity || lp_req_pd == 0) begin
+                    //if (wakeup_req || any_activity || !lp_req_pd) begin
+                    //if ((wakeup_req & lp_req_pd == 0) || any_activity ) begin
                     if ((wakeup_req & lp_req_pd == 0) || !lp_idle) begin
                         state <= LP_PD_EXIT;
                     //    wakeup_ack_reg <= 1'b1;
@@ -318,19 +340,33 @@ module lpddr5c_lp_mgmt #(
                 //================================================================
                 // Wakeup
                 //================================================================
-                LP_WAKEUP: begin
-                    cke_reg <= {NUM_CHANNELS{1'b1}};
+//                LP_WAKEUP: begin
+//                    cke_reg <= {NUM_CHANNELS{1'b1}};
                     
-                    // Short stabilization period
-                    if (state_timer < 4) begin
-                        state_timer <= state_timer + 1'b1;
-                    end else begin
-                        state <= LP_NORMAL;
-                        wakeup_ack_reg <= 1'b1;
-                        state_timer <= '0;
-                        idle_counter <= '0;
-                    end
-                end
+//                    // Short stabilization period
+//                    if (state_timer < 4) begin
+//                        state_timer <= state_timer + 1'b1;
+//                    end else begin
+//                        state <= LP_NORMAL;
+//                        wakeup_ack_reg <= 1'b1;
+//                        state_timer <= '0;
+//                        idle_counter <= '0;
+//                    end
+//                end
+
+ LP_WAKEUP: begin
+    cke_reg <= {NUM_CHANNELS{1'b1}};
+
+    if (state_timer < 4) begin
+        state_timer <= state_timer + 1'b1;
+    end else begin
+        state <= LP_NORMAL;
+        wakeup_ack_reg <= 1'b1;
+        state_timer <= '0;
+
+        // Remove idle_counter <= '0 from here
+    end
+end                   
                 
                 default: begin
                     state <= LP_NORMAL;

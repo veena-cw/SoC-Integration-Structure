@@ -21,8 +21,7 @@ module i2c_top #(
     output logic [DW-1:0] t_o_prdata,
     output logic          t_o_pslverr,
     output logic          t_o_pready,
-    input  logic          i2c_irq_en,
-    output logic          i2c_irq,
+    output logic          i2c_irq,      // interrupt enable is now CTRL[16]
 
     output logic       i2c_scl,
     inout  logic       i2c_sda
@@ -31,8 +30,10 @@ module i2c_top #(
     pullup(i2c_sda);
 
     //-----------------------------------------------------
-    // NOTE: Address decode / out-of-range error handling now
-    // lives inside apb_slave (reported via STATUS[3]).
+    // NOTE: Address decode / out-of-range error handling lives
+    // inside apb_slave (reported via STATUS[3]).
+    // The interrupt enable is a CTRL register bit (CTRL[16]),
+    // generated in apb_slave and synchronized to i2c_clk here.
     //-----------------------------------------------------
 
     logic ready;
@@ -78,6 +79,10 @@ module i2c_top #(
     logic [7:0] fifo_rd_data_apb_reg;
     logic       i_rd_data_valid;
 
+    // Interrupt enable (CTRL[16])
+    logic irq_en_apb;     // pclk domain, from apb_slave
+    logic irq_en_i2c;     // i2c_clk domain, synchronized
+
 
     //==========================================================
     // I2C DOMAIN RESET SYNCHRONIZER
@@ -99,8 +104,8 @@ module i2c_top #(
     // APB SLAVE
     //
     // Receives the RAW APB signals. Address decode, PSLVERR for
-    // out-of-range accesses and the STATUS register error bit
-    // are all handled inside.
+    // invalid-address accesses, the STATUS register error bit and
+    // the CTRL interrupt-enable bit are all handled inside.
     // Outputs go straight to the top-level ports.
     //==========================================================
     apb_slave #(
@@ -119,6 +124,7 @@ module i2c_top #(
         .o_prdata    (t_o_prdata),
         .o_pslverr   (t_o_pslverr),
         .o_pready    (t_o_pready),
+        .o_irq_en    (irq_en_apb),        // CTRL[16]
         .i2c_busy    (i2c_apb_busy),
         .i2c_done    (i2c_apb_done),
         //======================================================
@@ -238,7 +244,7 @@ module i2c_top #(
         .ack_error   (ack_error),
 
         .i2c_irq     (i2c_irq),
-        .i2c_irq_en  (i2c_irq_en),
+        .i2c_irq_en  (irq_en_i2c),        // CTRL[16], synchronized to i2c_clk
 
         .busy        (busy),
         .done        (done),
@@ -286,6 +292,18 @@ module i2c_top #(
         .rst_n (presetn),
         .d_in  (ack_error),
         .d_out (slverr_sync)
+    );
+
+    //==========================================================
+    // APB -> I2C control crossing
+    // CTRL[16] interrupt enable (pclk) -> i2c_clk domain.
+    // Quasi-static configuration bit, single-bit 2-FF sync.
+    //==========================================================
+    synchronizer #(.WIDTH(1)) ff4 (
+        .clk   (i2c_clk),
+        .rst_n (i2c_rst_n_sync),
+        .d_in  (irq_en_apb),
+        .d_out (irq_en_i2c)
     );
 
 endmodule

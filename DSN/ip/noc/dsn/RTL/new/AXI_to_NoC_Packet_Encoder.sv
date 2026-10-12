@@ -1,353 +1,254 @@
-`timescale 1ns/1ps
 
-module AXI_to_NoC_Packet #(
-    parameter ADDR_WIDTH     = 32,
-    parameter AXI_DATA_WIDTH = 128,
-    parameter ID_WIDTH       = 4
+module AXI_to_NoC_Packet_Encoder #(
+    parameter int ADDR_WIDTH       = 32,
+    parameter int AXI_DATA_WIDTH   = 128,
+    parameter int ID_WIDTH         = 4,
+    parameter int SOURCE_ROUTER_ID = 1
 )(
-    input  logic clk,
-    input  logic rst_n,
+    input logic clk,
+    input logic rst_n,
 
     // AXI WRITE ADDRESS
-    input  logic [ID_WIDTH-1:0]   m_axi_awid,
-    input  logic [ADDR_WIDTH-1:0] m_axi_awaddr,
-    input  logic                  m_axi_awvalid,
-    output logic                  m_axi_awready,
+    input logic [ID_WIDTH-1:0]         m_axi_awid,
+    input logic [ADDR_WIDTH-1:0]       m_axi_awaddr,
+    input logic [7:0]                  m_axi_awlen,
+    input logic [2:0]                  m_axi_awsize,
+    input logic [1:0]                  m_axi_awburst,
+    input logic                        m_axi_awlock,
+    input logic [3:0]                  m_axi_awcache,
+    input logic [2:0]                  m_axi_awprot,
+    input logic [3:0]                  m_axi_awqos,
+    input logic                        m_axi_awvalid,
+    output logic                       m_axi_awready,
 
     // AXI WRITE DATA
-    input  logic [AXI_DATA_WIDTH-1:0] m_axi_wdata,
-    input  logic                      m_axi_wvalid,
-    output logic                      m_axi_wready,
+    input logic [AXI_DATA_WIDTH-1:0]   m_axi_wdata,
+    input logic [AXI_DATA_WIDTH/8-1:0] m_axi_wstrb,
+    input logic                        m_axi_wlast,
+    input logic                        m_axi_wvalid,
 
     // AXI READ ADDRESS
-    input  logic [ID_WIDTH-1:0]   m_axi_arid,
-    input  logic [ADDR_WIDTH-1:0] m_axi_araddr,
-    input  logic                  m_axi_arvalid,
-    output logic                  m_axi_arready,
+    input logic [ID_WIDTH-1:0]         m_axi_arid,
+    input logic [ADDR_WIDTH-1:0]       m_axi_araddr,
+    input logic [7:0]                  m_axi_arlen,
+    input logic [2:0]                  m_axi_arsize,
+    input logic [1:0]                  m_axi_arburst,
+    input logic                        m_axi_arlock,
+    input logic [3:0]                  m_axi_arcache,
+    input logic [2:0]                  m_axi_arprot,
+    input logic [3:0]                  m_axi_arqos,
+    input logic                        m_axi_arvalid,
+    output logic                       m_axi_arready,
 
-    // NoC WRITE
-    output logic [255:0] noc_write_packet,
-    output logic         noc_write_valid,
-    input  logic         noc_write_ready,
-
-    // NoC READ
-    output logic [255:0] noc_read_packet,
-    output logic         noc_read_valid,
-    input  logic         noc_read_ready
+    // NoC packet
+    output logic [255:0]               noc_packet,
+    output logic                       noc_packet_valid,
+    input logic                        noc_packet_ready
 );
 
-    localparam logic [3:0] SOURCE_ROUTER_ID = 4'd1;
-
-    // Transaction control
-    logic busy;
-    logic is_write;
-
-    // Headers
-    logic [127:0] write_header;
-    logic [127:0] read_header;
-
-    // Four 128-bit WRITE data beats
+    logic [127:0] header_reg;
     logic [127:0] write_data [0:3];
 
-    // Number of AXI WRITE data beats received
-    logic [2:0] write_data_count;
+    logic [1:0] write_count;
+    logic [1:0] packet_count;
 
-    // Number of NoC WRITE packets transmitted
-    logic [2:0] write_packet_count;
+    logic write_complete;
+    logic read_valid;
+    logic busy;
 
-    // Indicates that at least one WRITE data beat
-    // is available for NoC transmission
-    logic write_data_valid;
+    logic [3:0] dest_router_id;
 
-
-    // Address decoding
-
-    function automatic [3:0] decode_address(
+    // Address decoder
+    function automatic logic [3:0] decode_address(
         input logic [ADDR_WIDTH-1:0] address
     );
         begin
-            case (address[31:20])
-
-                12'h100: decode_address = 4;   // NPU
-                12'h101: decode_address = 6;   // PCIe
-                12'h102: decode_address = 8;   // UCIe
-                12'h103: decode_address = 11;  // Ethernet
-                12'h104: decode_address = 10;  // USB
-                12'h105: decode_address = 9;   // NVMe
-                12'h106: decode_address = 3;   // PLIC
-                12'h107: decode_address = 5;   // SRAM
-                12'h108: decode_address = 7;   // LPDDR
-
-                default: decode_address = 15;
-
+            case (address[31:28])
+                4'h1: begin
+                    case (address[27:24])
+                        4'h0: decode_address = 4'd4;
+                        4'h1: decode_address = 4'd6;
+                        4'h2: decode_address = 4'd8;
+                        4'h3: decode_address = 4'd11;
+                        4'h4: decode_address = 4'd10;
+                        4'h5: decode_address = 4'd9;
+                        4'h6: decode_address = 4'd3;
+                        4'h7: decode_address = 4'd5;
+                        4'h8: decode_address = 4'd7;
+                        default: decode_address = 4'd15;
+                    endcase
+                end
+                default: decode_address = 4'd15;
             endcase
         end
     endfunction
 
-
-    // AXI arbitration
-    //
-    // WRITE has priority when both AWVALID and ARVALID
-    // are present.
-    //
-    // When busy, no new transaction is accepted.
-
+    // Destination selection
     always_comb begin
+        if (m_axi_awvalid)
+            dest_router_id = decode_address(m_axi_awaddr);
+        else if (m_axi_arvalid)
+            dest_router_id = decode_address(m_axi_araddr);
+        else
+            dest_router_id = 4'd15;
+    end
 
+    // Address arbitration
+    // When busy, both requests wait.
+    // When idle, WRITE has priority over READ.
+    always_comb begin
         m_axi_awready = 1'b0;
         m_axi_arready = 1'b0;
 
         if (!busy) begin
-
             if (m_axi_awvalid) begin
-
-                // WRITE gets priority
                 m_axi_awready = 1'b1;
-
+                m_axi_arready = 1'b0;
             end
             else if (m_axi_arvalid) begin
-
-                // READ
+                m_axi_awready = 1'b0;
                 m_axi_arready = 1'b1;
-
             end
-
         end
-        else begin
-
-            // Transaction already in progress.
-            // New transaction waits.
-
-            m_axi_awready = 1'b0;
-            m_axi_arready = 1'b0;
-
-        end
-
     end
 
-
-    // AXI WRITE data ready
-    //
-    // Accept four 128-bit WDATA beats.
-
-    always_comb begin
-
-        m_axi_wready = 1'b0;
-
-        if (busy && is_write) begin
-
-            if (write_data_count < 3'd4) begin
-                m_axi_wready = 1'b1;
-            end
-
-        end
-
-    end
-
-
-    // WRITE packet valid
-    //
-    // A packet can be sent when the corresponding
-    // WRITE data beat has been received.
-
-    assign noc_write_valid =
-        busy &&
-        is_write &&
-        write_data_valid;
-
-
-    // READ packet valid
-
-    assign noc_read_valid =
-        busy &&
-        !is_write;
-
-
-    // Current WRITE packet
-    //
-    // Upper 128 bits = WRITE header
-    // Lower 128 bits = current WRITE data beat
-
-    assign noc_write_packet = {
-        write_header,
-        write_data[write_packet_count]
-    };
-
-
-    // READ packet
-    //
-    // Upper 128 bits = READ header
-    // Lower 128 bits = zero
-
-    assign noc_read_packet = {
-        read_header,
-        128'd0
-    };
-
-
-    // Main sequential logic
-
+    // Capture WRITE data
     always_ff @(posedge clk or negedge rst_n) begin
-
         if (!rst_n) begin
+            write_data[0] <= '0;
+            write_data[1] <= '0;
+            write_data[2] <= '0;
+            write_data[3] <= '0;
 
-            busy               <= 1'b0;
-            is_write           <= 1'b0;
-
-            write_header       <= 128'd0;
-            read_header        <= 128'd0;
-
-            write_data[0]      <= 128'd0;
-            write_data[1]      <= 128'd0;
-            write_data[2]      <= 128'd0;
-            write_data[3]      <= 128'd0;
-
-            write_data_count   <= 3'd0;
-            write_packet_count <= 3'd0;
-
-            write_data_valid   <= 1'b0;
-
+            write_count    <= 2'd0;
+            write_complete <= 1'b0;
         end
+        else begin
+            if (m_axi_wvalid && !write_complete && busy &&
+                header_reg[115]) begin
 
+                write_data[write_count] <= m_axi_wdata;
+
+                if (write_count == 2'd3) begin
+                    write_count    <= 2'd0;
+                    write_complete <= 1'b1;
+                end
+                else begin
+                    write_count <= write_count + 1'b1;
+                end
+            end
+
+            if (write_complete && noc_packet_valid &&
+                noc_packet_ready && packet_count == 2'd3) begin
+                write_complete <= 1'b0;
+            end
+        end
+    end
+
+    // Capture header and control busy
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            header_reg <= '0;
+            read_valid <= 1'b0;
+            busy       <= 1'b0;
+        end
         else begin
 
-            // No transaction is currently active
+            // Accept WRITE address
+            if (!busy && m_axi_awvalid && m_axi_awready) begin
+                header_reg[127:124] <= SOURCE_ROUTER_ID;
+                header_reg[123:120] <= decode_address(m_axi_awaddr);
+                header_reg[119:118] <= decode_address(m_axi_awaddr) & 4'b0011;
+                header_reg[117:116] <= decode_address(m_axi_awaddr) >> 2;
 
-            if (!busy) begin
+                header_reg[115]     <= 1'b1;
+                header_reg[114:111] <= m_axi_awid;
+                header_reg[110:79]  <= m_axi_awaddr;
+                header_reg[78:71]   <= m_axi_awlen;
+                header_reg[70:68]   <= m_axi_awsize;
+                header_reg[67:66]   <= m_axi_awburst;
+                header_reg[65]      <= m_axi_awlock;
+                header_reg[64:61]   <= m_axi_awcache;
+                header_reg[60:58]   <= m_axi_awprot;
+                header_reg[57:54]   <= m_axi_awqos;
+                header_reg[53:0]    <= '0;
 
-                // WRITE gets priority
-
-                if (m_axi_awvalid && m_axi_awready) begin
-
-                    busy     <= 1'b1;
-                    is_write <= 1'b1;
-
-                    write_data_count   <= 3'd0;
-                    write_packet_count <= 3'd0;
-                    write_data_valid   <= 1'b0;
-
-                    write_header <= {
-                        SOURCE_ROUTER_ID,
-                        decode_address(m_axi_awaddr),
-                        2'd0,
-                        2'd0,
-                        1'b1,
-                        m_axi_awid,
-                        m_axi_awaddr,
-                        8'd0,
-                        3'd0,
-                        2'd0,
-                        1'b0,
-                        4'd0,
-                        3'd0,
-                        4'd0,
-                        54'd0
-                    };
-
-                end
-
-                // READ is accepted only when WRITE is not present
-
-                else if (m_axi_arvalid && m_axi_arready) begin
-
-                    busy     <= 1'b1;
-                    is_write <= 1'b0;
-
-                    read_header <= {
-                        SOURCE_ROUTER_ID,
-                        decode_address(m_axi_araddr),
-                        2'd0,
-                        2'd0,
-                        1'b0,
-                        m_axi_arid,
-                        m_axi_araddr,
-                        8'd0,
-                        3'd0,
-                        2'd0,
-                        1'b0,
-                        4'd0,
-                        3'd0,
-                        4'd0,
-                        54'd0
-                    };
-
-                end
-
+                busy      <= 1'b1;
+                read_valid <= 1'b0;
             end
 
+            // Accept READ only when WRITE is not selected
+            else if (!busy && m_axi_arvalid && m_axi_arready) begin
+                header_reg[127:124] <= SOURCE_ROUTER_ID;
+                header_reg[123:120] <= decode_address(m_axi_araddr);
+                header_reg[119:118] <= decode_address(m_axi_araddr) & 4'b0011;
+                header_reg[117:116] <= decode_address(m_axi_araddr) >> 2;
 
-            // WRITE transaction is active
+                header_reg[115]     <= 1'b0;
+                header_reg[114:111] <= m_axi_arid;
+                header_reg[110:79]  <= m_axi_araddr;
+                header_reg[78:71]   <= m_axi_arlen;
+                header_reg[70:68]   <= m_axi_arsize;
+                header_reg[67:66]   <= m_axi_arburst;
+                header_reg[65]      <= m_axi_arlock;
+                header_reg[64:61]   <= m_axi_arcache;
+                header_reg[60:58]   <= m_axi_arprot;
+                header_reg[57:54]   <= m_axi_arqos;
+                header_reg[53:0]    <= '0;
 
-            else if (is_write) begin
-
-                // Receive AXI WRITE DATA
-
-                if (m_axi_wvalid && m_axi_wready) begin
-
-                    case (write_data_count)
-
-                        3'd0: write_data[0] <= m_axi_wdata;
-                        3'd1: write_data[1] <= m_axi_wdata;
-                        3'd2: write_data[2] <= m_axi_wdata;
-                        3'd3: write_data[3] <= m_axi_wdata;
-
-                    endcase
-
-
-                    if (write_data_count < 3'd4) begin
-                        write_data_count <= write_data_count + 1'b1;
-                    end
-
-                    write_data_valid <= 1'b1;
-
-                end
-
-
-                // Send WRITE packet to NoC
-
-                if (noc_write_valid && noc_write_ready) begin
-
-                    write_data_valid <= 1'b0;
-
-                    if (write_packet_count == 3'd3) begin
-
-                        // Fourth packet transmitted.
-                        // WRITE transaction is complete.
-
-                        busy               <= 1'b0;
-                        write_packet_count <= 3'd0;
-                        write_data_count   <= 3'd0;
-
-                    end
-
-                    else begin
-
-                        // Move to next packet
-
-                        write_packet_count <=
-                            write_packet_count + 1'b1;
-
-                    end
-
-                end
-
+                read_valid <= 1'b1;
+                busy       <= 1'b1;
             end
 
-
-            // READ transaction is active
-
-            else begin
-
-                if (noc_read_valid && noc_read_ready) begin
-
-                    busy <= 1'b0;
-
-                end
-
+            // Release READ transaction after NoC accepts its packet
+            if (read_valid && noc_packet_valid && noc_packet_ready) begin
+                read_valid <= 1'b0;
+                busy       <= 1'b0;
             end
 
+            // Release WRITE transaction after all four packets
+            if (write_complete && noc_packet_valid &&
+                noc_packet_ready && packet_count == 2'd3) begin
+                busy <= 1'b0;
+            end
         end
+    end
 
+    // WRITE packet counter
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            packet_count <= 2'd0;
+        end
+        else begin
+            if (write_complete && noc_packet_valid &&
+                noc_packet_ready) begin
+                if (packet_count == 2'd3)
+                    packet_count <= 2'd0;
+                else
+                    packet_count <= packet_count + 1'b1;
+            end
+        end
+    end
+
+    // NoC packet generation
+    always_comb begin
+        noc_packet       = '0;
+        noc_packet_valid = 1'b0;
+
+        if (write_complete) begin
+            noc_packet = {
+                header_reg,
+                write_data[packet_count]
+            };
+            noc_packet_valid = 1'b1;
+        end
+        else if (read_valid) begin
+            noc_packet = {
+                header_reg,
+                128'b0
+            };
+            noc_packet_valid = 1'b1;
+        end
     end
 
 endmodule

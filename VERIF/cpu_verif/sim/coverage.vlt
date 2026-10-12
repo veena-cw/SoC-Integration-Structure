@@ -1,0 +1,7 @@
+`verilator_config
+// Code coverage is collected for the design (DSN/...) only. The testbench,
+// the UVM library and Verilator's own SystemVerilog sources are not
+// instrumented, so they do not appear in coverage.dat or the reports.
+coverage_off -file "*/VERIF/uvm-1.1d/*"
+coverage_off -file "*/VERIF/cpu_verif/*"
+coverage_off -file "*/share/verilator/*"

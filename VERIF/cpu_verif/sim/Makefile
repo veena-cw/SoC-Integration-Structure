@@ -240,6 +240,9 @@ REGR_DIR     := $(LOG_DIR)/regression
 COVERAGE_DIR := $(LOG_DIR)/coverage
 COVERAGE_MERGED := $(COVERAGE_DIR)/coverage.dat
 COVERAGE_INFO := $(COVERAGE_DIR)/coverage.info
+# Report-time filter (also covers coverage files built before coverage.vlt):
+# drop the testbench, UVM library and Verilator sources from the reports.
+COVERAGE_EXCLUDE := '*/VERIF/uvm-1.1d/*' '*/VERIF/cpu_verif/*' '*/share/verilator/*'
 COVERAGE_SUMMARY := $(COVERAGE_DIR)/summary.txt
 COVERAGE_HTML_DIR := $(COVERAGE_DIR)/html
 
@@ -345,7 +348,9 @@ VERILATOR_INCDIRS = \
 
 UVM_PKG = $(UVM_HOME)/uvm_pkg.sv
 
-VERILATOR_SRCS = -f $(TB_FILELIST)
+# coverage.vlt: no coverage instrumentation for the testbench, the UVM
+# library and Verilator's own sources (design-only coverage).
+VERILATOR_SRCS = $(SIM_DIR)/coverage.vlt -f $(TB_FILELIST)
 
 ###############################################################################
 # Targets
@@ -506,6 +511,8 @@ coverage_report:
 	printf '%s\n' $$files; \
 	$(VERILATOR_COVERAGE) --write "$(COVERAGE_MERGED)" $$files; \
 	$(VERILATOR_COVERAGE) --write-info "$(COVERAGE_INFO)" $$files; \
+	lcov --quiet --remove "$(COVERAGE_INFO)" $(COVERAGE_EXCLUDE) \
+		--output-file "$(COVERAGE_INFO)"; \
 	lcov --summary "$(COVERAGE_INFO)" | tee "$(COVERAGE_SUMMARY)"; \
 	genhtml "$(COVERAGE_INFO)" --output-directory "$(COVERAGE_HTML_DIR)" --title "CPU Verilator code coverage" --quiet
 

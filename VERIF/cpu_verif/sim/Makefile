@@ -514,6 +514,8 @@ coverage_report:
 	lcov --quiet --remove "$(COVERAGE_INFO)" $(COVERAGE_EXCLUDE) \
 		--output-file "$(COVERAGE_INFO)"; \
 	lcov --summary "$(COVERAGE_INFO)" | tee "$(COVERAGE_SUMMARY)"; \
+	python3 $(SIM_DIR)/../scripts/coverage_summary.py "$(COVERAGE_MERGED)" \
+		--out "$(COVERAGE_DIR)/coverage_by_type.txt"; \
 	genhtml "$(COVERAGE_INFO)" --output-directory "$(COVERAGE_HTML_DIR)" --title "CPU Verilator code coverage" --quiet
 
 regression: check_uvm

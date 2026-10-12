@@ -20,6 +20,8 @@ module apb_slave #(
    output logic          o_pslverr,
    output logic          o_pready,
 
+   output logic          o_irq_en,      // CTRL[16] : interrupt enable (pclk domain)
+
    input  logic i2c_busy,
    input  logic i2c_done,
    output logic          fifo_wr_en,
@@ -48,6 +50,14 @@ module apb_slave #(
    localparam  STATUS_OFFSET = 8'h14;
    localparam  TXDATA_OFFSET = 8'h18;
    localparam  RXDATA_OFFSET = 8'h1C;
+
+   // CTRL register interrupt-enable bit. Written only when PSTRB[2]=1
+   // (byte 2 of the CTRL write); independent of the command fields
+   // [15:8] and of ctrl_valid.
+   localparam  IRQ_EN_BIT    = 16;
+
+   logic irq_en_q;
+   assign o_irq_en = irq_en_q;
 
    logic [DW-1:0] ctrl_reg;
    logic [DW-1:0] txdata_reg;
@@ -227,6 +237,7 @@ module apb_slave #(
    always_ff @(posedge pclk or negedge presetn) begin
       if(!presetn) begin
          ctrl_reg   <= 32'h0000_0000;
+         irq_en_q   <= 1'b0;
          txdata_reg <= 8'h00;
          tx_valid   <= 1'b0;
          ctrl_valid <= 1'b0;
@@ -236,6 +247,7 @@ module apb_slave #(
          if (in_pready && psel_in && i_pwrite && i_penable) begin
             case(reg_addr)
                CTRL_OFFSET: begin
+                  if (i_pstrb[2]) irq_en_q <= i_pwdata[IRQ_EN_BIT];
                   if (i_pstrb[1]) begin
                      ctrl_reg   <= {24'b0, i_pwdata[15:8]};
                      ctrl_valid <= 1'b1;
@@ -285,7 +297,10 @@ module apb_slave #(
       o_prdata = '0;
       if (req_rd) begin
          case (reg_addr)
-            CTRL_OFFSET:   o_prdata = ctrl_reg;
+            CTRL_OFFSET:   begin
+                              o_prdata = ctrl_reg;
+                              o_prdata[IRQ_EN_BIT] = irq_en_q;
+                           end
             STATUS_OFFSET: o_prdata = status_reg;
             TXDATA_OFFSET: o_prdata = txdata_reg;
             RXDATA_OFFSET: o_prdata = rxdata_reg;

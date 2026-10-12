@@ -184,6 +184,15 @@ TEST_ID      ?= 41
 else ifeq ($(TEST),bp_dv_042_plic_reg_test)
 TCNAME       ?= plic_reg_access
 TEST_ID      ?= 42
+else ifeq ($(TEST),bp_dv_043_bus_error_test)
+TCNAME       ?= bus_error
+TEST_ID      ?= 43
+else ifeq ($(TEST),bp_dv_044_axi_backpressure_test)
+TCNAME       ?= axi_backpressure
+TEST_ID      ?= 44
+else ifeq ($(TEST),bp_dv_045_axi_resp_fifo_full_test)
+TCNAME       ?= axi_backpressure
+TEST_ID      ?= 45
 else ifeq ($(TEST),bp_i2c_write_read_test)
 TCNAME       ?= i2c_write_read
 TEST_ID      ?= 27
@@ -342,7 +351,7 @@ VERILATOR_SRCS = -f $(TB_FILELIST)
 # Targets
 ###############################################################################
 
-.PHONY: all compile sim run build print_exe regression coverage_report wave check_uvm sim_info clean help
+.PHONY: all compile sim run build print_exe regression coverage_report coverage_holes wave check_uvm sim_info clean help
 
 all: compile sim
 
@@ -452,7 +461,7 @@ sim: $(TCNAME).nbf check_uvm
 		2>&1 | $(SIM_DISPLAY_FILTER) | tee -a $(SIM_LOG)
 	@if [ -f coverage.dat ]; then \
 		mkdir -p $(COVERAGE_DIR); \
-		mv -f coverage.dat $(COVERAGE_DIR)/$(TCNAME).dat; \
+		mv -f coverage.dat $(COVERAGE_DIR)/$(TEST)__$(TCNAME).dat; \
 	else \
 		echo "WARNING: Verilator did not produce coverage.dat"; \
 	fi
@@ -568,7 +577,7 @@ regression: check_uvm
 			echo ">>> PASS: $$t (NBF=$$nbf)"; \
 		fi; \
 		if [ -f coverage.dat ]; then \
-			mv -f coverage.dat "$(COVERAGE_DIR)/$$tcname.dat"; \
+			mv -f coverage.dat "$(COVERAGE_DIR)/$${t}__$$tcname.dat"; \
 		else \
 			echo ">>> FAIL: no coverage.dat generated for $$tcname"; \
 			fail=1; \
@@ -586,6 +595,16 @@ regression: check_uvm
 ###############################################################################
 # Waveforms
 ###############################################################################
+
+# Coverage holes: signals that never toggled (tied to a constant) and
+# lines/branches/conditions never hit, per RTL file, from the merged
+# coverage (run after make regression / coverage_report).
+#   HOLES_SCOPE = integration (bridges, masters, FIFO, PLIC, cpu_top) |
+#                 design (all RTL) | all (also testbench + UVM)
+HOLES_SCOPE ?= integration
+coverage_holes:
+	python3 $(SIM_DIR)/../scripts/coverage_holes.py $(COVERAGE_MERGED) \
+		$(COVERAGE_DIR)/holes --scope $(HOLES_SCOPE)
 
 # PLIC-only waveform: Verilator always dumps the whole design to
 # sim/cpu_tb_top.vcd, so cut the PLIC path out of it afterwards into
@@ -681,6 +700,8 @@ help:
 	@echo "  make regression"
 	@echo "      Also merges RTL code coverage and writes logs/coverage/"
 	@echo "  make coverage_report"
+	@echo "  make coverage_holes [HOLES_SCOPE=integration|design|all]"
+	@echo "      Lists never-toggled signals and never-hit lines/branches"
 	@echo "      Merge existing per-test coverage.dat files"
 	@echo ""
 	@echo "WAVEFORM"

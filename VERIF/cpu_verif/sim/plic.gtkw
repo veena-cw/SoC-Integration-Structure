@@ -1,0 +1,167 @@
+[*] BP-DV-042 PLIC view - open with: make wave_plic
+[dumpfile] "plic.vcd"
+[timestart] 15000000
+[size] 1600 900
+[pos] -1 -1
+*-21.000000 15000000 -1
+[treeopen] cpu_tb_top.
+[sst_width] 260
+[signals_width] 420
+[sst_expanded] 1
+[sst_vpaned_height] 260
+@200
+-Clocks / reset
+@28
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.core_clk_i
+@28
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic_ahb_clk_i
+@28
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.reset_n
+@28
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.ahb_rstn
+@200
+-CPU -> PLIC  core0 request
+@28
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.core0_fwd_v_i
+@28
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.core0_fwd_ready_and_o
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.core0_fwd_header_i[64:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.core0_fwd_data_i[127:0]
+@200
+-CPU -> PLIC  core1 request
+@28
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.core1_fwd_v_i
+@28
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.core1_fwd_ready_and_o
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.core1_fwd_header_i[64:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.core1_fwd_data_i[127:0]
+@200
+-Arbiter
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.arb_req[1:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.arb_grant[1:0]
+@28
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.sel_core1
+@28
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.txn_busy_r
+@28
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.granted_core_r
+@200
+-AHB bridge (BedRock side)
+@28
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic_bridge.mem_fwd_v_i
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic_bridge.mem_fwd_header_i[64:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic_bridge.mem_fwd_data_i[127:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic_bridge.cur_state[5:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic_bridge.req_offset[39:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic_bridge.flit_data_r[127:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic_bridge.m_wdata[31:0]
+@200
+-AHB bus  bridge -> PLIC
+@28
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.ahb_hsel
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.ahb_htrans[1:0]
+@28
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.ahb_hwrite
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.ahb_hsize[2:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.ahb_haddr_full[39:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.ahb_hwdata[31:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.ahb_hrdata[31:0]
+@28
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.ahb_hreadyout
+@28
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.ahb_hresp
+@200
+-PLIC registers
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic.el[63:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic.ie[0][63:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic.ie[1][63:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic.ie[2][63:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic.ie[3][63:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic.th[0][2:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic.th[1][2:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic.th[2][2:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic.th[3][2:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic.id[0][6:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic.id[1][6:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic.id[2][6:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic.id[3][6:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic.ip[63:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic.claim[3:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic.complete[3:0]
+@200
+-AHB bridge read data  (lane bug: HRDATA only in [31:0])
+@28
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic_bridge.m_resp_v
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic_bridge.m_rdata[31:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic_bridge.read_accum_r[127:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic_bridge.bridge_rev_data[127:0]
+@200
+-PLIC -> CPU  core0 response
+@28
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.core0_rev_v_o
+@28
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.core0_rev_ready_and_i
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.core0_rev_header_o[64:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.core0_rev_data_o[127:0]
+@200
+-PLIC -> CPU  core1 response
+@28
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.core1_rev_v_o
+@28
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.core1_rev_ready_and_i
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.core1_rev_header_o[64:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.core1_rev_data_o[127:0]
+@200
+-Interrupts
+@22
+cpu_tb_top.dut.u_bp.m.multicore.plic_src_i[63:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.shared_plic.plic_irq_o[3:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.plic_irq_core_sync2[3:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.plic_m_external_irq_li[1:0]
+@22
+cpu_tb_top.dut.u_bp.m.multicore.plic_s_external_irq_li[1:0]
+@200
+-

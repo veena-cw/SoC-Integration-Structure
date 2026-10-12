@@ -147,5 +147,25 @@ bp_dv_041_bitmanip_shadd_test 41 bitmanip_shadd.nbf
 # (c/plic_reg_access.c).
 bp_dv_042_plic_reg_test 42 plic_reg_access.nbf
 
+# BP-DV-043 - AXI SLVERR (0x3003_xxxx) / DECERR (0x3004_xxxx) on uncached
+# sd/ld from both harts; expects store/load access faults (mcause 7/5,
+# mtval = address) and a working bus afterwards. Nonzero tohost per hart:
+# 0x4300 | failure bits (c/bus_error.c); 0x435e = errors ignored.
+bp_dv_043_bus_error_test 43 bus_error.nbf
+
+# BP-DV-044 - Bridge FIFOs under AXI back-pressure: READY low 32 cycles after
+# each handshake, B/R delayed 16 cycles; back-to-back sd bursts (AXI) and sw
+# bursts (PLIC) from both harts, read back and compared. Fails if the AXI
+# request FIFO never became full. Nonzero tohost per hart:
+# (first_bad << 16) | 0x4400 | (plic_bad << 7) | mismatches.
+bp_dv_044_axi_backpressure_test 44 axi_backpressure.nbf
+
+# BP-DV-045 - AXI bridge response FIFO full (white-box): same program as
+# BP-DV-044 without back-pressure; cpu_tb_top forces the bridge's
+# mem_rev_v_o low for 3000 core cycles from the first store to 0x3005_xxxx.
+# Every store must complete and read back intact; fails if the response
+# FIFO never became full.
+bp_dv_045_axi_resp_fifo_full_test 45 axi_backpressure.nbf
+
 # Supplemental CPU smoke test retained from earlier development
 bp_dv_007_load_add_store_test 9  load_add_store.nbf

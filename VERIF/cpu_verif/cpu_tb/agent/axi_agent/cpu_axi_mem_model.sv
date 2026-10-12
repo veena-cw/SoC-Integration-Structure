@@ -10,6 +10,19 @@ class cpu_axi_mem_model #(
   localparam longint unsigned I2C_CMD_ADDR = 64'h3001_0000;
   static byte unsigned i2c_last_data;
 
+  // Error-injection windows (set by cpu_axi_agent_driver from the test's
+  // config): writes inside them are answered with SLVERR/DECERR and are
+  // not stored. err_size == 0 disables both.
+  static longint unsigned slverr_base;
+  static longint unsigned decerr_base;
+  static longint unsigned err_size;
+
+  static function bit in_err_window(input longint unsigned addr);
+    return (err_size != 0) &&
+           ((addr >= slverr_base && addr < slverr_base + err_size) ||
+            (addr >= decerr_base && addr < decerr_base + err_size));
+  endfunction
+
   function new(string name = "cpu_axi_mem_model");
     super.new(name);
   endfunction
@@ -53,6 +66,8 @@ class cpu_axi_mem_model #(
     int unsigned     lanes;
     int unsigned     i2c_lane;
 
+    if (in_err_window(addr))
+      return;
     lanes = lane_bytes(awsize);
     base  = longint'(addr) - byte_lane(addr, awsize);
     for (int unsigned lane = 0; lane < lanes; lane++) begin

@@ -823,6 +823,175 @@ class bp_dv_042_plic_reg_test extends bp_base_test;
   endtask
 endclass
 
+// Test ID: BP-DV-043 | Feature: AXI SLVERR/DECERR on uncached MMIO accesses
+// (both harts). The AXI agent answers 0x3003_0000-0x3003_1FFF with SLVERR
+// and 0x3004_0000-0x3004_1FFF with DECERR; the CPU is expected to raise a
+// load/store access fault (see c/bus_error.c).
+class bp_dv_043_bus_error_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_043_bus_error_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  function void build_phase(uvm_phase phase);
+    uvm_config_db#(longint unsigned)::set(this, "env.axi_agt.driver", "slverr_base", 64'h3003_0000);
+    uvm_config_db#(longint unsigned)::set(this, "env.axi_agt.driver", "decerr_base", 64'h3004_0000);
+    uvm_config_db#(longint unsigned)::set(this, "env.axi_agt.driver", "err_size",    64'h2000);
+    super.build_phase(phase);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    bus_error_test_seq seq;
+    bit timeout;
+
+    phase.raise_objection(this);
+    apply_cpu_reset();
+    seq = bus_error_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        #(200us);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("BP043_TIMEOUT",
+                 "BP-DV-043 did not write tohost within 200 us (core hung on a bus error?)")
+
+    phase.drop_objection(this);
+  endtask
+endclass
+
+// Test ID: BP-DV-044 | Feature: bridge FIFOs under AXI back-pressure (both
+// harts). The AXI agent holds READY low for 32 AXI cycles after every
+// handshake and delays B/R by 16 cycles; back-to-back MMIO and PLIC stores
+// must fill the bridge request FIFO and still arrive intact (see
+// c/axi_backpressure.c). Fails if the AXI request FIFO never became full.
+class bp_dv_044_axi_backpressure_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_044_axi_backpressure_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  function void build_phase(uvm_phase phase);
+    uvm_config_db#(int unsigned)::set(this, "env.axi_agt.driver", "bp_stall",      32);
+    uvm_config_db#(int unsigned)::set(this, "env.axi_agt.driver", "bp_resp_delay", 16);
+    super.build_phase(phase);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    axi_backpressure_test_seq seq;
+    bit timeout;
+
+    phase.raise_objection(this);
+    apply_cpu_reset();
+    seq = axi_backpressure_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        #(500us);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("BP044_TIMEOUT",
+                 "BP-DV-044 did not write tohost within 500 us (hang under back-pressure?)")
+
+    phase.drop_objection(this);
+  endtask
+
+  function void check_phase(uvm_phase phase);
+    string names[4] = '{"axi_req", "axi_resp", "ahb_req", "ahb_resp"};
+    int unsigned n;
+    super.check_phase(phase);
+    foreach (names[i]) begin
+      n = 0;
+      void'(uvm_config_db#(int unsigned)::get(this, "", {"fifo_full_", names[i]}, n));
+      `uvm_info("BP044_FIFO", $sformatf("%s FIFO became full %0d time(s)", names[i], n), UVM_NONE)
+      if (names[i] == "axi_req" && n == 0)
+        `uvm_error("BP044_NOT_FULL",
+                   "AXI request FIFO never became full - back-pressure did not reach the FIFO")
+    end
+  endfunction
+endclass
+
+// Test ID: BP-DV-045 | Feature: AXI bridge response FIFO full (white-box).
+// Same program as BP-DV-044 (c/axi_backpressure.c), no AXI back-pressure.
+// cpu_tb_top forces bp_bedrock_axi4_bridge.mem_rev_v_o low for 3000 core
+// cycles from the first store to 0x3005_xxxx, so responses pile up in the
+// response FIFO; after release every store must complete and read back
+// intact. Fails if the response FIFO never became full.
+class bp_dv_045_axi_resp_fifo_full_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_045_axi_resp_fifo_full_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  function void build_phase(uvm_phase phase);
+    // Read by the response-stall injector in cpu_tb_top. No AXI
+    // back-pressure: the bridge produces responses at full speed.
+    uvm_config_db#(int unsigned)::set(this, "", "resp_stall_cycles", 3000);
+    uvm_config_db#(int unsigned)::set(this, "", "resp_stall_region", 32'h3005);
+    super.build_phase(phase);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    axi_backpressure_test_seq seq;
+    bit timeout;
+
+    phase.raise_objection(this);
+    apply_cpu_reset();
+    seq = axi_backpressure_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        #(500us);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("BP045_TIMEOUT",
+                 "BP-DV-045 did not write tohost within 500 us (lost response after the stall?)")
+
+    phase.drop_objection(this);
+  endtask
+
+  function void check_phase(uvm_phase phase);
+    int unsigned n;
+    super.check_phase(phase);
+    n = 0;
+    void'(uvm_config_db#(int unsigned)::get(this, "", "fifo_full_axi_resp", n));
+    `uvm_info("BP045_FIFO", $sformatf("axi_resp FIFO became full %0d time(s)", n), UVM_NONE)
+    if (n == 0)
+      `uvm_error("BP045_NOT_FULL",
+                 "AXI response FIFO never became full during the forced response stall")
+  endfunction
+endclass
+
 // Supplemental I2C model smoke test (BP-DV-027, outside the supplied plan).
 class bp_i2c_write_read_test extends bp_base_test;
   `uvm_component_utils(bp_i2c_write_read_test)

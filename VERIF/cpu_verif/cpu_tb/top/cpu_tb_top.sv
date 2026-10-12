@@ -712,6 +712,84 @@ module cpu_tb_top
   end
 
   // --------------------------------------------------------------------
+  // Bridge FIFO-full monitor: counts how often (events = rising edges) and
+  // how long (core-clock cycles) each bridge FIFO is full, logs every
+  // rising edge ("FIFO FULL ...") and publishes the event counts to the
+  // test through uvm_config_db ("fifo_full_<name>", on uvm_test_top).
+  //   axi_req  : CPU -> AXI request FIFO   (bp_bedrock_axi4_bridge)
+  //   axi_resp : AXI -> CPU response FIFO
+  //   ahb_req  : CPU -> PLIC request FIFO  (bp_bedrock_ahb3lite_bridge)
+  //   ahb_resp : PLIC -> CPU response FIFO
+  // --------------------------------------------------------------------
+  localparam int NUM_BRIDGE_FIFOS = 4;
+  string       fifo_name   [NUM_BRIDGE_FIFOS] = '{"axi_req", "axi_resp", "ahb_req", "ahb_resp"};
+  bit          fifo_full_q [NUM_BRIDGE_FIFOS];
+  int unsigned fifo_full_events [NUM_BRIDGE_FIFOS];
+  longint unsigned fifo_full_cycles [NUM_BRIDGE_FIFOS];
+
+  always @(posedge clk) begin : bridge_fifo_full_monitor
+    bit full_now [NUM_BRIDGE_FIFOS];
+    full_now[0] = dut.u_bridge.req_fifo_full;
+    full_now[1] = dut.u_bridge.resp_fifo_full;
+    full_now[2] = dut.u_bp.m.multicore.shared_plic.plic_bridge.req_fifo_full;
+    full_now[3] = dut.u_bp.m.multicore.shared_plic.plic_bridge.resp_fifo_full;
+    if (reset) begin
+      for (int i = 0; i < NUM_BRIDGE_FIFOS; i++) begin
+        if (full_now[i]) begin
+          fifo_full_cycles[i]++;
+          if (!fifo_full_q[i]) begin
+            fifo_full_events[i]++;
+            uvm_config_db#(int unsigned)::set(null, "uvm_test_top",
+                                              {"fifo_full_", fifo_name[i]},
+                                              fifo_full_events[i]);
+            $display("FIFO FULL %s event=%0d time=%0t",
+                     fifo_name[i], fifo_full_events[i], $time);
+          end
+        end
+        fifo_full_q[i] = full_now[i];
+      end
+    end
+  end
+
+  // --------------------------------------------------------------------
+  // White-box response stall (BP-DV-045; off unless the test sets
+  // "resp_stall_cycles" on uvm_test_top through uvm_config_db).
+  // At the first AXI write to resp_stall_addr (default 0x3005_0000 region,
+  // compared on addr[31:16]) bp_bedrock_axi4_bridge.mem_rev_v_o is forced
+  // to 0 for resp_stall_cycles core cycles: the core sees no response and
+  // the bridge does not pop its response FIFO (r_en = v && ready), so
+  // responses accumulate while the bridge keeps serving queued requests.
+  // Released afterwards; the queued responses then drain normally.
+  // --------------------------------------------------------------------
+  initial begin : resp_stall_injector
+    int unsigned stall_cycles;
+    int unsigned stall_region;
+    stall_cycles = 0;
+    stall_region = 32'h3005;
+    #1;
+    void'(uvm_config_db#(int unsigned)::get(null, "uvm_test_top", "resp_stall_cycles", stall_cycles));
+    void'(uvm_config_db#(int unsigned)::get(null, "uvm_test_top", "resp_stall_region", stall_region));
+    if (stall_cycles != 0) begin
+      do @(posedge axi_clk);
+      while (!(reset && cpu_axi_vif.m_axi_awvalid && cpu_axi_vif.m_axi_awready
+               && (cpu_axi_vif.m_axi_awaddr[31:16] == stall_region[15:0])));
+      $display("RESP STALL start: mem_rev_v_o forced 0 for %0d core cycles (axi_resp full events so far=%0d) time=%0t",
+               stall_cycles, fifo_full_events[1], $time);
+      force dut.u_bridge.mem_rev_v_o = 1'b0;
+      repeat (stall_cycles) @(posedge clk);
+      release dut.u_bridge.mem_rev_v_o;
+      $display("RESP STALL end: released (axi_resp full events=%0d, full cycles=%0d) time=%0t",
+               fifo_full_events[1], fifo_full_cycles[1], $time);
+    end
+  end
+
+  final begin
+    for (int i = 0; i < NUM_BRIDGE_FIFOS; i++)
+      $display("FIFO FULL summary %-8s events=%0d cycles=%0d",
+               fifo_name[i], fifo_full_events[i], fifo_full_cycles[i]);
+  end
+
+  // --------------------------------------------------------------------
   // AXI W log: each W beat with its strobe. "written" is what a byte-lane
   // slave stores (the WDATA bytes whose WSTRB bit is set, packed from the
   // lowest set lane); "expected" is the store data at the MMIO lane

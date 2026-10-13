@@ -75,6 +75,7 @@
 
 # ---------- Tests ----------
 ../tests/uart_base_test.sv
+../tests/uart_apb_test.sv
 ../tests/uart_smoke_test.sv
 ../tests/uart_reg_access_test.sv
 ../tests/uart_apb_transaction_test.sv

@@ -104,8 +104,12 @@ module lpddr5c_top #(
     //========================================================================
     // DFI 5.0 Interface to PHY
     //========================================================================
-    output wire                         dfi_clk,
-    output wire                         dfi_rst_n,
+     //    output wire                         dfi_clk,
+    //    output wire                         dfi_rst_n,
+    
+      input wire                         dfi_clk,
+      input wire                         dfi_rst_n,
+    
     
     // Command Interface
     output wire [CS_WIDTH*NUM_CHANNELS-1:0]    dfi_cs_n,
@@ -250,10 +254,10 @@ logic [7:0] awlen_q;
     wire                                  training_error;
     
     // Low power signals
-    wire                                  lp_req_pd;
+   // wire                                  lp_req_pd;
     wire                                  lp_req_sr;
     wire                                  lp_req_ds;
-    wire                                  lp_ack;
+ //   wire                                  lp_ack;
     wire                                  lp_state [0:3];
     
     // Refresh signals

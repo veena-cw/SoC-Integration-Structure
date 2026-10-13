@@ -992,6 +992,94 @@ class bp_dv_045_axi_resp_fifo_full_test extends bp_base_test;
   endfunction
 endclass
 
+// Test ID: BP-DV-046 | Feature: L1/L2 conflict thrashing with dirty
+// evictions to DRAM (both harts). 10 lines 64 KiB apart per group overflow
+// the 8-way L1 set and the 4-way L2 set; 32 groups per hart across both
+// tiles and both L2 slices, written, read back, rewritten in reverse order
+// and read back again (see c/l2_thrash.c).
+class bp_dv_046_l2_thrash_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_046_l2_thrash_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    l2_thrash_test_seq seq;
+    bit timeout;
+
+    phase.raise_objection(this);
+    apply_cpu_reset();
+    seq = l2_thrash_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        #(1ms);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("BP046_TIMEOUT", "BP-DV-046 did not write tohost within 1 ms")
+
+    phase.drop_objection(this);
+  endtask
+endclass
+
+// Test ID: BP-DV-047 | Feature: L1-uncached DRAM accesses (paddr bit 32 set)
+// executed by the L2 as B/H/W/D stores and loads, in the L2-uncached
+// (op + AFLINV) and L2-cached windows, both harts (see c/l2_uncached_ops.c).
+class bp_dv_047_l2_uncached_ops_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_047_l2_uncached_ops_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    l2_uncached_ops_test_seq seq;
+    bit timeout;
+
+    phase.raise_objection(this);
+    apply_cpu_reset();
+    seq = l2_uncached_ops_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        #(300us);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("BP047_TIMEOUT", "BP-DV-047 did not write tohost within 300 us")
+
+    phase.drop_objection(this);
+  endtask
+endclass
+
+// Test ID: BP-DV-048 | Feature: AMOs to L1-uncached DRAM (both L2 windows,
+// both harts; c/l2_uncached_amo.c). Currently times out: the core hangs on
+// the first uncached AMO instead of executing it in the L2 or trapping.
+class bp_dv_048_l2_uncached_amo_test extends bp_dv_047_l2_uncached_ops_test;
+  `uvm_component_utils(bp_dv_048_l2_uncached_amo_test)
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+endclass
+
 // Supplemental I2C model smoke test (BP-DV-027, outside the supplied plan).
 class bp_i2c_write_read_test extends bp_base_test;
   `uvm_component_utils(bp_i2c_write_read_test)

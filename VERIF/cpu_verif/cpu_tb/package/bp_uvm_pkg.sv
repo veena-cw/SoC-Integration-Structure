@@ -73,6 +73,8 @@ package bp_uvm_pkg;
   `include "plic_reg_test_seq.sv"
   `include "bus_error_test_seq.sv"
   `include "axi_backpressure_test_seq.sv"
+  `include "l2_thrash_test_seq.sv"
+  `include "l2_uncached_ops_test_seq.sv"
   `include "bitmanip_test_seq.sv"
   `include "scoreboard.sv"
   `include "bp_env.sv"

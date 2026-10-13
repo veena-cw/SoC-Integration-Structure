@@ -193,6 +193,15 @@ TEST_ID      ?= 44
 else ifeq ($(TEST),bp_dv_045_axi_resp_fifo_full_test)
 TCNAME       ?= axi_backpressure
 TEST_ID      ?= 45
+else ifeq ($(TEST),bp_dv_046_l2_thrash_test)
+TCNAME       ?= l2_thrash
+TEST_ID      ?= 46
+else ifeq ($(TEST),bp_dv_047_l2_uncached_ops_test)
+TCNAME       ?= l2_uncached_ops
+TEST_ID      ?= 47
+else ifeq ($(TEST),bp_dv_048_l2_uncached_amo_test)
+TCNAME       ?= l2_uncached_amo
+TEST_ID      ?= 48
 else ifeq ($(TEST),bp_i2c_write_read_test)
 TCNAME       ?= i2c_write_read
 TEST_ID      ?= 27
@@ -366,7 +375,7 @@ all: compile sim
 
 compile: $(TCNAME).nbf
 
-$(TCNAME).elf: $(C_DIR)/$(TCNAME).c $(C_DIR)/link.ld $(C_DIR)/dual_core.h $(wildcard $(C_DIR)/cbo_ops.c $(C_DIR)/axi_block_dual_core.c $(C_DIR)/vm_sv39.c)
+$(TCNAME).elf: $(C_DIR)/$(TCNAME).c $(C_DIR)/link.ld $(C_DIR)/dual_core.h $(wildcard $(C_DIR)/cbo_ops.c $(C_DIR)/axi_block_dual_core.c $(C_DIR)/vm_sv39.c $(C_DIR)/l2_uncached_ops.c)
 	@mkdir -p $(LOG_DIR)
 	@echo "=================================================="
 	@echo " Compiling RISC-V C test"

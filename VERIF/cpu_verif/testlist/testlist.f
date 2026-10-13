@@ -167,5 +167,22 @@ bp_dv_044_axi_backpressure_test 44 axi_backpressure.nbf
 # FIFO never became full.
 bp_dv_045_axi_resp_fifo_full_test 45 axi_backpressure.nbf
 
+# BP-DV-046 - L1/L2 conflict thrashing: 10 lines 64 KiB apart per group
+# (> 8 L1 ways, > 4 L2 ways), 32 groups per hart over both tiles and both
+# L2 slices; write / read / reverse write / read. Dirty evictions L1->L2 and
+# L2->DRAM. Nonzero tohost per hart:
+# (pass << 24) | (first_bad_line << 12) | 0x400 | mismatches (c/l2_thrash.c).
+bp_dv_046_l2_thrash_test 46 l2_thrash.nbf
+
+# BP-DV-047 - L1-uncached DRAM (paddr bit 32 set): sb/sh/sw/sd and signed /
+# unsigned loads executed in the L2, in the L2-uncached window 0x1_0070_0000
+# (op + AFLINV) and the L2-cached window 0x1_8078_0000.
+# Nonzero tohost per hart: (traps << 16) | 0x4700 | (window << 7) | check.
+bp_dv_047_l2_uncached_ops_test 47 l2_uncached_ops.nbf
+
+# BP-DV-048 - BP-DV-047 plus all AMOs (.w/.d) to L1-uncached DRAM. Currently
+# FAILS (timeout): the core hangs on the first uncached AMO (Jira).
+bp_dv_048_l2_uncached_amo_test 48 l2_uncached_amo.nbf
+
 # Supplemental CPU smoke test retained from earlier development
 bp_dv_007_load_add_store_test 9  load_add_store.nbf

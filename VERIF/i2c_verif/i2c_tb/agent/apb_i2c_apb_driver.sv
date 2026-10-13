@@ -50,6 +50,7 @@ class apb_i2c_apb_driver extends uvm_driver #(apb_i2c_apb_item);
     forever begin
       seq_item_port.get_next_item(req);
       drive(req);
+     // drive_enable(req)
       seq_item_port.item_done();
     end
   endtask
@@ -124,4 +125,65 @@ class apb_i2c_apb_driver extends uvm_driver #(apb_i2c_apb_item);
     vif.psel    <= 0;
     vif.penable <= 0;
   endtask
+  
+  
+  
+task drive_enable(apb_i2c_apb_item tr);
+   // Ensure clean flag at start
+    tr.aborted_by_reset = 1'b0;
+    // 1. Before starting transaction - handles initial reset already asserted (no negedge needed)
+    if (rst_vif != null && !rst_vif.rst_n) begin
+      reset_signals();
+      wait (rst_vif.rst_n === 1'b1);
+      tr.aborted_by_reset = 1'b1;
+      `uvm_info(get_type_name(), "Reset before IDLE - transaction aborted, will resume next item after deassert", UVM_MEDIUM)
+      return;
+    end
+    // IDLE
+    vif.psel    <= 0;
+    vif.penable <= 0;
+    vif.pwrite  <= 0;
+    vif.paddr   <= '0;
+    vif.pwdata  <= '0;
+    vif.pstrb   <= '0;
+ //    vif.i2c_irq_en <= '0;
+    @(posedge vif.pclk);
+    // 2. After IDLE clock
+    if (rst_vif != null && !rst_vif.rst_n) begin
+      reset_signals();
+      wait (rst_vif.rst_n === 1'b1);
+      tr.aborted_by_reset = 1'b1;
+      return;
+    end
+    // ACCESS 
+    vif.paddr   <= tr.paddr;
+    vif.pwrite  <= tr.pwrite;
+    if (tr.pwrite) vif.pwdata <= tr.pwdata;
+    vif.pstrb   <= tr.pstrb;
+    vif.psel    <= 1;
+    vif.penable <= 1;
+     vif.psel    <= 1;
+    @(posedge vif.pclk);
+    // 4. During ACCESS while waiting for PREADY - check each cycle
+    while (!vif.pready) begin
+      if (rst_vif != null && !rst_vif.rst_n) begin
+        reset_signals();
+        wait (rst_vif.rst_n === 1'b1);
+        tr.aborted_by_reset = 1'b1;
+        `uvm_warning(get_type_name(), "Reset during ACCESS wait for PREADY - transaction aborted")
+        return;
+      end
+      @(posedge vif.pclk);
+    end
+    // 5. Before completing transaction
+    if (rst_vif != null && !rst_vif.rst_n) begin
+      reset_signals();
+      wait (rst_vif.rst_n === 1'b1);
+      tr.aborted_by_reset = 1'b1;
+      return;
+    end
+    if (!tr.pwrite) tr.prdata = vif.prdata;
+    tr.pslverr = vif.pslverr;
+
+endtask 
 endclass

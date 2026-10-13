@@ -1002,47 +1002,6 @@ int poll_count;
       UVM_MEDIUM
     )
 
- model.TXDATA_REG.write(
-      status,
-      tx_data,
-      UVM_FRONTDOOR
-    );
-    
-model.CTRL_REG.write(
-	      status,
-	      ctrl_value,
-	      UVM_FRONTDOOR
-	    );
-  //repeat(1) begin
-    model.TXDATA_REG.write(
-      status,
-      tx_data,
-      UVM_FRONTDOOR
-    );
-   /* model.CTRL_REG.write(
-	      status,
-	      ctrl_value,
-	      UVM_FRONTDOOR
-	    );*/
-    
-   // end
-    
-model.CTRL_REG.write(
-	      status,
-	      ctrl_value,
-	      UVM_FRONTDOOR
-	    );
-  
-    model.TXDATA_REG.write(
-      status,
-      tx_data,
-      UVM_FRONTDOOR);
-      
-      model.CTRL_REG.write(
-	      status,
-	      ctrl_value,
-	      UVM_FRONTDOOR
-	    );
   
     model.TXDATA_REG.write(
       status,
@@ -2690,7 +2649,9 @@ class apb_i2c_reg_write_push_seq extends apb_i2c_ral_base_seq;
 
 
 
+
 repeat(5) begin
+
 
 
 

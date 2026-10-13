@@ -6,3 +6,5 @@ uart_error_test
 uart_irq_gen_test
 uart_spec_test
 uart_stress_test
+uart_reset_test
+uart_baud_gen_test

@@ -2,7 +2,7 @@
 # AXI4 -> USB Integration RTL
 # ==========================================
 
-$REPO_ROOT/DSN/ip/memory_io/usb/dsn/rtl/axi4_usb_slave_top.sv
+$REPO_ROOT/DSN/ip/memory_io/usb/dsn/rtl/axi4_usb_slave.sv
 $REPO_ROOT/DSN/ip/memory_io/usb/ip/axi_slave/rtl/axi4_slave.sv
 
 # ==========================================

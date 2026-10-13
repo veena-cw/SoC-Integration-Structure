@@ -523,7 +523,7 @@ module axi4_to_apb_bridge_cdc #(
 								axi_state <= A_WR_PUSH_CMD;
 							end
 							else begin
-								sub_cnt_r <= '0';
+								sub_cnt_r <= '0;
 
 								if (beat_cnt_r == len_r) begin
 									bid_r     <= id_r;
@@ -655,6 +655,10 @@ always_comb begin
     logic [APB_DATA_WIDTH-1:0]  p_wdata_r;
     logic                       p_err_r;
     logic [APB_DATA_WIDTH-1:0]  p_rdata_r;
+     always_comb begin
+        resp_wr_en   = (apb_state == P_PUSH_RESP) && !resp_full;
+        resp_data_in = {p_err_r, p_rdata_r};
+    end
 
     always_ff @(posedge PCLK or negedge PRESETn) begin
         if (!PRESETn) begin
@@ -680,15 +684,20 @@ always_comb begin
                     // one-cycle APB SETUP phase, always moves on
                     apb_state <= P_ACCESS;
                 end
-
-                P_ACCESS: begin
-                    if (PREADY) begin
-                        p_err_r   <= PSLVERR;
-                        p_rdata_r <= PRDATA;
-                        apb_state <= P_PUSH_RESP;
-                    end
-                end
-
+		P_ACCESS: begin
+		    if (!apb_addr_valid) begin
+			// Invalid/unmapped address: generate an error response.
+			p_err_r   <= 1'b1;
+			p_rdata_r <= '0;
+			apb_state <= P_PUSH_RESP;
+		    end
+		    else if (PREADY) begin
+			// Valid address: complete the APB transaction normally.
+			p_err_r   <= PSLVERR;
+			p_rdata_r <= PRDATA;
+			apb_state <= P_PUSH_RESP;
+		    end
+		end
                 /*P_PUSH_RESP: begin
                     // resp_wr_en (comb, below) is high whenever we're here and
                     // !resp_full, so the push happens on this same edge.
@@ -714,6 +723,7 @@ always_comb begin
 default:apb_state <= P_IDLE;
 	endcase
 	end
+	end
     //-------------------------------------------------------------------
     // Slave-select decode, integrated into the bridge.
     // apb_slave_decoder itself is pure address decode with no notion of
@@ -721,41 +731,77 @@ default:apb_state <= P_IDLE;
     // line pulse while the bridge is actually in SETUP/ACCESS driving
     // the shared PADDR/PWDATA/PWRITE bus at it.
     //-------------------------------------------------------------------
-    logic psel_active;
- 
-assign psel_active =((apb_state == P_SETUP) || (apb_state == P_ACCESS)) && (|p_wstrb_r);
-    logic spi_psel_dec, i2c_psel_dec, uart_psel_dec, gpio_psel_dec,
-          mipi_psel_dec, hdmi_psel_dec, timer_psel_dec, debug_psel_dec;
+   logic psel_active;
 
-    apb_slave_decoder u_apb_slave_decoder (
-        .addr       (p_addr_r),
-        .spi_psel   (spi_psel_dec),
-        .i2c_psel   (i2c_psel_dec),
-        .uart_psel  (uart_psel_dec),
-        .gpio_psel  (gpio_psel_dec),
-        .mipi_psel  (mipi_psel_dec),
-        .hdmi_psel  (hdmi_psel_dec),
-        .timer_psel (timer_psel_dec),
-        .debug_psel (debug_psel_dec)
-    );
+logic spi_psel_dec;
+logic i2c_psel_dec;
+logic uart_psel_dec;
+logic gpio_psel_dec;
+logic mipi_psel_dec;
+logic hdmi_psel_dec;
+logic timer_psel_dec;
+logic debug_psel_dec;
 
-    // APB-side combinational outputs / FIFO handshake
-    always_comb begin
+// --------------------------------------------------
+// Check whether the address matches a valid APB slave
+// --------------------------------------------------
+logic apb_addr_valid;
+
+assign apb_addr_valid =
+       spi_psel_dec
+     | i2c_psel_dec
+     | uart_psel_dec
+     | gpio_psel_dec
+     | mipi_psel_dec
+     | hdmi_psel_dec
+     | timer_psel_dec
+     | debug_psel_dec;
+
+// --------------------------------------------------
+// APB transaction select
+// --------------------------------------------------
+assign psel_active =
+    (apb_state == P_SETUP) ||
+    (apb_state == P_ACCESS);
+/*
+// --------------------------------------------------
+// APB transaction select
+// --------------------------------------------------
+assign psel_active =
+    ((apb_state == P_SETUP) || (apb_state == P_ACCESS))
+    && (|p_wstrb_r); */
+
+// --------------------------------------------------
+// APB slave decoder instance
+// --------------------------------------------------
+apb_slave_decoder u_apb_slave_decoder (
+    .addr       (p_addr_r),
+    .spi_psel   (spi_psel_dec),
+    .i2c_psel   (i2c_psel_dec),
+    .uart_psel  (uart_psel_dec),
+    .gpio_psel  (gpio_psel_dec),
+    .mipi_psel  (mipi_psel_dec),
+    .hdmi_psel  (hdmi_psel_dec),
+    .timer_psel (timer_psel_dec),
+    .debug_psel (debug_psel_dec)
+);
+
+
+
+// APB-side combinational outputs / FIFO handshake
+always_comb begin
     PADDR  = p_addr_r;
     PWRITE = p_write_r;
     PPROT  = p_prot_r;
 
-    if (|p_wstrb_r) begin
-        PSTRB   = p_wstrb_r;
-        PWDATA  = p_wdata_r;
-        PENABLE = (apb_state == P_ACCESS);
-    end
-    else begin
-        PSTRB   = '0;
-        PWDATA  = '0;
-        PENABLE = 1'b0;
-    end
+    // Write data and strobes
+    PSTRB  = p_wstrb_r;
+    PWDATA = p_wdata_r;
 
+    // Enable APB access for both reads and writes
+    PENABLE = (apb_state == P_ACCESS);
+
+    // APB peripheral selects
     spi_psel   = psel_active & spi_psel_dec;
     i2c_psel   = psel_active & i2c_psel_dec;
     uart_psel  = psel_active & uart_psel_dec;
@@ -765,7 +811,6 @@ assign psel_active =((apb_state == P_SETUP) || (apb_state == P_ACCESS)) && (|p_w
     timer_psel = psel_active & timer_psel_dec;
     debug_psel = psel_active & debug_psel_dec;
 end
-
     //-------------------------------------------------------------------
     // Simulation-only protocol checks (no synthesis impact)
     //-------------------------------------------------------------------

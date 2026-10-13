@@ -156,7 +156,7 @@ module uart_apb_top(
       {thr_reg_vld, thr_reg} <= 33'h0;
     else if (apb_access_valid && PWRITE &&
              (addr == ADDR_THR))
-      {thr_reg_vld, thr_reg} <= {1'b1, PWDATA[31:0]};
+    {thr_reg_vld, thr_reg} <= {1'b1,23'h0, PWDATA[8:0]};
   end
 
   //=====================================================

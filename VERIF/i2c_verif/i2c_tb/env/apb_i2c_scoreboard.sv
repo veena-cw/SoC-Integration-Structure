@@ -171,7 +171,7 @@ class apb_i2c_scoreboard extends uvm_component;
       if (rg.get_name() == "CTRL_REG") begin
 
         // Replace READ_WRITE_BIT with actual field position
-        i2c_rw = tr.pwdata[15];
+        i2c_rw = tr.pwdata[7];
 	  rxdata_pushed = 1'b0;
 
         `uvm_info(
@@ -341,7 +341,7 @@ class apb_i2c_scoreboard extends uvm_component;
       if (rg.get_name() == "RXDATA_REG") begin
 
 
-        if (status_done && !status_slave_error && !rxdata_pushed) begin
+        if (status_done && !status_slave_error && !rxdata_pushed && i2c_rw  ) begin
 
 
           tr_copy =

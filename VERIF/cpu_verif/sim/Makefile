@@ -202,6 +202,15 @@ TEST_ID      ?= 47
 else ifeq ($(TEST),bp_dv_048_l2_uncached_amo_test)
 TCNAME       ?= l2_uncached_amo
 TEST_ID      ?= 48
+else ifeq ($(TEST),bp_dv_049_smp_coherence_test)
+TCNAME       ?= smp_coherence
+TEST_ID      ?= 49
+else ifeq ($(TEST),bp_dv_050_csr_sweep_test)
+TCNAME       ?= csr_sweep
+TEST_ID      ?= 50
+else ifeq ($(TEST),bp_dv_051_debug_mode_test)
+TCNAME       ?= debug_mode
+TEST_ID      ?= 51
 else ifeq ($(TEST),bp_i2c_write_read_test)
 TCNAME       ?= i2c_write_read
 TEST_ID      ?= 27

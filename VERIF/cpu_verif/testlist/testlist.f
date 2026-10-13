@@ -184,5 +184,30 @@ bp_dv_047_l2_uncached_ops_test 47 l2_uncached_ops.nbf
 # FAILS (timeout): the core hangs on the first uncached AMO (Jira).
 bp_dv_048_l2_uncached_amo_test 48 l2_uncached_amo.nbf
 
+# BP-DV-049 - Two-core coherence stress: upgrade/sharer invalidation and
+# owner transfer, ping-pong on one line, false sharing with eviction of
+# owned lines (one L1 set), I$-sharer invalidation, and uncached-mode
+# (dcache_mode) access to lines the other core owns. Progress markers at
+# 0x0010_8300 (+0x10 per hart). Phases 6-8: replacement + sharer
+# invalidation / owner transfer, concurrent upgrades, concurrent miss
+# streams. Nonzero tohost per hart: (phase << 8) |
+# detail (c/smp_coherence.c).
+bp_dv_049_smp_coherence_test 49 smp_coherence.nbf
+
+# BP-DV-050 - CSR sweep on both harts: identity CSRs, read-only write
+# traps, WARL fields, S-mode views, counters/mcountinhibit, fcsr aliasing,
+# FS=Off trap, PMP, unknown CSRs, U-mode counter-enable/privilege. Summary
+# word at 0x0010_8700 (+0x10 per hart). Nonzero tohost per hart:
+# (fail_count << 16) | 0x5000 | first failing check (c/csr_sweep.c).
+bp_dv_050_csr_sweep_test 50 csr_sweep.nbf
+
+# BP-DV-051 - Debug Mode from software on both harts: debug vector via cfg
+# NPC, ebreak with dcsr.ebreakm, halt request via CLINT debug register
+# (0x0030_D000 + 8*hart), single step, exception in Debug Mode -> vector+8,
+# dret (and dret outside Debug Mode traps), dcsr fields. Progress markers at
+# 0x0010_8800. Nonzero tohost per hart:
+# (fail_count << 16) | 0x5100 | first failing check (c/debug_mode.c).
+bp_dv_051_debug_mode_test 51 debug_mode.nbf
+
 # Supplemental CPU smoke test retained from earlier development
 bp_dv_007_load_add_store_test 9  load_add_store.nbf

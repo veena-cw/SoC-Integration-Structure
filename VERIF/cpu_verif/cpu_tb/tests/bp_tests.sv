@@ -1080,6 +1080,126 @@ class bp_dv_048_l2_uncached_amo_test extends bp_dv_047_l2_uncached_ops_test;
   endfunction
 endclass
 
+// Test ID: BP-DV-049 | Feature: two-core coherence stress - upgrade and
+// sharer invalidation, owner transfer, ping-pong, false sharing with
+// eviction of owned lines, I$ sharer invalidation, and uncached (dcache_mode)
+// access to lines the other core owns (see c/smp_coherence.c).
+class bp_dv_049_smp_coherence_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_049_smp_coherence_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    smp_coherence_test_seq seq;
+    bit timeout;
+
+    phase.raise_objection(this);
+    apply_cpu_reset();
+    seq = smp_coherence_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        #(1ms);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("BP049_TIMEOUT",
+                 "BP-DV-049 did not write tohost within 1 ms (see progress markers at 0x0010_8300)")
+
+    phase.drop_objection(this);
+  endtask
+endclass
+
+// Test ID: BP-DV-050 | Feature: CSR read/write sweep on both harts -
+// identity CSRs, read-only write traps, WARL fields (misa, satp MODE,
+// medeleg[11]), S-mode views (sstatus/sie/sip), counters and
+// mcountinhibit, fcsr aliasing and FS=Off trap, PMP, unknown CSRs, and
+// U-mode counter-enable / privilege checks (see c/csr_sweep.c).
+class bp_dv_050_csr_sweep_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_050_csr_sweep_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    csr_sweep_test_seq seq;
+    bit timeout;
+
+    phase.raise_objection(this);
+    apply_cpu_reset();
+    seq = csr_sweep_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        #(200us);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("BP050_TIMEOUT", "BP-DV-050 did not write tohost within 200 us")
+
+    phase.drop_objection(this);
+  endtask
+endclass
+
+// Test ID: BP-DV-051 | Feature: RISC-V Debug Mode on both harts, entered
+// from software: ebreak with dcsr.ebreakm, halt request through the CLINT
+// debug register, single step; exception inside Debug Mode to vector+8;
+// dret; dcsr fields (see c/debug_mode.c).
+class bp_dv_051_debug_mode_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_051_debug_mode_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    debug_mode_test_seq seq;
+    bit timeout;
+
+    phase.raise_objection(this);
+    apply_cpu_reset();
+    seq = debug_mode_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        #(200us);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("BP051_TIMEOUT",
+                 "BP-DV-051 did not write tohost within 200 us (see progress markers at 0x0010_8800)")
+
+    phase.drop_objection(this);
+  endtask
+endclass
+
 // Supplemental I2C model smoke test (BP-DV-027, outside the supplied plan).
 class bp_i2c_write_read_test extends bp_base_test;
   `uvm_component_utils(bp_i2c_write_read_test)

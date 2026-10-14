@@ -156,7 +156,7 @@ module uart_apb_top(
       {thr_reg_vld, thr_reg} <= 33'h0;
     else if (apb_access_valid && PWRITE &&
              (addr == ADDR_THR))
-    {thr_reg_vld, thr_reg} <= {1'b1,23'h0, PWDATA[8:0]};
+      {thr_reg_vld, thr_reg} <= {1'b1,23'h0, PWDATA[8:0]};
   end
 
   //=====================================================
@@ -184,7 +184,7 @@ module uart_apb_top(
   //=====================================================
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n)
-      {sr_reg_vld, sr_reg} <= 33'h0;
+      {sr_reg_vld, sr_reg} <= 33'h00000005;
     else
       {sr_reg_vld, sr_reg} <=
         {1'b1,
@@ -266,7 +266,7 @@ module uart_apb_top(
   //=====================================================
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n)
-      {isr_reg_vld, isr_reg} <= 33'h0;
+      {isr_reg_vld, isr_reg} <= 33'h00000005;
     else if (apb_access_valid && !PWRITE &&
              (addr == ADDR_ISR))
       {isr_reg_vld, isr_reg} <= 33'h0;

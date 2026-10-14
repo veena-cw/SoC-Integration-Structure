@@ -333,7 +333,10 @@ assign s_axi_arqos   = 4'b0000;
 assign s_axi_awready = (wr_state == WR_IDLE) &&
                        !ar_pending &&
                        !bvalid_q &&
-                       (lp_state != 4'b0010);
+	(lp_state != 4'b0010) &&
+	(lp_state != 4'b0011)&&
+	(lp_state != 4'b1010)
+	;
 
 assign s_axi_arready = (wr_state == WR_IDLE) &&
                        !aw_pending &&

@@ -38,7 +38,11 @@ UVM_PKG  := $(UVM_SRC)/uvm_pkg.sv
 FILELIST := $(SIM_DIR)/usb_tb_filelist.f
 
 TOP      := usbh_top_tb
+<<<<<<< HEAD
 TESTNAME ?= IN_updated_test
+=======
+TESTNAME ?= pid_data0_test
+>>>>>>> 7f0cd74 (Modified i2c usb)
 
 ################################################################################
 # Verilator
@@ -81,9 +85,7 @@ REGRESSION_DIR  := $(VERILATOR_LOG_DIR)/regression
 # One test name per line.
 #
 # Example:
-#   apb_i2c_reg_write_test
-#   apb_i2c_reg_read_test
-#   apb_i2c_reset_test
+
 #
 REGRESSION_LIST ?= $(SIM_DIR)/regression_tests.f
 
@@ -119,7 +121,6 @@ $(VERILATOR_STAMP): $(FILELIST)
 
 	cd $(SIM_DIR) && \
 	$(VERILATOR) \
-	$(COVERAGE_CFG) \
 		--binary \
 		--timing \
 		--trace \

@@ -1002,13 +1002,54 @@ int poll_count;
       UVM_MEDIUM
     )
 
-
+ model.TXDATA_REG.write(
+      status,
+      tx_data,
+      UVM_FRONTDOOR
+    );
+    
+model.CTRL_REG.write(
+	      status,
+	      ctrl_value,
+	      UVM_FRONTDOOR
+	    );
+  //repeat(1) begin
     model.TXDATA_REG.write(
       status,
       tx_data,
       UVM_FRONTDOOR
     );
-
+   /* model.CTRL_REG.write(
+	      status,
+	      ctrl_value,
+	      UVM_FRONTDOOR
+	    );*/
+    
+   // end
+    
+model.CTRL_REG.write(
+	      status,
+	      ctrl_value,
+	      UVM_FRONTDOOR
+	    );
+  
+    model.TXDATA_REG.write(
+      status,
+      tx_data,
+      UVM_FRONTDOOR);
+      
+      model.CTRL_REG.write(
+	      status,
+	      ctrl_value,
+	      UVM_FRONTDOOR
+	    );
+  
+    model.TXDATA_REG.write(
+      status,
+      tx_data,
+      UVM_FRONTDOOR);
+      
+      
 
     if (status != UVM_IS_OK) begin
       `uvm_fatal(

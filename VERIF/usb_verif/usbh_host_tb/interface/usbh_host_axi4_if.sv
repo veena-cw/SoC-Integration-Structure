@@ -27,7 +27,7 @@
 //----------------------------------------------------------------------
 `timescale 1ns/1ps
 
-`include "usbh_host_pkg.sv"
+// `include "usbh_host_pkg.sv"
 import usbh_host_pkg::*;
  // Interface: usbh_host_axi4_if
  // Bundles the "axi4" signal group (18 signal(s)),
@@ -96,10 +96,17 @@ interface usbh_host_axi4_if (
 	    output cfg_awlen_i;
 	    output cfg_awsize_i;
 	    output cfg_awburst_i;
+<<<<<<< HEAD
 	    output cfg_awlock_i;
 	    output cfg_awcache_i;
 	    output cfg_awprot_i;
 	    output cfg_awqos_i;
+=======
+	    /*output cfg_awlock_i;
+	    output cfg_awcache_i;
+	    output cfg_awprot_i;
+	    output cfg_awqos_i;*/
+>>>>>>> 7f0cd74 (Modified i2c usb)
 	    input  cfg_awready_o;
 	    // W
 	    output cfg_wvalid_i;
@@ -119,10 +126,17 @@ interface usbh_host_axi4_if (
 	    output cfg_arlen_i;
 	    output cfg_arsize_i;
 	    output cfg_arburst_i;
+<<<<<<< HEAD
 	    output cfg_arlock_i;
 	    output cfg_arcache_i;
 	    output cfg_arprot_i;
 	    output cfg_arqos_i;
+=======
+	    /*output cfg_arlock_i;
+	    output cfg_arcache_i;
+	    output cfg_arprot_i;
+	    output cfg_arqos_i;*/
+>>>>>>> 7f0cd74 (Modified i2c usb)
 	    input  cfg_arready_o;
 	    // R
 	    output cfg_rready_i;
@@ -130,7 +144,10 @@ interface usbh_host_axi4_if (
 	    input  cfg_rvalid_o;
 	    input  cfg_rdata_o;
 	    input  cfg_rresp_o;
+<<<<<<< HEAD
 	    input  cfg_rid_o;
+=======
+>>>>>>> 7f0cd74 (Modified i2c usb)
 	    // Interrupt
 	    input  intr_o;
     endclocking
@@ -145,10 +162,17 @@ interface usbh_host_axi4_if (
 	    input cfg_awlen_i;
 	    input cfg_awsize_i;
 	    input cfg_awburst_i;
+<<<<<<< HEAD
 	    input cfg_awlock_i;
 	    input cfg_awcache_i;
 	    input cfg_awprot_i;
 	    input cfg_awqos_i;
+=======
+	    /*input cfg_awlock_i;
+	    input cfg_awcache_i;
+	    input cfg_awprot_i;
+	    input cfg_awqos_i;*/
+>>>>>>> 7f0cd74 (Modified i2c usb)
 	    input cfg_awready_o;
 	    // W
 	    input cfg_wvalid_i;
@@ -168,10 +192,17 @@ interface usbh_host_axi4_if (
 	    input cfg_arlen_i;
 	    input cfg_arsize_i;
 	    input cfg_arburst_i;
+<<<<<<< HEAD
 	    input cfg_arlock_i;
 	    input cfg_arcache_i;
 	    input cfg_arprot_i;
 	    input cfg_arqos_i;
+=======
+	    /*input cfg_arlock_i;
+	    input cfg_arcache_i;
+	    input cfg_arprot_i;
+	    input cfg_arqos_i;*/
+>>>>>>> 7f0cd74 (Modified i2c usb)
 	    input cfg_arready_o;
 	    // R
 	    input cfg_rready_i;
@@ -179,7 +210,10 @@ interface usbh_host_axi4_if (
 	    input cfg_rvalid_o;
 	    input cfg_rdata_o;
 	    input cfg_rresp_o;
+<<<<<<< HEAD
 	    input cfg_rid_o;
+=======
+>>>>>>> 7f0cd74 (Modified i2c usb)
 	    // Interrupt
 	    input intr_o;
     endclocking
@@ -189,3 +223,4 @@ interface usbh_host_axi4_if (
 
 endinterface : usbh_host_axi4_if
  
+

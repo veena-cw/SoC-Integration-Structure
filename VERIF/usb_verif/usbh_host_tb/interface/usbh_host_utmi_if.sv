@@ -27,7 +27,7 @@
 //----------------------------------------------------------------------
 `timescale 1ns/1ps
 
-`include "usbh_host_pkg.sv"
+//`include "usbh_host_pkg.sv"
 import usbh_host_pkg::*;
  // Interface: usbh_host_utmi_if
  // Bundles the "utmi" signal group (13 signal(s)),

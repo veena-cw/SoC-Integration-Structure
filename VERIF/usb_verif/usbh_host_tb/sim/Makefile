@@ -37,8 +37,8 @@ UVM_PKG  := $(UVM_SRC)/uvm_pkg.sv
 
 FILELIST := $(SIM_DIR)/usb_tb_filelist.f
 
-TOP      := test_top
-TESTNAME ?= pid_data0_test
+TOP      := usbh_top_tb
+TESTNAME ?= IN_updated_test
 
 ################################################################################
 # Verilator
@@ -462,7 +462,10 @@ vivado-elab: vivado-compile
 
 	cd $(SIM_DIR) && \
 	xelab $(TOP) \
-		-s $(TOP)_sim
+	-s $(TOP)_sim \
+	-L uvm \
+	--timescale 1ns/1ps 
+	
 
 
 ################################################################################
@@ -478,7 +481,7 @@ vivado: vivado-elab
 
 	cd $(SIM_DIR) && \
 	xsim $(TOP)_sim \
-		--gui \
+		--runall \
 		--testplusarg "UVM_TESTNAME=$(TESTNAME)"
 
 

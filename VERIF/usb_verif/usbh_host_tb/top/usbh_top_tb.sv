@@ -134,8 +134,10 @@ gtkwave usbh_top_tb.vcd
    
    //Device BFM Instance
    usb_device_bfm #(
+   .UTMI_CLK_HZ(48000000),
       .DEVICE_IFS_CLKS(7),
-      .MAX_IN_DATA(64)
+      .MAX_IN_DATA(64),
+      .EP0_MAX_PACKET_SIZE(8)
    ) device_bfm (
             .clk_i(usb_clk_i),
 	    .rst_i(usb_reset_i),
@@ -163,9 +165,17 @@ gtkwave usbh_top_tb.vcd
    initial aclk_i = 0;
    always #1.25 aclk_i = ~aclk_i;   // 400MHz; TODO: adjust to target frequency (2.5ns)
    // USB clock domain  : usb_clk    (250 MHz in the SoC)
-   initial usb_clk_i = 0;
-   always #2 usb_clk_i = ~usb_clk_i;   // 250MHz; TODO: adjust to target frequency (4ns)
+/*   initial usb_clk_i = 0;
+   always #2 usb_clk_i = ~usb_clk_i;   // 250MHz; TODO: adjust to target frequency (4ns)*/
    
+     // 48 MHz clock: period = 20.833333 ns
+// USB clock: 48 MHz
+initial usb_clk_i = 1'b0;
+always #10.416667ns usb_clk_i = ~usb_clk_i;
+/*
+initial usb_clk_i = 1'b0;
+always #8.3333335ns usb_clk_i = ~usb_clk_i;*/
+
    //RESET GENERATION 
    //Active Low Reset was used in the Design.(previously Active High)
    initial begin
@@ -178,8 +188,17 @@ gtkwave usbh_top_tb.vcd
        areset_i = 1'b1;
        repeat (5) @(posedge aclk_i);
        areset_i = 1'b0;
+       
    end   
    
+   
+   initial begin
+  wait (usb_reset_i == 1'b0);
+  #10ns;
+
+  device_bfm.setup_ep2_out_for_test();
+  device_bfm.setup_ep1_in_for_test();
+end
    initial begin
      $dumpfile("usbh_top_tb.vcd");
      $dumpvars(0, usbh_top_tb);

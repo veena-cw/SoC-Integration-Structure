@@ -106,7 +106,7 @@ module i2c_master (
     logic [7:0] clk_div;
     logic       i2c_tick;
     assign i2c_tick =
-            (clk_div == 8'd1);
+            (clk_div == 8'd249);
 
     //==========================================================
     // RX FIFO WRITE PULSE

@@ -258,7 +258,7 @@ logic [7:0] awlen_q;
     wire                                  lp_req_sr;
     wire                                  lp_req_ds;
  //   wire                                  lp_ack;
-    wire                                  lp_state [0:3];
+    wire [3:0]                                lp_state ;
     
     // Refresh signals
     wire [15:0]                           refresh_counter;
@@ -332,7 +332,8 @@ assign s_axi_arqos   = 4'b0000;
 
 assign s_axi_awready = (wr_state == WR_IDLE) &&
                        !ar_pending &&
-                       !bvalid_q;
+                       !bvalid_q &&
+                       (lp_state != 4'b0010);
 
 assign s_axi_arready = (wr_state == WR_IDLE) &&
                        !aw_pending &&
@@ -634,9 +635,9 @@ end
     //====================================================================
     // FIFO status -- unchanged
     //====================================================================
-    .rd_fifo_empty    (),
+    .rd_fifo_empty    (rd_fifo_empty),
     .rd_fifo_full     (),
-    .wr_fifo_empty    (),
+    .wr_fifo_empty    (wr_fifo_empty),
     .wr_fifo_full     ()
 );
     
@@ -695,12 +696,13 @@ end
         .lp_req_sr      (lp_req_sr),
         .lp_req_ds      (lp_req_ds),
         .lp_ack         (lp_ack),
-        .lp_state       (lp_state[0]),
+        .lp_state       (lp_state),
         .wakeup_req     (wakeup_req),
         .lp_idle(lp_idle),
         .wakeup_ack(wakeup_ack),
        
-        
+                 .rd_fifo_empty    (rd_fifo_empty),
+    .wr_fifo_empty    (wr_fifo_empty),
         // Status
         .idle_count     (),
         .sr_entry_count (),

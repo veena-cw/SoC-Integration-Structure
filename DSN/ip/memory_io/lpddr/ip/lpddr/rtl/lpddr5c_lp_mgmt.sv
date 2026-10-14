@@ -201,10 +201,10 @@ end
                 LP_PD: begin
                     cke_reg <= '0;
                     // Check for wakeup condition
-                    if ((wakeup_req & lp_req_pd == 0) & wr_fifo_empty & rd_fifo_empty & lp_idle ) begin
+                    if ((wakeup_req & lp_req_pd == 0) & wr_fifo_empty & rd_fifo_empty & lp_idle ) 
                         state <= LP_PD_EXIT;
-                    //    wakeup_ack_reg <= 1'b1;
-                    end
+                    else    state <= LP_PD;
+
                 end
                 LP_PD_EXIT: begin
                     // Assert CKE and wait tXP

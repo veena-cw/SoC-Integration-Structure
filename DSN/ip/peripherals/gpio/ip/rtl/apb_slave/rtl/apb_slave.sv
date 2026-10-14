@@ -1,504 +1,188 @@
-//module apb_slave #(
-//   //==========================================================
-//   // Configurable Parameters
-//   //==========================================================
-//   parameter DW = 32,
-//   parameter AW = 5,
-
-//   // Derived Parameter
-//   localparam SW = int'($ceil(DW/8))
-//)
-//(
-//   //==========================================================
-//   // Clock and Reset
-//   //==========================================================
-//   input  logic pclk,
-//   input  logic presetn,
-
-//   //==========================================================
-//   // APB Interface
-//   //==========================================================
-//   input  logic [AW-1:0] i_paddr,
-//   input  logic          i_pwrite,
-//   input  logic          i_psel,
-//   input  logic          i_penable,
-//   input  logic [DW-1:0] i_pwdata,
-//   input  logic [SW-1:0] i_pstrb,
-
-//   output logic [DW-1:0] o_prdata,
-//   output logic          o_pslverr,
-//   output logic          o_pready,
-      
-//   input logic i2c_busy, 
-//   input logic  i2c_done, 
-//   output logic          fifo_wr_en,
-//   output logic [DW-1:0] fifo_wr_data,
-//   input  logic          fifo_full,
-   
-//   input  logic [7:0]    i_rd_data,
-//   input logic slverr
-
-//);
-
-//   //==========================================================
-//   // State Machine
-//   //==========================================================
-
-//   typedef enum logic [1:0]
-//   {
-//      IDLE     = 2'b00,
-//      W_ACCESS = 2'b01,
-//      R_ACCESS = 2'b10,
-//      R_FINISH = 2'b11
-//   } state_t;
-
-//   state_t state_ff;
-
-
-//   //==========================================================
-//   // Address Configuration
-//   //==========================================================
-
-//   localparam ADDR_LSB = $clog2(DW/8);
-//   localparam N_REG    = 2**(AW-ADDR_LSB);
-
-
-//   //==========================================================
-  
-
-//   logic req_rd;
-//   logic req_wr;
-
-//   assign req_rd = i_psel && !i_pwrite;
-//   assign req_wr = i_psel &&  i_pwrite;
-//   assign fifo_wr_data = {16'b0 ,i_paddr[31:24],i_pwdata[7:0]};
-//   assign fifo_wr_en = ((state_ff == W_ACCESS) && req_wr && i_penable && (i2c_busy == 0) && !fifo_full)  ? 1 : 0;
-  
-
-//   always_comb begin
-
-//      o_pready = 1'b0;
-
-//      case (state_ff)
-//            IDLE: begin
-//            if (req_wr && i_penable && i_psel && !fifo_full && !i2c_busy)  begin
-//               o_pready = 1'b1;
-//            end
-//             if(slverr)
-//               o_pready = 1'b1;
-            
-//         end
-     
-//         W_ACCESS: begin
-//            if (req_wr && i_penable && !fifo_full && !i2c_busy) begin
-//               o_pready = 1'b1;
-//            end
-            
-               
-//         end
-
-      
-//         R_FINISH: begin
-//            o_pready = 1'b1;
-//         end
-
-//         default: begin
-//            o_pready = 1'b0;
-//         end
-
-//      endcase
-
-//   end
-// assign o_pslverr = (slverr) ? 1 : 0;
-
-// always_ff  @ (posedge pclk or negedge presetn) begin
- 
-//  if (!presetn) begin
-
-//      o_prdata = '0;
-//end
-//else begin
-//      if ((state_ff == R_ACCESS) ||
-//          (state_ff == R_FINISH)) begin
-
-//         o_prdata = {24'b0,i_rd_data};
-//        end
-//      end
-
-//   end
-
-
-//always_ff @(posedge pclk or negedge presetn) begin
-
-//      if (!presetn) begin
-
-//         state_ff <= IDLE;
-
-//      end
-//      else begin
-
-//         case (state_ff)
-
-//            //--------------------------------------------------
-//            // IDLE
-//            //--------------------------------------------------
-//            IDLE: begin
-
-//               if (req_wr) begin
-
-//                  state_ff <= W_ACCESS;
-
-//               end
-//               else if (req_rd) begin
-
-//                  state_ff <= R_ACCESS;
-
-//               end
-//               else begin
-
-//                  state_ff <= IDLE;
-
-//               end
-
-//            end
-
-
-//            //--------------------------------------------------
-//            // WRITE ACCESS
-//            //--------------------------------------------------
-//            W_ACCESS: begin
-
-//               if (req_wr && i_penable) begin
-
-//                  if (fifo_full || i2c_busy || i2c_done) begin
-
-//                     // Wait until FIFO has space
-//                     state_ff <= W_ACCESS;
-
-//                  end
-//                  else begin
-
-//                     // Write is completed
-//                     state_ff <= IDLE;
-
-//                  end
-
-//               end
-
-//            end
-
-
-//            //--------------------------------------------------
-//            // READ ACCESS
-//            //--------------------------------------------------
-//            R_ACCESS: begin
-
-//               if (req_rd && i_penable) begin
-
-//                  state_ff <= R_FINISH;
-
-//               end
-//               else begin
-
-//                  state_ff <= R_ACCESS;
-
-//               end
-
-//            end
-
-
-//            //--------------------------------------------------
-//            // READ FINISH
-//            //--------------------------------------------------
-//            R_FINISH: begin
-
-//               state_ff <= IDLE;
-
-//            end
-
-
-//            //--------------------------------------------------
-//            // DEFAULT
-//            //--------------------------------------------------
-//            default: begin
-
-//               state_ff <= IDLE;
-
-//            end
-
-//         endcase
-
-//      end
-
-//   end
-
-//endmodule
-
-
-module apb_slave_i2c #(
-   //==========================================================
-   // Configurable Parameters
-   //==========================================================
+//------------------------------------------------------------------------------
+// APB slave front-end for the GPIO block
+//   - Decodes the APB access and forwards it to the CDC bridge (req/done handshake)
+//   - Returns PSLVERR for: write to IN, read of SET/CLR, any unmapped offset
+//   - AW = 16 : offset inside the 64 KB GPIO window (base decode is done in top)
+//
+//   Offset  Register     Access
+//   0x00    IN           R
+//   0x04    OUT          R/W
+//   0x08    DIR          R/W
+//   0x0C    SET          W
+//   0x10    CLR          W
+//   0x14    IRQ_EN       R/W
+//   0x18    IRQ_STATUS   R / W1C
+//   others               PSLVERR
+//
+// PSTRB handling (done here only, the GPIO block always receives a full 32-bit word):
+//   - OUT / DIR / IRQ_EN : the slave keeps a shadow copy (out_sh, dir_sh, ien_sh).
+//                          Only the byte lanes with PSTRB=1 are updated, then the whole
+//                          shadow word is sent to the GPIO block.
+//   - SET / CLR / IRQ_STATUS(W1C) : disabled byte lanes are sent as 0, which has no effect.
+//   - PSTRB = 0 on a write : transfer completes without error and nothing is sent to GPIO.
+//   - Reads ignore PSTRB.
+//------------------------------------------------------------------------------
+module apb_slave #(
    parameter DW = 32,
-   parameter AW = 5,
+   parameter AW = 16,
+   localparam SW = DW/8
+)(
+   input  logic          pclk,
+   input  logic          presetn,
 
-   // Derived Parameter
-   localparam SW = int'($ceil(DW/8))
-)
-(
-   //==========================================================
-   // Clock and Reset
-   //==========================================================
-   input  logic pclk,
-   input  logic presetn,
-
-   //==========================================================
-   // APB Interface
-   //==========================================================
+   // APB interface
    input  logic [AW-1:0] i_paddr,
    input  logic          i_pwrite,
    input  logic          i_psel,
    input  logic          i_penable,
    input  logic [DW-1:0] i_pwdata,
-   input  logic [SW-1:0] i_pstrb,
-
+   input  logic [SW-1:0] i_pstrb,     // write byte-lane enables
    output logic [DW-1:0] o_prdata,
    output logic          o_pslverr,
    output logic          o_pready,
 
-   //==========================================================
-   // I2C / FIFO Interface
-   //==========================================================
-   input  logic          i2c_busy,
-   input  logic          i2c_done,
-   output logic          fifo_wr_en,
-   output logic [DW-1:0] fifo_wr_data,
-   input  logic          fifo_full,
-
-   input  logic [7:0]    i_rd_data,
-   input  logic          slverr
+   // Interface to CDC bridge
+   output logic          o_req,       // one-cycle pulse: start access
+   output logic          o_we,
+   output logic [31:0]   o_adr,       // byte address
+   output logic [DW-1:0] o_wdata,     // full-word write data (strobes already applied)
+   input  logic          i_done,      // one-cycle pulse: access finished
+   input  logic [DW-1:0] i_rdata
 );
 
-   //==========================================================
-   // Register Map  (ADDR_LSB = clog2(DW/8) = 2 -> word aligned)
-   //----------------------------------------------------------
-   // 0x00  CTRL_REG    (RW)  [7:0]  I2C_TARGET_ADDR
-   //                         [8]    RW_SEL (reserved, 0=wr/1=rd)
-   //                         [31:9] Reserved
-   //
-   // 0x04  STATUS_REG  (RO)  [0] BUSY   = i2c_busy
-   //                         [1] DONE   = i2c_done
-   //                         [2] FULL   = fifo_full
-   //                         [3] SLVERR = slverr
-   //
-   // 0x08  TX_DATA_REG (RW)  [7:0]  byte to transmit.
-   //        Writing this register is the "go" trigger: it pushes
-   //        {CTRL_REG target addr, this write's low byte} into
-   //        the I2C FIFO (once i2c_busy/fifo_full allow it).
-   //
-   // 0x0C  RX_DATA_REG (RO)  [7:0]  last byte received from I2C
-   //
-   // NOTE: register split (CTRL configures address, writing
-   // TX_DATA is what fires the transfer) is a design choice made
-   // to fit your existing FIFO-push logic - change it if your
-   // I2C engine expects a dedicated START/GO bit instead.
-   //==========================================================
+typedef enum logic [1:0] {IDLE, WAIT_GPIO, RESP} state_t;
+state_t state_ff;
 
-   localparam CTRL_IDX   = 0;
-   localparam STATUS_IDX = 1;
-   localparam TXDATA_IDX = 2;
-   localparam RXDATA_IDX = 3;
+localparam ADDR_LSB = $clog2(DW/8);
 
-   localparam ADDR_LSB = $clog2(DW/8);
+// Word indexes
+localparam IDX_IN   = 0;
+localparam IDX_OUT  = 1;
+localparam IDX_DIR  = 2;
+localparam IDX_SET  = 3;
+localparam IDX_CLR  = 4;
+localparam IDX_IEN  = 5;
+localparam IDX_ISTS = 6;
 
-   //==========================================================
-   // State Machine
-   //==========================================================
-   typedef enum logic [1:0]
-   {
-      IDLE     = 2'b00,
-      W_ACCESS = 2'b01,
-      R_ACCESS = 2'b10,
-      R_FINISH = 2'b11
-   } state_t;
+logic [AW-ADDR_LSB-1:0] widx;
+assign widx = i_paddr[AW-1:ADDR_LSB];
 
-   state_t state_ff;
+// Access error: write to IN / read of SET,CLR / unmapped offset
+logic acc_err;
+always_comb begin
+   if (i_pwrite)
+      acc_err = !(widx == IDX_OUT || widx == IDX_DIR  || widx == IDX_SET ||
+                  widx == IDX_CLR || widx == IDX_IEN  || widx == IDX_ISTS);
+   else
+      acc_err = !(widx == IDX_IN  || widx == IDX_OUT  || widx == IDX_DIR ||
+                  widx == IDX_IEN || widx == IDX_ISTS);
+end
 
-   logic [AW-1:ADDR_LSB] reg_idx;
-   assign reg_idx = i_paddr[AW-1:ADDR_LSB];
+// ---------------- Byte-lane write data ----------------
+// wdata_m : PWDATA with disabled byte lanes forced to 0
+logic [DW-1:0] wmask, wdata_m;
+always_comb begin
+   for (int i = 0; i < SW; i++)
+      wmask[8*i +: 8] = {8{i_pstrb[i]}};
+end
+assign wdata_m = i_pwdata & wmask;
 
-   logic req_rd, req_wr;
-   assign req_rd = i_psel && !i_pwrite;
-   assign req_wr = i_psel &&  i_pwrite;
+// Shadow copies of the read/write registers (always equal to the GPIO block's values,
+// since every write to them goes through this slave). Same reset value as the GPIO block.
+logic [DW-1:0] out_sh, dir_sh, ien_sh;
 
-   //==========================================================
-   // Stored (writable) registers
-   //==========================================================
-   logic [DW-1:0] ctrl_reg;
-   logic [DW-1:0] tx_data_reg;
+// Data sent to the GPIO block
+always_comb begin
+   o_wdata = wdata_m;                       // SET / CLR / IRQ_STATUS: disabled bytes are 0
+   case (widx)
+      IDX_OUT: o_wdata = out_sh;            // R/W registers: merged value, valid in the
+      IDX_DIR: o_wdata = dir_sh;            // cycle after the shadow is updated, which is
+      IDX_IEN: o_wdata = ien_sh;            // when o_req is high
+      default: ;
+   endcase
+end
 
-   //==========================================================
-   // Read-only / hardware-driven "registers"
-   //==========================================================
-   logic [DW-1:0] status_reg;
-   assign status_reg = {28'b0, slverr, fifo_full, i2c_done, i2c_busy};
+assign o_we  = i_pwrite;
+assign o_adr = {{(32-AW){1'b0}}, i_paddr[AW-1:ADDR_LSB], {ADDR_LSB{1'b0}}};
 
-   logic [DW-1:0] rx_data_reg;
-   assign rx_data_reg = {24'b0, i_rd_data};
-
-   //==========================================================
-   // Write completion / FIFO push
-   // (kept from original: a write only "completes" once the
-   //  I2C engine isn't busy and the FIFO has room - this is
-   //  what generates the APB wait states)
-   //==========================================================
-   logic wr_complete;
-   assign wr_complete = (state_ff == W_ACCESS) && req_wr && i_penable &&
-                         !i2c_busy && !fifo_full;
-
-   assign fifo_wr_en   = wr_complete && (reg_idx == TXDATA_IDX);
-   assign fifo_wr_data = {16'b0, ctrl_reg[7:0], i_pwdata[7:0]};
-
-   // Decode error: write to a read-only or undefined register
-   logic wr_err;
-   assign wr_err = wr_complete &&
-                   (reg_idx == STATUS_IDX || reg_idx == RXDATA_IDX ||
-                    reg_idx  > RXDATA_IDX);
-
-   //==========================================================
-   // PREADY generation
-   //==========================================================
-   always_comb begin
-      o_pready = 1'b0;
+always_ff @(posedge pclk) begin
+   if (!presetn) begin
+      state_ff  <= IDLE;
+      o_pready  <= 1'b0;
+      o_pslverr <= 1'b0;
+      o_prdata  <= '0;
+      o_req     <= 1'b0;
+      out_sh    <= '0;
+      dir_sh    <= '0;
+      ien_sh    <= '0;
+   end
+   else begin
+      o_req <= 1'b0;                       // default: pulse only
 
       case (state_ff)
+         // Wait for the APB access phase
          IDLE: begin
-            if (req_wr && i_penable && i_psel && !fifo_full && !i2c_busy)
-               o_pready = 1'b1;
-            if (slverr)
-               o_pready = 1'b1;
+            if (i_psel && i_penable) begin
+               if (acc_err) begin          // answer errors immediately
+                  o_pready  <= 1'b1;
+                  o_pslverr <= 1'b1;
+                  o_prdata  <= '0;
+                  state_ff  <= RESP;
+               end
+               else if (i_pwrite && (i_pstrb == '0)) begin
+                  // No byte lane enabled: nothing to write, complete without error
+                  o_pready  <= 1'b1;
+                  o_pslverr <= 1'b0;
+                  o_prdata  <= '0;
+                  state_ff  <= RESP;
+               end
+               else begin
+                  if (i_pwrite) begin
+                     case (widx)
+                        // Update only the enabled byte lanes of the shadow registers
+                        IDX_OUT: begin
+                           for (int i = 0; i < SW; i++)
+                              if (i_pstrb[i]) out_sh[8*i +: 8] <= i_pwdata[8*i +: 8];
+                        end
+                        IDX_DIR: begin
+                           for (int i = 0; i < SW; i++)
+                              if (i_pstrb[i]) dir_sh[8*i +: 8] <= i_pwdata[8*i +: 8];
+                        end
+                        IDX_IEN: begin
+                           for (int i = 0; i < SW; i++)
+                              if (i_pstrb[i]) ien_sh[8*i +: 8] <= i_pwdata[8*i +: 8];
+                        end
+                        // SET/CLR act on OUT, so keep out_sh in step
+                        IDX_SET: out_sh <= out_sh |  wdata_m;
+                        IDX_CLR: out_sh <= out_sh & ~wdata_m;
+                        default: ;
+                     endcase
+                  end
+                  o_req    <= 1'b1;        // start CDC access
+                  state_ff <= WAIT_GPIO;
+               end
+            end
          end
 
-         W_ACCESS: begin
-            if (req_wr && i_penable && !fifo_full && !i2c_busy)
-               o_pready = 1'b1;
+         // Wait for the GPIO side to finish (PREADY low = wait states)
+         WAIT_GPIO: begin
+            if (i_done) begin
+               o_pready <= 1'b1;
+               o_prdata <= i_pwrite ? '0 : i_rdata;
+               state_ff <= RESP;
+            end
          end
 
-         R_FINISH: begin
-            o_pready = 1'b1;
+         // PREADY is high for exactly one cycle
+         RESP: begin
+            o_pready  <= 1'b0;
+            o_pslverr <= 1'b0;
+            state_ff  <= IDLE;
          end
 
-         default: o_pready = 1'b0;
+         default: state_ff <= IDLE;
       endcase
    end
-
-   assign o_pslverr = slverr || wr_err;
-
-   //==========================================================
-   // Read data mux
-   //==========================================================
-   always_ff @(posedge pclk or negedge presetn) begin
-      if (!presetn) begin
-         o_prdata <= '0;
-      end
-      else if ((state_ff == R_ACCESS) || (state_ff == R_FINISH)) begin
-         case (reg_idx)
-            CTRL_IDX   : o_prdata <= ctrl_reg;
-            STATUS_IDX : o_prdata <= status_reg;
-            TXDATA_IDX : o_prdata <= tx_data_reg;
-            RXDATA_IDX : o_prdata <= rx_data_reg;
-            default    : o_prdata <= '0;
-         endcase
-      end
-   end
-
-   //==========================================================
-   // Writable register updates
-   //==========================================================
-   always_ff @(posedge pclk or negedge presetn) begin
-      if (!presetn) begin
-         ctrl_reg    <= '0;
-         tx_data_reg <= '0;
-      end
-      else if (wr_complete) begin
-         case (reg_idx)
-            CTRL_IDX   : ctrl_reg    <= i_pwdata;
-            TXDATA_IDX : tx_data_reg <= i_pwdata;
-            default    : ; // STATUS/RX writes are flagged via wr_err above
-         endcase
-      end
-   end
-
-   //==========================================================
-   // APB access state machine (unchanged from original)
-   //==========================================================
-   always_ff @(posedge pclk or negedge presetn) begin
-
-      if (!presetn) begin
-         state_ff <= IDLE;
-      end
-      else begin
-         case (state_ff)
-
-            //--------------------------------------------------
-            // IDLE
-            //--------------------------------------------------
-            IDLE: begin
-               if (req_wr) begin
-                  state_ff <= W_ACCESS;
-               end
-               else if (req_rd) begin
-                  state_ff <= R_ACCESS;
-               end
-               else begin
-                  state_ff <= IDLE;
-               end
-            end
-
-            //--------------------------------------------------
-            // WRITE ACCESS
-            //--------------------------------------------------
-            W_ACCESS: begin
-               if (req_wr && i_penable) begin
-                  if (fifo_full || i2c_busy) begin
-                     // Wait until FIFO has space / I2C free
-                     state_ff <= W_ACCESS;
-                  end
-                  else begin
-                     // Write is completed
-                     state_ff <= IDLE;
-                  end
-               end
-            end
-
-            //--------------------------------------------------
-            // READ ACCESS
-            //--------------------------------------------------
-            R_ACCESS: begin
-               if (req_rd && i_penable) begin
-                  state_ff <= R_FINISH;
-               end
-               else begin
-                  state_ff <= R_ACCESS;
-               end
-            end
-
-            //--------------------------------------------------
-            // READ FINISH
-            //--------------------------------------------------
-            R_FINISH: begin
-               state_ff <= IDLE;
-            end
-
-            //--------------------------------------------------
-            // DEFAULT
-            //--------------------------------------------------
-            default: begin
-               state_ff <= IDLE;
-            end
-
-         endcase
-      end
-   end
+end
 
 endmodule

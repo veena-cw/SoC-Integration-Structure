@@ -9,3 +9,12 @@
 */bp_common/src/v/bp_mmu.sv                     104-136  # TLB instance + entry register
 */bp_common/src/v/bp_mmu.sv                     177-190  # page-fault checks
 */bp_common/src/v/bp_mmu.sv                     204-206  # page-fault outputs
+
+# Hazard detector: dep_status producer kinds the decoder never creates
+# (bp_be_instr_decoder: pipe_mem_final only for FP loads, FP loads not in
+# the early pipe, no int-pipe / mul-pipe instruction writes the FP file, no
+# FMA-pipe instruction writes the int file)
+*/bp_be/src/v/bp_be_checker/bp_be_detector.sv  275-275  # eint_fwb (int pipe -> FP reg)
+*/bp_be/src/v/bp_be_checker/bp_be_detector.sv  277-277  # fint_fwb (int pipe -> FP reg)
+*/bp_be/src/v/bp_be_checker/bp_be_detector.sv  281-282  # emem_fwb, fmem_iwb
+*/bp_be/src/v/bp_be_checker/bp_be_detector.sv  285-286  # mul_fwb, fma_iwb

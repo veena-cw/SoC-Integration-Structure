@@ -5,7 +5,8 @@
  * 0x8000_0000 and run the whole test; each hart works in its own copy of
  * every memory region so the two runs do not interfere:
  *
- *   stack        : sp = 0x8000_4000 + mhartid * 1 MiB      (DUAL_CORE_STACK_INIT)
+ *   stack        : sp = 0x8000_4000 + mhartid * 1 MiB      (DUAL_CORE_STACK_INIT;
+ *                  DUAL_CORE_STACK_BASE overrides 0x8000_4000)
  *   DRAM data    : addr + mhartid * 1 MiB                   (HART_DRAM)
  *   AXI I/O data : addr + mhartid * 4 KiB                   (HART_IO)
  *
@@ -71,10 +72,21 @@ static inline void dual_fence(void)
 #define HART_DRAM(addr) ((uintptr_t)(addr) + hart_id() * HART_DRAM_STRIDE)
 #define HART_IO(addr)   ((uintptr_t)(addr) + hart_id() * HART_IO_STRIDE)
 
+/* Stack top for hart 0 (hart n: + n MiB); the stack grows down towards the
+ * program image. link.ld fails the link if the image reaches into the 4 KiB
+ * below it (__stack_floor, default 0x8000_3000). A program larger than that
+ * defines DUAL_CORE_STACK_BASE before including this file and sets
+ * __stack_floor accordingly (see hazard_chains.c). */
+#ifndef DUAL_CORE_STACK_BASE
+#define DUAL_CORE_STACK_BASE 0x80004000
+#endif
+#define DUAL_CORE_STR_(x) #x
+#define DUAL_CORE_STR(x)  DUAL_CORE_STR_(x)
+
 /* Use in place of "li sp, 0x80004000\n" in a naked _start. */
 #define DUAL_CORE_STACK_INIT \
   "csrr t0, mhartid\n"       \
-  "li sp, 0x80004000\n"      \
+  "li sp, " DUAL_CORE_STR(DUAL_CORE_STACK_BASE) "\n" \
   "slli t0, t0, 20\n"        \
   "add sp, sp, t0\n"
 

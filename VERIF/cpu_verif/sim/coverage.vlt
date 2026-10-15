@@ -14,3 +14,9 @@ coverage_off -file "*/bp_common/src/v/bp_tlb.sv"
 coverage_off -file "*/bp_common/src/v/bp_mmu.sv" -lines 104-136
 coverage_off -file "*/bp_common/src/v/bp_mmu.sv" -lines 177-190
 coverage_off -file "*/bp_common/src/v/bp_mmu.sv" -lines 204-206
+
+// Hazard detector: dep_status producer kinds the decoder never creates
+coverage_off -file "*/bp_be/src/v/bp_be_checker/bp_be_detector.sv" -lines 275-275
+coverage_off -file "*/bp_be/src/v/bp_be_checker/bp_be_detector.sv" -lines 277-277
+coverage_off -file "*/bp_be/src/v/bp_be_checker/bp_be_detector.sv" -lines 281-282
+coverage_off -file "*/bp_be/src/v/bp_be_checker/bp_be_detector.sv" -lines 285-286

@@ -79,6 +79,7 @@ package bp_uvm_pkg;
   `include "csr_sweep_test_seq.sv"
   `include "debug_mode_test_seq.sv"
   `include "isa_complete_test_seq.sv"
+  `include "hazard_chains_test_seq.sv"
   `include "bitmanip_test_seq.sv"
   `include "scoreboard.sv"
   `include "bp_env.sv"

@@ -214,6 +214,9 @@ TEST_ID      ?= 51
 else ifeq ($(TEST),bp_dv_052_isa_complete_test)
 TCNAME       ?= isa_complete
 TEST_ID      ?= 52
+else ifeq ($(TEST),bp_dv_053_hazard_chains_test)
+TCNAME       ?= hazard_chains
+TEST_ID      ?= 53
 else ifeq ($(TEST),bp_i2c_write_read_test)
 TCNAME       ?= i2c_write_read
 TEST_ID      ?= 27
@@ -243,7 +246,7 @@ UVM_RUN_ARGS += +verilator+error+limit+1000
 
 # Programs that need extra ISA extensions. Selected by program name (TCNAME)
 # so make sim and make regression (which compiles with TCNAME=...) agree.
-ifneq ($(filter $(TCNAME),fpu_ops isa_complete),)
+ifneq ($(filter $(TCNAME),fpu_ops isa_complete hazard_chains),)
 RISCV_MARCH  := rv64imafd
 endif
 ifneq ($(filter $(TCNAME),bitmanip_ops bitmanip_shadd),)

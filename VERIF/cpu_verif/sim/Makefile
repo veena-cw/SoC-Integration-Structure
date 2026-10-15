@@ -290,6 +290,14 @@ export BP_DIR REPO_ROOT CPU_DIR CPU_RTL_DIR CPU_FLIST UVM_HOME TB_DIR
 # Verilator configuration
 ###############################################################################
 
+# COVERAGE=0 builds without coverage instrumentation (faster build, less
+# memory; e.g. to check results with another Verilator). Use a separate
+# VERILATOR_BUILD_DIR, since the build itself differs.
+COVERAGE ?= 1
+ifeq ($(COVERAGE),1)
+COVERAGE_FLAGS := --coverage
+endif
+
 VERILATOR_FLAGS = \
 	--binary \
 	--sv \
@@ -301,7 +309,7 @@ VERILATOR_FLAGS = \
 	--timescale 1ns/1ps \
 	--trace \
 	--trace-depth 99 \
-	--coverage \
+	$(COVERAGE_FLAGS) \
 	--error-limit 100 \
 	--converge-limit 10000000 \
 	-j 2
@@ -491,7 +499,7 @@ sim: $(TCNAME).nbf check_uvm
 	@if [ -f coverage.dat ]; then \
 		mkdir -p $(COVERAGE_DIR); \
 		mv -f coverage.dat $(COVERAGE_DIR)/$(TEST)__$(TCNAME).dat; \
-	else \
+	elif [ "$(COVERAGE)" = "1" ]; then \
 		echo "WARNING: Verilator did not produce coverage.dat"; \
 	fi
 
@@ -612,12 +620,12 @@ regression: check_uvm
 		fi; \
 		if [ -f coverage.dat ]; then \
 			mv -f coverage.dat "$(COVERAGE_DIR)/$${t}__$$tcname.dat"; \
-		else \
+		elif [ "$(COVERAGE)" = "1" ]; then \
 			echo ">>> FAIL: no coverage.dat generated for $$tcname"; \
 			fail=1; \
 		fi; \
 	done < "$(REGR_FILE)"; \
-	$(MAKE) --no-print-directory coverage_report || fail=1; \
+	if [ "$(COVERAGE)" = "1" ]; then $(MAKE) --no-print-directory coverage_report || fail=1; fi; \
 	echo "=================================================="; \
 	if [ $$fail -eq 0 ]; then \
 		echo "REGRESSION PASSED"; \

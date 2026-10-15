@@ -215,5 +215,13 @@ bp_dv_050_csr_sweep_test 50 csr_sweep.nbf
 # (fail_count << 16) | 0x5100 | first failing check (c/debug_mode.c).
 bp_dv_051_debug_mode_test 51 debug_mode.nbf
 
+# BP-DV-052 - Instruction-decode completeness on both harts: lr.w/sc.w and
+# word AMOs, unsigned FP conversions, fsgnj/fsgnjx, wfi, fence.i
+# (self-modifying code), cmo.*.all (illegal on two cores), prefetch hints,
+# one illegal encoding per decoder group (mcause 2, mtval = instruction),
+# cbo.zero. Built with rv64imafd. Progress markers at 0x0010_8A00.
+# Nonzero tohost per hart: (fail_count << 16) | 0x5200 | first failing check.
+bp_dv_052_isa_complete_test 52 isa_complete.nbf
+
 # Supplemental CPU smoke test retained from earlier development
 bp_dv_007_load_add_store_test 9  load_add_store.nbf

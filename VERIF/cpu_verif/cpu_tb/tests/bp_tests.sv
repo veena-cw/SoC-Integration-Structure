@@ -1200,6 +1200,46 @@ class bp_dv_051_debug_mode_test extends bp_base_test;
   endtask
 endclass
 
+// Test ID: BP-DV-052 | Feature: instruction-decode completeness on both
+// harts - word LR/SC/AMOs, unsigned FP conversions, fsgnj/fsgnjx, wfi,
+// fence.i (self-modifying code), cmo.*.all, prefetch hints, one illegal
+// encoding per decoder group, cbo.zero (see c/isa_complete.c).
+class bp_dv_052_isa_complete_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_052_isa_complete_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    isa_complete_test_seq seq;
+    bit timeout;
+
+    phase.raise_objection(this);
+    apply_cpu_reset();
+    seq = isa_complete_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        #(200us);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("BP052_TIMEOUT",
+                 "BP-DV-052 did not write tohost within 200 us (see progress markers at 0x0010_8A00)")
+
+    phase.drop_objection(this);
+  endtask
+endclass
+
 // Supplemental I2C model smoke test (BP-DV-027, outside the supplied plan).
 class bp_i2c_write_read_test extends bp_base_test;
   `uvm_component_utils(bp_i2c_write_read_test)

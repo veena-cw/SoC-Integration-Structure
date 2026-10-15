@@ -230,5 +230,10 @@ bp_dv_052_isa_complete_test 52 isa_complete.nbf
 # (mismatch_count << 16) | first failing case + 1 (case list in the C file).
 bp_dv_053_hazard_chains_test 53 hazard_chains.nbf
 
+# BP-DV-054 - BP-DV-049 (c/smp_coherence.c) with random DRAM latency 1-24
+# cycles: separate simulator build obj_dir_cfg9_lat (BP_DV_024_LATENCY),
+# selected automatically by make sim / make regression for this test.
+bp_dv_054_smp_coherence_latency_test 54 smp_coherence.nbf
+
 # Supplemental CPU smoke test retained from earlier development
 bp_dv_007_load_add_store_test 9  load_add_store.nbf

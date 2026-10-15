@@ -52,6 +52,9 @@ BURST_ARGS =
 ifeq ($(TEST),bp_dv_024_dram_latency_test)
 DRAM_ARGS := +DRAM_LATENCY_MIN=1 +DRAM_LATENCY_MAX=8
 endif
+ifeq ($(TEST),bp_dv_054_smp_coherence_latency_test)
+DRAM_ARGS := +DRAM_LATENCY_MIN=1 +DRAM_LATENCY_MAX=24
+endif
 # BP-DV-025 no longer requires an AXI burst: by design the CPU -> AXI bridge
 # issues single-beat transactions only (checked in every test by the AXI
 # monitor, AXI_SINGLE_BEAT). Pass +REQUIRE_AXI_BURST=1 by hand to re-enable.
@@ -217,6 +220,9 @@ TEST_ID      ?= 52
 else ifeq ($(TEST),bp_dv_053_hazard_chains_test)
 TCNAME       ?= hazard_chains
 TEST_ID      ?= 53
+else ifeq ($(TEST),bp_dv_054_smp_coherence_latency_test)
+TCNAME       ?= smp_coherence
+TEST_ID      ?= 54
 else ifeq ($(TEST),bp_i2c_write_read_test)
 TCNAME       ?= i2c_write_read
 TEST_ID      ?= 27
@@ -259,7 +265,7 @@ endif
 LOG_DIR      := $(SIM_DIR)/logs
 COMPILE_LOG  := $(LOG_DIR)/compile.log
 SIM_LOG      := $(LOG_DIR)/simulation.log
-BUILD_LOG    := $(LOG_DIR)/build_cfg$(BP_CFG_ID).log
+BUILD_LOG     = $(LOG_DIR)/build_cfg$(BP_CFG_ID)$(BUILD_VARIANT).log
 REGR_DIR     := $(LOG_DIR)/regression
 COVERAGE_DIR := $(LOG_DIR)/coverage
 COVERAGE_MERGED := $(COVERAGE_DIR)/coverage.dat
@@ -284,8 +290,8 @@ CPU_FLIST    ?= $(CPU_DIR)/dsn/rtl/cpu_top.f
 TB_FILELIST  ?= $(SIM_DIR)/tb_filelist.f
 
 # Verilator build directory, one per BP configuration.
-VERILATOR_BUILD_DIR ?= $(SIM_DIR)/obj_dir_cfg$(BP_CFG_ID)
-VERILATOR_EXE       := $(VERILATOR_BUILD_DIR)/V$(TOP)
+VERILATOR_BUILD_DIR ?= $(SIM_DIR)/obj_dir_cfg$(BP_CFG_ID)$(BUILD_VARIANT)
+VERILATOR_EXE        = $(VERILATOR_BUILD_DIR)/V$(TOP)
 
 export BP_DIR REPO_ROOT CPU_DIR CPU_RTL_DIR CPU_FLIST UVM_HOME TB_DIR
 
@@ -356,15 +362,24 @@ ifdef BP_MULTICORE
 VERILATOR_DEFINES += -DBP_MULTICORE
 endif
 
-# BP-DV-020 needs only cache/DRAM traffic diagnostics; suppress unrelated ALU logs.
+# Tests that need a build-time define get their own simulator (build
+# variant), so they neither overwrite nor are run on the common build:
+#   _bp  : BP_DV_011_BACKPRESSURE - randomized DRAM request/response stalls
+#   _log : BP_DV_020_LOG          - cache/DRAM diagnostics, no ALU logs
+#   _lat : BP_DV_024_LATENCY      - random DRAM latency (+DRAM_LATENCY_MIN/MAX)
+# make regression picks the variant (and run arguments) per test row.
+BUILD_VARIANT :=
 ifeq ($(TEST),bp_dv_011_memory_backpressure_test)
 VERILATOR_DEFINES += -DBP_DV_011_BACKPRESSURE
+BUILD_VARIANT := _bp
 endif
 ifeq ($(TEST),bp_dv_020_cache_replacement_test)
 VERILATOR_DEFINES += -DBP_DV_020_LOG
+BUILD_VARIANT := _log
 endif
-ifeq ($(TEST),bp_dv_024_dram_latency_test)
+ifneq ($(filter $(TEST),bp_dv_024_dram_latency_test bp_dv_054_smp_coherence_latency_test),)
 VERILATOR_DEFINES += -DBP_DV_024_LATENCY
+BUILD_VARIANT := _lat
 endif
 
 VERILATOR_INCDIRS = \
@@ -519,6 +534,10 @@ build: check_uvm
 	set -o pipefail; $(VERILATOR_CMD) 2>&1 | tee $(BUILD_LOG)
 
 # Simulator path for the selected BP_CFG_ID (used by regression).
+# Test-specific run arguments for the selected TEST (used by regression).
+print_run_args:
+	@echo $(DRAM_ARGS) $(BURST_ARGS)
+
 print_exe:
 	@echo $(VERILATOR_EXE)
 
@@ -564,7 +583,7 @@ regression: check_uvm
 		exit 1; \
 	fi
 	@fail=0; \
-	built_cfgs=" "; \
+	built_exes=" "; \
 	while IFS= read -r line || [ -n "$$line" ]; do \
 		line=$$(echo "$$line" | sed 's/#.*//' | xargs); \
 		[ -z "$$line" ] && continue; \
@@ -580,12 +599,12 @@ regression: check_uvm
 		echo "=================================================="; \
 		echo "=== Running test: $$t (ID=$$test_id, NBF=$$nbf, cfg=$$cfg)"; \
 		echo "=================================================="; \
-		exe=$$($(MAKE) --no-print-directory -s print_exe BP_CFG_ID=$$cfg); \
-		if [ ! -f "$$exe" ] && [[ "$$built_cfgs" != *" $$cfg "* ]]; then \
+		exe=$$($(MAKE) --no-print-directory -s print_exe BP_CFG_ID=$$cfg TEST=$$t); \
+		if [ ! -f "$$exe" ] && [[ "$$built_exes" != *" $$exe "* ]]; then \
 			echo "Simulator for cfg=$$cfg not found ($$exe); building it"; \
-			$(MAKE) --no-print-directory build BP_CFG_ID=$$cfg > /dev/null 2>&1 \
-				|| echo "ERROR: build for cfg=$$cfg failed - see $(LOG_DIR)/build_cfg$$cfg.log"; \
-			built_cfgs="$$built_cfgs$$cfg "; \
+			$(MAKE) --no-print-directory build BP_CFG_ID=$$cfg TEST=$$t > /dev/null 2>&1 \
+				|| echo "ERROR: build for cfg=$$cfg failed - see $(LOG_DIR)/build_cfg$$cfg*.log"; \
+			built_exes="$$built_exes$$exe "; \
 		fi; \
 		if [ ! -f "$$exe" ]; then \
 			echo ">>> FAIL: $$t (no simulator for cfg=$$cfg)"; \
@@ -597,7 +616,7 @@ regression: check_uvm
 			fail=1; \
 			continue; \
 		fi; \
-		run_args=; \
+		run_args=$$($(MAKE) --no-print-directory -s print_run_args TEST=$$t); \
 		case "$$cfg" in 0|1|2|3|4|5) ;; *) run_args="$$run_args +verilator+error+limit+1000";; esac; \
 		if "$$exe" \
 			+UVM_TESTNAME=$$t \
@@ -609,13 +628,13 @@ regression: check_uvm
 			+UVM_OBJECTION_TRACE \
 			'+uvm_set_action=*,UVM/COMP/NAME,UVM_WARNING,UVM_NO_ACTION' \
 			$$run_args \
-			2>&1 | $(SIM_DISPLAY_FILTER) | tee "$(REGR_DIR)/$$tcname.log"; then \
+			2>&1 | $(SIM_DISPLAY_FILTER) | tee "$(REGR_DIR)/$${t}__$$tcname.log"; then \
 			:; \
 		else \
 			fail=1; \
 		fi; \
 		if grep -qE "UVM_FATAL *: *[1-9]|UVM_ERROR *: *[1-9]" \
-			"$(REGR_DIR)/$$tcname.log" 2>/dev/null; then \
+			"$(REGR_DIR)/$${t}__$$tcname.log" 2>/dev/null; then \
 			echo ">>> FAIL: $$t (NBF=$$nbf)"; \
 			fail=1; \
 		else \

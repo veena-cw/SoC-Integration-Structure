@@ -213,6 +213,7 @@ module bp_nonsynth_dram
   logic dram_resp_stall_r;
   int unsigned dram_req_stall_count;
   int unsigned dram_resp_stall_count;
+  int unsigned dram_wdata_stall_count;
 
   initial
     $display("BP-DV-011 memory backpressure enabled: randomized request/response stalls");
@@ -282,15 +283,17 @@ module bp_nonsynth_dram
         e_read:
           begin
             dma_data_o[dma_pkt_tag_lo] = mem_rdata;
-            dma_data_v_o[dma_pkt_tag_lo] = 1'b1;
-
 `ifdef BP_DV_011_BACKPRESSURE
-            up_li = dma_data_ready_and_i[dma_pkt_tag_lo]
-                    & dma_data_v_o[dma_pkt_tag_lo]
-                    & !dram_resp_stall_r;
+            // Response stall: drop valid so the L2 cannot take the beat.
+            // Holding valid high while not advancing the burst counter
+            // lets the L2 consume beats the model never counts, and the
+            // burst never ends.
+            dma_data_v_o[dma_pkt_tag_lo] = !dram_resp_stall_r;
 `else
-            up_li = dma_data_ready_and_i[dma_pkt_tag_lo] & dma_data_v_o[dma_pkt_tag_lo];
+            dma_data_v_o[dma_pkt_tag_lo] = 1'b1;
 `endif
+
+            up_li = dma_data_ready_and_i[dma_pkt_tag_lo] & dma_data_v_o[dma_pkt_tag_lo];
             dma_pkt_yumi_li = up_li & (count_lo == dma_burst_len_p-1);
 
             mem_read = up_li & (count_lo != dma_burst_len_p-1);
@@ -300,7 +303,12 @@ module bp_nonsynth_dram
           end
         e_write:
           begin
+`ifdef BP_DV_011_BACKPRESSURE
+            // Write-data stall: hold off accepting the beat.
+            dma_data_yumi_o[dma_pkt_tag_lo] = dma_data_v_i[dma_pkt_tag_lo] & !dram_resp_stall_r;
+`else
             dma_data_yumi_o[dma_pkt_tag_lo] = dma_data_v_i[dma_pkt_tag_lo];
+`endif
 
             up_li = dma_data_yumi_o[dma_pkt_tag_lo];
             dma_pkt_yumi_li = up_li & (count_lo == dma_burst_len_p-1);
@@ -323,6 +331,7 @@ module bp_nonsynth_dram
       dram_resp_stall_r <= 1'b0;
       dram_req_stall_count = 0;
       dram_resp_stall_count = 0;
+      dram_wdata_stall_count = 0;
 `endif
 `ifdef BP_DV_024_LATENCY
       dram_response_wait_r <= '0;
@@ -338,10 +347,15 @@ module bp_nonsynth_dram
         if (dram_req_stall_count <= 4)
           $display("BP-DV-011 request backpressure: packet held time=%0t", $time);
       end
-      if ((state_r == e_read) && dma_data_v_o[dma_pkt_tag_lo] && dram_resp_stall_r) begin
+      if ((state_r == e_read) && dram_resp_stall_r) begin
         dram_resp_stall_count++;
         if (dram_resp_stall_count <= 4)
-          $display("BP-DV-011 response backpressure: beat held time=%0t", $time);
+          $display("BP-DV-011 response backpressure: read beat held time=%0t", $time);
+      end
+      if ((state_r == e_write) && dma_data_v_i[dma_pkt_tag_lo] && dram_resp_stall_r) begin
+        dram_wdata_stall_count++;
+        if (dram_wdata_stall_count <= 4)
+          $display("BP-DV-011 write-data backpressure: beat held time=%0t", $time);
       end
 `endif
 `ifdef BP_DV_024_LATENCY

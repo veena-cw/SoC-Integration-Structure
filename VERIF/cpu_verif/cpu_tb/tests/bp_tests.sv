@@ -1281,6 +1281,18 @@ class bp_dv_053_hazard_chains_test extends bp_base_test;
   endtask
 endclass
 
+// Test ID: BP-DV-054 | Feature: BP-DV-049 coherence stress with random DRAM
+// latency (1-24 cycles per access, BP_DV_024_LATENCY build variant
+// obj_dir_cfg9_lat) - memory responses arrive late and in varying order,
+// stressing the CCE retry / speculative-read / writeback timing.
+class bp_dv_054_smp_coherence_latency_test extends bp_dv_049_smp_coherence_test;
+  `uvm_component_utils(bp_dv_054_smp_coherence_latency_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+endclass
+
 // Supplemental I2C model smoke test (BP-DV-027, outside the supplied plan).
 class bp_i2c_write_read_test extends bp_base_test;
   `uvm_component_utils(bp_i2c_write_read_test)

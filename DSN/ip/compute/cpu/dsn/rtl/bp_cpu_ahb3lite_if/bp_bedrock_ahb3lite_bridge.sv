@@ -374,6 +374,15 @@ module bp_bedrock_ahb3lite_bridge
   end
 
   // ----------------------------------------------------------------------
+  // Lane selection Selection Logic
+  // ----------------------------------------------------------------------
+  localparam int LANE_WIDTH = $clog2(WORDS_PER_FLIT);   // 2 for 128/32
+ 
+  wire [LANE_WIDTH-1:0] addr_lane = LANE_WIDTH'(req_hdr_r.addr[$clog2(AHB_BYTES_PER_BEAT)]);// Sized casting, {1'b0, req_hdr_r.addr[2]}
+  wire [LANE_WIDTH-1:0] beat_lane = is_first_flit
+                                    ? (addr_lane + LANE_WIDTH'(ahb_beat_count_r))
+                                    : LANE_WIDTH'(ahb_beat_count_r); // addr_lane (0,1,2 and 3)
+  // ----------------------------------------------------------------------
   // 3. Combinational output logic
   // ----------------------------------------------------------------------
 
@@ -452,7 +461,7 @@ module bp_bedrock_ahb3lite_bridge
       if ((cur_state == ST_XFER_WAIT) && m_resp_v && m_resp_ready) begin
 
         if (!is_write_r)
-          read_accum_r[ahb_beat_count_r*AHB_DATA_WIDTH +: AHB_DATA_WIDTH] <= m_rdata;
+          read_accum_r[beat_lane*AHB_DATA_WIDTH +: AHB_DATA_WIDTH] <= m_rdata;
 
         if (is_last_beat_of_flit)
           ahb_beat_count_r <= 3'd0;

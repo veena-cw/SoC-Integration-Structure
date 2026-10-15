@@ -19,6 +19,11 @@ it), matching the lcov report.
 
 import argparse
 import collections
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import coverage_waive  # noqa: E402
 
 
 def main():
@@ -28,7 +33,9 @@ def main():
     ap.add_argument("--include", default="/DSN/",
                     help="only files whose path contains this (default: /DSN/)")
     ap.add_argument("--out")
+    ap.add_argument("--waivers", help="coverage_waivers.txt: skip waived files/lines")
     args = ap.parse_args()
+    rules = coverage_waive.load(args.waivers)
 
     points = {}
     with open(args.dat, "rb") as f:
@@ -44,6 +51,8 @@ def main():
             path = d.get("f", "")
             if args.include not in path:
                 continue
+            if coverage_waive.waived(rules, path, int(d.get("l", "0"))):
+                continue
             kind = d.get("page", "").split("/")[0]
             key = (kind, path, d.get("l"), d.get("n"), d.get("o"))
             points[key] = max(points.get(key, 0), int(cnt))
@@ -53,7 +62,9 @@ def main():
         tot[kind][0] += 1
         tot[kind][1] += c > 0
 
-    lines = [f"Verilator coverage by type (files matching '{args.include}')",
+    title = f"Verilator coverage by type (files matching '{args.include}'"
+    title += ", waivers applied)" if rules else ")"
+    lines = [title,
              f"  {'type':<8} {'covered':>9} / {'total':<9} {'%':>6}"]
     for kind, name in (("v_line", "line"), ("v_branch", "branch"),
                        ("v_expr", "expr"), ("v_toggle", "toggle")):

@@ -260,6 +260,9 @@ COVERAGE_MERGED := $(COVERAGE_DIR)/coverage.dat
 COVERAGE_INFO := $(COVERAGE_DIR)/coverage.info
 # Report-time filter (also covers coverage files built before coverage.vlt):
 # drop the testbench, UVM library and Verilator sources from the reports.
+# Waivers for features not supported in this CPU version (file / line
+# ranges); also mirrored in coverage.vlt so they are not instrumented.
+COVERAGE_WAIVERS := $(SIM_DIR)/coverage_waivers.txt
 COVERAGE_EXCLUDE := '*/VERIF/uvm-1.1d/*' '*/VERIF/cpu_verif/*' '*/share/verilator/*'
 COVERAGE_SUMMARY := $(COVERAGE_DIR)/summary.txt
 COVERAGE_HTML_DIR := $(COVERAGE_DIR)/html
@@ -531,9 +534,10 @@ coverage_report:
 	$(VERILATOR_COVERAGE) --write-info "$(COVERAGE_INFO)" $$files; \
 	lcov --quiet --remove "$(COVERAGE_INFO)" $(COVERAGE_EXCLUDE) \
 		--output-file "$(COVERAGE_INFO)"; \
+	python3 $(SIM_DIR)/../scripts/coverage_waive.py "$(COVERAGE_INFO)" $(COVERAGE_WAIVERS); \
 	lcov --summary "$(COVERAGE_INFO)" | tee "$(COVERAGE_SUMMARY)"; \
 	python3 $(SIM_DIR)/../scripts/coverage_summary.py "$(COVERAGE_MERGED)" \
-		--out "$(COVERAGE_DIR)/coverage_by_type.txt"; \
+		--waivers $(COVERAGE_WAIVERS) --out "$(COVERAGE_DIR)/coverage_by_type.txt"; \
 	genhtml "$(COVERAGE_INFO)" --output-directory "$(COVERAGE_HTML_DIR)" --title "CPU Verilator code coverage" --quiet
 
 regression: check_uvm
@@ -631,7 +635,7 @@ regression: check_uvm
 HOLES_SCOPE ?= integration
 coverage_holes:
 	python3 $(SIM_DIR)/../scripts/coverage_holes.py $(COVERAGE_MERGED) \
-		$(COVERAGE_DIR)/holes --scope $(HOLES_SCOPE)
+		$(COVERAGE_DIR)/holes --scope $(HOLES_SCOPE) --waivers $(COVERAGE_WAIVERS)
 
 # PLIC-only waveform: Verilator always dumps the whole design to
 # sim/cpu_tb_top.vcd, so cut the PLIC path out of it afterwards into

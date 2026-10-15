@@ -28,6 +28,9 @@ import os
 import re
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import coverage_waive  # noqa: E402
+
 INTEGRATION = [
     "/bp_cpu_axi4m_if/", "/bp_cpu_ahb3lite_if/", "/axi4_master/",
     "/ahb3-lite_master/", "/async_fifo/", "bp_plic_shared_top",
@@ -67,7 +70,9 @@ def main():
     ap.add_argument("out_dir")
     ap.add_argument("--scope", choices=["integration", "design", "all"],
                     default="integration")
+    ap.add_argument("--waivers", help="coverage_waivers.txt: skip waived files/lines")
     args = ap.parse_args()
+    rules = coverage_waive.load(args.waivers)
 
     # Merge across instances: key -> max count.
     toggles = collections.defaultdict(int)   # (file, line, signal, bit) -> count
@@ -75,6 +80,8 @@ def main():
     for f, cnt in parse(args.dat):
         path = f.get("f", "")
         if not in_scope(path, args.scope):
+            continue
+        if coverage_waive.waived(rules, path, int(f.get("l", "0"))):
             continue
         page = f.get("page", "").split("/")[0]
         line = int(f.get("l", "0"))

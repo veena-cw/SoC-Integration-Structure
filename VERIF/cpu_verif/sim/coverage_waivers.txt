@@ -1,0 +1,11 @@
+# Coverage waivers: design code for features not supported in this CPU
+# version. Each line: <path glob> [<first line>-<last line>]  # reason
+# Used at build time (mirrored in coverage.vlt) and at report time
+# (scripts/coverage_waive.py, coverage_summary.py, coverage_holes.py).
+
+# Sv39 virtual memory - not supported in this version (design team)
+*/bp_be/src/v/bp_be_calculator/bp_be_ptw.sv              # page-table walker
+*/bp_common/src/v/bp_tlb.sv                              # I-TLB / D-TLB
+*/bp_common/src/v/bp_mmu.sv                     104-136  # TLB instance + entry register
+*/bp_common/src/v/bp_mmu.sv                     177-190  # page-fault checks
+*/bp_common/src/v/bp_mmu.sv                     204-206  # page-fault outputs

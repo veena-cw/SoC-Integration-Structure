@@ -166,7 +166,7 @@ always_ff @(posedge clk or negedge rst_n)
 //=====================================================
 // IRQ STATUS Register (Write-1-to-Clear)
 //=====================================================
-always_ff @(posedge clk or negedge rst_n)
+/*always_ff @(posedge clk or negedge rst_n)
 begin
     if(!rst_n)  irq_stat_reg <= 32'h0;
     else begin
@@ -177,7 +177,17 @@ begin
         if(PSEL && PENABLE && PWRITE &&(addr == ADDR_IRQ_STAT)) irq_stat_reg <= irq_stat_reg & (~PWDATA);
         end
 end
-
+*/
+always_ff @(posedge clk or negedge rst_n) begin
+    if(!rst_n) irq_stat_reg <= 32'h0;
+    else if(PSEL && PENABLE && PWRITE && (addr == ADDR_IRQ_STAT)) irq_stat_reg <= irq_stat_reg & (~PWDATA);   // Clear has priority
+    else begin
+        if(irq_tx_empty) irq_stat_reg[0] <= 1'b1;
+        if(irq_rx_full)  irq_stat_reg[1] <= 1'b1;
+        if(irq_done)     irq_stat_reg[2] <= 1'b1;
+        if(irq_err)      irq_stat_reg[3] <= 1'b1;
+    end
+end
 //=====================================================
 // Scratch Registers
 //=====================================================

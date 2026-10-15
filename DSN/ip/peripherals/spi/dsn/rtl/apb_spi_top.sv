@@ -135,7 +135,6 @@ always_ff @(posedge clk or negedge rst_n)
 //=====================================================
 // TX DATA Register
 //=====================================================
-
 always_ff @(posedge clk or negedge rst_n)
     if(!rst_n) tx_data_reg <= 32'h0;
     else if(PSEL && PENABLE && PWRITE &&(addr == ADDR_TX_DATA)) tx_data_reg <= PWDATA;
@@ -229,9 +228,9 @@ spi_top #(
     .m_start_i          (ctrl_reg[0]),
     //---------------- Master TX ----------------
     //.m_tx_we_i    (PSEL && PENABLE && PWRITE && (addr == ADDR_TX_DATA)),
-    .m_tx_wdata_i (PWDATA[7:0]),
+    //.m_tx_wdata_i (PWDATA[7:0]),
     .m_tx_we_i          (m_tx_we),
-    //.m_tx_wdata_i       (tx_data_reg[7:0]),
+    .m_tx_wdata_i       (tx_data_reg[7:0]),
     .m_tx_full_o        (m_tx_full),
     .m_tx_empty_o       (m_tx_empty),
     .m_tx_count_o       (m_tx_count),
@@ -248,12 +247,12 @@ spi_top #(
     .s_cpol_i           (ctrl_reg[2]),
     .s_cpha_i           (ctrl_reg[3]),
     .s_lsb_first_i      (ctrl_reg[1]),
-    .s_tx_we_i          (1'b1),
-    .s_tx_wdata_i       (8'h0c),
+    .s_tx_we_i 			(m_tx_we),
+    .s_tx_wdata_i       (tx_data_reg[7:0]),
     .s_tx_full_o        (s_tx_full),
     .s_tx_empty_o       (s_tx_empty),
     .s_tx_count_o       (s_tx_count),
-    .s_rx_re_i          (1'b1),
+    .s_rx_re_i          (m_rx_re),
     .s_rx_rdata_o       (s_rx_data),
     .s_rx_full_o        (s_rx_full),
     .s_rx_empty_o       (s_rx_empty),

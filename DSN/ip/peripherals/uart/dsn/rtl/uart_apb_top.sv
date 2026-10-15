@@ -19,7 +19,7 @@ module uart_apb_top(
   input  logic [31:0] PADDR,
   input  logic [31:0] PWDATA,
   input  logic [3:0]  PSTRB,
- // input  logic [2:0]  PPROT,
+  input  logic [2:0]  PPROT,
   output logic [31:0] PRDATA,
   output logic        PREADY,
   output logic        PSLVERR,
@@ -183,13 +183,9 @@ module uart_apb_top(
   // bit6 : do_push
   //=====================================================
   always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n)
-      {sr_reg_vld, sr_reg} <= {1'b0, 32'h00000005};
-    else
-      {sr_reg_vld, sr_reg} <=
-        {1'b1,
-         {25'h0, do_push, frame_err_o, parity_err_o,
-          rx_full_o, rx_empty_o, tx_full_o, tx_empty_o}};
+    if (!rst_n) {sr_reg_vld, sr_reg} <= {1'b0, 32'h00000005};
+	  else if (apb_access_valid && (~PWRITE) && (addr == ADDR_SR)) {sr_reg_vld, sr_reg} <=  {1'b0, 32'h00000005};
+     else if (apb_access_valid && PWRITE && (addr == ADDR_SR)) {sr_reg_vld, sr_reg} <= {1'b1, {25'h0, do_push, frame_err_o, parity_err_o, rx_full_o, rx_empty_o, tx_full_o, tx_empty_o}};
   end
 
   //=====================================================
@@ -269,7 +265,7 @@ module uart_apb_top(
       {isr_reg_vld, isr_reg} <= {1'b0, 32'h00000005};
     else if (apb_access_valid && !PWRITE &&
              (addr == ADDR_ISR))
-      {isr_reg_vld, isr_reg} <= 33'h0;
+      {isr_reg_vld, isr_reg} <= {1'b0, 32'h00000005};
     else
       {isr_reg_vld, isr_reg} <=
         {1'b1,

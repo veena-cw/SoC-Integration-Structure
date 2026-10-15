@@ -20,3 +20,35 @@ coverage_off -file "*/bp_be/src/v/bp_be_checker/bp_be_detector.sv" -lines 275-27
 coverage_off -file "*/bp_be/src/v/bp_be_checker/bp_be_detector.sv" -lines 277-277
 coverage_off -file "*/bp_be/src/v/bp_be_checker/bp_be_detector.sv" -lines 281-282
 coverage_off -file "*/bp_be/src/v/bp_be_checker/bp_be_detector.sv" -lines 285-286
+
+// Integer divider / multiplier: arms fixed by parameters in this config
+// (bits_per_iter_p == 2, imulh gets_high_part_i tied 1, bsg_mul_pipelined
+// not instantiated)
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative.sv" -lines 50-50
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv" -lines 96-96
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv" -lines 98-99
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv" -lines 103-103
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv" -lines 105-106
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv" -lines 114-114
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv" -lines 116-117
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv" -lines 133-133
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv" -lines 135-136
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv" -lines 152-152
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv" -lines 154-155
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv" -lines 166-166
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv" -lines 168-169
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv" -lines 180-180
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv" -lines 183-186
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv" -lines 192-192
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv" -lines 199-200
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv" -lines 216-216
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv" -lines 218-219
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv" -lines 232-232
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv" -lines 234-235
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv" -lines 246-246
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv" -lines 248-249
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_imul_iterative.sv" -lines 112-112
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_imul_iterative.sv" -lines 184-185
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_imul_iterative.sv" -lines 230-231
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_imul_iterative.sv" -lines 234-234
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_mul_pipelined.sv"

@@ -18,3 +18,34 @@
 */bp_be/src/v/bp_be_checker/bp_be_detector.sv  277-277  # fint_fwb (int pipe -> FP reg)
 */bp_be/src/v/bp_be_checker/bp_be_detector.sv  281-282  # emem_fwb, fmem_iwb
 */bp_be/src/v/bp_be_checker/bp_be_detector.sv  285-286  # mul_fwb, fma_iwb
+
+# Integer divider / multiplier (bp_be_pipe_long): arms fixed by parameters
+# in this configuration
+*/external/basejump_stl/bsg_misc/bsg_idiv_iterative.sv    50-50  # bits_per_iter_p assertion (parameter)
+*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv   96-96  # bits_per_iter_p == 1 arm (config uses 2)
+*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv   98-99  # bits_per_iter_p == 1 arm (config uses 2)
+*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv 103-103  # bits_per_iter_p == 1 arm (config uses 2)
+*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv 105-106  # bits_per_iter_p == 1 arm (config uses 2)
+*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv 114-114  # bits_per_iter_p == 1 arm (config uses 2)
+*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv 116-117  # bits_per_iter_p == 1 arm (config uses 2)
+*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv 133-133  # bits_per_iter_p == 1 arm (config uses 2)
+*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv 135-136  # bits_per_iter_p == 1 arm (config uses 2)
+*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv 152-152  # bits_per_iter_p == 1 arm (config uses 2)
+*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv 154-155  # bits_per_iter_p == 1 arm (config uses 2)
+*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv 166-166  # bits_per_iter_p == 1 arm (config uses 2)
+*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv 168-169  # bits_per_iter_p == 1 arm (config uses 2)
+*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv 180-180  # bits_per_iter_p == 1 arm (config uses 2)
+*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv 183-186  # bits_per_iter_p == 1 arm (config uses 2)
+*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv 192-192  # bits_per_iter_p == 1 arm (config uses 2)
+*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv 199-200  # bits_per_iter_p == 1 arm (config uses 2)
+*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv 216-216  # bits_per_iter_p == 1 arm (config uses 2)
+*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv 218-219  # bits_per_iter_p == 1 arm (config uses 2)
+*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv 232-232  # bits_per_iter_p == 1 arm (config uses 2)
+*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv 234-235  # bits_per_iter_p == 1 arm (config uses 2)
+*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv 246-246  # bits_per_iter_p == 1 arm (config uses 2)
+*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv 248-249  # bits_per_iter_p == 1 arm (config uses 2)
+*/external/basejump_stl/bsg_misc/bsg_imul_iterative.sv  112-112  # unique case default: unused state encodings
+*/external/basejump_stl/bsg_misc/bsg_imul_iterative.sv  184-185  # low-part shift: gets_high_part_i tied 1
+*/external/basejump_stl/bsg_misc/bsg_imul_iterative.sv  230-231  # low-part accumulate: gets_high_part_i tied 1
+*/external/basejump_stl/bsg_misc/bsg_imul_iterative.sv  234-234  # low-part no-add arm: gets_high_part_i tied 1
+*/external/basejump_stl/bsg_misc/bsg_mul_pipelined.sv            # not instantiated; only its $unit function is compiled

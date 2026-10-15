@@ -19,7 +19,7 @@ module uart_apb_top(
   input  logic [31:0] PADDR,
   input  logic [31:0] PWDATA,
   input  logic [3:0]  PSTRB,
-  input  logic [2:0]  PPROT,
+ // input  logic [2:0]  PPROT,
   output logic [31:0] PRDATA,
   output logic        PREADY,
   output logic        PSLVERR,

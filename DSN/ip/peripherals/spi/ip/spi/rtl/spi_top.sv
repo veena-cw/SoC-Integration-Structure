@@ -86,6 +86,7 @@ module spi_top #(
 
   logic              sck_w, mosi_w, miso_w;
   logic [NUM_CS-1:0] cs_n_w;
+  logic xfer_done_o;
 
   spi_master #(
     .DATA_WIDTH(DATA_WIDTH),

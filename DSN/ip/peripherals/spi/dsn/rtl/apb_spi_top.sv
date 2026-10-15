@@ -97,7 +97,10 @@ assign version_reg = 32'h0001_0000;
     logic [4:0]   m_rx_count;
     logic [4:0]   s_tx_count;
     logic [4:0]   s_rx_count;
-;
+	logic [1:0] m_cs_sel_i;
+	logic [7:0] m_cs_setup_i;
+	logic [7:0] m_cs_hold_i;
+
     // Control Register Mapping
 
     assign m_start           = ctrl_reg[0];
@@ -105,7 +108,7 @@ assign version_reg = 32'h0001_0000;
     assign m_cpol_i          = ctrl_reg[2];
     assign m_cpha_i          = ctrl_reg[3];
     assign m_cs_inter_byte_i = ctrl_reg[4];
-    assign m_cs_sel_i        = ctrl_reg[15:8];
+    assign m_cs_sel_i        = ctrl_reg[1:0];
     assign m_cs_setup_i      = ctrl_reg[23:16];
     assign m_cs_hold_i       = ctrl_reg[31:24];
 //=====================================================
@@ -172,7 +175,7 @@ begin
         if(irq_rx_full) irq_stat_reg[1] <= 1'b1;
         if(irq_done) irq_stat_reg[2] <= 1'b1;
         if(irq_err) irq_stat_reg[3] <= 1'b1;
-        if(PSEL && PENABLE && PWRITE &&(addr == ADDR_IRQ_STAT)) irq_stat_reg <= irq_stat_reg & (!PWDATA);
+        if(PSEL && PENABLE && PWRITE &&(addr == ADDR_IRQ_STAT)) irq_stat_reg <= irq_stat_reg & (~PWDATA);
         end
 end
 
@@ -219,7 +222,7 @@ spi_top #(
     .m_cpha_i           (ctrl_reg[3]),
     .m_lsb_first_i      (ctrl_reg[1]),
     .m_clk_div_i        (clk_div_reg[15:0]),
-    .m_cs_sel_i         (ctrl_reg[15:8]),
+    .m_cs_sel_i         (m_cs_sel_i),
     .m_cs_setup_i       (ctrl_reg[23:16]),
     .m_cs_hold_i        (ctrl_reg[31:24]),
     .m_cs_inter_byte_i  (ctrl_reg[4]),
@@ -312,4 +315,3 @@ assign PREADY  = PSEL & PENABLE;
 assign PSLVERR = PSEL & PENABLE & (~addr_hit);
 
 endmodule
-

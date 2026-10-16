@@ -42,3 +42,17 @@ VERIF/lpddr_verif/lpddr5c_tb_l/sim/xsim.dir/
 VERIF/lpddr_verif/lpddr5c_tb_l/sim/xsim.covdb/
 VERIF/lpddr_verif/lpddr5c_tb_l/sim/verilator_obj_dir/
 >>>>>>> Stashed changes
+
+# Generated Verilator build directories
+**/verilator_obj_dir/
+**/obj_dir/
+
+# Generated Verilator object/header files
+*.gch
+
+# Generated AXI/APB simulation outputs
+/VERIF/axi_apb_bridge_verif/simulation/axi4_to_apb_bridge_cdc.vcd
+/VERIF/axi_apb_bridge_verif/simulation/simulation.log
+
+# Generated Verilator build marker
+/VERIF/plic_verif/plic_tb/sim/.verilator_build

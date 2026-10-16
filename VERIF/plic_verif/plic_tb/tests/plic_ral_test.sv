@@ -6,11 +6,11 @@
 //
 //  Chipweave Technologies Confidential
 //==================================================================================
-//  Project           				: 
-//  Module            				: 
-//  Primary Unit Owner                         	: 
-//  Secondary Contact                           : 
-//  Source [SystemVerilog|Verilog|VHDL|Other]   : 
+//  Project           				:
+//  Module            				:
+//  Primary Unit Owner                         	:
+//  Secondary Contact                           :
+//  Source [SystemVerilog|Verilog|VHDL|Other]   :
 //=================================================================================
 //  Description: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 //=================================================================================
@@ -32,13 +32,13 @@ import plic_ral_sequences_pkg::*;
 // EXPECTED RESULT: All applicable checks pass without project-specific assumptions.
 class plic_base_test extends uvm_test;
   `uvm_component_utils(plic_base_test)
-  plic_ral_env env;
+  plic_env env;
   function new(string name = "plic_base_test", uvm_component parent = null);
     super.new(name, parent);
   endfunction
   function void build_phase(uvm_phase phase);
     super.build_phase(phase);
-    env = plic_ral_env::type_id::create("env", this);
+    env = plic_env::type_id::create("env", this);
   endfunction
   // Central reset task - called at start of every test's run_phase
   task do_reset();
@@ -56,6 +56,14 @@ class plic_base_test extends uvm_test;
     env.ral_model.reset();
     `uvm_info(get_type_name(), "BaseTest: reset complete, DUT and RAL in known stable state", UVM_LOW)
   endtask
+  // PASS only when the test produced no UVM_ERROR / UVM_FATAL
+  function void report_phase(uvm_phase phase);
+    uvm_report_server svr = uvm_report_server::get_server();
+    int errors = svr.get_severity_count(UVM_ERROR) + svr.get_severity_count(UVM_FATAL);
+    super.report_phase(phase);
+    if (errors == 0) `uvm_info("TEST_RESULT", $sformatf("*** %s : PASSED ***", get_type_name()), UVM_NONE)
+    else             `uvm_info("TEST_RESULT", $sformatf("*** %s : FAILED (%0d errors) ***", get_type_name(), errors), UVM_NONE)
+  endfunction
 endclass
 
 // -------------------------------------------------------------------
@@ -244,4 +252,3 @@ class plic_scoreboard_test extends plic_base_test;
     phase.drop_objection(this);
   endtask
 endclass
-

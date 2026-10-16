@@ -6,11 +6,11 @@
 //
 //  Chipweave Technologies Confidential
 //==================================================================================
-//  Project           				: 
-//  Module            				: 
-//  Primary Unit Owner                         	: 
-//  Secondary Contact                           : 
-//  Source [SystemVerilog|Verilog|VHDL|Other]   : 
+//  Project           				:
+//  Module            				:
+//  Primary Unit Owner                         	:
+//  Secondary Contact                           :
+//  Source [SystemVerilog|Verilog|VHDL|Other]   :
 //=================================================================================
 //  Description: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 //=================================================================================
@@ -50,7 +50,7 @@ package plic_ahb_lite_predictor_pkg;
       uvm_reg rg;
       uvm_reg_field fields[$];
       uvm_reg_field f;
-      bit writable_count;
+      int unsigned writable_count;
       string acc;
       int lsb;
       int nbits;
@@ -61,6 +61,8 @@ package plic_ahb_lite_predictor_pkg;
         return;
       end
 
+      // The adapter does not decode byte enables: default to a full-word access
+      rw.byte_en = '1;
       adapter.bus2reg(tr, rw);
 
       if (rw.kind != UVM_WRITE) begin
@@ -117,7 +119,8 @@ package plic_ahb_lite_predictor_pkg;
 
         // UVM_PREDICT_WRITE lets the field apply its access semantics
         // (RW/WO/W1C/etc.) instead of blindly mirroring the complete bus word.
-        f.predict(field_value, rw.byte_en, UVM_PREDICT_WRITE,
+        // Field-level predict expects the byte enables relative to the field LSB
+        f.predict(field_value, rw.byte_en >> (lsb/8), UVM_PREDICT_WRITE,
                   UVM_FRONTDOOR, map);
       end
     endfunction

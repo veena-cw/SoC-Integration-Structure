@@ -12,7 +12,7 @@ UVM_PKG := $(UVM_SRC)/uvm_pkg.sv
 #FILELIST := $(SIM_DIR)/apb_filelist.f
 FILELIST := $(SIM_DIR)/ahb_filelist.f
 
-TOP      := plic_ahb_test_top
+TOP      := plic_test_top
 TESTNAME ?= plic_base_test
 
 
@@ -42,7 +42,10 @@ verilator: verilator-sim
 verilator-build: $(VERILATOR_STAMP)
 
 
-$(VERILATOR_STAMP): $(FILELIST) $(SOURCE_FILES)
+# Rebuild when any testbench source changes, not only the filelist
+TB_SOURCES := $(shell find $(PROJECT_ROOT) -name '*.sv')
+
+$(VERILATOR_STAMP): $(FILELIST) $(SOURCE_FILES) $(TB_SOURCES)
 
 	@echo "========================================"
 	@echo "        VERILATOR BUILD"
@@ -53,6 +56,7 @@ $(VERILATOR_STAMP): $(FILELIST) $(SOURCE_FILES)
 	cd $(SIM_DIR) && \
 	verilator \
 		--binary \
+		-j 0 \
 		--timing \
 		--trace \
 		--language 1800-2012 \
@@ -66,6 +70,8 @@ $(VERILATOR_STAMP): $(FILELIST) $(SOURCE_FILES)
 		-Wno-UNSIGNED \
 		-Wno-PINMISSING \
 		-Wno-IMPLICIT \
+		-Wno-IGNOREDRETURN \
+		-Wno-MODDUP \
 		-Wno-IGNOREDRETURN
 
 	@touch $@
@@ -90,6 +96,28 @@ verilator-sim: verilator-build
 		+UVM_TESTNAME=$(TESTNAME) \
 		2>&1 | tee $(VERILATOR_LOG_DIR)/$(TESTNAME).log
 		
+# --------------------------------------------------
+# Verilator Regression: every test in TESTLIST, PASS/FAIL summary
+#   make verilator-regression
+# --------------------------------------------------
+
+TESTLIST ?= $(PROJECT_ROOT)/../testnames/plic_test_cases
+
+verilator-regression: verilator-build
+
+	@mkdir -p $(VERILATOR_LOG_DIR)
+	@fail=0; \
+	for t in $$(grep -v '^\s*#' $(TESTLIST)); do \
+		cd $(SIM_DIR) && $(VERILATOR_EXE) +UVM_TESTNAME=$$t > $(VERILATOR_LOG_DIR)/$$t.log 2>&1; \
+		if grep -q "$$t : PASSED" $(VERILATOR_LOG_DIR)/$$t.log && \
+		   ! grep -qE "UVM_(ERROR|FATAL) *: *[1-9]" $(VERILATOR_LOG_DIR)/$$t.log; then \
+			echo ">>> PASS: $$t"; \
+		else \
+			echo ">>> FAIL: $$t  (verilator_log/$$t.log)"; fail=1; \
+		fi; \
+	done; \
+	if [ $$fail -eq 0 ]; then echo "REGRESSION PASSED"; else echo "REGRESSION FAILED"; exit 1; fi
+
 # ============================================================
 # Waveform
 # ============================================================
@@ -191,4 +219,4 @@ clean:
 	
 
 
-.PHONY: vivado vivado-compile vivado-elab verilator-sim verilator-build verilator clean
+.PHONY: vivado vivado-compile vivado-elab verilator-sim verilator-build verilator verilator-regression clean

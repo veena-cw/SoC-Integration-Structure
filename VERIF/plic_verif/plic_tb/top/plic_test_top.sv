@@ -18,8 +18,9 @@
 // Generated test_top for AHB-Lite (verification wrapper, DUT external)
 `include "uvm_macros.svh"
 import uvm_pkg::*;
+import plic_irq_item_pkg::*;
 
-module plic_ahb_test_top;
+module plic_test_top;
     logic hclk;
     plic_reset_if RST_vif();
 
@@ -28,23 +29,35 @@ module plic_ahb_test_top;
         .hreset_n (RST_vif.rst_n)
     );
 
+    plic_irq_if #(
+        .SOURCES (PLIC_SOURCES),
+        .TARGETS (PLIC_TARGETS)
+    ) IRQ_vif (
+        .clk   (hclk),
+        .rst_n (RST_vif.rst_n)
+    );
+
     // Clock generation
     initial begin
         hclk = 0;
         forever #5 hclk = ~hclk;
     end
 
+/*
     // Reset generation via reset_if (reset-aware)
     initial begin
         RST_vif.rst_n = 1'b0;
         repeat (5) @(posedge hclk);
         RST_vif.rst_n = 1'b1;
     end
+
+    */
+    
      // PLIC DUT instance
     ahb3lite_plic_top #(
-        .SOURCES          (16),
-        .TARGETS          (4),
-        .PRIORITIES       (8),
+        .SOURCES          (PLIC_SOURCES),
+        .TARGETS          (PLIC_TARGETS),
+        .PRIORITIES       (PLIC_PRIORITIES),
         .HAS_THRESHOLD    (1),
         .HAS_CONFIG_REG   (1),
         .HADDR_SIZE       (16),
@@ -60,13 +73,14 @@ module plic_ahb_test_top;
         .HWRITE    (AHB_LITE_vif.hwrite),
         .HSIZE     (AHB_LITE_vif.hsize),
         .HBURST    (AHB_LITE_vif.hburst),
+        .HPROT     (4'b0011),
         .HTRANS    (AHB_LITE_vif.htrans),
         .HREADY    (AHB_LITE_vif.hready),
         .HREADYOUT (AHB_LITE_vif.hreadyout),
         .HRESP     (AHB_LITE_vif.hresp),
 
-        .src       (src),
-        .irq       (irq)
+        .src       (IRQ_vif.src),
+        .irq       (IRQ_vif.irq)
     );
 
     // Waveform dump
@@ -79,6 +93,7 @@ module plic_ahb_test_top;
     initial begin
         uvm_resource_db#(virtual plic_reset_if)::set("*", "rst_vif", RST_vif);
         uvm_resource_db#(virtual plic_ahb_lite_if)::set("*", "vif", AHB_LITE_vif);
+        uvm_resource_db#(virtual plic_irq_if #(PLIC_SOURCES, PLIC_TARGETS))::set("*", "irq_vif", IRQ_vif);
         run_test();
     end
 endmodule

@@ -1,20 +1,30 @@
--f /home/cw016_lakshmi/plic_ahb/rtl/filelist_ahb.f
+-f $REPO_ROOT/DSN/ip/compute/plic/ip/plic/rtl/plic.f
 $REPO_ROOT/VERIF/uvm-1.1d/src/uvm_pkg.sv
 $REPO_ROOT/VERIF/plic_verif/plic_tb/ral/plic_ral_pkg.sv
 $REPO_ROOT/VERIF/plic_verif/plic_tb/ral/plic_ral_block.sv
 $REPO_ROOT/VERIF/plic_verif/plic_tb/ral/plic_ral_metadata_pkg.sv
 $REPO_ROOT/VERIF/plic_verif/plic_tb/interface/plic_ahb_lite_if.sv
+$REPO_ROOT/VERIF/plic_verif/plic_tb/interface/plic_irq_if.sv
 $REPO_ROOT/VERIF/plic_verif/plic_tb/agent/ahb_agent/plic_ahb_lite_item.sv
+$REPO_ROOT/VERIF/plic_verif/plic_tb/agent/irq_agent/plic_irq_item.sv
 $REPO_ROOT/VERIF/plic_verif/plic_tb/ral/plic_ahb_lite_adapter.sv
 $REPO_ROOT/VERIF/plic_verif/plic_tb/env/ahb_env/plic_ahb_lite_predictor.sv
 $REPO_ROOT/VERIF/plic_verif/plic_tb/interface/plic_reset_if.sv
 $REPO_ROOT/VERIF/plic_verif/plic_tb/agent/plic_reset_agent.sv
-$REPO_ROOT/VERIF/plic_verif/plic_tb/env/ahb_env/plic_scoreboard.sv
+$REPO_ROOT/VERIF/plic_verif/plic_tb/env/ahb_env/plic_ral_scoreboard.sv
 $REPO_ROOT/VERIF/plic_verif/plic_tb/ral/ral_sequence/plic_ral_sequences.sv
 $REPO_ROOT/VERIF/plic_verif/plic_tb/agent/ahb_agent/plic_ahb_lite_sequencer.sv
 $REPO_ROOT/VERIF/plic_verif/plic_tb/agent/ahb_agent/plic_ahb_lite_driver.sv
 $REPO_ROOT/VERIF/plic_verif/plic_tb/agent/ahb_agent/plic_ahb_lite_monitor.sv
 $REPO_ROOT/VERIF/plic_verif/plic_tb/agent/ahb_agent/plic_ahb_lite_agent.sv
-$REPO_ROOT/VERIF/plic_verif/plic_tb/env/ahb_env/plic_ral_env.sv
+$REPO_ROOT/VERIF/plic_verif/plic_tb/agent/irq_agent/plic_irq_item.sv
+$REPO_ROOT/VERIF/plic_verif/plic_tb/agent/irq_agent/plic_irq_driver.sv
+$REPO_ROOT/VERIF/plic_verif/plic_tb/agent/irq_agent/plic_irq_monitor.sv
+$REPO_ROOT/VERIF/plic_verif/plic_tb/agent/irq_agent/plic_irq_sequencer.sv
+$REPO_ROOT/VERIF/plic_verif/plic_tb/agent/irq_agent/plic_irq_agent.sv
+$REPO_ROOT/VERIF/plic_verif/plic_tb/env/ahb_env/plic_irq_scoreboard.sv
+$REPO_ROOT/VERIF/plic_verif/plic_tb/env/ahb_env/plic_env.sv
+$REPO_ROOT/VERIF/plic_verif/plic_tb/irq_sequence/plic_irq_sequences.sv
 $REPO_ROOT/VERIF/plic_verif/plic_tb/tests/plic_ral_test.sv
-$REPO_ROOT/VERIF/plic_verif/plic_tb/top/plic_ahb_test_top.sv
+$REPO_ROOT/VERIF/plic_verif/plic_tb/tests/plic_irq_test.sv
+$REPO_ROOT/VERIF/plic_verif/plic_tb/top/plic_test_top.sv

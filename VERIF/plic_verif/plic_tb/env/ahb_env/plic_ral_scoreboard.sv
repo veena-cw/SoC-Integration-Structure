@@ -23,16 +23,16 @@ import plic_ahb_lite_item_pkg::*;
 import plic_ral_block_pkg::*;
 import plic_ral_metadata_pkg::*;
 
-class plic_scoreboard extends uvm_component;
-  `uvm_component_utils(plic_scoreboard)
+class plic_ral_scoreboard extends uvm_component;
+  `uvm_component_utils(plic_ral_scoreboard)
   plic_ral_block ral_model;
-  uvm_analysis_imp #(plic_ahb_lite_item, plic_scoreboard) bus_in;
+  uvm_analysis_imp #(plic_ahb_lite_item, plic_ral_scoreboard) bus_in;
   int match_cnt;
   int mismatch_cnt;
   int write_cnt;
   int read_cnt;
 
-  function new(string name = "plic_scoreboard", uvm_component parent = null);
+  function new(string name = "plic_ral_scoreboard", uvm_component parent = null);
     super.new(name, parent);
     bus_in = new("bus_in", this);
   endfunction

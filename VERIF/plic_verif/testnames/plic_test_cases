@@ -5,3 +5,11 @@ plic_reg_write_read_test
 plic_reg_walk_one_test
 plic_reg_mirror_predict_test
 plic_scoreboard_test
+plic_irq_single_test
+plic_irq_simultaneous_test
+plic_irq_disabled_test
+plic_irq_threshold_test
+plic_irq_equal_prio_test
+plic_irq_four_target_test
+plic_irq_claim_complete_test
+plic_irq_nested_complete_test

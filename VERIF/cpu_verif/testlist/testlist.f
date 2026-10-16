@@ -235,5 +235,11 @@ bp_dv_053_hazard_chains_test 53 hazard_chains.nbf
 # selected automatically by make sim / make regression for this test.
 bp_dv_054_smp_coherence_latency_test 54 smp_coherence.nbf
 
+# BP-DV-055 - BP-DV-049 (c/smp_coherence.c) with the cpu_tb_top CCE stall
+# injector (white-box): random short windows where each CCE's pending-bit
+# port, LCE command port, memory credits or pump readies look busy, to run
+# the CCE FSM wait paths. Main build (only forces, no define).
+bp_dv_055_cce_stall_test 55 smp_coherence.nbf
+
 # Supplemental CPU smoke test retained from earlier development
 bp_dv_007_load_add_store_test 9  load_add_store.nbf

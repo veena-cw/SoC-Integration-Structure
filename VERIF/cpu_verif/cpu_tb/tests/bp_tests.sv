@@ -1293,6 +1293,29 @@ class bp_dv_054_smp_coherence_latency_test extends bp_dv_049_smp_coherence_test;
   endfunction
 endclass
 
+// Test ID: BP-DV-055 | Feature: CCE resource-conflict wait paths (white-box)
+// Same two-core coherence program as BP-DV-049, with the cpu_tb_top CCE
+// stall injector making each CCE's pending-bit port, LCE command port,
+// memory credits and pump readies look busy for short random windows. The
+// FSM must wait and still finish every coherence phase correctly.
+class bp_dv_055_cce_stall_test extends bp_dv_049_smp_coherence_test;
+  `uvm_component_utils(bp_dv_055_cce_stall_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  function void build_phase(uvm_phase phase);
+    uvm_config_db#(int unsigned)::set(this, "", "cce_stall_pct", 10);
+    // Bit 3 (LCE command pump ready) is left out: forcing that pump output
+    // also stalls the pump's own handshake and the system hangs before the
+    // program starts. Bit 1 (lce_cmd_busy) covers the same FSM wait paths.
+    uvm_config_db#(int unsigned)::set(this, "", "cce_stall_mask", 'h17);
+    uvm_config_db#(int unsigned)::set(this, "", "cce_stall_max", 6);
+    super.build_phase(phase);
+  endfunction
+endclass
+
 // Supplemental I2C model smoke test (BP-DV-027, outside the supplied plan).
 class bp_i2c_write_read_test extends bp_base_test;
   `uvm_component_utils(bp_i2c_write_read_test)

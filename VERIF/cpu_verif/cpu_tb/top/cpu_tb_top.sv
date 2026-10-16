@@ -783,6 +783,94 @@ module cpu_tb_top
     end
   end
 
+  // --------------------------------------------------------------------
+  // CCE stall injector (BP-DV-055, white-box). Random short windows where
+  // one CCE FSM resource looks busy, so the FSM's wait paths run:
+  //   bit 0  pending_busy          pending-bit write port taken
+  //   bit 1  lce_cmd_busy          LCE command port taken by a mem response
+  //   bit 2  mem_credits_empty     no memory credits left
+  //   bit 3  fsm_cmd_ready_then_li LCE command pump not ready (hangs at
+  //          boot: the force also reaches the pump's internal handshake -
+  //          not used by BP-DV-055)
+  //   bit 4  fsm_fwd_ready_then_li memory forward pump not ready
+  // Each is only ever forced to its "busy" value, which the FSM must
+  // already tolerate - it delays the FSM but cannot change what it does.
+  // Config (uvm_config_db on uvm_test_top): cce_stall_pct (chance per core
+  // cycle a window starts, 0 = off), cce_stall_mask, cce_stall_max (window
+  // length 1..max cycles).
+  // --------------------------------------------------------------------
+  int unsigned cce_stall_pct = 0;
+  int unsigned cce_stall_mask = 'h1F;
+  int unsigned cce_stall_max = 8;
+  int unsigned cce_stall_windows [10];   // [cce*5 + bit]
+
+  initial begin
+    #1;
+    void'(uvm_config_db#(int unsigned)::get(null, "uvm_test_top", "cce_stall_pct", cce_stall_pct));
+    void'(uvm_config_db#(int unsigned)::get(null, "uvm_test_top", "cce_stall_mask", cce_stall_mask));
+    void'(uvm_config_db#(int unsigned)::get(null, "uvm_test_top", "cce_stall_max", cce_stall_max));
+    // Command-line overrides, e.g. +CCE_STALL_MASK=1 to stall one resource only
+    void'($value$plusargs("CCE_STALL_PCT=%d", cce_stall_pct));
+    void'($value$plusargs("CCE_STALL_MASK=%h", cce_stall_mask));
+    void'($value$plusargs("CCE_STALL_MAX=%d", cce_stall_max));
+    if (cce_stall_pct != 0) begin
+      $display("CCE STALL injector enabled: pct=%0d mask=0x%0h max=%0d cycles",
+               cce_stall_pct, cce_stall_mask, cce_stall_max);
+      // Heartbeat: shows simulation time still advances during a long wait
+      forever begin
+        #(100us);
+        $display("CCE STALL heartbeat time=%0t windows cce0=%0d/%0d/%0d/%0d/%0d cce1=%0d/%0d/%0d/%0d/%0d",
+                 $time, cce_stall_windows[0], cce_stall_windows[1], cce_stall_windows[2],
+                 cce_stall_windows[3], cce_stall_windows[4], cce_stall_windows[5],
+                 cce_stall_windows[6], cce_stall_windows[7], cce_stall_windows[8],
+                 cce_stall_windows[9]);
+      end
+    end
+  end
+
+`define CCE_PATH(X) dut.u_bp.m.multicore.cc.y[0].x[X].tile_node.tile.cce.t.cce
+`define CCE_STALL(X, BIT, SIG, VAL)                                         \
+  initial begin                                                             \
+    int unsigned n;                                                         \
+    #2;                                                                     \
+    if (cce_stall_pct != 0 && cce_stall_mask[BIT]) begin                    \
+      wait (`CCE_PATH(X).reset_i === 1'b1);                                 \
+      wait (`CCE_PATH(X).reset_i === 1'b0);                                 \
+      forever begin                                                         \
+        @(posedge clk);                                                     \
+        if ($urandom_range(99) < cce_stall_pct) begin                       \
+          n = $urandom_range(cce_stall_max, 1);                             \
+          force `CCE_PATH(X).SIG = VAL;                                     \
+          cce_stall_windows[X*5+BIT]++;                                           \
+          repeat (n) @(posedge clk);                                        \
+          release `CCE_PATH(X).SIG;                                         \
+          repeat ($urandom_range(cce_stall_max, 1)) @(posedge clk);         \
+        end                                                                 \
+      end                                                                   \
+    end                                                                     \
+  end
+
+  `CCE_STALL(0, 0, pending_busy,          1'b1)
+  `CCE_STALL(0, 1, lce_cmd_busy,          1'b1)
+  `CCE_STALL(0, 2, mem_credits_empty,     1'b1)
+  `CCE_STALL(0, 3, fsm_cmd_ready_then_li, 1'b0)
+  `CCE_STALL(0, 4, fsm_fwd_ready_then_li, 1'b0)
+  `CCE_STALL(1, 0, pending_busy,          1'b1)
+  `CCE_STALL(1, 1, lce_cmd_busy,          1'b1)
+  `CCE_STALL(1, 2, mem_credits_empty,     1'b1)
+  `CCE_STALL(1, 3, fsm_cmd_ready_then_li, 1'b0)
+  `CCE_STALL(1, 4, fsm_fwd_ready_then_li, 1'b0)
+`undef CCE_STALL
+`undef CCE_PATH
+
+  final begin
+    if (cce_stall_pct != 0)
+      for (int x = 0; x < 2; x++)
+        $display("CCE STALL summary cce%0d windows: pending_busy=%0d lce_cmd_busy=%0d mem_credits_empty=%0d cmd_ready=%0d fwd_ready=%0d",
+                 x, cce_stall_windows[x*5+0], cce_stall_windows[x*5+1], cce_stall_windows[x*5+2],
+                 cce_stall_windows[x*5+3], cce_stall_windows[x*5+4]);
+  end
+
   final begin
     for (int i = 0; i < NUM_BRIDGE_FIFOS; i++)
       $display("FIFO FULL summary %-8s events=%0d cycles=%0d",

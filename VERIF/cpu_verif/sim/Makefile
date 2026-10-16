@@ -223,6 +223,9 @@ TEST_ID      ?= 53
 else ifeq ($(TEST),bp_dv_054_smp_coherence_latency_test)
 TCNAME       ?= smp_coherence
 TEST_ID      ?= 54
+else ifeq ($(TEST),bp_dv_055_cce_stall_test)
+TCNAME       ?= smp_coherence
+TEST_ID      ?= 55
 else ifeq ($(TEST),bp_i2c_write_read_test)
 TCNAME       ?= i2c_write_read
 TEST_ID      ?= 27

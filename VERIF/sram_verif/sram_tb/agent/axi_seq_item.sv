@@ -1,0 +1,211 @@
+// ------------------------------------------------------------
+// axi_seq_item.sv
+//
+// One complete AXI4 burst (write: AW+W+B, read: AR+R).
+//
+// Supported stimulus space (AXI4 spec, IHI0022):
+//   * size   : 0..4 (1,2,4,8,16 bytes; 16 B = full 128-bit bus)
+//   * len    : 0..255 for INCR, 0..15 for FIXED,
+//              1/3/7/15 for WRAP
+//   * burst  : FIXED / INCR / WRAP
+//   * aligned=1 : addr aligned to 2^size
+//     aligned=0 : addr NOT aligned to 2^size (INCR/FIXED only,
+//                 size>0) -- first beat is a partial transfer
+//   * INCR bursts never cross a 4 KB boundary
+//   * by default addr stays inside the 1 MB SRAM window;
+//     disable c_in_range for decode-error tests
+//
+// Distribution weighting (burst type, length class, strobe
+// mode) is done by axi_base_sequence.gen_and_send() and passed
+// in as inline constraints, not with 'dist' here: Verilator
+// treats dist as a hard pick that ignores inline constraints.
+//
+// Write strobes are not randomized directly -- they are derived
+// in post_randomize() from addr/size/burst (lane_mask()) and
+// strb_mode, so every generated strobe is AXI-legal.
+//
+// The driver writes the responses (bresp / rresp / read data)
+// back into the same object, so a sequence can inspect them
+// after finish_item().
+// ------------------------------------------------------------
+`include "uvm_macros.svh"
+`include "axi_defines.svh"
+import uvm_pkg::*;
+
+class axi_seq_item extends uvm_sequence_item;
+
+    `uvm_object_utils(axi_seq_item)
+
+    localparam int DATA_BYTES = `AXI_STRB_WIDTH;
+    localparam int MAX_SIZE   = $clog2(`AXI_STRB_WIDTH);
+
+    // ---- Request -----------------------------------------------
+    rand bit                        write;
+    rand bit [`AXI_ID_WIDTH-1:0]    id;
+    rand bit [`AXI_ADDR_WIDTH-1:0]  addr;
+    rand bit [7:0]                  len;
+    rand bit [2:0]                  size;
+    rand axi_burst_e                burst;
+    rand bit                        aligned;
+    rand axi_strb_mode_e            strb_mode;
+
+    rand bit                        lock;
+    rand bit [3:0]                  cache;
+    rand bit [2:0]                  prot;
+    rand bit [3:0]                  qos;
+
+    bit      [`AXI_DATA_WIDTH-1:0]  data[];   // write data (read data after a read), see post_randomize
+    bit      [`AXI_STRB_WIDTH-1:0]  strb[];   // derived in post_randomize
+
+    // ---- Response (filled by driver / monitor) -----------------
+    bit [1:0]                       bresp;
+    bit [1:0]                       rresp[];
+    bit                             aborted;    // reset hit mid-transfer
+    bit                             timed_out;  // handshake watchdog fired
+
+    // ---- Constraints --------------------------------------------
+    constraint c_size {
+        size <= MAX_SIZE;
+    }
+
+    constraint c_burst {
+        burst inside {AXI_FIXED, AXI_INCR, AXI_WRAP};
+        burst == AXI_WRAP  -> len inside {1, 3, 7, 15};
+        burst == AXI_FIXED -> len <= 15;
+    }
+
+    constraint c_align {
+        burst == AXI_WRAP -> aligned == 1'b1;
+        size  == 0        -> aligned == 1'b1;
+        aligned == 1'b1   -> (addr & ((32'd1 << size) - 1)) == 0;
+        aligned == 1'b0   -> (addr & ((32'd1 << size) - 1)) != 0;
+    }
+
+    // INCR bursts must not cross a 4 KB boundary.
+    constraint c_4kb {
+        burst == AXI_INCR ->
+            ((32'(addr[11:0]) >> size) + 32'(len) + 1) <= (32'd4096 >> size);
+    }
+
+    // SRAM window. 0x1070_0000 and 1 MB are both 4 KB aligned, so
+    // together with c_4kb (INCR) and the wrap container (WRAP) a
+    // burst that starts in range also ends in range.
+    constraint c_in_range {
+        addr inside {[`SRAM_BASE_ADDR : `SRAM_END_ADDR]};
+    }
+
+    constraint c_order {
+        solve burst before len;
+        solve burst before aligned;
+        solve size  before aligned;
+        solve aligned before addr;
+    }
+
+    function new(string name = "axi_seq_item");
+        super.new(name);
+    endfunction
+
+    // data[] is not a rand member: Verilator leaves the elements of a
+    // randomized dynamic array at zero, so it is sized and filled here.
+    function void post_randomize();
+        bit [`AXI_DATA_WIDTH-1:0] d;
+        data = new[write ? 32'(len) + 1 : 0];
+        foreach (data[i]) begin
+            for (int w = 0; w < `AXI_DATA_WIDTH / 32; w++)
+                d[32*w +: 32] = $urandom();
+            data[i] = d;
+        end
+        build_strobes();
+    endfunction
+
+    // ---- AXI address helpers (IHI0022 A3.4.1) -------------------
+    function int unsigned num_bytes();
+        return 32'd1 << size;
+    endfunction
+
+    function bit [`AXI_ADDR_WIDTH-1:0] aligned_addr();
+        return (addr >> size) << size;
+    endfunction
+
+    function bit is_aligned();
+        return (addr & (num_bytes() - 1)) == 0;
+    endfunction
+
+    // Byte address of beat n (0-based).
+    function bit [`AXI_ADDR_WIDTH-1:0] beat_addr(int unsigned n);
+        bit [`AXI_ADDR_WIDTH-1:0] nb, total, wrap_base, a;
+        nb    = num_bytes();
+        total = nb * (32'(len) + 1);
+        case (burst)
+            AXI_FIXED: return addr;
+            AXI_WRAP: begin
+                wrap_base = (addr / total) * total;
+                a = aligned_addr() + n * nb;
+                if (a >= wrap_base + total) a -= total;
+                return a;
+            end
+            default: return (n == 0) ? addr : aligned_addr() + n * nb;
+        endcase
+    endfunction
+
+    // Byte lanes carrying valid data on beat n.
+    function bit [`AXI_STRB_WIDTH-1:0] lane_mask(int unsigned n);
+        int unsigned lower, upper;
+        bit [`AXI_ADDR_WIDTH-1:0] a;
+        lane_mask = '0;
+        a     = beat_addr(n);
+        lower = a % DATA_BYTES;
+        if (n == 0 || burst == AXI_FIXED)
+            upper = (aligned_addr() % DATA_BYTES) + num_bytes() - 1;
+        else
+            upper = lower + num_bytes() - 1;
+        for (int unsigned l = lower; l <= upper; l++)
+            lane_mask[l] = 1'b1;
+    endfunction
+
+    function void build_strobes();
+        if (!write) begin
+            strb = new[0];
+            return;
+        end
+        strb = new[32'(len) + 1];
+        foreach (strb[i]) begin
+            case (strb_mode)
+                STRB_FULL:   strb[i] = lane_mask(i);
+                STRB_RANDOM: strb[i] = lane_mask(i) & `AXI_STRB_WIDTH'($urandom());
+                default:     strb[i] = '0;
+            endcase
+        end
+    endfunction
+
+    // ---- UVM housekeeping ---------------------------------------
+    function void do_copy(uvm_object rhs);
+        axi_seq_item t;
+        super.do_copy(rhs);
+        if (!$cast(t, rhs))
+            `uvm_fatal(get_type_name(), "do_copy: wrong type")
+        write     = t.write;     id        = t.id;
+        addr      = t.addr;      len       = t.len;
+        size      = t.size;      burst     = t.burst;
+        aligned   = t.aligned;   strb_mode = t.strb_mode;
+        lock      = t.lock;      cache     = t.cache;
+        prot      = t.prot;      qos       = t.qos;
+        data      = t.data;      strb      = t.strb;
+        bresp     = t.bresp;     rresp     = t.rresp;
+        aborted   = t.aborted;   timed_out = t.timed_out;
+    endfunction
+
+    function string convert2string();
+        string s;
+        s = $sformatf("%s id=%0h addr=0x%08h len=%0d size=%0d(%0dB) burst=%s %s strb=%s",
+                      write ? "WR" : "RD", id, addr, len, size, num_bytes(),
+                      burst.name(), is_aligned() ? "aligned" : "unaligned",
+                      strb_mode.name());
+        if (write)
+            s = {s, $sformatf(" bresp=%0d", bresp)};
+        if (aborted)
+            s = {s, timed_out ? " [TIMED OUT]" : " [ABORTED BY RESET]"};
+        return s;
+    endfunction
+
+endclass

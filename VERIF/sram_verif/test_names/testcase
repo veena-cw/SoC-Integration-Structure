@@ -1,0 +1,14 @@
+sram_smoke_test
+sram_aligned_test
+sram_unaligned_test
+sram_burst_length_test
+sram_burst_size_test
+sram_wrap_test
+sram_strobe_test
+sram_random_test
+sram_back2back_test
+sram_backpressure_test
+sram_out_of_range_test
+sram_oor_burst_test
+sram_reset_test
+sram_full_mem_test

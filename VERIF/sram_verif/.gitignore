@@ -1,0 +1,27 @@
+# Verilator build output
+sram_tb/sim/verilator_files/
+sram_tb/sim/obj_dir/
+sram_tb/sim/dbg_build/
+
+# Simulation logs and waves
+sram_tb/sim/verilator_logs/
+*.log
+*.vcd
+*.fst
+
+# Coverage databases
+*.dat
+coverage*/
+
+# Vivado / xsim leftovers
+xsim.dir/
+*.jou
+*.pb
+*.wdb
+.Xil/
+
+# Editor / OS / Office lock files
+*.swp
+*~
+.DS_Store
+~$*

@@ -99,6 +99,9 @@ TEST_ID      ?= 5
 else ifeq ($(TEST),bp_dv_006_muldiv_test)
 TCNAME       ?= muldiv_function
 TEST_ID      ?= 6
+else ifeq ($(TEST),bp_dv_057_default_arm_test)
+TCNAME       ?= muldiv_function
+TEST_ID      ?= 57
 else ifeq ($(TEST),bp_dv_007_branch_test)
 TCNAME       ?= branch_function
 TEST_ID      ?= 7
@@ -163,6 +166,9 @@ TEST_ID      ?= 33
 else ifeq ($(TEST),bp_dv_034_cbo_inval_test)
 TCNAME       ?= cbo_inval
 TEST_ID      ?= 34
+else ifeq ($(TEST),bp_dv_056_cbo_zero_test)
+TCNAME       ?= cbo_zero
+TEST_ID      ?= 56
 else ifeq ($(TEST),bp_dv_035_priv_modes_test)
 TCNAME       ?= priv_modes
 TEST_ID      ?= 35

@@ -1,3 +1,5 @@
+
+
 `timescale 1ns/1ps
 
 //-----------------------------------------------------------------
@@ -121,16 +123,46 @@ else if (wr_cmd_accepted_w)
 //-----------------------------------------------------------------
 // Capture address (for delayed data)
 //-----------------------------------------------------------------
-logic [7:0] wr_addr_q;
+logic [31:0] wr_addr_q;
 
 always_ff @(posedge clk_i or negedge rst_i)
 if (!rst_i)
-    wr_addr_q <= 8'b0;
+    wr_addr_q <= 32'b0;
 else if (cfg_awvalid_i && cfg_awready_o)
-    wr_addr_q <= cfg_awaddr_i[7:0];
+    wr_addr_q <= cfg_awaddr_i;
 
-logic [7:0] wr_addr_w;
-assign wr_addr_w = awvalid_q ? wr_addr_q : cfg_awaddr_i[7:0];
+logic [31:0] wr_addr_w;
+assign wr_addr_w = awvalid_q ? wr_addr_q : cfg_awaddr_i;
+
+// -----------------------------------------------------------------
+// Local register-offset validation
+// The integration wrapper validates the full SoC address range.
+// This function validates only offsets implemented by this host IP.
+// -----------------------------------------------------------------
+function automatic logic reg_offset_valid(input logic [31:0] addr);
+begin
+    // This host implements only the low 8-bit register-offset space.
+    // Reject upper address bits to prevent address aliasing.
+    if (addr[31:8] != 24'b0) begin
+        reg_offset_valid = 1'b0;
+    end
+    else begin
+        case (addr[7:0])
+            `USB_CTRL,
+            `USB_STATUS,
+            `USB_IRQ_ACK,
+            `USB_IRQ_STS,
+            `USB_IRQ_MASK,
+            `USB_XFER_DATA,
+            `USB_XFER_TOKEN,
+            `USB_RX_STAT,
+            `USB_WR_DATA,
+            `USB_RD_DATA: reg_offset_valid = 1'b1;
+            default:     reg_offset_valid = 1'b0;
+        endcase
+    end
+end
+endfunction
 
 //-----------------------------------------------------------------
 // Retime write data
@@ -148,8 +180,14 @@ else if (cfg_wvalid_i && cfg_wready_o)
 //-----------------------------------------------------------------
 logic read_en_w;
 assign read_en_w = cfg_arvalid_i & cfg_arready_o;
+
+// write_req_en_w means the AXI-lite-style write request completed.
+// write_en_w is gated by local-register validity and is used only for
+// register side effects, so invalid offsets cannot alias valid registers.
+logic write_req_en_w;
 logic write_en_w;
-assign write_en_w = wr_cmd_accepted_w && wr_data_accepted_w;
+assign write_req_en_w = wr_cmd_accepted_w && wr_data_accepted_w;
+assign write_en_w     = write_req_en_w && reg_offset_valid(wr_addr_w);
 
 //-----------------------------------------------------------------
 // Accept Logic
@@ -709,19 +747,28 @@ begin
 end
 
 //-----------------------------------------------------------------
-// RVALID
+// RVALID and read response code
 //-----------------------------------------------------------------
 logic rvalid_q;
+logic [1:0] rresp_q;
 
 always_ff @(posedge clk_i or negedge rst_i)
-if (!rst_i)
+if (!rst_i) begin
     rvalid_q <= 1'b0;
-else if (read_en_w)
-    rvalid_q <= 1'b1;
-else if (cfg_rready_i)
-    rvalid_q <= 1'b0;
+    rresp_q  <= 2'b00;
+end
+else begin
+    if (read_en_w) begin
+        rvalid_q <= 1'b1;
+        // DECERR for an unimplemented local register offset.
+        rresp_q <= reg_offset_valid(cfg_araddr_i) ? 2'b00 : 2'b11;
+    end
+    else if (cfg_rvalid_o && cfg_rready_i)
+        rvalid_q <= 1'b0;
+end
 
 assign cfg_rvalid_o = rvalid_q;
+assign cfg_rresp_o  = rresp_q;
 
 //-----------------------------------------------------------------
 // Retime read response
@@ -732,29 +779,37 @@ always_ff @(posedge clk_i or negedge rst_i)
 if (!rst_i)
     rd_data_q <= 32'b0;
 else if (!cfg_rvalid_o || cfg_rready_i)
-    rd_data_q <= data_r;
+    rd_data_q <= reg_offset_valid(cfg_araddr_i) ? data_r : 32'b0;
 
 assign cfg_rdata_o = rd_data_q;
-assign cfg_rresp_o = 2'b0;
 
 //-----------------------------------------------------------------
-// BVALID
+// BVALID and write response code
 //-----------------------------------------------------------------
 logic bvalid_q;
+logic [1:0] bresp_q;
 
 always_ff @(posedge clk_i or negedge rst_i)
-if (!rst_i)
+if (!rst_i) begin
     bvalid_q <= 1'b0;
-else if (write_en_w)
-    bvalid_q <= 1'b1;
-else if (cfg_bready_i)
-    bvalid_q <= 1'b0;
+    bresp_q  <= 2'b00;
+end
+else begin
+    if (write_req_en_w) begin
+        bvalid_q <= 1'b1;
+        // DECERR for an unimplemented local register offset.
+        bresp_q <= reg_offset_valid(wr_addr_w) ? 2'b00 : 2'b11;
+    end
+    else if (cfg_bvalid_o && cfg_bready_i)
+        bvalid_q <= 1'b0;
+end
 
 assign cfg_bvalid_o = bvalid_q;
-assign cfg_bresp_o  = 2'b0;
+assign cfg_bresp_o  = bresp_q;
 
 logic usb_rd_data_rd_req_w;
-assign usb_rd_data_rd_req_w = read_en_w & (cfg_araddr_i[7:0] == `USB_RD_DATA);
+assign usb_rd_data_rd_req_w = read_en_w && reg_offset_valid(cfg_araddr_i) &&
+                              (cfg_araddr_i[7:0] == `USB_RD_DATA);
 
 logic usb_wr_data_wr_req_w;
 assign usb_wr_data_wr_req_w = usb_wr_data_wr_q;

@@ -1,3 +1,5 @@
+
+
 `timescale 1ns/1ps
  
 // -----------------------------------------------------------------------------
@@ -30,7 +32,11 @@ module axi4_usb_slave #(
     parameter int DATA_WIDTH   = 32,
     parameter int ID_WIDTH     = 4,
     parameter int USB_CLK_FREQ = 48000000,
-    parameter int FIFO_DEPTH   = 8
+    parameter int FIFO_DEPTH   = 8,
+    
+    // SoC USB address map: 0x1040_0000 through 0x104F_FFFF.
+    parameter logic [ADDR_WIDTH-1:0] USB_BASE_ADDR = 32'h1040_0000,
+    parameter logic [ADDR_WIDTH-1:0] USB_ADDR_SIZE = 32'h0010_0000
 ) (
     input  logic                     aclk,
     input  logic                     aresetn,
@@ -260,6 +266,14 @@ module axi4_usb_slave #(
         (arlen_q == 8'd0) &&
         (arsize_q == 3'd2) &&
         ((arburst_q == 2'b00) || (arburst_q == 2'b01));
+
+    // SoC address range is checked here; usbh_host receives local offsets.
+    wire aw_addr_in_range =
+        (awaddr_q >= USB_BASE_ADDR) &&
+        (awaddr_q < (USB_BASE_ADDR + USB_ADDR_SIZE));
+    wire ar_addr_in_range =
+        (araddr_q >= USB_BASE_ADDR) &&
+        (araddr_q < (USB_BASE_ADDR + USB_ADDR_SIZE));
  
     // -------------------------------------------------------------------------
     // AXI -> USB command FIFO
@@ -418,7 +432,9 @@ module axi4_usb_slave #(
                             (s_axi_awlen != 8'd0) ||
                             (s_axi_awsize != 3'd2) ||
                             ((s_axi_awburst != 2'b00) &&
-                             (s_axi_awburst != 2'b01));
+                             (s_axi_awburst != 2'b01)) ||
+                            (s_axi_awaddr < USB_BASE_ADDR) ||
+                            (s_axi_awaddr >= (USB_BASE_ADDR + USB_ADDR_SIZE));
  
                         wr_state <= WR_WAIT_W;
                     end
@@ -511,7 +527,9 @@ module axi4_usb_slave #(
                             (s_axi_arlen != 8'd0) ||
                             (s_axi_arsize != 3'd2) ||
                             ((s_axi_arburst != 2'b00) &&
-                             (s_axi_arburst != 2'b01));
+                             (s_axi_arburst != 2'b01)) ||
+                            (s_axi_araddr < USB_BASE_ADDR) ||
+                            (s_axi_araddr >= (USB_BASE_ADDR + USB_ADDR_SIZE));
  
                         rd_state <= RD_FIFO;
                     end
@@ -576,14 +594,16 @@ module axi4_usb_slave #(
                             !cmd_fifo_empty;
  
     assign cfg_awvalid = (usb_cfg_state == USB_WRITE);
-    assign cfg_awaddr  = usb_cmd_addr_q[31:0];
+    // Translate validated SoC address to the host's local register offset.
+    assign cfg_awaddr  = usb_cmd_addr_q[31:0] - USB_BASE_ADDR;
     assign cfg_wvalid  = (usb_cfg_state == USB_WRITE);
     assign cfg_wdata   = usb_cmd_wdata_q[31:0];
     assign cfg_wstrb   = usb_cmd_wstrb_q[3:0];
     assign cfg_bready  = (usb_cfg_state == USB_WRITE) && !br_fifo_full;
  
     assign cfg_arvalid = (usb_cfg_state == USB_READ);
-    assign cfg_araddr  = usb_cmd_addr_q[31:0];
+    // Translate validated SoC address to the host's local register offset.
+    assign cfg_araddr  = usb_cmd_addr_q[31:0] - USB_BASE_ADDR;
     assign cfg_rready  = (usb_cfg_state == USB_READ) && !rr_fifo_full;
  
     assign br_fifo_wr_en = (usb_cfg_state == USB_WRITE) &&

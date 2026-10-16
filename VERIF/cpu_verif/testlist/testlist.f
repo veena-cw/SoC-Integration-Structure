@@ -98,6 +98,19 @@ bp_dv_032_cbo_clean_test 32 cbo_clean.nbf
 bp_dv_033_cbo_flush_test 33 cbo_flush.nbf
 bp_dv_034_cbo_inval_test 34 cbo_inval.nbf
 
+# BP-DV-056 - cbo.zero (Zicboz) on both harts with the same program
+# (c/cbo_ops.c, CBO_OP 3): the 64-byte block must read 0 and the next block
+# keep its data. Currently FAILS: cbo.zero is a silent no-op (Jira).
+# Moved here from BP-DV-052 check 31.
+bp_dv_056_cbo_zero_test 56 cbo_zero.nbf
+
+# BP-DV-057 - FSM default arms by fault injection (white-box): after the
+# BP-DV-006 program finishes, cpu_tb_top forces unused state encodings into
+# the iterative multiplier (must return to IDLE) and CCE 0 (default and
+# e_error hold the state by design; state then restored). Defaults with no
+# free encoding are waived (2-state simulation).
+bp_dv_057_default_arm_test 57 muldiv_function.nbf
+
 # BP-DV-035 - M/S/U privilege modes on both harts: ecall/illegal-CSR/xRET
 # traps from S and U, medeleg (U ecall -> S), mideleg (SSIP taken in S),
 # exact mepc/sepc and MPP/SPP, MPP = U after mret. Nonzero tohost per hart:
@@ -219,7 +232,8 @@ bp_dv_051_debug_mode_test 51 debug_mode.nbf
 # word AMOs, unsigned FP conversions, fsgnj/fsgnjx, wfi, fence.i
 # (self-modifying code), cmo.*.all (illegal on two cores), prefetch hints,
 # one illegal encoding per decoder group (mcause 2, mtval = instruction),
-# cbo.zero. Built with rv64imafd. Progress markers at 0x0010_8A00.
+# and a generated decode sweep (every decoder instruction form, checked
+# against a reference model; cbo.zero moved to BP-DV-056). Built with rv64imafd. Progress markers at 0x0010_8A00.
 # Nonzero tohost per hart: (fail_count << 16) | 0x5200 | first failing check.
 bp_dv_052_isa_complete_test 52 isa_complete.nbf
 

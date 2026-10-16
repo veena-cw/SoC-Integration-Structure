@@ -115,6 +115,43 @@ class bp_dv_006_muldiv_test extends bp_base_test;
 
 endclass
 
+// Test ID: BP-DV-057 | Feature: FSM default arms (white-box fault injection)
+// Runs the BP-DV-006 mul/div program, then triggers the cpu_tb_top
+// default-arm injector: unused state encodings are forced into the
+// iterative multiplier and CCE 0, and their recovery is checked (see the
+// injector comment in cpu_tb_top.sv).
+class bp_dv_057_default_arm_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_057_default_arm_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    muldiv_test_seq seq;
+    uvm_event go, done;
+    int unsigned result;
+    phase.raise_objection(this);
+
+    apply_cpu_reset();
+    seq = muldiv_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+    wait (env.sb.finished);
+
+    go   = uvm_event_pool::get_global("default_inject_go");
+    done = uvm_event_pool::get_global("default_inject_done");
+    go.trigger();
+    done.wait_trigger();
+    result = 'hFFFF;
+    void'(uvm_config_db#(int unsigned)::get(null, "", "default_inject_result", result));
+    if (result != 0)
+      `uvm_error("BP057_DEFAULT", $sformatf("default-arm injection result 0x%0h (bit0 imulh busy, bit1 imulh not back to IDLE, bit2 CCE left illegal state, bit3 CCE left e_error, bit4 CCE not restored, bit5 AXI master read FSM busy, bit6 not back to RD_IDLE)", result))
+    else
+      `uvm_info("BP057_DEFAULT", "default arms: imulh and AXI master read FSM recovered to IDLE; CCE held illegal state and e_error, then restored", UVM_LOW)
+    phase.drop_objection(this);
+  endtask
+endclass
+
 // Supplemental load/add/store smoke test retained for compatibility. The
 // formal BP-DV-007 row is the conditional-branches test below.
 class bp_dv_007_load_add_store_test extends bp_base_test;
@@ -605,6 +642,14 @@ endclass
 
 class bp_dv_034_cbo_inval_test extends bp_dv_032_cbo_clean_test;
   `uvm_component_utils(bp_dv_034_cbo_inval_test)
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+endclass
+
+// Test ID: BP-DV-056 | Feature: cbo.zero (Zicboz), c/cbo_zero.c
+class bp_dv_056_cbo_zero_test extends bp_dv_032_cbo_clean_test;
+  `uvm_component_utils(bp_dv_056_cbo_zero_test)
   function new(string name, uvm_component parent);
     super.new(name, parent);
   endfunction

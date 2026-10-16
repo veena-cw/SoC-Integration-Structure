@@ -863,6 +863,103 @@ module cpu_tb_top
 `undef CCE_STALL
 `undef CCE_PATH
 
+  // --------------------------------------------------------------------
+  // Default-arm injector (BP-DV-057, white-box fault injection). Runs once,
+  // when the test triggers the global uvm_event "default_inject_go" (after
+  // the program has finished and the cores only spin in L1). For each FSM
+  // with unused state encodings it forces one for a clock, releases, and
+  // checks what the FSM does from it:
+  //   imulh (bsg_imul_iterative, 3-bit state, 6 states): encoding 6 ->
+  //         'default: next_state = IDLE' -> must be back in IDLE
+  //   axi4_master rd_state (2-bit, 3 states): encoding 3 -> 'default:
+  //         rd_state <= RD_IDLE' -> must be back in RD_IDLE (AXI clock)
+  //   CCE 0 (bp_cce_fsm, 6-bit state, 29 states): encoding 63 -> 'default'
+  //         keeps state_n = state_r, so the FSM must stay at 63; then
+  //         e_error (28), a terminal state, must stay; then the saved
+  //         state is forced back so the CCE keeps working
+  // Defaults with no free encoding (axi4_master wr_state, round-robin
+  // arbiter, FMA opcode case) cannot be reached in 2-state simulation and
+  // are waived.
+  // Result (0 = all as expected) in uvm_config_db "default_inject_result",
+  // then "default_inject_done" is triggered:
+  //   bit 0 imulh not idle before   bit 1 imulh did not return to IDLE
+  //   bit 2 CCE left the illegal state   bit 3 CCE left e_error
+  //   bit 4 CCE not restored
+  //   bit 5 axi4_master read FSM not idle before   bit 6 not back to RD_IDLE
+  // --------------------------------------------------------------------
+// The forces below deliberately put values outside each FSM's enum.
+/* verilator lint_off ENUMVALUE */
+`define IMULH_PATH dut.u_bp.m.multicore.cc.y[0].x[0].tile_node.tile.core.core_lite.core_minimal.be.calculator.pipe_long.imulh
+`define CCE0_PATH  dut.u_bp.m.multicore.cc.y[0].x[0].tile_node.tile.cce.t.cce
+`define AXIM_PATH  dut.u_bridge.u_axi4_master
+  initial begin : default_arm_injector
+    uvm_event go, done;
+    int unsigned result;
+    logic [5:0] cce_saved;
+    #1;
+    go   = uvm_event_pool::get_global("default_inject_go");
+    done = uvm_event_pool::get_global("default_inject_done");
+    go.wait_trigger();
+    result = 0;
+
+    // 1. multiplier: unused encoding 6 -> default -> IDLE
+    @(posedge clk);
+    if (`IMULH_PATH.curr_state_r != 0) result |= 1 << 0;
+    force `IMULH_PATH.curr_state_r = 3'd6;
+    @(posedge clk);
+    release `IMULH_PATH.curr_state_r;
+    repeat (2) @(posedge clk);
+    $display("DEFAULT INJECT imulh: forced state 6, now %0d (expect 0 = IDLE) time=%0t",
+             `IMULH_PATH.curr_state_r, $time);
+    if (`IMULH_PATH.curr_state_r != 0) result |= 1 << 1;
+
+    // 1b. AXI master read FSM: unused encoding 3 -> default -> RD_IDLE
+    @(posedge axi_clk);
+    if (`AXIM_PATH.rd_state != 0) result |= 1 << 5;
+    force `AXIM_PATH.rd_state = 2'd3;
+    @(posedge axi_clk);
+    release `AXIM_PATH.rd_state;
+    repeat (2) @(posedge axi_clk);
+    $display("DEFAULT INJECT axi4_master rd_state: forced 3, now %0d (expect 0 = RD_IDLE) time=%0t",
+             `AXIM_PATH.rd_state, $time);
+    if (`AXIM_PATH.rd_state != 0) result |= 1 << 6;
+
+    // 2. CCE 0: unused encoding 63 -> default holds the state
+    cce_saved = `CCE0_PATH.state_r;
+    force `CCE0_PATH.state_r = 6'd63;
+    @(posedge clk);
+    release `CCE0_PATH.state_r;
+    repeat (4) @(posedge clk);
+    $display("DEFAULT INJECT cce0: saved state %0d, forced 63, now %0d (expect 63: default keeps state) time=%0t",
+             cce_saved, `CCE0_PATH.state_r, $time);
+    if (`CCE0_PATH.state_r != 6'd63) result |= 1 << 2;
+
+    // 3. CCE 0: e_error (28) is terminal
+    force `CCE0_PATH.state_r = 6'd28;
+    @(posedge clk);
+    release `CCE0_PATH.state_r;
+    repeat (4) @(posedge clk);
+    $display("DEFAULT INJECT cce0: forced e_error (28), now %0d (expect 28) time=%0t",
+             `CCE0_PATH.state_r, $time);
+    if (`CCE0_PATH.state_r != 6'd28) result |= 1 << 3;
+
+    // 4. put the CCE back where it was
+    force `CCE0_PATH.state_r = cce_saved;
+    @(posedge clk);
+    release `CCE0_PATH.state_r;
+    repeat (4) @(posedge clk);
+    $display("DEFAULT INJECT cce0: restored to %0d, now %0d time=%0t",
+             cce_saved, `CCE0_PATH.state_r, $time);
+    if (`CCE0_PATH.state_r != cce_saved) result |= 1 << 4;
+
+    uvm_config_db#(int unsigned)::set(null, "*", "default_inject_result", result);
+    done.trigger();
+  end
+`undef IMULH_PATH
+`undef CCE0_PATH
+`undef AXIM_PATH
+/* verilator lint_on ENUMVALUE */
+
   final begin
     if (cce_stall_pct != 0)
       for (int x = 0; x < 2; x++)

@@ -47,8 +47,44 @@ coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controll
 coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv" -lines 234-235
 coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv" -lines 246-246
 coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv" -lines 248-249
-coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_imul_iterative.sv" -lines 112-112
 coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_imul_iterative.sv" -lines 184-185
 coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_imul_iterative.sv" -lines 230-231
 coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_imul_iterative.sv" -lines 234-234
 coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_mul_pipelined.sv"
+
+// Instruction decoder: constant feature parameters and dead case arms
+coverage_off -file "*/bp_be/src/v/bp_be_checker/bp_be_instr_decoder.sv" -lines 402-402
+coverage_off -file "*/bp_be/src/v/bp_be_checker/bp_be_instr_decoder.sv" -lines 458-469
+coverage_off -file "*/bp_be/src/v/bp_be_checker/bp_be_instr_decoder.sv" -lines 742-742
+coverage_off -file "*/bp_be/src/v/bp_be_checker/bp_be_instr_decoder.sv" -lines 789-789
+coverage_off -file "*/bp_be/src/v/bp_be_checker/bp_be_instr_decoder.sv" -lines 792-792
+coverage_off -file "*/bp_be/src/v/bp_be_checker/bp_be_instr_decoder.sv" -lines 797-797
+coverage_off -file "*/bp_be/src/v/bp_be_checker/bp_be_instr_decoder.sv" -lines 802-802
+
+// Defaults with no free encoding: unreachable in 2-state simulation
+// (forceable defaults are covered by BP-DV-057 fault injection)
+coverage_off -file "*/ip/axi4_master/rtl/axi4_master.sv" -lines 205-205
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 75-75
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 119-119
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 169-169
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 229-229
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 299-299
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 383-383
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 482-482
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 598-598
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 732-732
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 888-888
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 1067-1067
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 1271-1271
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 1502-1502
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 1762-1762
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 2053-2053
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 2377-2377
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 2735-2735
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 3131-3131
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 3566-3566
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 4042-4042
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 4561-4561
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 5125-5125
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 5736-5736
+coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 6396-6396

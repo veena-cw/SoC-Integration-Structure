@@ -44,8 +44,44 @@
 */external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv 234-235  # bits_per_iter_p == 1 arm (config uses 2)
 */external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv 246-246  # bits_per_iter_p == 1 arm (config uses 2)
 */external/basejump_stl/bsg_misc/bsg_idiv_iterative_controller.sv 248-249  # bits_per_iter_p == 1 arm (config uses 2)
-*/external/basejump_stl/bsg_misc/bsg_imul_iterative.sv  112-112  # unique case default: unused state encodings
 */external/basejump_stl/bsg_misc/bsg_imul_iterative.sv  184-185  # low-part shift: gets_high_part_i tied 1
 */external/basejump_stl/bsg_misc/bsg_imul_iterative.sv  230-231  # low-part accumulate: gets_high_part_i tied 1
 */external/basejump_stl/bsg_misc/bsg_imul_iterative.sv  234-234  # low-part no-add arm: gets_high_part_i tied 1
 */external/basejump_stl/bsg_misc/bsg_mul_pipelined.sv            # not instantiated; only its $unit function is compiled
+
+# Instruction decoder: constant feature parameters and dead case arms
+*/bp_be/src/v/bp_be_checker/bp_be_instr_decoder.sv      402-402  # fence.i: !dcache_features_p[e_cfg_coherent] is a constant
+*/bp_be/src/v/bp_be_checker/bp_be_instr_decoder.sv      458-469  # prefetch.i/r/w arms in MISC_MEM: dead (prefetch decodes as ORI hint)
+*/bp_be/src/v/bp_be_checker/bp_be_instr_decoder.sv      742-742  # FMA opcode case default: all four opcodes listed
+*/bp_be/src/v/bp_be_checker/bp_be_instr_decoder.sv      789-789  # LR/SC support: constant feature parameters
+*/bp_be/src/v/bp_be_checker/bp_be_instr_decoder.sv      792-792  # AMO swap support: constant feature parameters
+*/bp_be/src/v/bp_be_checker/bp_be_instr_decoder.sv      797-797  # AMO logic support: constant feature parameters
+*/bp_be/src/v/bp_be_checker/bp_be_instr_decoder.sv      802-802  # AMO arithmetic support: constant feature parameters
+
+# Defaults with no free encoding: unreachable in 2-state simulation
+# (forceable defaults are covered by BP-DV-057 fault injection)
+*/ip/axi4_master/rtl/axi4_master.sv                     205-205  # wr_state default: all 4 encodings used
+*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv   75-75  # X-assign default: grant case is complete
+*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv 119-119  # X-assign default: grant case is complete
+*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv 169-169  # X-assign default: grant case is complete
+*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv 229-229  # X-assign default: grant case is complete
+*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv 299-299  # X-assign default: grant case is complete
+*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv 383-383  # X-assign default: grant case is complete
+*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv 482-482  # X-assign default: grant case is complete
+*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv 598-598  # X-assign default: grant case is complete
+*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv 732-732  # X-assign default: grant case is complete
+*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv 888-888  # X-assign default: grant case is complete
+*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv1067-1067  # X-assign default: grant case is complete
+*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv1271-1271  # X-assign default: grant case is complete
+*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv1502-1502  # X-assign default: grant case is complete
+*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv1762-1762  # X-assign default: grant case is complete
+*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv2053-2053  # X-assign default: grant case is complete
+*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv2377-2377  # X-assign default: grant case is complete
+*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv2735-2735  # X-assign default: grant case is complete
+*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv3131-3131  # X-assign default: grant case is complete
+*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv3566-3566  # X-assign default: grant case is complete
+*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv4042-4042  # X-assign default: grant case is complete
+*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv4561-4561  # X-assign default: grant case is complete
+*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv5125-5125  # X-assign default: grant case is complete
+*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv5736-5736  # X-assign default: grant case is complete
+*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv6396-6396  # X-assign default: grant case is complete

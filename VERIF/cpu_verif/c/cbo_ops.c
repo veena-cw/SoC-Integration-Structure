@@ -1,14 +1,16 @@
 /* cbo_ops.c
  *
- * BP-DV-032/033/034: RISC-V Zicbom cache-block operations on both harts.
- * Each test selects one operation with CBO_OP (see cbo_clean.c,
- * cbo_flush.c, cbo_inval.c), so a hang in one operation cannot hide the
- * result of another.
+ * BP-DV-032/033/034/056: RISC-V Zicbom / Zicboz cache-block operations on
+ * both harts. Each test selects one operation with CBO_OP (see cbo_clean.c,
+ * cbo_flush.c, cbo_inval.c, cbo_zero.c), so a hang in one operation cannot
+ * hide the result of another.
  *
  *   CBO_OP 1 = cbo.clean : write the block back if dirty, keep it cached
  *   CBO_OP 2 = cbo.flush : write the block back if dirty, then invalidate
  *   CBO_OP 0 = cbo.inval : invalidate the block (dirty data may be
  *                          discarded or written back - both are legal)
+ *   CBO_OP 3 = cbo.zero  : zero the 64-byte block (Zicboz); the next
+ *                          block must be left untouched
  *
  * Per hart, on its own DRAM line (HART_DRAM):
  *   1. load the line            (bring it into the cache, record old value)
@@ -17,6 +19,7 @@
  *   4. load the line back and check
  *        clean / flush : must read the pattern
  *        inval         : must read the pattern or the old value
+ *        zero          : must read 0, and the next block its pattern
  *   5. store/load again         (the line is still usable after the op)
  *
  * Progress markers: before and after the CBO op, each hart writes
@@ -29,6 +32,7 @@
  * tohost (dual_core.h): (hart1_result << 32) | hart0_result; per hart
  *   0 = pass, otherwise (op << 8) | failing check:
  *     0x?03 = read-back after the op is wrong
+ *     0x?04 = cbo.zero changed the next block
  *     0x?05 = line not usable after the op
  *   hart1_result 0xFFFFFFFF = hart 1 never reported (e.g. hung in the op).
  */
@@ -54,7 +58,9 @@ static inline void progress(uint64_t step)
 
 static inline void cbo_op(uintptr_t addr)
 {
-#if CBO_OP == 0
+#if CBO_OP == 3
+  __asm__ volatile (".insn i 0x0f, 2, x0, %0, 4" :: "r"(addr) : "memory");  /* cbo.zero */
+#elif CBO_OP == 0
   __asm__ volatile (".insn i 0x0f, 2, x0, %0, 0" :: "r"(addr) : "memory");  /* cbo.inval */
 #elif CBO_OP == 1
   __asm__ volatile (".insn i 0x0f, 2, x0, %0, 1" :: "r"(addr) : "memory");  /* cbo.clean */
@@ -83,6 +89,10 @@ static uint64_t run_cbo(void)
   /* 2. make it dirty */
   for (unsigned i = 0; i < CBO_WORDS; i++)
     line[i] = pattern(i, 1);
+#if CBO_OP == 3
+  for (unsigned i = 0; i < CBO_WORDS; i++)          /* next block */
+    line[CBO_WORDS + i] = pattern(i, 3);
+#endif
 
   /* 3. the cache-block operation, bracketed by AXI progress markers */
   progress(1);
@@ -92,7 +102,10 @@ static uint64_t run_cbo(void)
   /* 4. read back */
   for (unsigned i = 0; i < CBO_WORDS; i++) {
     uint64_t v = line[i];
-#if CBO_OP == 0
+#if CBO_OP == 3
+    if (v != 0)
+      return fail | 0x03;
+#elif CBO_OP == 0
     if (v != pattern(i, 1) && v != old[i])
       return fail | 0x03;
 #else
@@ -100,6 +113,12 @@ static uint64_t run_cbo(void)
       return fail | 0x03;
 #endif
   }
+
+#if CBO_OP == 3
+  for (unsigned i = 0; i < CBO_WORDS; i++)
+    if (line[CBO_WORDS + i] != pattern(i, 3))
+      return fail | 0x04;
+#endif
 
   /* 5. the line is still usable */
   for (unsigned i = 0; i < CBO_WORDS; i++)

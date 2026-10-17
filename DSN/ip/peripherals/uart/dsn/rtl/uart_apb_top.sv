@@ -68,11 +68,11 @@ module uart_apb_top(
     else if (!PENABLE)
       apb_setup_seen <= 1'b1;
     else if (PREADY)
-      apb_setup_seen <= 1'b0;
+      apb_setup_seen <= 1'b1;
   end
 
   assign apb_access_valid =
-      PSEL && PENABLE && apb_setup_seen;
+      PSEL && PENABLE && PREADY && apb_setup_seen;
 
   //=====================================================
   // Register Valid Bits
@@ -154,8 +154,7 @@ module uart_apb_top(
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n)
       {thr_reg_vld, thr_reg} <= 33'h0;
-    else if (apb_access_valid && PWRITE &&
-             (addr == ADDR_THR))
+    else if (apb_access_valid && PWRITE && (addr == ADDR_THR))
       {thr_reg_vld, thr_reg} <= {1'b1,23'h0, PWDATA[8:0]};
   end
 
@@ -183,9 +182,10 @@ module uart_apb_top(
   // bit6 : do_push
   //=====================================================
   always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) {sr_reg_vld, sr_reg} <= {1'b0, 32'h00000005};
-	  else if (apb_access_valid && (~PWRITE) && (addr == ADDR_SR)) {sr_reg_vld, sr_reg} <=  {1'b0, 32'h00000005};
-     else if (apb_access_valid && PWRITE && (addr == ADDR_SR)) {sr_reg_vld, sr_reg} <= {1'b1, {25'h0, do_push, frame_err_o, parity_err_o, rx_full_o, rx_empty_o, tx_full_o, tx_empty_o}};
+    if (!rst_n)
+      {sr_reg_vld, sr_reg} <= {1'b0, 32'h00000005};
+    else
+      {sr_reg_vld, sr_reg} <= {1'b1, {25'h0, do_push, frame_err_o, parity_err_o, rx_full_o, rx_empty_o, tx_full_o, tx_empty_o}};
   end
 
   //=====================================================
@@ -201,12 +201,10 @@ module uart_apb_top(
   // bit13:9: RTS threshold
   //=====================================================
   always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n)
-      {cr_reg_vld, cr_reg} <= 33'h0;
-    else if (apb_access_valid && PWRITE &&
-             (addr == ADDR_CR))
-      {cr_reg_vld, cr_reg} <=
-        {1'b1, {18'h0, PWDATA[13:0]}};
+  if (!rst_n)
+  {cr_reg_vld, cr_reg} <= 33'h0;
+  else if (apb_access_valid && PWRITE && (addr == ADDR_CR))
+  {cr_reg_vld, cr_reg} <= {1'b1, {18'h0, PWDATA[13:0]}};
   end
 
   logic cr0_q, cr1_q;
@@ -234,10 +232,8 @@ module uart_apb_top(
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n)
       {brdr_reg_vld, brdr_reg} <= 33'h0;
-    else if (apb_access_valid && PWRITE &&
-             divisor_load_i && (addr == ADDR_BRDR))
-      {brdr_reg_vld, brdr_reg} <=
-        {1'b1, {16'h0, PWDATA[15:0]}};
+    else if (apb_access_valid && PWRITE && divisor_load_i && (addr == ADDR_BRDR))
+      {brdr_reg_vld, brdr_reg} <= {1'b1, {16'h0, PWDATA[15:0]}};
   end
 
   //=====================================================
@@ -246,10 +242,8 @@ module uart_apb_top(
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n)
       {ier_reg_vld, ier_reg} <= 33'h0;
-    else if (apb_access_valid && PWRITE &&
-             uart_irq_en && (addr == ADDR_IER))
-      {ier_reg_vld, ier_reg} <=
-        {1'b1, {28'h0, PWDATA[3:0]}};
+    else if (apb_access_valid && PWRITE && uart_irq_en && (addr == ADDR_IER))
+      {ier_reg_vld, ier_reg} <= {1'b1, {28'h0, PWDATA[3:0]}};
   end
 
   assign tx_empty_irq_en_i = ier_reg[0];
@@ -260,19 +254,15 @@ module uart_apb_top(
   //=====================================================
   // ISR: Read-only status register, cleared on valid CPU read
   //=====================================================
+  
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n)
-      {isr_reg_vld, isr_reg} <= {1'b0, 32'h00000005};
-    else if (apb_access_valid && !PWRITE &&
-             (addr == ADDR_ISR))
-      {isr_reg_vld, isr_reg} <= {1'b0, 32'h00000005};
+        {isr_reg_vld, isr_reg} <= {1'b0, 32'h00000005};
+    else if (apb_access_valid && !PWRITE && (addr == ADDR_ISR))
+        {isr_reg_vld, isr_reg} <= {1'b1, {24'h0, 4'h0, rx_full_o, rx_empty_o, tx_full_o, tx_empty_o}};
     else
-      {isr_reg_vld, isr_reg} <=
-        {1'b1,
-         {24'h0, break_o, overrun_o, frame_err_o,
-          parity_err_o, rx_full_o, rx_empty_o,
-          tx_full_o, tx_empty_o}};
-  end
+        {isr_reg_vld, isr_reg} <= {1'b1, {24'h0, break_o, overrun_o, frame_err_o, parity_err_o, rx_full_o, rx_empty_o, tx_full_o, tx_empty_o}};
+        end
 
   //=====================================================
   // CR[7:6] -> uart_top data_bits_i (4 bits)

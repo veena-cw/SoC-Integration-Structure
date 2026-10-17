@@ -103,9 +103,9 @@ package apb_i2c_apb_adapter_pkg;
         if (rw.addr == CTRL_REG_ADDR) begin
 
           item.pwdata[15:8] = rw.data[7:0];
-
+          item.pwdata[16] = rw.data[8];
           item.pstrb[1] = rw.byte_en[0];
-
+	  item.pstrb[2] = rw.byte_en[1];
 
           `uvm_info(
             "APB_ADAPTER",
@@ -245,7 +245,7 @@ package apb_i2c_apb_adapter_pkg;
 
           rw.data = '0;
 
-          rw.data[7:0] = item.prdata[7:0];
+          rw.data = item.prdata;
 
           rw.byte_en = '0;
           rw.byte_en[0] = 1'b1;

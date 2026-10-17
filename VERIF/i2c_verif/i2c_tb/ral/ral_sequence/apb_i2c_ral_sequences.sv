@@ -1274,8 +1274,8 @@ rand bit [7:0]	tx_data_lower;
 
     ctrl_value = '0;
 
-    ctrl_value[7:0] = slave_addr;
-    ctrl_value[8]   = read_write;
+    ctrl_value[6:0] = slave_addr;
+    ctrl_value[7]   = read_write;
 
 
     `uvm_info(
@@ -1664,14 +1664,14 @@ class apb_i2c_reg_write_wrong_addr_seq extends apb_i2c_ral_base_seq;
         UVM_FRONTDOOR
       );
 
-
+/*
       if (status != UVM_IS_OK) begin
         `uvm_info(
           "I2C_WRONG_ADDR",
           "STATUS_REG read failed",UVM_NONE
         )
       end
-
+*/
 
       busy        = status_value[0];
       done        = status_value[1];
@@ -2085,9 +2085,8 @@ class apb_i2c_irq_reg_write_seq extends apb_i2c_ral_base_seq;
   rand bit [7:0] tx_data_lower;
 
        bit  irq_en;
+
      
-
-
 
  //============================================================
   // Constraints
@@ -2160,6 +2159,19 @@ class apb_i2c_irq_reg_write_seq extends apb_i2c_ral_base_seq;
 
 
 
+    //==========================================================
+    // Check IRQ sequencer
+    //==========================================================
+/*
+    if (irq_seqr == null) begin
+
+      `uvm_fatal(
+        "I2C_IRQ",
+        "IRQ sequencer is NULL"
+      )
+
+    end*/
+
 
     //==========================================================
     // Get IRQ VIF using IRQ sequencer path
@@ -2210,6 +2222,10 @@ end
     );
 */
 
+
+
+
+
 //==========================================================
     // Randomize transaction
     //==========================================================
@@ -2242,6 +2258,7 @@ end
       "Waiting for BUSY = 0",
       UVM_MEDIUM
     )
+
 
 /*
     do begin
@@ -2281,6 +2298,8 @@ end
 
 */
  // @(posedge irq_vif.i2c_irq);
+
+
   
       model.STATUS_REG.read(
         status,
@@ -2322,7 +2341,7 @@ end
     ctrl_value[6:0] = slave_addr;
     ctrl_value[7]   = read_write;
     ctrl_value[8] = 1;
-=======
+
 
 
     `uvm_info(

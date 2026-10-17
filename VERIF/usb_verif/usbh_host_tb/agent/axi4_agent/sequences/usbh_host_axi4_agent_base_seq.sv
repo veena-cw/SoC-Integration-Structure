@@ -28,17 +28,247 @@
 
 
 // Base sequence for agent "axi4_agent"
-class usbh_host_axi4_agent_base_seq extends uvm_sequence #(usbh_host_axi4_agent_seq_item);
+// Base sequence for agent "axi4_agent"
+class usbh_host_axi4_agent_base_seq extends
+    uvm_sequence #(usbh_host_axi4_agent_seq_item);
 
   `uvm_object_utils(usbh_host_axi4_agent_base_seq)
 
   rand int unsigned num_items = 10;
 
+  // ---------------------------------------------------------
+  // USB HOST REGISTER MAP
+  // ---------------------------------------------------------
+  localparam logic [31:0] USB_IRQ_ACK    = 32'h08;
+  localparam logic [31:0] USB_IRQ_STS    = 32'h0C;
+  localparam logic [31:0] USB_XFER_DATA  = 32'h14;
+  localparam logic [31:0] USB_XFER_TOKEN = 32'h18;
+  localparam logic [31:0] USB_RX_STAT    = 32'h1C;
+  localparam logic [31:0] USB_DATA_FIFO  = 32'h20;
+
+  // ---------------------------------------------------------
+  // USB PIDs
+  // ---------------------------------------------------------
+  localparam logic [7:0] PID_SETUP = 8'h2D;
+  localparam logic [7:0] PID_IN    = 8'h69;
+  localparam logic [7:0] PID_OUT   = 8'hE1;
+  localparam logic [7:0] PID_ACK   = 8'hD2;
+  localparam logic [7:0] PID_DATA0 = 8'hC3;
+  localparam logic [7:0] PID_DATA1 = 8'h4B;
+  localparam logic [7:0] PID_STALL = 8'h1E;
+
+  localparam logic [ID_WIDTH-1:0] AXI_ID = 4'h1;
+  localparam int POLL_LIMIT = 1000;
+
   function new(string name = "usbh_host_axi4_agent_base_seq");
     super.new(name);
   endfunction
 
-  task body();
+  // ---------------------------------------------------------
+  // AXI WRITE
+  // ---------------------------------------------------------
+  task automatic write_reg(
+      input logic [31:0] addr,
+      input logic [31:0] value
+  );
+    usbh_host_axi4_agent_seq_item req;
+
+    req = usbh_host_axi4_agent_seq_item::type_id::create("wr_req");
+
+    start_item(req);
+
+    req.write = 1'b1;
+    req.addr  = addr;
+    req.data  = value;
+    req.strb  = 4'hF;
+
+    req.id      = AXI_ID;
+    req.len     = 0;
+    req.size    = 2;
+    req.burst   = 2'b01;
+    req.wlast   = 1'b1;
+    req.rlast   = 1'b0;
+    req.resp_id = '0;
+
+    finish_item(req);
+
+    if (req.resp != 2'b00) begin
+      `uvm_fatal("AXI_WRITE",
+        $sformatf("AXI write failed: addr=%08h data=%08h resp=%0h",
+                  addr, value, req.resp))
+    end
+  endtask
+
+  // ---------------------------------------------------------
+  // AXI READ
+  // ---------------------------------------------------------
+  task automatic read_reg(
+      input  logic [31:0] addr,
+      output logic [31:0] value
+  );
+    usbh_host_axi4_agent_seq_item req;
+
+    req = usbh_host_axi4_agent_seq_item::type_id::create("rd_req");
+
+    start_item(req);
+
+    req.write = 1'b0;
+    req.addr  = addr;
+    req.data  = '0;
+    req.strb  = '0;
+
+    req.id      = AXI_ID;
+    req.len     = 0;
+    req.size    = 2;
+    req.burst   = 2'b01;
+    req.wlast   = 1'b0;
+    req.rlast   = 1'b1;
+    req.resp_id = '0;
+
+    finish_item(req);
+
+    if (req.resp != 2'b00) begin
+      `uvm_fatal("AXI_READ",
+        $sformatf("AXI read failed: addr=%08h resp=%0h",
+                  addr, req.resp))
+    end
+
+    value = req.rdata;
+  endtask
+
+  // ---------------------------------------------------------
+  // CLEAR USB INTERRUPTS
+  //
+  // Assumes IRQ_ACK is a write-one-to-clear register and
+  // DONE = IRQ_STS[1], ERR = IRQ_STS[2].
+  // ---------------------------------------------------------
+  task automatic clear_usb_interrupts();
+    write_reg(USB_IRQ_ACK, 32'h0000_0006);
+  endtask
+
+  // ---------------------------------------------------------
+  // WAIT FOR USB TRANSACTION COMPLETION
+  //
+  // Assumed status fields:
+  // IRQ_STS[2]    = ERR
+  // IRQ_STS[1]    = DONE
+  //
+  // RX_STAT[31]    = START_PEND
+  // RX_STAT[30]    = CRC_ERR
+  // RX_STAT[29]    = RESP_TIMEOUT
+  // RX_STAT[23:16] = RESP_PID
+  // RX_STAT[15:0]  = COUNT
+  // ---------------------------------------------------------
+  task automatic wait_usb_done(output logic [31:0] status);
+    logic [31:0] irq_status;
+    bit completed;
+
+    completed = 1'b0;
+    status    = '0;
+
+    for (int i = 0; i < POLL_LIMIT; i++) begin
+      read_reg(USB_IRQ_STS, irq_status);
+
+      if (irq_status[2]) begin
+        read_reg(USB_RX_STAT, status);
+
+        `uvm_fatal("USB_ERR",
+          $sformatf("USB error: IRQ_STS=%08h RX_STAT=%08h",
+                    irq_status, status))
+      end
+
+      if (irq_status[1]) begin
+        completed = 1'b1;
+        break;
+      end
+    end
+
+    if (!completed) begin
+      read_reg(USB_RX_STAT, status);
+
+      `uvm_fatal("USB_WAIT",
+        $sformatf("Timeout waiting for USB DONE: RX_STAT=%08h",
+                  status))
+    end
+
+    read_reg(USB_RX_STAT, status);
+
+    if (status[31] || status[30] || status[29]) begin
+      `uvm_fatal("USB_STATUS",
+        $sformatf("Invalid completion status: RX_STAT=%08h",
+                  status))
+    end
+  endtask
+
+  // ---------------------------------------------------------
+  // ISSUE USB TOKEN
+  //
+  // dev_addr: device address used for this transaction
+  // ep_addr : endpoint number
+  //
+  // Token field positions are inherited from your existing
+  // sequences; confirm them against the host RTL.
+  // ---------------------------------------------------------
+  task automatic issue_token(
+      input  logic [7:0] pid,
+      input  bit         is_in,
+      input  bit         data1,
+      input  logic [6:0] dev_addr,
+      input  logic [3:0] ep_addr,
+      output logic [31:0] status
+  );
+    logic [31:0] token;
+
+    token = '0;
+
+    token[31]    = 1'b1;
+    token[30]    = is_in;
+    token[29]    = 1'b1;
+    token[28]    = data1;
+    token[23:16] = pid;
+    token[15:9]  = dev_addr;
+    token[8:5]   = ep_addr;
+
+    write_reg(USB_XFER_TOKEN, token);
+
+    wait_usb_done(status);
+  endtask
+
+  // ---------------------------------------------------------
+  // CHECK USB RESPONSE PID
+  // ---------------------------------------------------------
+  task automatic check_response_pid(
+      input logic [31:0] status,
+      input logic [7:0]  expected_pid,
+      input string       context_name
+  );
+    logic [7:0] actual_pid;
+
+    actual_pid = status[23:16];
+
+    if (actual_pid != expected_pid) begin
+      `uvm_fatal("USB_PID",
+        $sformatf(
+          "%s: expected PID=%02h, actual PID=%02h, RX_STAT=%08h",
+          context_name, expected_pid, actual_pid, status))
+    end
+  endtask
+
+  // ---------------------------------------------------------
+  // BASE BODY
+  //
+  // Intentionally empty. Derived protocol sequences override
+  // body() and call the shared methods above as required.
+  // ---------------------------------------------------------
+  virtual task body();
+    `uvm_info("BASE_SEQ",
+      "Base sequence started; no default transactions issued",
+      UVM_LOW)
+  endtask
+
+
+  // Old task body():
+/*  task body();
     usbh_host_axi4_agent_seq_item item;
     repeat (num_items) begin
       item = usbh_host_axi4_agent_seq_item::type_id::create("item");
@@ -48,5 +278,6 @@ class usbh_host_axi4_agent_base_seq extends uvm_sequence #(usbh_host_axi4_agent_
       finish_item(item);
     end
   endtask
+*/
 
 endclass : usbh_host_axi4_agent_base_seq

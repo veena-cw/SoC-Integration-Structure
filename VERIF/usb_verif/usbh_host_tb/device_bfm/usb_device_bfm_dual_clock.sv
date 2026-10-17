@@ -557,7 +557,7 @@ module usb_device_bfm #(
     // Wait for the next valid-CRC SOF token. Timeout is expressed in clk_i
     // cycles; returns seen=0 on timeout. This is useful from a module-based
     // testbench without requiring a UVM virtual interface.
-    task automatic wait_for_sof(
+    /*task automatic wait_for_sof(
         input integer timeout_clks,
         output logic seen,
         output logic [10:0] received_frame
@@ -578,7 +578,39 @@ module usb_device_bfm #(
         join_any
         disable fork;
     endtask
+*/
 
+task automatic wait_for_sof(
+    input integer timeout_clks,
+    output logic seen,
+    output logic [10:0] received_frame
+);
+    logic seen_local;
+    logic [10:0] frame_local;
+
+    // Initialize local variables.
+    seen_local  = 1'b0;
+    frame_local = frame_number;
+
+    fork
+        begin : wait_for_event
+            @(sof_received_event);
+            seen_local  = 1'b1;
+            frame_local = frame_number;
+        end
+
+        begin : wait_for_timeout
+            repeat (timeout_clks) @(posedge clk_i);
+        end
+    join_any
+
+    // Stop the process that did not finish first.
+    disable fork;
+
+    // Update task outputs only after the timing controls.
+    seen           = seen_local;
+    received_frame = frame_local;
+endtask
     // ------------------------------------------------------------------------
     // Error injection controls
     // ------------------------------------------------------------------------
@@ -915,24 +947,27 @@ module usb_device_bfm #(
                 out_last_pid[reset_idx] <= PID_DATA0;
                 out_last_len[reset_idx] <= 0;
             end
-            frame_number <= 11'd0;
-            sof_seen <= 1'b0;
-            sof_previous_frame <= 11'd0;
-            sof_previous_valid <= 1'b0;
-            sof_sequence_check_enable <= 1'b1;
-            sof_count <= 0;
-            sof_sequence_error_count <= 0;
-            sof_duplicate_count <= 0;
-            sof_missing_frame_count <= 0;
-            sof_last_delta <= 0;
-            sof_previous_cycle <= 0;
-            sof_last_interval_cycles <= 0;
-            sof_timing_error_count <= 0;
-            sof_bad_crc_count <= 0;
-            sof_malformed_count <= 0;
-            sof_min_interval_cycles <= 0;
-            sof_max_interval_cycles <= 0;
-            sof_last_frame_number <= 11'd0;
+            // SOF monitor state is also updated by BFM tasks and packet
+            // processing code using blocking assignments. Use blocking
+            // assignments here as well to avoid Verilator BLKANDNBLK errors.
+            frame_number = 11'd0;
+            sof_seen = 1'b0;
+            sof_previous_frame = 11'd0;
+            sof_previous_valid = 1'b0;
+            sof_sequence_check_enable = 1'b1;
+            sof_count = 0;
+            sof_sequence_error_count = 0;
+            sof_duplicate_count = 0;
+            sof_missing_frame_count = 0;
+            sof_last_delta = 0;
+            sof_previous_cycle = 0;
+            sof_last_interval_cycles = 0;
+            sof_timing_error_count = 0;
+            sof_bad_crc_count = 0;
+            sof_malformed_count = 0;
+            sof_min_interval_cycles = 0;
+            sof_max_interval_cycles = 0;
+            sof_last_frame_number = 11'd0;
             suspend_count <= 0;
             resume_count <= 0;
             state_before_suspend <= DEV_DEFAULT;
@@ -3405,5 +3440,43 @@ endtask
       $display("[%0t] DEVICE BFM: detached", $time);
     end
   endtask
+  
+  
+  // Directed-test setup for SYNCH_FRAME.
+// Call before starting the UVM sequence.
+task automatic setup_synch_frame_for_test();
+    begin
+        device_addr = 7'd0;
+        device_state = DEV_CONFIGURED;
+        configuration_value = 8'd1;
+
+        // EP0 remains the control endpoint.
+        ep_enabled[0] = 1'b1;
+        ep_type[0]    = EP_TYPE_CONTROL;
+        ep_mps[0]     = EP0_MAX_PACKET_SIZE;
+
+        // EP1 IN is the isochronous endpoint being queried.
+        enable_endpoint(
+            1,              // Endpoint number
+            1'b1,           // IN
+            EP_TYPE_ISO,    // Isochronous
+            64,             // Maximum packet size
+            1               // Interval
+        );
+
+        ep_halted[1] = 1'b0;
+        in_toggle[1] = 1'b0;
+
+        // Reset control-transfer state for an isolated test.
+        ctrl_stage = CTRL_IDLE;
+        control_transfer_active = 1'b0;
+        ctrl_stall_pending = 1'b0;
+        pending_data = 1'b0;
+        state = ST_IDLE;
+
+        $display("[%0t] BFM: SYNCH_FRAME test setup: EP1 IN isochronous enabled",
+                 $time);
+    end
+endtask
 endmodule
 

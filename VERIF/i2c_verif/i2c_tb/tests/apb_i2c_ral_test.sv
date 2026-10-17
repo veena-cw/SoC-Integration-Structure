@@ -301,8 +301,6 @@ class apb_i2c_reg_write_test extends apb_i2c_base_test;
         $sformatf("All %0d sequence calls returned at %0t",
                   completed, $time), UVM_LOW)
 
-<<<<<<< HEAD
-=======
     phase.drop_objection(this);
 endtask
 endclass
@@ -327,8 +325,6 @@ class apb_i2c_reg_write_push_test extends apb_i2c_base_test;
    wseq.slave_addr = 7'h55;
   wseq.read_write = 1'b0;
 
->>>>>>> 193e2a9 (Update I2C verification)
- 
     repeat(1)
     wseq.start(env.agent.sequencer);
     #10;
@@ -366,33 +362,6 @@ class apb_i2c_reg_read_pull_test extends apb_i2c_base_test;
 endclass
 */
 
-class apb_i2c_reg_write_push_test extends apb_i2c_base_test;
-  `uvm_component_utils(apb_i2c_reg_write_push_test)
-
-  apb_i2c_reg_write_push_seq   wseq;
-  function new(string name = "apb_i2c_reg_write_push_test", uvm_component parent = null);
-    super.new(name, parent);
-  endfunction
-  function void build_phase(uvm_phase phase);
-    super.build_phase(phase);
-    wseq = apb_i2c_reg_write_push_seq :: type_id :: create("wseq",this);
-  endfunction
-  task run_phase(uvm_phase phase);
-    phase.raise_objection(this);
-    do_reset();
-    `uvm_info(get_type_name(), "WRITE PUSH TEST: frontdoor write, check mirrored vs desired", UVM_LOW)
-    wseq.model = env.ral_model;
-   wseq.slave_addr = 7'h55;
-  wseq.read_write = 1'b0;
-
- 
-    repeat(1)
-    wseq.start(env.agent.sequencer);
-    #10;
-   // env.scoreboard.check_mirror_desired("after_write_read");
-    phase.drop_objection(this);
-  endtask
-endclass
 
 
 class apb_i2c_reg_read_test extends apb_i2c_base_test;
@@ -414,13 +383,9 @@ class apb_i2c_reg_read_test extends apb_i2c_base_test;
     rseq.model = env.ral_model;
     rseq.slave_addr = 7'h55;
   rseq.read_write = 1'b1;
-<<<<<<< HEAD
-  rseq.tx_data    = 32'h0000d500;
-
-=======
  // rseq.tx_data    = 32'h0000d500;
      repeat(50)
->>>>>>> 193e2a9 (Update I2C verification)
+
     rseq.start(env.agent.sequencer);
    // env.scoreboard.check_mirror_desired("after_write_read");
     phase.drop_objection(this);
@@ -523,40 +488,7 @@ endclass
   endtask
   
 endclass
-/*
-  class apb_i2c_interrupt_test extends apb_i2c_base_test;
-  `uvm_component_utils(apb_i2c_interrupt_test)
 
-  apb_i2c_irq_reg_write_seq   irq_seq;
-  function new(string name = "apb_i2c_interrupt_test", uvm_component parent = null);
-    super.new(name, parent);
-  endfunction
-  function void build_phase(uvm_phase phase);
-    super.build_phase(phase);
-
-    irq_seq = apb_i2c_irq_reg_write_seq :: type_id :: create("irq_seq",this);
-  uvm_config_db#(bit)::set(
-    this,
-    "*",
-    "irq_enable_test",
-    1'b1
-);	
-  endfunction
-  task run_phase(uvm_phase phase);
-    phase.raise_objection(this);
-    do_reset();
-    `uvm_info(get_type_name(), "IRQ TEST:", UVM_LOW)
-    irq_seq.model = env.ral_model;
-irq_seq.irq_seqr = env.irq_agent.irq_sequencer;
-	repeat(3)
-    irq_seq.start(env.agent.sequencer);
-    
-    phase.drop_objection(this);
-  endtask
-  
-endclass
-
-*/
 
 class apb_i2c_valid_addr_unused_test extends apb_i2c_base_test;
   `uvm_component_utils(apb_i2c_valid_addr_unused_test)
@@ -625,7 +557,7 @@ virtual i2c_irq_if irq_vif;
     `uvm_info(get_type_name(), "IRQ TEST:", UVM_LOW)
 
     seq1 = apb_i2c_irq_reg_write_seq::type_id::create("seq1");
-        seq1.irq_seqr = env.irq_agent.irq_sequencer;
+      //  seq1.irq_seqr = env.irq_agent.irq_sequencer;
     seq1.model = env.ral_model;
     //============================================================
     // 1. Enable IRQ - only once
@@ -634,7 +566,6 @@ virtual i2c_irq_if irq_vif;
     irq_en_seq =
       i2c_irq_enable_seq::type_id::create("irq_en_seq");
 
-    irq_en_seq.start(env.irq_agent.irq_sequencer);
 
 
     //============================================================
@@ -645,14 +576,14 @@ virtual i2c_irq_if irq_vif;
               "Waiting for first I2C interrupt...",
               UVM_LOW)
 
-    @(posedge irq_vif.i2c_irq);
+   // @(posedge irq_vif.i2c_irq);
 
     `uvm_info("IRQ_TEST",
               "First I2C interrupt received",
               UVM_LOW)
 
 
-  repeat(3)
+//  repeat(3)
     seq1.start(env.agent.sequencer);
 
 

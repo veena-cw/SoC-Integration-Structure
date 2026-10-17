@@ -49,49 +49,30 @@ gtkwave usbh_top_tb.vcd
  module usbh_top_tb;
    // AXI4 clock domain : aclk       (400 MHz in the SoC)
    logic  aclk_i;
-<<<<<<< HEAD
    logic  areset_i;
    // USB clock domain  : usb_clk    (250 MHz in the SoC)
    logic  usb_clk_i;
    logic  usb_reset_i;
-=======
-   logic  aresetn_i;
-   // USB clock domain  : usb_clk    (250 MHz in the SoC)
-   logic  usb_clk_i;
-   logic  usb_resetn_i;
->>>>>>> 7f0cd74 (Modified i2c usb)
 
    //reset_if rst_i_vif();
 
    usbh_host_axi4_if axi4_vif (.clk_i(aclk_i));
-<<<<<<< HEAD
-   assign axi4_vif.rst_i = areset_i;
+   assign axi4_vif.rst_i = ~areset_i;
 
    usbh_host_utmi_if utmi_vif (.clk_i(usb_clk_i));
-   assign utmi_vif.rst_i = usb_reset_i;
-=======
-   assign axi4_vif.rst_i = aresetn_i;
-
-   usbh_host_utmi_if utmi_vif (.clk_i(usb_clk_i));
-   assign utmi_vif.rst_i = usb_resetn_i;
->>>>>>> 7f0cd74 (Modified i2c usb)
+   assign utmi_vif.rst_i = ~usb_reset_i;
 
    //assign rst_i = rst_i_vif.rst_i;
    
-   axi4_usb_slave dut (
+   axi4_usb_slave #(
+   .USB_CLK_FREQ(60000000)) dut
+    (
    	//AXI4 clk and rst
         .aclk(aclk_i),
-<<<<<<< HEAD
         .aresetn(~areset_i),
         //USB clk and rst
         .usb_clk(usb_clk_i),
         .usb_resetn(~usb_reset_i),
-=======
-        .aresetn(~aresetn_i),
-        //USB clk and rst
-        .usb_clk(usb_clk_i),
-        .usb_resetn(~usb_resetn_i),
->>>>>>> 7f0cd74 (Modified i2c usb)
         //Write Address Channel
         .s_axi_awid(axi4_vif.cfg_awid_i),
         .s_axi_awaddr(axi4_vif.cfg_awaddr_i),
@@ -155,17 +136,13 @@ gtkwave usbh_top_tb.vcd
    
    //Device BFM Instance
    usb_device_bfm #(
-   .UTMI_CLK_HZ(48000000),
+   .UTMI_CLK_HZ(60000000),
       .DEVICE_IFS_CLKS(7),
       .MAX_IN_DATA(64),
       .EP0_MAX_PACKET_SIZE(8)
    ) device_bfm (
             .clk_i(usb_clk_i),
-<<<<<<< HEAD
 	    .rst_i(usb_reset_i),
-=======
-	    .rst_i(usb_resetn_i),
->>>>>>> 7f0cd74 (Modified i2c usb)
 
 	    // DUT -> Device BFM
 	    .utmi_data_out_o   (utmi_vif.utmi_data_out_o),
@@ -190,17 +167,17 @@ gtkwave usbh_top_tb.vcd
    initial aclk_i = 0;
    always #1.25 aclk_i = ~aclk_i;   // 400MHz; TODO: adjust to target frequency (2.5ns)
    // USB clock domain  : usb_clk    (250 MHz in the SoC)
-<<<<<<< HEAD
 /*   initial usb_clk_i = 0;
    always #2 usb_clk_i = ~usb_clk_i;   // 250MHz; TODO: adjust to target frequency (4ns)*/
    
      // 48 MHz clock: period = 20.833333 ns
 // USB clock: 48 MHz
-initial usb_clk_i = 1'b0;
-always #10.416667ns usb_clk_i = ~usb_clk_i;
 /*
 initial usb_clk_i = 1'b0;
-always #8.3333335ns usb_clk_i = ~usb_clk_i;*/
+always #10.416667ns usb_clk_i = ~usb_clk_i;
+*/
+initial usb_clk_i = 1'b0;
+always #8.3333335ns usb_clk_i = ~usb_clk_i;
 
    //RESET GENERATION 
    //Active Low Reset was used in the Design.(previously Active High)
@@ -215,23 +192,6 @@ always #8.3333335ns usb_clk_i = ~usb_clk_i;*/
        repeat (5) @(posedge aclk_i);
        areset_i = 1'b0;
        
-=======
-   initial usb_clk_i = 0;
-   always #2 usb_clk_i = ~usb_clk_i;   // 250MHz; TODO: adjust to target frequency (4ns)
-   
-   //RESET GENERATION 
-   //Active High Reset was used in the Design.
-   initial begin
-       usb_resetn_i = 1'b1; //~usb_resetn_i was passed to usbh_host.sv in the wrapper.
-       repeat (5) @(posedge usb_clk_i);
-       usb_resetn_i = 1'b0;
-   end
-   
-   initial begin
-       aresetn_i = 1'b1;
-       repeat (5) @(posedge aclk_i);
-       aresetn_i = 1'b0;
->>>>>>> 7f0cd74 (Modified i2c usb)
    end   
    
    
@@ -239,8 +199,8 @@ always #8.3333335ns usb_clk_i = ~usb_clk_i;*/
   wait (usb_reset_i == 1'b0);
   #10ns;
 
-  device_bfm.setup_ep2_out_for_test();
-  device_bfm.setup_ep1_in_for_test();
+ // device_bfm.setup_ep2_out_for_test();
+ // device_bfm.setup_ep1_in_for_test();
 end
    initial begin
      $dumpfile("usbh_top_tb.vcd");
@@ -252,11 +212,7 @@ end
      uvm_resource_db#(virtual usbh_host_utmi_if)::set("*", "vif", utmi_vif);
      //uvm_resource_db#(virtual reset_if)::set("uvm_test_top.env.reset_agent_rst_i.*", "vif", rst_i_vif);
      //uvm_resource_db#(virtual reset_if)::set("*", "vif", rst_i_vif); // fallback wildcard
-<<<<<<< HEAD
      //run_test("pid_data0_test"); //do reset_test also
-=======
-     run_test("pid_data0_test"); //do reset_test also
->>>>>>> 7f0cd74 (Modified i2c usb)
      //run_test("reset_test_1"); //do reset_test also
      run_test("IN_updated_test");
      
@@ -264,4 +220,3 @@ end
 
  endmodule : usbh_top_tb
  
-

@@ -27,7 +27,7 @@
 //----------------------------------------------------------------------
 `timescale 1ns/1ps
 
-// `include "usbh_host_pkg.sv"
+
 import usbh_host_pkg::*;
  // Interface: usbh_host_axi4_if
  // Bundles the "axi4" signal group (18 signal(s)),
@@ -87,70 +87,52 @@ interface usbh_host_axi4_if (
     logic intr_o;  // output
 
     clocking drv_cb @(posedge clk_i);
-	    default input #1step output #1step;
+    default input #1step output #0;
 
-	    // AW (driven by TB into DUT, except awready)
-	    output cfg_awvalid_i;
-	    output cfg_awaddr_i;
-	    output cfg_awid_i;
-	    output cfg_awlen_i;
-	    output cfg_awsize_i;
-	    output cfg_awburst_i;
-<<<<<<< HEAD
-	    output cfg_awlock_i;
-	    output cfg_awcache_i;
-	    output cfg_awprot_i;
-	    output cfg_awqos_i;
-=======
-	    /*output cfg_awlock_i;
-	    output cfg_awcache_i;
-	    output cfg_awprot_i;
-	    output cfg_awqos_i;*/
->>>>>>> 7f0cd74 (Modified i2c usb)
-	    input  cfg_awready_o;
-	    // W
-	    output cfg_wvalid_i;
-	    output cfg_wdata_i;
-	    output cfg_wstrb_i;
-	    output cfg_wlast_i;
-	    input  cfg_wready_o;
-	    // B
-	    output cfg_bready_i;
-	    input  cfg_bvalid_o;
-	    input  cfg_bresp_o;
-	    input  cfg_bid_o;
-	    // AR
-	    output cfg_arvalid_i;
-	    output cfg_araddr_i;
-	    output cfg_arid_i;
-	    output cfg_arlen_i;
-	    output cfg_arsize_i;
-	    output cfg_arburst_i;
-<<<<<<< HEAD
-	    output cfg_arlock_i;
-	    output cfg_arcache_i;
-	    output cfg_arprot_i;
-	    output cfg_arqos_i;
-=======
-	    /*output cfg_arlock_i;
-	    output cfg_arcache_i;
-	    output cfg_arprot_i;
-	    output cfg_arqos_i;*/
->>>>>>> 7f0cd74 (Modified i2c usb)
-	    input  cfg_arready_o;
-	    // R
-	    output cfg_rready_i;
-	    input  cfg_rlast_o;
-	    input  cfg_rvalid_o;
-	    input  cfg_rdata_o;
-	    input  cfg_rresp_o;
-<<<<<<< HEAD
-	    input  cfg_rid_o;
-=======
->>>>>>> 7f0cd74 (Modified i2c usb)
-	    // Interrupt
-	    input  intr_o;
-    endclocking
+    output cfg_awvalid_i;
+    output cfg_awaddr_i;
+    output cfg_awid_i;
+    output cfg_awlen_i;
+    output cfg_awsize_i;
+    output cfg_awburst_i;
+    output cfg_awlock_i;
+    output cfg_awcache_i;
+    output cfg_awprot_i;
+    output cfg_awqos_i;
+    input  cfg_awready_o;
+
+    output cfg_wvalid_i;
+    output cfg_wdata_i;
+    output cfg_wstrb_i;
+    output cfg_wlast_i;
+    input  cfg_wready_o;
+
+    output cfg_bready_i;
+    input  cfg_bvalid_o;
+    input  cfg_bresp_o;
+    input  cfg_bid_o;
+
+    output cfg_arvalid_i;
+    output cfg_araddr_i;
+    output cfg_arid_i;
+    output cfg_arlen_i;
+    output cfg_arsize_i;
+    output cfg_arburst_i;
+    output cfg_arlock_i;
+    output cfg_arcache_i;
+    output cfg_arprot_i;
+    output cfg_arqos_i;
+    input  cfg_arready_o;
+
+    output cfg_rready_i;
+    input  cfg_rlast_o;
+    input  cfg_rvalid_o;
+    input  cfg_rdata_o;
+    input  cfg_rresp_o;
+    input  cfg_rid_o;
+
+    input intr_o;
+endclocking
 
     clocking mon_cb @(posedge clk_i);
 	    default input #1step;
@@ -162,17 +144,10 @@ interface usbh_host_axi4_if (
 	    input cfg_awlen_i;
 	    input cfg_awsize_i;
 	    input cfg_awburst_i;
-<<<<<<< HEAD
 	    input cfg_awlock_i;
 	    input cfg_awcache_i;
 	    input cfg_awprot_i;
 	    input cfg_awqos_i;
-=======
-	    /*input cfg_awlock_i;
-	    input cfg_awcache_i;
-	    input cfg_awprot_i;
-	    input cfg_awqos_i;*/
->>>>>>> 7f0cd74 (Modified i2c usb)
 	    input cfg_awready_o;
 	    // W
 	    input cfg_wvalid_i;
@@ -192,17 +167,10 @@ interface usbh_host_axi4_if (
 	    input cfg_arlen_i;
 	    input cfg_arsize_i;
 	    input cfg_arburst_i;
-<<<<<<< HEAD
 	    input cfg_arlock_i;
 	    input cfg_arcache_i;
 	    input cfg_arprot_i;
 	    input cfg_arqos_i;
-=======
-	    /*input cfg_arlock_i;
-	    input cfg_arcache_i;
-	    input cfg_arprot_i;
-	    input cfg_arqos_i;*/
->>>>>>> 7f0cd74 (Modified i2c usb)
 	    input cfg_arready_o;
 	    // R
 	    input cfg_rready_i;
@@ -210,17 +178,24 @@ interface usbh_host_axi4_if (
 	    input cfg_rvalid_o;
 	    input cfg_rdata_o;
 	    input cfg_rresp_o;
-<<<<<<< HEAD
 	    input cfg_rid_o;
-=======
->>>>>>> 7f0cd74 (Modified i2c usb)
 	    // Interrupt
 	    input intr_o;
     endclocking
 
     modport DRIVER (clocking drv_cb, input clk_i, output rst_i);
     modport MONITOR (clocking mon_cb, input clk_i, input rst_i);
+    
+    
+    always @(posedge clk_i) begin
+    if (rst_i) begin
+        if (cfg_arvalid_i)
+            $display(
+                "[AR_MON] time=%0t ARVALID=%b ARREADY=%b ADDR=%08h",
+                $time, cfg_arvalid_i, cfg_arready_o, cfg_araddr_i
+            );
+    end
+end
 
 endinterface : usbh_host_axi4_if
  
-

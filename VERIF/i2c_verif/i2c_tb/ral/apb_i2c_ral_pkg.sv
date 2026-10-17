@@ -35,7 +35,9 @@ package apb_i2c_ral_pkg;
     rand uvm_reg_field SLAVE_ADDR;
     // UVM register field for READ_WRITE [7:7]
     rand uvm_reg_field READ_WRITE;
-    // UVM register field for RESERVED [31:8]
+     // UVM register field for IRQ_EN [8:8]
+    rand uvm_reg_field IRQ_EN;
+    // UVM register field for RESERVED [31:9]
     rand uvm_reg_field RESERVED;
 
     // Constructor for ctrl_reg_reg
@@ -67,15 +69,26 @@ package apb_i2c_ral_pkg;
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
       READ_WRITE.configure(this, 1, 7, "RW", 0, 0, 1, 1, 1);
+      
+      IRQ_EN = uvm_reg_field::type_id::create("IRQ_EN");
+      // Configure the field:
+      //   width       = number of bits (1)
+      //   lsb         = least-significant bit position (8)
+      //   access      = field access type "RW"
+      //   reset       = reset value 0
+      //   volatile    = whether the field value can change independently
+      IRQ_EN.configure(this, 1, 8, "RW", 0, 0, 1, 1, 1);
+      
+      
       // Create the UVM RAL field object through the UVM factory.
       RESERVED = uvm_reg_field::type_id::create("RESERVED");
       // Configure the field:
       //   width       = number of bits (24)
-      //   lsb         = least-significant bit position (8)
+      //   lsb         = least-significant bit position (9)
       //   access      = field access type "RO"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      RESERVED.configure(this, 24, 8, "RO", 0, 0, 1, 1, 1);
+      RESERVED.configure(this, 23, 9, "RO", 0, 0, 1, 1, 1);
     endfunction
 
   endclass
@@ -93,6 +106,8 @@ package apb_i2c_ral_pkg;
     rand uvm_reg_field I2C_DONE;
     // UVM register field for SLAVE_ERROR [2:2]
     rand uvm_reg_field SLAVE_ERROR;
+    
+    rand uvm_reg_field RANGE_ERROR;
     // UVM register field for RESERVED [31:3]
     rand uvm_reg_field RESERVED;
 
@@ -134,15 +149,29 @@ package apb_i2c_ral_pkg;
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
       SLAVE_ERROR.configure(this, 1, 2, "RC", 1, 0, 1, 1, 1);
-      // Create the UVM RAL field object through the UVM factory.
-      RESERVED = uvm_reg_field::type_id::create("RESERVED");
+      
+      
+      
+       RANGE_ERROR = uvm_reg_field::type_id::create("RANGE_ERROR");
       // Configure the field:
-      //   width       = number of bits (29)
+      //   width       = number of bits (1)
       //   lsb         = least-significant bit position (3)
       //   access      = field access type "RO"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      RESERVED.configure(this, 29, 3, "RO", 1, 0, 1, 1, 1);
+      RANGE_ERROR.configure(this, 1, 3, "RC", 1, 0, 1, 1, 1);
+      
+      
+      
+      // Create the UVM RAL field object through the UVM factory.
+      RESERVED = uvm_reg_field::type_id::create("RESERVED");
+      // Configure the field:
+      //   width       = number of bits (29)
+      //   lsb         = least-significant bit position (4)
+      //   access      = field access type "RO"
+      //   reset       = reset value 0
+      //   volatile    = whether the field value can change independently
+      RESERVED.configure(this, 28, 4, "RO", 1, 0, 1, 1, 1);
     endfunction
 
   endclass

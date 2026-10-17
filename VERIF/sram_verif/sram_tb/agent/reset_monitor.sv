@@ -3,7 +3,9 @@
 //
 // Passive observer on rst_n. Publishes a reset_seq_item on
 // every assert (pulse_cycles=0) and every deassert
-// (pulse_cycles = measured low time in clocks).
+// (pulse_cycles = measured low time in clocks). A reset that is
+// already active when run_phase starts (power-on: reset_if starts
+// with rst_n=0) is published as an assert at that time.
 // ------------------------------------------------------------
 `include "uvm_macros.svh"
 import uvm_pkg::*;
@@ -32,9 +34,12 @@ class reset_monitor extends uvm_monitor;
         int unsigned   low_cycles;
         reset_seq_item tr;
 
+        bit first = 1'b1;
         forever begin
-            @(rst_vif.rst_n);
-            if (rst_vif.rst_n === 1'b0) begin
+            if (!(first && rst_vif.rst_n !== 1'b1))
+                @(rst_vif.rst_n);
+            first = 1'b0;
+            if (rst_vif.rst_n !== 1'b1) begin
                 tr = reset_seq_item::type_id::create("rst_assert");
                 tr.pulse_cycles = 0;
                 ap.write(tr);

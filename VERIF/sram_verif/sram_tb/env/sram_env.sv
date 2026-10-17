@@ -5,7 +5,8 @@
 //   axi_rst_agent  -> aresetn     (aclk domain)
 //   sram_rst_agent -> sram_resetn (sram_clk domain)
 //   scoreboard     <- axi monitor + sram reset monitor
-//   cov            <- axi monitor
+//   cov            <- axi monitor + both reset monitors
+//                     (each gated by its agent's coverage_enable)
 //   virt_seqr      -> handles to the three sequencers
 // ------------------------------------------------------------
 `include "uvm_macros.svh"
@@ -41,8 +42,14 @@ class sram_env extends uvm_env;
         super.connect_phase(phase);
         axi_agt.monitor.ap.connect(scoreboard.axi_imp);
         sram_rst_agt.monitor.ap.connect(scoreboard.sram_rst_imp);
+        scoreboard.cfg = axi_agt.cfg;
+        cov.cfg        = axi_agt.cfg;
         if (axi_agt.cfg.coverage_enable)
-            axi_agt.monitor.ap.connect(cov.analysis_export);
+            axi_agt.monitor.ap.connect(cov.axi_imp);
+        if (axi_rst_agt.cfg.coverage_enable)
+            axi_rst_agt.monitor.ap.connect(cov.axi_rst_imp);
+        if (sram_rst_agt.cfg.coverage_enable)
+            sram_rst_agt.monitor.ap.connect(cov.sram_rst_imp);
 
         virt_seqr.axi_seqr      = axi_agt.sequencer;
         virt_seqr.axi_rst_seqr  = axi_rst_agt.sequencer;

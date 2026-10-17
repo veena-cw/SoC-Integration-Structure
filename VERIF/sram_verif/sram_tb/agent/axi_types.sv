@@ -27,3 +27,10 @@ typedef enum bit [1:0] {
     STRB_RANDOM = 2'd1,
     STRB_ZERO   = 2'd2
 } axi_strb_mode_e;
+
+// AxLOCK (AXI4: 1 bit). EXCLUSIVE only when
+// axi_agent_config.exclusive_en is set.
+typedef enum bit {
+    AXI_NORMAL    = 1'b0,
+    AXI_EXCLUSIVE = 1'b1
+} axi_lock_e;

@@ -10,6 +10,7 @@ sram_tb/sim/verilator_logs/
 *.fst
 
 # Coverage databases
+sram_tb/sim/verilator_cov/
 *.dat
 coverage*/
 

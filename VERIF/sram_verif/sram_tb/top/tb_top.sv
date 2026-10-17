@@ -100,6 +100,12 @@ module tb_top;
         .s_axi_rready   (axi_vif.rready)
     );
 
+    // sram_top has no AxREGION / xUSER ports (AXI4 optional
+    // signals): the master-side ones stay unconnected, the
+    // slave-side ones are tied to 0.
+    assign axi_vif.buser = '0;
+    assign axi_vif.ruser = '0;
+
     // ============================================================
     // Protocol assertions
     // ============================================================
@@ -124,6 +130,20 @@ module tb_top;
             `uvm_error("WB_WRITE_DROP",
                 $sformatf("Write to 0x%08h accepted on W but CDC request FIFO not ready -- write lost",
                           u_dut.u_axi4_slave.mem_addr))
+    end
+
+    // White-box check (test plan ARB_001): the single-port slave must
+    // accept at most one of AW / AR per cycle. awready and arready are
+    // both "both FSMs idle", so a master that presents AWVALID and
+    // ARVALID together (only possible with +AXI4_OUTSTANDING) gets both
+    // accepted, and the read then waits forever for its data.
+    always @(negedge aclk) begin
+        if (axi_rst_if.rst_n === 1'b1 &&
+            axi_vif.awvalid === 1'b1 && axi_vif.awready === 1'b1 &&
+            axi_vif.arvalid === 1'b1 && axi_vif.arready === 1'b1)
+            `uvm_error("WB_RW_OVERLAP",
+                $sformatf("AW (0x%08h) and AR (0x%08h) accepted in the same cycle -- read and write now share the single-port SRAM",
+                          axi_vif.awaddr, axi_vif.araddr))
     end
 
 

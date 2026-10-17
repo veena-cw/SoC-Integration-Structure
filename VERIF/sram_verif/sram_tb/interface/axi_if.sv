@@ -5,6 +5,11 @@
 // sram_top's s_axi_* slave port. aresetn is an input so this
 // interface never drives reset -- reset_if owns it.
 //
+// Carries the full AXI4 signal set. AxREGION and the xUSER
+// signals have no sram_top port: tb_top ties BUSER/RUSER to 0 and
+// the driver keeps AxREGION/AxUSER/WUSER at 0 unless the matching
+// axi_agent_config knob is set.
+//
 // mst_cb : used by axi_driver to sample slave outputs one step
 //          before the edge (master outputs are driven with NBAs).
 // mon_cb : used by axi_monitor (samples everything).
@@ -26,6 +31,8 @@ interface axi_if (
     logic [3:0]                 awcache;
     logic [2:0]                 awprot;
     logic [3:0]                 awqos;
+    logic [`AXI_REGION_WIDTH-1:0] awregion;
+    logic [`AXI_USER_WIDTH-1:0] awuser;
     logic                       awvalid;
     logic                       awready;
 
@@ -33,12 +40,14 @@ interface axi_if (
     logic [`AXI_DATA_WIDTH-1:0] wdata;
     logic [`AXI_STRB_WIDTH-1:0] wstrb;
     logic                       wlast;
+    logic [`AXI_USER_WIDTH-1:0] wuser;
     logic                       wvalid;
     logic                       wready;
 
     // ---- Write response channel -------------------------------
     logic [`AXI_ID_WIDTH-1:0]   bid;
     logic [1:0]                 bresp;
+    logic [`AXI_USER_WIDTH-1:0] buser;
     logic                       bvalid;
     logic                       bready;
 
@@ -52,6 +61,8 @@ interface axi_if (
     logic [3:0]                 arcache;
     logic [2:0]                 arprot;
     logic [3:0]                 arqos;
+    logic [`AXI_REGION_WIDTH-1:0] arregion;
+    logic [`AXI_USER_WIDTH-1:0] aruser;
     logic                       arvalid;
     logic                       arready;
 
@@ -60,6 +71,7 @@ interface axi_if (
     logic [`AXI_DATA_WIDTH-1:0] rdata;
     logic [1:0]                 rresp;
     logic                       rlast;
+    logic [`AXI_USER_WIDTH-1:0] ruser;
     logic                       rvalid;
     logic                       rready;
 
@@ -71,20 +83,20 @@ interface axi_if (
     clocking mst_cb @(posedge aclk);
         default input #1step;
         input awready, wready;
-        input bid, bresp, bvalid;
+        input bid, bresp, buser, bvalid;
         input arready;
-        input rid, rdata, rresp, rlast, rvalid;
+        input rid, rdata, rresp, rlast, ruser, rvalid;
     endclocking
 
     clocking mon_cb @(posedge aclk);
         default input #1step;
         input awid, awaddr, awlen, awsize, awburst, awlock, awcache,
-              awprot, awqos, awvalid, awready;
-        input wdata, wstrb, wlast, wvalid, wready;
-        input bid, bresp, bvalid, bready;
+              awprot, awqos, awregion, awuser, awvalid, awready;
+        input wdata, wstrb, wlast, wuser, wvalid, wready;
+        input bid, bresp, buser, bvalid, bready;
         input arid, araddr, arlen, arsize, arburst, arlock, arcache,
-              arprot, arqos, arvalid, arready;
-        input rid, rdata, rresp, rlast, rvalid, rready;
+              arprot, arqos, arregion, aruser, arvalid, arready;
+        input rid, rdata, rresp, rlast, ruser, rvalid, rready;
     endclocking
 
 endinterface

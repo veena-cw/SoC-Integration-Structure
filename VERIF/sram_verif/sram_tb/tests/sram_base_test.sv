@@ -9,6 +9,16 @@
 //   +AXI_ZERO_DELAY        no random valid/ready gaps
 //   +AXI_MAX_DELAY=<n>     max random gap (cycles) on every channel
 //   +NUM_TXN=<n>           transaction count for random tests
+//
+// Optional AXI4 features -- sram_top supports none of them, so
+// every SRAM test runs with all of them OFF. These plusargs exist
+// to check the TB itself (or to reuse it on another slave):
+//   +AXI4_EXCLUSIVE        exclusive accesses (AxLOCK=1)
+//   +AXI4_SLAVE_EXCLUSIVE  expect an exclusive monitor (EXOKAY)
+//   +AXI4_REGION           random AxREGION
+//   +AXI4_USER             random AxUSER / WUSER
+//   +AXI4_OUTSTANDING=<n>  up to n write and n read bursts in flight
+//   +AXI4_RD_INTERLEAVE    accept interleaved R beats across IDs
 // ------------------------------------------------------------
 `include "uvm_macros.svh"
 `include "axi_defines.svh"
@@ -51,6 +61,16 @@ class sram_base_test extends uvm_test;
             axi_cfg.max_rready_delay = d;
         end
         void'($value$plusargs("NUM_TXN=%d", num_txn));
+
+        if ($test$plusargs("AXI4_EXCLUSIVE"))       axi_cfg.exclusive_en     = 1'b1;
+        if ($test$plusargs("AXI4_SLAVE_EXCLUSIVE")) axi_cfg.slave_exclusive  = 1'b1;
+        if ($test$plusargs("AXI4_REGION"))          axi_cfg.region_en        = 1'b1;
+        if ($test$plusargs("AXI4_USER"))            axi_cfg.user_en          = 1'b1;
+        if ($test$plusargs("AXI4_RD_INTERLEAVE"))   axi_cfg.rd_interleave_ok = 1'b1;
+        if ($value$plusargs("AXI4_OUTSTANDING=%d", d)) begin
+            axi_cfg.max_outstanding_wr = (d == 0) ? 1 : d;
+            axi_cfg.max_outstanding_rd = (d == 0) ? 1 : d;
+        end
 
         uvm_resource_db#(axi_agent_config)::set(
             "uvm_test_top.env.axi_agent", "cfg", axi_cfg);

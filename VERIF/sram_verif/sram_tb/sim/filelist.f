@@ -48,6 +48,7 @@
 ../agent/sequences/axi_read_sequence.sv
 ../agent/sequences/axi_wr_rd_sequence.sv
 ../agent/sequences/axi_random_sequence.sv
+../agent/sequences/axi_exclusive_sequence.sv
 ../agent/sequences/reset_sequence.sv
 
 # ---------- Scoreboard / coverage ----------

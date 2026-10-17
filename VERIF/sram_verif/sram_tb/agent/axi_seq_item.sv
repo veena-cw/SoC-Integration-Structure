@@ -14,6 +14,16 @@
 //   * INCR bursts never cross a 4 KB boundary
 //   * by default addr stays inside the 1 MB SRAM window;
 //     disable c_in_range for decode-error tests
+//   * AxCACHE always uses an AXI4 legal encoding (A4.4, Table A4-5)
+//   * optional AXI4 features, off by default (constraint ON =
+//     feature off; axi_base_sequence switches them from the agent
+//     config):
+//       c_no_excl     AxLOCK = NORMAL. Off -> exclusive accesses
+//                     allowed, legal per A7.2.4 (c_excl): 1/2/4/8/16
+//                     beats, <= 128 bytes, address aligned to the
+//                     total size
+//       c_region_off  AxREGION = 0
+//       c_user_off    AxUSER = 0 (WUSER follows user_en)
 //
 // Distribution weighting (burst type, length class, strobe
 // mode) is done by axi_base_sequence.gen_and_send() and passed
@@ -26,7 +36,12 @@
 //
 // The driver writes the responses (bresp / rresp / read data)
 // back into the same object, so a sequence can inspect them
-// after finish_item().
+// after finish_item() -- or, with more than one outstanding burst
+// (axi_agent_config.pipelined()), after 'completed' is set.
+//
+// The monitor also records handshake timing per burst (aclk
+// cycles) for coverage: addr_wait, w_gap_cycles, w_lead,
+// resp_stall, idle_before.
 // ------------------------------------------------------------
 `include "uvm_macros.svh"
 `include "axi_defines.svh"
@@ -53,15 +68,39 @@ class axi_seq_item extends uvm_sequence_item;
     rand bit [3:0]                  cache;
     rand bit [2:0]                  prot;
     rand bit [3:0]                  qos;
+    rand bit [`AXI_REGION_WIDTH-1:0] region;
+    rand bit [`AXI_USER_WIDTH-1:0]  auser;
+
+    bit                             user_en;  // fill wuser[] with random values
 
     bit      [`AXI_DATA_WIDTH-1:0]  data[];   // write data (read data after a read), see post_randomize
     bit      [`AXI_STRB_WIDTH-1:0]  strb[];   // derived in post_randomize
+    bit      [`AXI_USER_WIDTH-1:0]  wuser[];  // per W beat, see post_randomize
 
     // ---- Response (filled by driver / monitor) -----------------
     bit [1:0]                       bresp;
     bit [1:0]                       rresp[];
+    bit [`AXI_USER_WIDTH-1:0]       buser;
+    bit [`AXI_USER_WIDTH-1:0]       ruser[];
     bit                             aborted;    // reset hit mid-transfer
     bit                             timed_out;  // handshake watchdog fired
+
+    // ---- Driver bookkeeping --------------------------------------
+    bit                             aw_done;    // address phase accepted
+    bit                             w_done;     // last W beat accepted
+    bit                             completed;  // response(s) received or aborted
+
+    // ---- Monitor timing (aclk cycles) ----------------------------
+    int unsigned                    addr_wait;     // AxVALID high before AxREADY
+    int unsigned                    w_gap_cycles;  // WVALID low inside the W burst
+    int                             w_lead;        // first WVALID vs AWVALID: <0 W first, 0 same cycle, >0 AW first
+    int unsigned                    resp_stall;    // BVALID/RVALID high while READY low
+    int unsigned                    idle_before;   // bus-idle cycles since the previous burst ended
+    longint unsigned                addr_cycle;    // AxVALID first seen
+    longint unsigned                end_cycle;     // B / RLAST handshake
+    longint unsigned                first_data_cycle;  // first R beat (reads)
+    int unsigned                    inflight;      // other bursts in flight when the address was accepted
+    bit                             out_of_order;  // completed before an older burst of the same direction
 
     // ---- Constraints --------------------------------------------
     constraint c_size {
@@ -94,7 +133,35 @@ class axi_seq_item extends uvm_sequence_item;
         addr inside {[`SRAM_BASE_ADDR : `SRAM_END_ADDR]};
     }
 
+    // AXI4 legal AxCACHE values (reserved: 0100 0101 1000 1001 1100 1101).
+    constraint c_cache {
+        cache inside {4'b0000, 4'b0001, 4'b0010, 4'b0011, 4'b0110,
+                      4'b0111, 4'b1010, 4'b1011, 4'b1110, 4'b1111};
+    }
+
+`ifdef TB_CONSTRAINT_DIST
+    // Bias sideband values towards the common encodings.
+    constraint c_sideband_dist {
+        cache dist {4'b0000 := 2, [4'b0001 : 4'b0010] :/ 2, 4'b0011 := 4,
+                    [4'b0110 : 4'b1111] :/ 4};
+        qos   dist {4'h0 := 4, [4'h1 : 4'hE] :/ 4, 4'hF := 2};
+    }
+`endif
+
+    // Exclusive access rules (A7.2.4).
+    constraint c_excl {
+        lock -> len inside {0, 1, 3, 7, 15};
+        lock -> ((32'(len) + 1) << size) <= 128;
+        lock -> (addr & (((32'(len) + 1) << size) - 1)) == 0;
+        lock -> aligned == 1'b1;
+    }
+
+    constraint c_no_excl    { lock   == 1'b0; }
+    constraint c_region_off { region == '0;   }
+    constraint c_user_off   { auser  == '0;   }
+
     constraint c_order {
+        solve lock  before len;
         solve burst before len;
         solve burst before aligned;
         solve size  before aligned;
@@ -109,11 +176,13 @@ class axi_seq_item extends uvm_sequence_item;
     // randomized dynamic array at zero, so it is sized and filled here.
     function void post_randomize();
         bit [`AXI_DATA_WIDTH-1:0] d;
-        data = new[write ? 32'(len) + 1 : 0];
+        data  = new[write ? 32'(len) + 1 : 0];
+        wuser = new[data.size()];
         foreach (data[i]) begin
             for (int w = 0; w < `AXI_DATA_WIDTH / 32; w++)
                 d[32*w +: 32] = $urandom();
-            data[i] = d;
+            data[i]  = d;
+            wuser[i] = user_en ? `AXI_USER_WIDTH'($urandom()) : '0;
         end
         build_strobes();
     endfunction
@@ -129,6 +198,35 @@ class axi_seq_item extends uvm_sequence_item;
 
     function bit is_aligned();
         return (addr & (num_bytes() - 1)) == 0;
+    endfunction
+
+    function bit is_exclusive();
+        return lock == AXI_EXCLUSIVE;
+    endfunction
+
+    // Lowest / highest byte address the burst can touch (whole
+    // words for FIXED/INCR beats, the wrap container for WRAP).
+    function bit [`AXI_ADDR_WIDTH-1:0] lo_addr();
+        bit [`AXI_ADDR_WIDTH-1:0] total;
+        if (burst == AXI_WRAP) begin
+            total = num_bytes() * (32'(len) + 1);
+            return (addr / total) * total;
+        end
+        return addr;
+    endfunction
+
+    function bit [`AXI_ADDR_WIDTH-1:0] hi_addr();
+        bit [`AXI_ADDR_WIDTH-1:0] total;
+        total = num_bytes() * (32'(len) + 1);
+        case (burst)
+            AXI_FIXED: return aligned_addr() + num_bytes() - 1;
+            AXI_WRAP:  return lo_addr() + total - 1;
+            default:   return aligned_addr() + total - 1;
+        endcase
+    endfunction
+
+    function bit overlaps(axi_seq_item t);
+        return (lo_addr() <= t.hi_addr()) && (t.lo_addr() <= hi_addr());
     endfunction
 
     // Byte address of beat n (0-based).
@@ -190,9 +288,20 @@ class axi_seq_item extends uvm_sequence_item;
         aligned   = t.aligned;   strb_mode = t.strb_mode;
         lock      = t.lock;      cache     = t.cache;
         prot      = t.prot;      qos       = t.qos;
+        region    = t.region;    auser     = t.auser;
+        user_en   = t.user_en;   wuser     = t.wuser;
         data      = t.data;      strb      = t.strb;
         bresp     = t.bresp;     rresp     = t.rresp;
+        buser     = t.buser;     ruser     = t.ruser;
         aborted   = t.aborted;   timed_out = t.timed_out;
+        aw_done   = t.aw_done;   completed = t.completed;
+        w_done    = t.w_done;
+        addr_wait = t.addr_wait; w_gap_cycles = t.w_gap_cycles;
+        w_lead    = t.w_lead;    resp_stall   = t.resp_stall;
+        idle_before = t.idle_before;
+        addr_cycle  = t.addr_cycle;  end_cycle = t.end_cycle;
+        first_data_cycle = t.first_data_cycle;
+        inflight  = t.inflight;  out_of_order = t.out_of_order;
     endfunction
 
     function string convert2string();
@@ -201,6 +310,10 @@ class axi_seq_item extends uvm_sequence_item;
                       write ? "WR" : "RD", id, addr, len, size, num_bytes(),
                       burst.name(), is_aligned() ? "aligned" : "unaligned",
                       strb_mode.name());
+        if (lock)
+            s = {s, " EXCL"};
+        if (region != 0 || auser != 0)
+            s = {s, $sformatf(" region=%0h auser=%0h", region, auser)};
         if (write)
             s = {s, $sformatf(" bresp=%0d", bresp)};
         if (aborted)

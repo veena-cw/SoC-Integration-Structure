@@ -22,7 +22,7 @@ class sram_reset_test extends sram_base_test;
     // Random traffic with resets of both domains in the middle of it.
     virtual task run_main();
         sram_reset_traffic_vseq v = sram_reset_traffic_vseq::type_id::create("v");
-        v.num_resets    = 3;
+        v.num_resets    = 4;   // one round per reset profile
         v.txn_per_phase = 20;
         v.start(env.virt_seqr);
     endtask

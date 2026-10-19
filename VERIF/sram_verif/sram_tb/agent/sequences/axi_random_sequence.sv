@@ -7,6 +7,8 @@
 // fully random reads (unwritten bytes must read back as zero).
 // With exclusive_en in the agent config, ~1 in 10 steps is an
 // exclusive read/write pair instead (see axi_base_sequence).
+// One read in eight is immediately read again (same burst), so
+// read-after-read of the same address is exercised.
 // ------------------------------------------------------------
 `include "uvm_macros.svh"
 import uvm_pkg::*;
@@ -34,10 +36,14 @@ class axi_random_sequence extends axi_base_sequence;
                 if (!tr.aborted) hist.push_back(tr);
                 if (hist.size() > 64) void'(hist.pop_front());
             end
-            else if ($urandom_range(0, 1))
-                read_back(hist[$urandom_range(0, hist.size() - 1)], tr);
-            else
-                gen_and_send(1'b0, tr);
+            else begin
+                if ($urandom_range(0, 1))
+                    read_back(hist[$urandom_range(0, hist.size() - 1)], tr);
+                else
+                    gen_and_send(1'b0, tr);
+                if ($urandom_range(1, 8) == 1)
+                    read_back(tr, tr);       // back-to-back re-read (RAR)
+            end
         end
     endtask
 

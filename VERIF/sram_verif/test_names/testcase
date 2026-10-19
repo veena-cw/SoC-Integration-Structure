@@ -13,3 +13,5 @@ sram_oor_burst_test
 sram_reset_test
 sram_full_mem_test
 sram_rw_overlap_test
+sram_fsm_recovery_test
+sram_pipelined_test

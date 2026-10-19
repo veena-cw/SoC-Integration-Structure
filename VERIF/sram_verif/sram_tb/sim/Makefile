@@ -42,6 +42,9 @@ VERBOSITY ?= UVM_MEDIUM
 PLUSARGS  ?=
 JOBS      ?= 8
 DEFINES   ?=
+# 1 = also collect RTL code coverage (line/branch/toggle/expr/FSM) of
+# the DUT only, scoped by code_cov.vlt. Slower build and run.
+CODE_COV  ?= 0
 # Empty = use tb_top's NUM_AXI_AGENTS default; a number overrides it.
 NUM_AGENTS ?=
 
@@ -55,6 +58,18 @@ endif
 VERILATOR     := $(VERILATOR_HOME)/bin/verilator
 VERILATOR_COV := $(VERILATOR_HOME)/bin/verilator_coverage
 COV_REPORT    := python3 -I $(PROJECT_DIR)/cov_report.py
+CODE_REPORT   := python3 -I $(PROJECT_DIR)/code_cov_report.py
+
+# RTL code coverage scope: $(WORK_DIR)/code_cov.vlt is generated at
+# compile time with a coverage_off for every non-DSN file in filelist.f
+# (by file name -- Verilator resolves the filelist paths through the
+# include dirs, so directory patterns are unreliable), plus the UVM
+# library and Verilator's std package. Only the DUT RTL is measured.
+CODE_COV_VLT := $(WORK_DIR)/code_cov.vlt
+ifeq ($(CODE_COV),1)
+  CODE_COV_FLAGS := --coverage-line --coverage-toggle --coverage-expr --coverage-fsm \
+                    "$(CODE_COV_VLT)"
+endif
 
 INCDIRS := $(PROJECT_DIR)/../interface $(ASYNC_FIFO_DIR)
 
@@ -97,6 +112,12 @@ Targets
                        and print the functional-coverage report (per test,
                        per covergroup, per coverpoint, uncovered bins)
                          report   -> verilator_cov/coverage_report.txt
+  make code_cov        RTL code coverage (needs CODE_COV=1 build): merge,
+                       per-type / per-instance report, uncovered lines,
+                       untoggled signals, annotated RTL
+                         report   -> verilator_cov/code_coverage_report.txt
+                         waivers  <- code_cov_waivers.txt (unreachable points)
+                         sources  -> verilator_cov/annotated/
   make check_verilator fail unless VERILATOR_HOME/bin/verilator is $(VERILATOR_VERSION)
   make clean           remove logs, build and coverage output
   make help            this text
@@ -108,6 +129,9 @@ Variables (make VAR=value)
   PLUSARGS        extra runtime plusargs, see below
   DEFINES         extra compile defines, e.g. DEFINES="TB_FULL_SV MY_DEBUG"
   JOBS            parallel C++ build jobs         (default 8)
+  CODE_COV        1 = also collect DUT-only line/branch/expr/toggle code
+                  coverage (TB + UVM excluded); 'make regress CODE_COV=1'
+                  ends with 'make code_cov'. Rebuild after changing it.
   NUM_AGENTS      AXI master agents, each on its own axi_if. Default:
                   the NUM_AXI_AGENTS parameter of tb_top (edit it there),
                   this variable overrides it (-GNUM_AXI_AGENTS=<n>).
@@ -149,6 +173,7 @@ Examples
   make run TESTNAME=sram_backpressure_test VERBOSITY=UVM_HIGH
   make run TESTNAME=sram_wrap_test PLUSARGS="+DUMP"
   make regress SEED=3
+  make regress CODE_COV=1        # functional + RTL code coverage
   make compile NUM_AGENTS=3 && make run PLUSARGS="+AGENT1_AXI_ZERO_DELAY"
   make cov
 
@@ -188,13 +213,19 @@ lint: check_uvm_home check_verilator
 compile: check_uvm_home check_verilator
 	@mkdir -p "$(LOG_DIR)" "$(WORK_DIR)"
 	@rm -f "$(WORK_DIR)/V$(TOP)"
+	@{ echo '`verilator_config'; \
+	   echo 'coverage_off -file "*uvm*"'; \
+	   echo 'coverage_off -file "*verilated_std.sv"'; \
+	   grep -v '^\s*#' "$(FILELIST)" | grep -v '^\s*$$' | grep -v '/DSN/' | \
+	       sed 's|.*/|coverage_off -file "*/|; s|$$|"|'; \
+	 } > "$(CODE_COV_VLT)"
 	@set -o pipefail; \
 	$(VERILATOR) --binary $(VERILATOR_FLAGS) \
 		--Mdir "$(WORK_DIR)" \
 		--build-jobs $(JOBS) \
 		-CFLAGS "-O1" \
 		--trace --trace-depth 2 \
-		--coverage-user \
+		--coverage-user $(CODE_COV_FLAGS) \
 		2>&1 | tee "$(LOG_DIR)/verilator_compile.log"
 	@if [ ! -f "$(WORK_DIR)/V$(TOP)" ]; then \
 		echo "ERROR: Verilator build failed - V$(TOP) not produced."; \
@@ -240,6 +271,7 @@ regress: compile
 	done
 	@echo "===================================================="
 	@$(MAKE) --no-print-directory cov
+	@if [ "$(CODE_COV)" = "1" ]; then $(MAKE) --no-print-directory code_cov; fi
 
 # Merge every per-test coverage file and report the holes.
 .PHONY: cov
@@ -251,6 +283,22 @@ cov:
 	echo "============ FUNCTIONAL COVERAGE (merged) ============"; \
 	$(COV_REPORT) --per-test $$dats --merged "$(COV_DIR)/merged.dat" \
 		| tee "$(COV_DIR)/coverage_report.txt"
+
+.PHONY: code_cov
+code_cov:
+	@dats=$$(ls "$(COV_DIR)"/*.dat 2>/dev/null | grep -v '/merged.dat$$'); \
+	if [ -z "$$dats" ]; then echo "No coverage files in $(COV_DIR)"; exit 1; fi; \
+	"$(VERILATOR_COV)" --write "$(COV_DIR)/merged.dat" $$dats; \
+	rm -rf "$(COV_DIR)/annotated"; \
+	"$(VERILATOR_COV)" --annotate "$(COV_DIR)/annotated" --annotate-min 1 \
+		--filter-type 'line|branch|expr|toggle|fsm.*' "$(COV_DIR)/merged.dat" > /dev/null; \
+	echo ""; \
+	echo "============ RTL CODE COVERAGE (merged) ============"; \
+	$(CODE_REPORT) --per-test $$dats --merged "$(COV_DIR)/merged.dat" \
+		--waivers "$(PROJECT_DIR)/code_cov_waivers.txt" \
+		| tee "$(COV_DIR)/code_coverage_report.txt"; \
+	echo ""; \
+	echo "Annotated RTL (uncovered lines marked %000000): $(COV_DIR)/annotated/"
 
 .PHONY: clean
 clean:

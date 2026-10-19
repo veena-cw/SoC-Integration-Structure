@@ -163,6 +163,38 @@ module tb_top #(
 
 
     // ============================================================
+    // Fault injection (sram_fsm_recovery_test): illegal write-FSM state
+    // ============================================================
+    // sw_state is 2 bits with 3 states, so 2'b11 is an illegal
+    // encoding that only a corrupted flop can produce. When a test
+    // triggers the global uvm_event "inject_sw_illegal" (with the bus
+    // idle), sw_state is forced to 2'b11 for one clock and released.
+    // The FSM's default branch must bring it back to SW_IDLE on the
+    // next clock (FSM_RECOVERY error otherwise); then
+    // "inject_sw_illegal_done" is triggered. With sw_state = 2'b11
+    // awready / wready / bvalid are all 0, so the AXI port stays legal.
+    initial begin
+        uvm_event inject = uvm_event_pool::get_global("inject_sw_illegal");
+        uvm_event done   = uvm_event_pool::get_global("inject_sw_illegal_done");
+        forever begin
+            inject.wait_trigger();
+            @(negedge aclk);
+            force u_dut.u_axi4_slave.sw_state = type(u_dut.u_axi4_slave.sw_state)'(2'b11);
+            @(negedge aclk);   // one rising edge spent in the illegal state
+            release u_dut.u_axi4_slave.sw_state;
+            @(negedge aclk);   // next rising edge: default branch -> SW_IDLE
+            if (u_dut.u_axi4_slave.sw_state !== 2'b00)
+                `uvm_error("FSM_RECOVERY",
+                    $sformatf("axi4_slave sw_state=%b one clock after the illegal 2'b11 was released, expected SW_IDLE",
+                              u_dut.u_axi4_slave.sw_state))
+            else
+                `uvm_info("FSM_RECOVERY", "axi4_slave write FSM left the illegal state 2'b11 and returned to SW_IDLE",
+                          UVM_LOW)
+            done.trigger();
+        end
+    end
+
+    // ============================================================
     // Extra AXI agents (NUM_AXI_AGENTS > 1): one axi_if each
     // ============================================================
     for (genvar i = 1; i < NUM_AXI_AGENTS; i++) begin : g_axi_agent

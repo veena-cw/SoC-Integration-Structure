@@ -339,6 +339,71 @@ interface c_phy_bfm_if #(
     started = 1'b1;
   endtask
 
+
+  task automatic drive_rtl_inter_header_sync(
+  input logic [2:0] sync_type,
+  input logic [3:0] segment_mask
+);
+
+  if (rst_n !== 1'b1) begin
+    last_status = BFM_STATUS_RESET_ABORT;
+    $error("C-PHY BFM: inter-header Sync requested during reset");
+    return;
+  end
+
+  if (bfm_state != BFM_HS_DATA) begin
+    last_status = BFM_STATUS_ILLEGAL_STATE;
+    $error(
+      "C-PHY BFM: inter-header Sync requested from state=%0d",
+      bfm_state
+    );
+    return;
+  end
+
+  if (segment_mask == 4'b0000) begin
+    last_status = BFM_STATUS_ILLEGAL_STATE;
+    $error("C-PHY BFM: inter-header Sync has empty segment mask");
+    return;
+  end
+
+  bfm_state = BFM_HS_SYNC;
+
+  // Remain inside the current HS burst.
+  stopstate  = 1'b0;
+  direction  = 1'b1;
+  rxactivehs = 1'b1;
+
+  // This is not another SoT or EoT.
+  rx_lane_sts_reg7 = 1'b0;
+  rx_lane_sts_reg4 = 1'b0;
+
+  // Important RTL-specific behavior:
+  // rxdatahs must not be selected by lane_merging during Sync.
+  rxdatahs        = 64'h0;
+  rxvalidhs       = 4'h0;
+  rxsynchs        = segment_mask;
+  rxinvalidcodehs = 4'h0;
+
+  rxsynctypehs0 = sync_type;
+  rxsynctypehs1 = sync_type;
+  rxsynctypehs2 = sync_type;
+  rxsynctypehs3 = sync_type;
+
+  // Hold the Sync indication for one complete RX word-clock beat.
+  @(negedge bfm_clk);
+
+  // Remove Sync before Header 2 is driven.
+   rxsynchs = 4'h0;
+
+   rxsynctypehs0 = 3'b000;
+   rxsynctypehs1 = 3'b000;
+   rxsynctypehs2 = 3'b000;
+   rxsynctypehs3 = 3'b000;
+
+   bfm_state  = BFM_HS_DATA;
+   last_status = BFM_STATUS_OK;
+
+  endtask
   task automatic drive_sync(
     input logic [2:0] sync_type   = DEFAULT_SYNC_TYPE,
     input bit         initial_sync = 1'b1,

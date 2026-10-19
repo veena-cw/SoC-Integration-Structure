@@ -188,51 +188,40 @@ endtask
   byte unsigned packet_bytes[$];
   logic [63:0] packet_words[$];
 
-  task automatic add_rtl_header(
-    input logic [5:0] data_type,
-    input logic [7:0] word_count_low,
-    input logic [7:0] word_count_high
-  );
-    logic [15:0] header_crc;
-    header_crc = crc16_byte(
-        word_count_high,
-        crc16_byte(
-          word_count_low,
-          crc16_byte({2'b00, data_type}, crc16_byte(8'h00, 16'hffff))));
+  // Byte order seen by LLP:
+  //   00 29 17 01 14 55 00 00
+  //   |  |  |-----|  |---|  |-- 64-bit PPI padding
+  //   |  |  |        +------ duplicated-header CRC
+  //   |  |  +--------------- word count = 16'h0117
+  //   |  +------------------ RAW7 data type
+  //   +--------------------- reserved/VCX field
+  localparam logic [63:0] RTL_RAW7_HEADER_WORD =
+      64'h0000_5514_0117_2900;
 
-    // This is the current RTL smoke-test header representation.
-    packet_bytes.push_back(8'h00);
-    packet_bytes.push_back({2'b00, data_type});
-    packet_bytes.push_back(word_count_low);
-    packet_bytes.push_back(word_count_high);
-    packet_bytes.push_back(header_crc[7:0]);
-    packet_bytes.push_back(header_crc[15:8]);
-  endtask
+  localparam logic [3:0] RTL_SEGMENT_MASK = 4'hf;
 
-  task automatic build_current_rtl_raw7_packet();
+  task automatic build_current_rtl_raw7_payload();
     logic [15:0] payload_crc;
 
     packet_bytes.delete();
     packet_words.delete();
 
-    // Known packet form used by the present RAW7 RTL smoke test.
-    add_rtl_header(6'h29, 8'h17, 8'h01);
-    repeat (10)
-      packet_bytes.push_back(8'hb8);
-    add_rtl_header(6'h29, 8'h17, 8'h01);
-    repeat (2)
-      packet_bytes.push_back(8'hb8);
-
+    // Build only payload and payload CRC here. Header 1, the real
+    // inter-header Sync beat and Header 2 are driven separately.
     payload_crc = 16'hffff;
     for (int index = 0; index < 558; index++) begin
-      packet_bytes.push_back(8'h10 + index);
-      payload_crc = crc16_byte(8'h10 + index, payload_crc);
+      byte unsigned payload_byte;
+      payload_byte = byte'(8'h10 + index);
+      packet_bytes.push_back(payload_byte);
+      payload_crc = crc16_byte(payload_byte, payload_crc);
     end
     packet_bytes.push_back(payload_crc[7:0]);
     packet_bytes.push_back(payload_crc[15:8]);
 
-    while ((packet_bytes.size() % 8) != 0)
-      packet_bytes.push_back(8'h00);
+    // 558 payload bytes + 2 CRC bytes = 560 bytes = 70 words.
+    if ((packet_bytes.size() % 8) != 0)
+      $fatal(1, "RAW7 payload/CRC is not 64-bit aligned: bytes=%0d",
+             packet_bytes.size());
 
     for (int base = 0; base < packet_bytes.size(); base += 8) begin
       logic [63:0] packed_word;
@@ -241,6 +230,102 @@ endtask
         packed_word[(8 * byte_index) +: 8] = packet_bytes[base + byte_index];
       packet_words.push_back(packed_word);
     end
+  endtask
+
+  // Drive the actual PPI Sync indication required between the two
+  // duplicated header beats. This is deliberately separate from data:
+  // current lane_merging RTL gives rxvalidhs priority over rxsynchs.
+  task automatic drive_rtl_inter_header_sync(
+    input logic [2:0] sync_type
+  );
+    if (phy_bfm.rst_n !== 1'b1) begin
+      $error("Smoke test: inter-header Sync requested during reset");
+      return;
+    end
+
+    // Header 1 has already completed. Change the PPI indications on the
+    // driving edge and hold them through one complete receive-word cycle.
+    phy_bfm.stopstate          = 1'b0;
+    phy_bfm.direction          = 1'b1;
+    phy_bfm.rxactivehs         = 1'b1;
+    phy_bfm.rx_lane_sts_reg7   = 1'b0;
+    phy_bfm.rx_lane_sts_reg4   = 1'b0;
+    phy_bfm.rxdatahs           = 64'h0;
+    phy_bfm.rxvalidhs          = 4'h0;
+    phy_bfm.rxsynchs           = RTL_SEGMENT_MASK;
+    phy_bfm.rxinvalidcodehs    = 4'h0;
+    phy_bfm.rxsynctypehs0      = sync_type;
+    phy_bfm.rxsynctypehs1      = sync_type;
+    phy_bfm.rxsynctypehs2      = sync_type;
+    phy_bfm.rxsynctypehs3      = sync_type;
+
+    @(negedge bfm_clk);
+
+    // Header 2 will be driven immediately after this task returns.
+    phy_bfm.rxsynchs           = 4'h0;
+    phy_bfm.rxsynctypehs0      = 3'b000;
+    phy_bfm.rxsynctypehs1      = 3'b000;
+    phy_bfm.rxsynctypehs2      = 3'b000;
+    phy_bfm.rxsynctypehs3      = 3'b000;
+  endtask
+
+  task automatic transfer_current_rtl_raw7_packet(
+    output bit completed
+  );
+    bit started;
+
+    completed = 1'b0;
+
+    // Existing BFM sequence performs RX-enable, prepare and preamble work.
+    phy_bfm.start_hs(started);
+    if (!started) begin
+      $error("Smoke test: HS start failed, status=%0d",
+             phy_bfm.last_status);
+      return;
+    end
+
+    // With rtl_sync_workaround enabled, this initial call does not drive a
+    // separate Sync beat. It arms SoT on the first valid Header-1 word and
+    // moves the BFM into its HS-data state.
+    phy_bfm.drive_sync(3'b011, 1'b1, RTL_SEGMENT_MASK);
+    if (phy_bfm.last_status != 0)
+      return;
+
+    // 64-bit beat 0: Header copy 1, including two PPI padding bytes.
+    phy_bfm.drive_hs_word(
+        RTL_RAW7_HEADER_WORD,
+        1'b0,
+        RTL_SEGMENT_MASK);
+    if (phy_bfm.last_status != 0)
+      return;
+
+    // 64-bit beat 1: actual Sync type indication, not B8 filler data.
+    drive_rtl_inter_header_sync(3'b011);
+
+    // 64-bit beat 2: duplicated Header copy 2.
+    phy_bfm.drive_hs_word(
+        RTL_RAW7_HEADER_WORD,
+        1'b0,
+        RTL_SEGMENT_MASK);
+    if (phy_bfm.last_status != 0)
+      return;
+
+    // Payload followed by its two CRC bytes. Mark only the final 64-bit
+    // word as the last word so the RTL-compatible EoT workaround is kept.
+    foreach (packet_words[index]) begin
+      phy_bfm.drive_hs_word(
+          packet_words[index],
+          index == (packet_words.size() - 1),
+          RTL_SEGMENT_MASK);
+      if (phy_bfm.last_status != 0)
+        return;
+    end
+
+    phy_bfm.drive_post_and_eot();
+    if (phy_bfm.last_status != 0)
+      return;
+
+    completed = 1'b1;
   endtask
   logic [6:0] previous_rx_state = 7'h00;
 
@@ -328,10 +413,10 @@ end*/
       phy_bfm.rtl_eot_workaround = 1'b0;
 
     repeat (10) @(negedge bfm_clk);
-    build_current_rtl_raw7_packet();
+    build_current_rtl_raw7_payload();
 
-    phy_bfm.transfer_1_packet(packet_words, 3'b011, 1'b1, completed);
-    $display("RX state=%02h",
+    transfer_current_rtl_raw7_packet(completed);
+    $display("RX state=%0d",
          dut.lane_merging_rx_inst.csi2rx_cur_state);
 
     if (!completed)
@@ -357,3 +442,4 @@ end*/
   end
 
 endmodule
+

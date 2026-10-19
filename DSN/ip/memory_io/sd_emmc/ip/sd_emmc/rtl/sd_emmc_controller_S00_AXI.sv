@@ -309,10 +309,10 @@
           blk_count_cnt <= 0;
 	    end
 	  else begin
-//	    cmd_start_reg <= 1'b0;
-//	    cmd_int_rst_reg <= 1'b0;
-//	    dat_int_rst <= 1'b0;
-//	    slv_reg11[26:24] <= 3'b000;
+ 	cmd_start_reg <= 1'b0;
+	    cmd_int_rst_reg <= 1'b0;
+	    dat_int_rst <= 1'b0;
+	    slv_reg11[26:24] <= 3'b000;
 	    if (dat_int_st || cmd_int_st) begin
 	       slv_reg12_1 <= slv_reg12_1;
 	    end

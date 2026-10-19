@@ -14,10 +14,12 @@ class sram_out_of_range_test extends sram_base_test;
 
     `uvm_component_utils(sram_out_of_range_test)
 
+    // UVM constructor.
     function new(string name = "sram_out_of_range_test", uvm_component parent = null);
         super.new(name, parent);
     endfunction
 
+    // Single beats outside the window (DECERR), checking edge words for aliasing.
     virtual task run_main();
         axi_seq_item      wr, rd, first, last;
         bit [31:0] oor[] = '{32'h0000_0000,

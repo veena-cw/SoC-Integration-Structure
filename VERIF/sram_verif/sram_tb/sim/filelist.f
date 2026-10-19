@@ -78,6 +78,7 @@
 ../tests/sram_oor_burst_test.sv
 ../tests/sram_reset_test.sv
 ../tests/sram_full_mem_test.sv
+../tests/sram_rw_overlap_test.sv
 
 # ---------- Assertions ----------
 ../assertions/axi_assertions.sv

@@ -12,10 +12,12 @@ class sram_smoke_test extends sram_base_test;
 
     `uvm_component_utils(sram_smoke_test)
 
+    // UVM constructor.
     function new(string name = "sram_smoke_test", uvm_component parent = null);
         super.new(name, parent);
     endfunction
 
+    // Single beats at the first / a middle / the last word, plus a 4-beat burst.
     virtual task run_main();
         axi_seq_item      wr, rd;
         bit [31:0] addrs[] = '{`SRAM_BASE_ADDR,

@@ -12,10 +12,12 @@ class axi_wr_rd_sequence extends axi_base_sequence;
 
     `uvm_object_utils(axi_wr_rd_sequence)
 
+    // UVM constructor.
     function new(string name = "axi_wr_rd_sequence");
         super.new(name);
     endfunction
 
+    // num_txn x (random write, then read back the same burst shape).
     virtual task body();
         axi_seq_item wr, rd;
         repeat (num_txn) begin

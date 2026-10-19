@@ -60,10 +60,12 @@ class axi_agent_config extends uvm_object;
     bit          rd_interleave_ok   = 1'b0;
     bit          hazard_guard       = 1'b1;
 
+    // UVM constructor; all knobs keep the defaults declared above.
     function new(string name = "axi_agent_config");
         super.new(name);
     endfunction
 
+    // Remove every random delay: VALID as early as possible, READY always high.
     function void set_zero_delays();
         max_addr_delay   = 0;
         max_wvalid_gap   = 0;
@@ -71,10 +73,12 @@ class axi_agent_config extends uvm_object;
         max_rready_delay = 0;
     endfunction
 
+    // 1 when more than one burst may be in flight (driver pipelined mode).
     function bit pipelined();
         return (max_outstanding_wr > 1) || (max_outstanding_rd > 1);
     endfunction
 
+    // One-line summary of the optional AXI4 feature knobs (driver log).
     function string convert2string();
         return $sformatf({"exclusive_en=%0b slave_exclusive=%0b region_en=%0b user_en=%0b ",
                           "outstanding wr/rd=%0d/%0d rd_interleave_ok=%0b hazard_guard=%0b"},

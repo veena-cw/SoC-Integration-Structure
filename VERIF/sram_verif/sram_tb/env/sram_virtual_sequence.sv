@@ -15,6 +15,7 @@ class sram_base_vseq extends uvm_sequence;
     `uvm_object_utils(sram_base_vseq)
     `uvm_declare_p_sequencer(sram_virtual_sequencer)
 
+    // UVM constructor.
     function new(string name = "sram_base_vseq");
         super.new(name);
     endfunction
@@ -30,10 +31,12 @@ class sram_reset_vseq extends sram_base_vseq;
     int unsigned axi_pulse_cycles  = 10;
     int unsigned sram_pulse_cycles = 20;
 
+    // UVM constructor.
     function new(string name = "sram_reset_vseq");
         super.new(name);
     endfunction
 
+    // Pulse both resets in parallel with the configured delays / lengths.
     virtual task body();
         reset_sequence axi_rst, sram_rst;
         axi_rst  = reset_sequence::type_id::create("axi_rst");
@@ -57,10 +60,13 @@ class sram_reset_traffic_vseq extends sram_base_vseq;
     int unsigned num_resets      = 3;
     int unsigned txn_per_phase   = 20;
 
+    // UVM constructor.
     function new(string name = "sram_reset_traffic_vseq");
         super.new(name);
     endfunction
 
+    // num_resets rounds of (random traffic || reset pulse on both domains),
+    // then clean traffic to prove recovery.
     virtual task body();
         axi_random_sequence traffic;
         sram_reset_vseq     rst;

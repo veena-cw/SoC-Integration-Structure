@@ -72,6 +72,7 @@ class sram_excl_cov;
         x_dir_resp: cross cp_dir, cp_resp;
     endgroup
 
+    // Build the covergroup (only done when the feature is enabled).
     function new();
         cg_sram_excl = new();
     endfunction
@@ -88,6 +89,7 @@ class sram_region_cov;
         x_dir_region: cross cp_dir, cp_region;
     endgroup
 
+    // Build the covergroup (only done when the feature is enabled).
     function new();
         cg_sram_region = new();
     endfunction
@@ -104,6 +106,7 @@ class sram_user_cov;
         x_dir_auser: cross cp_dir, cp_auser;
     endgroup
 
+    // Build the covergroup (only done when the feature is enabled).
     function new();
         cg_sram_user = new();
     endfunction
@@ -123,6 +126,7 @@ class sram_pipe_cov;
         x_dir_inflight: cross cp_dir, cp_inflight;
     endgroup
 
+    // Build the covergroup (only done when the feature is enabled).
     function new();
         cg_sram_pipe = new();
     endfunction
@@ -393,6 +397,8 @@ class sram_coverage extends uvm_component;
         cg_sram_rst_order = new();
     endfunction
 
+    // Build the optional-feature covergroups for the features enabled in
+    // the agent config (none for sram_top).
     function void end_of_elaboration_phase(uvm_phase phase);
         super.end_of_elaboration_phase(phase);
         if (cfg == null) cfg = axi_agent_config::type_id::create("cfg");
@@ -419,6 +425,8 @@ class sram_coverage extends uvm_component;
         return 6;
     endfunction
 
+    // Address region of a: 0 below base, 1 first 4 KB, 2 middle,
+    // 3 last 4 KB, 4 above end.
     function int unsigned region_of(bit [`AXI_ADDR_WIDTH-1:0] a);
         if (a <  `SRAM_BASE_ADDR)            return 0;
         if (a >  `SRAM_END_ADDR)             return 4;
@@ -427,6 +435,7 @@ class sram_coverage extends uvm_component;
         return 2;
     endfunction
 
+    // Write strobe kind of the whole burst: 0 full, 1 partial, 2 zero.
     function int unsigned strb_kind(axi_seq_item t);
         bit all_full = 1'b1, all_zero = 1'b1;
         foreach (t.strb[i]) begin
@@ -528,6 +537,7 @@ class sram_coverage extends uvm_component;
         reset_event(0, t);
     endfunction
 
+    // sram_resetn assert / deassert from the SRAM reset monitor.
     function void write_cov_sram_rst(reset_seq_item t);
         reset_event(1, t);
     endfunction
@@ -569,6 +579,8 @@ class sram_coverage extends uvm_component;
         s = {s, $sformatf("\n    %-20s %6.2f%%", name, pct)};
     endfunction
 
+    // Print the per-covergroup coverage of this run (bin-level detail and
+    // the merged regression result come from 'make cov').
     function void report_phase(uvm_phase phase);
         string s = "";
         real   sum = 0.0;

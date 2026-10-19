@@ -14,10 +14,12 @@ class axi_exclusive_sequence extends axi_base_sequence;
 
     `uvm_object_utils(axi_exclusive_sequence)
 
+    // UVM constructor.
     function new(string name = "axi_exclusive_sequence");
         super.new(name);
     endfunction
 
+    // num_txn exclusive read/write pairs, or nothing if exclusive_en=0.
     virtual task body();
         if (!get_cfg().exclusive_en) begin
             `uvm_info(get_type_name(), "exclusive_en=0 -- skipped", UVM_LOW)

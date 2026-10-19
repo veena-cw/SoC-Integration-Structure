@@ -56,10 +56,12 @@ class axi_driver extends uvm_driver #(axi_seq_item);
     axi_seq_item rd_fly[$];    // queued reads,  not completed (issue order)
     event        abort_ev;     // watchdog: restart the channel engines
 
+    // UVM constructor.
     function new(string name = "axi_driver", uvm_component parent = null);
         super.new(name, parent);
     endfunction
 
+    // Get vif, rst_vif and the agent config (default config if none).
     function void build_phase(uvm_phase phase);
         super.build_phase(phase);
         if (!uvm_resource_db#(virtual axi_if)::read_by_name(
@@ -125,10 +127,12 @@ class axi_driver extends uvm_driver #(axi_seq_item);
                          vif.rvalid, vif.rready, vif.rlast);
     endfunction
 
+    // Watchdog limit for one burst: timeout_base + timeout_per_beat * beats.
     function int unsigned timeout_of(axi_seq_item tr);
         return cfg.timeout_base + cfg.timeout_per_beat * (32'(tr.len) + 1);
     endfunction
 
+    // Reset the item's status flags before it is driven.
     function void clear_status(axi_seq_item tr);
         tr.aborted   = 1'b0;
         tr.timed_out = 1'b0;
@@ -137,6 +141,7 @@ class axi_driver extends uvm_driver #(axi_seq_item);
         tr.completed = 1'b0;
     endfunction
 
+    // Park the bus, then run the serial or pipelined driver loop forever.
     task run_phase(uvm_phase phase);
         park();
         `uvm_info(get_type_name(), {"AXI4 options: ", cfg.convert2string()}, UVM_LOW)
@@ -158,6 +163,9 @@ class axi_driver extends uvm_driver #(axi_seq_item);
         end
     endtask
 
+    // Serial mode: drive one burst to completion, racing it against reset
+    // (aborts it) and the watchdog (aborts it with AXI_TIMEOUT). Parks the
+    // bus after an abort and sets tr.completed.
     task drive_item(axi_seq_item tr);
         int unsigned timeout;
         clear_status(tr);
@@ -253,6 +261,8 @@ class axi_driver extends uvm_driver #(axi_seq_item);
         tr.w_done = 1'b1;
     endtask
 
+    // Serial mode: assert BREADY after a random delay, wait for the B
+    // handshake, store BRESP/BUSER and check BID == AWID (AXI_BID).
     task collect_b(axi_seq_item tr);
         int unsigned dly = $urandom_range(0, cfg.max_bready_delay);
         if (dly > 0) begin
@@ -291,6 +301,8 @@ class axi_driver extends uvm_driver #(axi_seq_item);
         tr.aw_done = 1'b1;
     endtask
 
+    // Serial mode: drive AR, then collect len+1 R beats with random RREADY
+    // back-pressure into tr.data/rresp/ruser, checking RID and RLAST per beat.
     task do_read(axi_seq_item tr);
         int unsigned dly;
 
@@ -356,6 +368,8 @@ class axi_driver extends uvm_driver #(axi_seq_item);
         end
     endtask
 
+    // Pipelined mode: abort every queued / in-flight burst and empty all
+    // queues (reset or watchdog).
     function void abort_all(bit by_reset);
         foreach (wr_fly[i]) abort_one(wr_fly[i], by_reset);
         foreach (rd_fly[i]) abort_one(rd_fly[i], by_reset);
@@ -366,6 +380,7 @@ class axi_driver extends uvm_driver #(axi_seq_item);
         ar_pend.delete();
     endfunction
 
+    // Mark one burst aborted + completed and log why.
     function void abort_one(axi_seq_item tr, bit by_reset);
         if (tr.completed) return;
         tr.aborted   = 1'b1;
@@ -378,6 +393,8 @@ class axi_driver extends uvm_driver #(axi_seq_item);
                 {"Aborted after watchdog: ", tr.convert2string()}, UVM_LOW)
     endfunction
 
+    // 1 if tr overlaps an in-flight write (any tr) or an in-flight read
+    // (tr is a write) -- used by hazard_guard to keep ordering safe.
     function bit hazard(axi_seq_item tr);
         foreach (wr_fly[i])
             if (tr.overlaps(wr_fly[i])) return 1'b1;
@@ -387,6 +404,9 @@ class axi_driver extends uvm_driver #(axi_seq_item);
         return 1'b0;
     endfunction
 
+    // Pipelined mode: take items from the sequencer, wait for an outstanding
+    // slot (and no hazard), queue them on the AW/W or AR engines, start a
+    // watchdog and return the item to the sequence at once.
     task issue_loop();
         axi_seq_item tr;
         forever begin
@@ -420,6 +440,8 @@ class axi_driver extends uvm_driver #(axi_seq_item);
         end
     endtask
 
+    // Pipelined mode: error AXI_TIMEOUT and restart the engines if tr has
+    // not completed within timeout_of(tr) cycles.
     task automatic watchdog(axi_seq_item tr);
         int unsigned timeout = timeout_of(tr);
         repeat (timeout) begin
@@ -434,6 +456,7 @@ class axi_driver extends uvm_driver #(axi_seq_item);
         ->abort_ev;
     endtask
 
+    // Pipelined mode: drive queued AW requests, one at a time, in order.
     task aw_engine();
         axi_seq_item tr;
         forever begin
@@ -443,6 +466,8 @@ class axi_driver extends uvm_driver #(axi_seq_item);
         end
     endtask
 
+    // Pipelined mode: drive W bursts in AW order; a burst may start before
+    // its AW (w_before_aw_en) or wait for it.
     task w_engine();
         axi_seq_item tr;
         forever begin
@@ -455,6 +480,7 @@ class axi_driver extends uvm_driver #(axi_seq_item);
         end
     endtask
 
+    // Pipelined mode: drive queued AR requests, one at a time, in order.
     task ar_engine();
         axi_seq_item tr;
         forever begin
@@ -464,6 +490,8 @@ class axi_driver extends uvm_driver #(axi_seq_item);
         end
     endtask
 
+    // Pipelined mode: accept B responses (random BREADY delay) and complete
+    // the oldest in-flight write with that BID.
     task b_engine();
         int unsigned dly;
         int          idx[$];
@@ -496,6 +524,9 @@ class axi_driver extends uvm_driver #(axi_seq_item);
         end
     endtask
 
+    // Pipelined mode: accept R beats (random RREADY delay), append them to
+    // the oldest in-flight read with that RID, check interleaving / RLAST,
+    // and complete the read on its last beat.
     task r_engine();
         int unsigned dly;
         int          idx[$], busy[$];

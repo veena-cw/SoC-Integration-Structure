@@ -12,10 +12,12 @@ class sram_aligned_test extends sram_base_test;
 
     `uvm_component_utils(sram_aligned_test)
 
+    // UVM constructor.
     function new(string name = "sram_aligned_test", uvm_component parent = null);
         super.new(name, parent);
     endfunction
 
+    // Aligned bursts: every size x FIXED / INCR / WRAP, written and read back.
     virtual task run_main();
         for (int sz = 0; sz <= 4; sz++) begin
             `uvm_info(get_type_name(), $sformatf("ALIGNED size=%0d (%0d B)", sz, 1 << sz), UVM_LOW)

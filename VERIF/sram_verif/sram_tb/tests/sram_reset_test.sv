@@ -14,10 +14,12 @@ class sram_reset_test extends sram_base_test;
 
     `uvm_component_utils(sram_reset_test)
 
+    // UVM constructor.
     function new(string name = "sram_reset_test", uvm_component parent = null);
         super.new(name, parent);
     endfunction
 
+    // Random traffic with resets of both domains in the middle of it.
     virtual task run_main();
         sram_reset_traffic_vseq v = sram_reset_traffic_vseq::type_id::create("v");
         v.num_resets    = 3;

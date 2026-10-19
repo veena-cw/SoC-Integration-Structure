@@ -13,10 +13,12 @@ class sram_wrap_test extends sram_base_test;
 
     `uvm_component_utils(sram_wrap_test)
 
+    // UVM constructor.
     function new(string name = "sram_wrap_test", uvm_component parent = null);
         super.new(name, parent);
     endfunction
 
+    // WRAP bursts: every length x size x start position in the container.
     virtual task run_main();
         axi_seq_item      wr, rd;
         bit [31:0]        container;

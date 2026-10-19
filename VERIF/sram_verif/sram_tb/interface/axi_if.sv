@@ -75,6 +75,16 @@ interface axi_if (
     logic                       rvalid;
     logic                       rready;
 
+    // Master-side VALID/READY start low, so an interface with no
+    // active agent (passive, or not yet hooked up) is idle, not X.
+    initial begin
+        awvalid = 1'b0;
+        wvalid  = 1'b0;
+        bready  = 1'b0;
+        arvalid = 1'b0;
+        rready  = 1'b0;
+    end
+
     // Driver samples slave outputs through mst_cb; it drives the
     // master outputs with plain NBAs right after each mst_cb event
     // (race-free at the posedge) instead of clocking-block drives,

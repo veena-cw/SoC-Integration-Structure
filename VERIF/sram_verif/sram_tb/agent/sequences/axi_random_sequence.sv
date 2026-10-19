@@ -17,10 +17,13 @@ class axi_random_sequence extends axi_base_sequence;
 
     int unsigned write_pct = 50;
 
+    // UVM constructor.
     function new(string name = "axi_random_sequence");
         super.new(name);
     endfunction
 
+    // num_txn random steps: write, re-read of an earlier write, random read,
+    // or (exclusive_en) an exclusive pair.
     virtual task body();
         axi_seq_item tr, hist[$];
         repeat (num_txn) begin

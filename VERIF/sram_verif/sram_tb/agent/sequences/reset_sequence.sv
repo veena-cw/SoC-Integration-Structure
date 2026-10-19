@@ -13,10 +13,12 @@ class reset_sequence extends uvm_sequence #(reset_seq_item);
     int unsigned delay_cycles = 0;
     int unsigned pulse_cycles = 10;
 
+    // UVM constructor.
     function new(string name = "reset_sequence");
         super.new(name);
     endfunction
 
+    // Send one reset pulse (delay_cycles, pulse_cycles).
     virtual task body();
         reset_seq_item tr;
         tr = reset_seq_item::type_id::create("tr");

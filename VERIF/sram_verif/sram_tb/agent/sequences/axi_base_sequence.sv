@@ -58,10 +58,12 @@ class axi_base_sequence extends uvm_sequence #(axi_seq_item);
 
     axi_agent_config cfg;
 
+    // UVM constructor.
     function new(string name = "axi_base_sequence");
         super.new(name);
     endfunction
 
+    // Agent config from the sequencer's scope (cached; default if missing).
     function axi_agent_config get_cfg();
         if (cfg == null) begin
             if (m_sequencer == null ||
@@ -81,10 +83,12 @@ class axi_base_sequence extends uvm_sequence #(axi_seq_item);
         tr.user_en = c.user_en;
     endfunction
 
+    // Block until the driver has finished tr (needed in pipelined mode).
     task wait_done(axi_seq_item tr);
         if (!tr.completed) wait (tr.completed);
     endtask
 
+    // Send an already randomized item.
     task send(axi_seq_item tr);
         start_item(tr);
         finish_item(tr);
@@ -153,12 +157,15 @@ class axi_base_sequence extends uvm_sequence #(axi_seq_item);
         else                            b = AXI_WRAP;
     endtask
 
+    // 1 if some legal WRAP length (2/4/8/16 beats) fits [len_min:len_max].
     function bit wrap_len_ok();
         for (int k = 0; k < 4; k++)
             if (((2 << k) - 1) >= len_min && ((2 << k) - 1) <= len_max) return 1'b1;
         return 1'b0;
     endfunction
 
+    // Weighted pick of an AxLEN range for burst type b (1 beat / 2..16 /
+    // 17..256), clipped to the knobs and the burst's legal lengths.
     task pick_len_range(axi_burst_e b, output int unsigned lo, output int unsigned hi);
         int unsigned cls_lo[3] = '{0, 1, 16};
         int unsigned cls_hi[3] = '{0, 15, 255};
@@ -191,6 +198,7 @@ class axi_base_sequence extends uvm_sequence #(axi_seq_item);
         hi = (cls_hi[c] > max_len) ? max_len : cls_hi[c];
     endtask
 
+    // Weighted strobe mode: FULL 8/11, RANDOM 2/11, ZERO 1/11.
     function axi_strb_mode_e pick_strb_mode();
         int unsigned r = $urandom_range(1, 11);
         if (r <= 8)  return STRB_FULL;
@@ -205,6 +213,7 @@ class axi_base_sequence extends uvm_sequence #(axi_seq_item);
         directed(1'b1, a, l, s, b, sm, tr);
     endtask
 
+    // Fully directed read burst (waits for its data).
     task read_burst(bit [`AXI_ADDR_WIDTH-1:0] a, bit [7:0] l, bit [2:0] s,
                     axi_burst_e b, output axi_seq_item tr);
         directed(1'b0, a, l, s, b, STRB_FULL, tr);

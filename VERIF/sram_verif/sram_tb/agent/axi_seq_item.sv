@@ -168,6 +168,7 @@ class axi_seq_item extends uvm_sequence_item;
         solve aligned before addr;
     }
 
+    // UVM constructor.
     function new(string name = "axi_seq_item");
         super.new(name);
     endfunction
@@ -192,14 +193,17 @@ class axi_seq_item extends uvm_sequence_item;
         return 32'd1 << size;
     endfunction
 
+    // Start address rounded down to a multiple of the transfer size.
     function bit [`AXI_ADDR_WIDTH-1:0] aligned_addr();
         return (addr >> size) << size;
     endfunction
 
+    // 1 if the start address is a multiple of the transfer size.
     function bit is_aligned();
         return (addr & (num_bytes() - 1)) == 0;
     endfunction
 
+    // 1 for an exclusive access (AxLOCK=1).
     function bit is_exclusive();
         return lock == AXI_EXCLUSIVE;
     endfunction
@@ -215,6 +219,7 @@ class axi_seq_item extends uvm_sequence_item;
         return addr;
     endfunction
 
+    // Highest byte address the burst can touch.
     function bit [`AXI_ADDR_WIDTH-1:0] hi_addr();
         bit [`AXI_ADDR_WIDTH-1:0] total;
         total = num_bytes() * (32'(len) + 1);
@@ -225,6 +230,7 @@ class axi_seq_item extends uvm_sequence_item;
         endcase
     endfunction
 
+    // 1 if this burst and t can touch at least one common byte.
     function bit overlaps(axi_seq_item t);
         return (lo_addr() <= t.hi_addr()) && (t.lo_addr() <= hi_addr());
     endfunction
@@ -261,6 +267,8 @@ class axi_seq_item extends uvm_sequence_item;
             lane_mask[l] = 1'b1;
     endfunction
 
+    // Fill strb[] from strb_mode: valid lanes, a random subset, or none.
+    // Reads get an empty array.
     function void build_strobes();
         if (!write) begin
             strb = new[0];
@@ -304,6 +312,7 @@ class axi_seq_item extends uvm_sequence_item;
         inflight  = t.inflight;  out_of_order = t.out_of_order;
     endfunction
 
+    // One-line description of the burst (and its response) for logs.
     function string convert2string();
         string s;
         s = $sformatf("%s id=%0h addr=0x%08h len=%0d size=%0d(%0dB) burst=%s %s strb=%s",

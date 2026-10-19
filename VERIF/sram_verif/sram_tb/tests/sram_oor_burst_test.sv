@@ -17,15 +17,18 @@ class sram_oor_burst_test extends sram_base_test;
 
     `uvm_component_utils(sram_oor_burst_test)
 
+    // UVM constructor.
     function new(string name = "sram_oor_burst_test", uvm_component parent = null);
         super.new(name, parent);
     endfunction
 
+    // Short watchdog: the multi-beat out-of-range read is expected to hang.
     virtual function void configure_axi(axi_agent_config cfg);
         cfg.timeout_base     = 500;
         cfg.timeout_per_beat = 50;
     endfunction
 
+    // Multi-beat bursts outside the SRAM window (must return DECERR).
     virtual task run_main();
         axi_seq_item      wr, rd;
         write_burst(`SRAM_END_ADDR + 32'h1, 3,  4, AXI_INCR, STRB_FULL, wr);

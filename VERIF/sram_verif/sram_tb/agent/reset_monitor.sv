@@ -18,11 +18,13 @@ class reset_monitor extends uvm_monitor;
 
     uvm_analysis_port #(reset_seq_item) ap;
 
+    // UVM constructor; creates the analysis port.
     function new(string name = "reset_monitor", uvm_component parent = null);
         super.new(name, parent);
         ap = new("ap", this);
     endfunction
 
+    // Get rst_vif from uvm_resource_db.
     function void build_phase(uvm_phase phase);
         super.build_phase(phase);
         if (!uvm_resource_db#(virtual reset_if)::read_by_name(
@@ -30,6 +32,8 @@ class reset_monitor extends uvm_monitor;
             `uvm_fatal(get_type_name(), "reset_if not set")
     endfunction
 
+    // Publish an item on every reset assert (pulse_cycles=0) and deassert
+    // (pulse_cycles = clocks spent in reset).
     task run_phase(uvm_phase phase);
         int unsigned   low_cycles;
         reset_seq_item tr;

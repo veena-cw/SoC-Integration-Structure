@@ -21,10 +21,13 @@ class reset_agent extends uvm_agent;
 
     virtual reset_if rst_vif;
 
+    // UVM constructor.
     function new(string name = "reset_agent", uvm_component parent = null);
         super.new(name, parent);
     endfunction
 
+    // Get the reset config and rst_vif, re-publish rst_vif to the children,
+    // then create monitor (always) and sequencer + driver (UVM_ACTIVE only).
     function void build_phase(uvm_phase phase);
         super.build_phase(phase);
 
@@ -52,6 +55,7 @@ class reset_agent extends uvm_agent;
         end
     endfunction
 
+    // Connect driver.seq_item_port to the sequencer (UVM_ACTIVE only).
     function void connect_phase(uvm_phase phase);
         super.connect_phase(phase);
         if (is_active == UVM_ACTIVE)

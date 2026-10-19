@@ -15,10 +15,12 @@ class sram_burst_size_test extends sram_base_test;
 
     `uvm_component_utils(sram_burst_size_test)
 
+    // UVM constructor.
     function new(string name = "sram_burst_size_test", uvm_component parent = null);
         super.new(name, parent);
     endfunction
 
+    // AxSIZE sweep: each size with every burst type plus a 256-beat INCR.
     virtual task run_main();
         axi_seq_item      wr, rd;
         for (int sz = 0; sz <= 4; sz++) begin

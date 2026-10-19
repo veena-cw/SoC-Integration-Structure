@@ -13,10 +13,12 @@ class sram_random_test extends sram_base_test;
 
     `uvm_component_utils(sram_random_test)
 
+    // UVM constructor.
     function new(string name = "sram_random_test", uvm_component parent = null);
         super.new(name, parent);
     endfunction
 
+    // One constrained-random write/read mix of +NUM_TXN bursts.
     virtual task run_main();
         axi_random_sequence s = axi_random_sequence::type_id::create("s");
         s.num_txn   = num_txn;

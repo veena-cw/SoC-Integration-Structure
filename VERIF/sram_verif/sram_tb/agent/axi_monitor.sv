@@ -22,6 +22,21 @@
 // sram_coverage (aclk cycles, see axi_seq_item): addr_wait,
 // w_gap_cycles, w_lead, resp_stall, idle_before, and reports the
 // read latency (AR handshake -> first R beat) in report_phase.
+//
+// AXI4 protocol checks done here (each a `uvm_error, so the test
+// fails; they cover both the TB master and the DUT slave):
+//   AXI_WLAST         W burst beat count != AWLEN+1, or no WLAST on
+//                     the last beat
+//   AXI_WSTRB         WSTRB set on a byte lane outside the beat's valid
+//                     lanes (A3.4.3)
+//   AXI_BID_UNKNOWN   B handshake with no outstanding AW of that ID
+//   AXI_B_EARLY       B handshake before the burst's WLAST (A3.3.1)
+//   AXI_RID_UNKNOWN   R beat with no outstanding AR of that ID
+//   AXI_RLAST         RLAST early, or missing on the last beat
+//   AXI_EXOKAY        EXOKAY response to a normal (non-exclusive)
+//                     access (A7.2.3)
+// Channel handshake / stability / legality rules are checked by
+// assertions/axi_assertions.sv.
 // ------------------------------------------------------------
 `include "uvm_macros.svh"
 import uvm_pkg::*;
@@ -42,6 +57,7 @@ class axi_monitor extends uvm_monitor;
     bit [`AXI_DATA_WIDTH-1:0] w_data_cur[$];
     bit [`AXI_STRB_WIDTH-1:0] w_strb_cur[$];
     bit [`AXI_USER_WIDTH-1:0] w_user_cur[$];
+    bit                       w_overrun_reported;  // AXI_WLAST already flagged for the current W burst
 
     // ---- timing state -------------------------------------------
     longint unsigned cyc;
@@ -55,11 +71,13 @@ class axi_monitor extends uvm_monitor;
     int unsigned     num_writes, num_reads, num_aborted;
     longint unsigned rd_lat_min = '1, rd_lat_max, rd_lat_sum;
 
+    // UVM constructor; creates the analysis port.
     function new(string name = "axi_monitor", uvm_component parent = null);
         super.new(name, parent);
         ap = new("ap", this);
     endfunction
 
+    // Get vif and rst_vif from uvm_resource_db.
     function void build_phase(uvm_phase phase);
         super.build_phase(phase);
         if (!uvm_resource_db#(virtual axi_if)::read_by_name(
@@ -70,6 +88,7 @@ class axi_monitor extends uvm_monitor;
             `uvm_fatal(get_type_name(), "reset_if rst_vif not set")
     endfunction
 
+    // Run the channel sampler and the reset watcher in parallel.
     task run_phase(uvm_phase phase);
         fork
             sample_loop();
@@ -77,6 +96,7 @@ class axi_monitor extends uvm_monitor;
         join
     endtask
 
+    // On every aresetn assertion, flush the in-flight bursts.
     task reset_loop();
         forever begin
             @(negedge rst_vif.rst_n);
@@ -84,6 +104,8 @@ class axi_monitor extends uvm_monitor;
         end
     endtask
 
+    // Publish every burst still in flight as aborted (writes with the W
+    // beats seen so far) and clear all channel state.
     function void flush_on_reset();
         foreach (aw_q[i]) begin
             if (aw_q[i].data.size() == 0) begin
@@ -109,6 +131,7 @@ class axi_monitor extends uvm_monitor;
         w_data_cur.delete();
         w_strb_cur.delete();
         w_user_cur.delete();
+        w_overrun_reported = 1'b0;
         r_stall.delete();
         aw_active = 1'b0;
         ar_active = 1'b0;
@@ -116,6 +139,7 @@ class axi_monitor extends uvm_monitor;
         b_stall   = 0;
     endfunction
 
+    // Send one aborted burst to the analysis port.
     function void publish_aborted(axi_seq_item tr);
         tr.aborted   = 1'b1;
         tr.end_cycle = cyc;
@@ -124,6 +148,8 @@ class axi_monitor extends uvm_monitor;
         ap.write(tr);
     endfunction
 
+    // Once per aclk edge out of reset: count the cycle and sample all five
+    // channels.
     task sample_loop();
         forever begin
             #1ps;            // never sample the same edge twice (see axi_driver.tick)
@@ -138,19 +164,39 @@ class axi_monitor extends uvm_monitor;
         end
     endtask
 
+    // Bus-idle cycles between the previous burst's completion and 'start'.
     function int unsigned idle_since_last(longint unsigned start);
         return (start > last_end + 1) ? int'(start - last_end - 1) : 0;
     endfunction
 
-    // Pair a finished W burst with its AW and work out which VALID came first.
+    // Pair a finished W burst with its AW, work out which VALID came
+    // first, and check the burst against its AW: beat count (WLAST
+    // position) and strobes only on valid byte lanes.
     function void attach_w(axi_seq_item aw, axi_seq_item w);
         aw.data         = w.data;
         aw.strb         = w.strb;
         aw.wuser        = w.wuser;
         aw.w_gap_cycles = w.w_gap_cycles;
         aw.w_lead       = int'(w.addr_cycle) - int'(aw.addr_cycle);
+
+        if (aw.data.size() != 32'(aw.len) + 1)
+            `uvm_error("AXI_WLAST", $sformatf("WLAST after %0d W beats, AWLEN+1=%0d: %s",
+                                              aw.data.size(), 32'(aw.len) + 1, aw.convert2string()))
+        foreach (aw.strb[i])
+            if (i <= aw.len && (aw.strb[i] & ~aw.lane_mask(i)) != 0)
+                `uvm_error("AXI_WSTRB", $sformatf("beat %0d WSTRB=%h sets lanes outside the valid lanes %h: %s",
+                                                  i, aw.strb[i], aw.lane_mask(i), aw.convert2string()))
     endfunction
 
+    // EXOKAY is only a legal response to an exclusive access.
+    function void check_exokay(axi_seq_item tr, bit [1:0] resp, string where);
+        if (resp == AXI_EXOKAY && !tr.is_exclusive())
+            `uvm_error("AXI_EXOKAY", $sformatf("%s = EXOKAY for a normal (AxLOCK=0) access: %s",
+                                               where, tr.convert2string()))
+    endfunction
+
+    // AW channel: time AWVALID->AWREADY; on the handshake build a write
+    // item, attach an already complete W burst, and queue it for B.
     function void sample_aw();
         axi_seq_item tr;
         int          idx[$];
@@ -192,6 +238,9 @@ class axi_monitor extends uvm_monitor;
         aw_q.push_back(tr);
     endfunction
 
+    // W channel: collect beats, count WVALID gaps, flag a missing WLAST; on
+    // WLAST attach the burst to the oldest AW without data (or hold it until
+    // its AW arrives).
     function void sample_w();
         axi_seq_item w;
         int          idx[$];
@@ -209,7 +258,19 @@ class axi_monitor extends uvm_monitor;
         w_data_cur.push_back(vif.mon_cb.wdata);
         w_strb_cur.push_back(vif.mon_cb.wstrb);
         w_user_cur.push_back(vif.mon_cb.wuser);
+
+        // Beat count already past AWLEN+1 of the AW this burst belongs to.
+        idx = aw_q.find_first_index(t) with (t.data.size() == 0);
+        if (idx.size() > 0 && !w_overrun_reported && vif.mon_cb.wlast !== 1'b1 &&
+            w_data_cur.size() >= 32'(aw_q[idx[0]].len) + 1) begin
+            `uvm_error("AXI_WLAST", $sformatf("no WLAST on W beat %0d, AWLEN+1=%0d: %s",
+                                              w_data_cur.size() - 1, 32'(aw_q[idx[0]].len) + 1,
+                                              aw_q[idx[0]].convert2string()))
+            w_overrun_reported = 1'b1;
+        end
+
         if (vif.mon_cb.wlast === 1'b1) begin
+            w_overrun_reported = 1'b0;
             w = axi_seq_item::type_id::create("mon_w");
             w.data  = new[w_data_cur.size()];
             w.strb  = new[w_strb_cur.size()];
@@ -233,6 +294,8 @@ class axi_monitor extends uvm_monitor;
         end
     endfunction
 
+    // B channel: count BREADY stalls; on the handshake match the oldest AW
+    // with that BID, check it, fill BRESP and publish the write.
     function void sample_b();
         axi_seq_item tr;
         int idx[$];
@@ -244,14 +307,14 @@ class axi_monitor extends uvm_monitor;
 
         idx = aw_q.find_first_index(t) with (t.id == vif.mon_cb.bid);
         if (idx.size() == 0) begin
-            `uvm_error("AXI_MON", $sformatf("B handshake with BID=%0h but no matching AW",
-                                            vif.mon_cb.bid))
+            `uvm_error("AXI_BID_UNKNOWN", $sformatf("B handshake with BID=%0h but no outstanding AW with that ID",
+                                                    vif.mon_cb.bid))
             b_stall = 0;
             return;
         end
         tr = aw_q[idx[0]];
         if (tr.data.size() == 0) begin
-            `uvm_error("AXI_MON", "B handshake before WLAST was seen")
+            `uvm_error("AXI_B_EARLY", {"B handshake before the burst's WLAST: ", tr.convert2string()})
             b_stall = 0;
             return;
         end
@@ -263,15 +326,15 @@ class axi_monitor extends uvm_monitor;
         tr.end_cycle  = cyc;
         b_stall  = 0;
         last_end = cyc;
+        check_exokay(tr, tr.bresp, "BRESP");
 
-        if (tr.data.size() != 32'(tr.len) + 1)
-            `uvm_error("AXI_MON", $sformatf("Write burst has %0d W beats, AWLEN+1=%0d",
-                                            tr.data.size(), 32'(tr.len) + 1))
         num_writes++;
         `uvm_info(get_type_name(), tr.convert2string(), UVM_HIGH)
         ap.write(tr);
     endfunction
 
+    // AR channel: time ARVALID->ARREADY; on the handshake build a read item
+    // and queue it for R.
     function void sample_ar();
         axi_seq_item tr;
         if (vif.mon_cb.arvalid !== 1'b1) return;
@@ -310,6 +373,8 @@ class axi_monitor extends uvm_monitor;
         ar_q.push_back(tr);
     endfunction
 
+    // R channel: count RREADY stalls; on each handshake append the beat to
+    // the oldest AR with that RID, check RLAST / RRESP, publish on RLAST.
     function void sample_r();
         axi_seq_item     tr;
         int              idx[$];
@@ -324,8 +389,8 @@ class axi_monitor extends uvm_monitor;
 
         idx = ar_q.find_first_index(t) with (t.id == vif.mon_cb.rid);
         if (idx.size() == 0) begin
-            `uvm_error("AXI_MON", $sformatf("R beat with RID=%0h but no matching AR",
-                                            vif.mon_cb.rid))
+            `uvm_error("AXI_RID_UNKNOWN", $sformatf("R beat with RID=%0h but no outstanding AR with that ID",
+                                                    vif.mon_cb.rid))
             return;
         end
         tr = ar_q[idx[0]];
@@ -343,11 +408,16 @@ class axi_monitor extends uvm_monitor;
         tr.data[n]  = vif.mon_cb.rdata;
         tr.rresp[n] = vif.mon_cb.rresp;
         tr.ruser[n] = vif.mon_cb.ruser;
+        check_exokay(tr, vif.mon_cb.rresp, $sformatf("RRESP beat %0d", n));
+
+        if (vif.mon_cb.rlast !== 1'b1 && n == 32'(tr.len))
+            `uvm_error("AXI_RLAST", $sformatf("no RLAST on the last R beat (%0d of ARLEN+1=%0d): %s",
+                                              n + 1, 32'(tr.len) + 1, tr.convert2string()))
 
         if (vif.mon_cb.rlast === 1'b1) begin
             if (n + 1 != 32'(tr.len) + 1)
-                `uvm_error("AXI_MON", $sformatf("RLAST on beat %0d, ARLEN+1=%0d",
-                                                n + 1, 32'(tr.len) + 1))
+                `uvm_error("AXI_RLAST", $sformatf("RLAST on beat %0d, ARLEN+1=%0d: %s",
+                                                  n + 1, 32'(tr.len) + 1, tr.convert2string()))
             ar_q.delete(idx[0]);
             tr.out_of_order = (idx[0] != 0);
             if (r_stall.exists(tr.id)) begin
@@ -362,6 +432,7 @@ class axi_monitor extends uvm_monitor;
         end
     endfunction
 
+    // Print burst counts and the read latency statistics.
     function void report_phase(uvm_phase phase);
         `uvm_info(get_type_name(),
             $sformatf("Observed %0d write bursts, %0d read bursts, %0d aborted",

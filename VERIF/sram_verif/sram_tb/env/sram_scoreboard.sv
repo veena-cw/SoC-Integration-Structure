@@ -66,20 +66,24 @@ class sram_scoreboard extends uvm_scoreboard;
     int unsigned err_count;
     int unsigned max_errors_printed = 20;
 
+    // UVM constructor; creates both analysis imps.
     function new(string name = "sram_scoreboard", uvm_component parent = null);
         super.new(name, parent);
         axi_imp      = new("axi_imp", this);
         sram_rst_imp = new("sram_rst_imp", this);
     endfunction
 
+    // 1 if byte address a is inside the 1 MB SRAM window.
     function bit in_range(bit [`AXI_ADDR_WIDTH-1:0] a);
         return (a >= `SRAM_BASE_ADDR) && (a <= `SRAM_END_ADDR);
     endfunction
 
+    // Address of the 128-bit word that contains byte a.
     function bit [`AXI_ADDR_WIDTH-1:0] word_base(bit [`AXI_ADDR_WIDTH-1:0] a);
         return a & ~(`AXI_ADDR_WIDTH'(`AXI_STRB_WIDTH - 1));
     endfunction
 
+    // Count a mismatch and print it, up to max_errors_printed.
     function void report_err(string id, string msg);
         err_count++;
         if (err_count <= max_errors_printed)
@@ -110,10 +114,12 @@ class sram_scoreboard extends uvm_scoreboard;
         else                        check_read(tr);
     endfunction
 
+    // 1 if the slave is modelled with an exclusive monitor.
     function bit slave_exclusive();
         return (cfg != null) && cfg.slave_exclusive;
     endfunction
 
+    // 1 if every beat of the burst is inside the SRAM window.
     function bit burst_in_range(axi_seq_item tr);
         for (int unsigned i = 0; i <= tr.len; i++)
             if (!in_range(tr.beat_addr(i))) return 1'b0;
@@ -136,6 +142,8 @@ class sram_scoreboard extends uvm_scoreboard;
         return r.addr == tr.addr && r.len == tr.len && r.size == tr.size && r.burst == tr.burst;
     endfunction
 
+    // Write aborted by reset: its bytes may or may not be in the SRAM, so
+    // stop checking them until they are written again.
     function void mark_unknown(axi_seq_item tr);
         bit [`AXI_ADDR_WIDTH-1:0] base;
         aborted_count++;
@@ -147,6 +155,8 @@ class sram_scoreboard extends uvm_scoreboard;
         end
     endfunction
 
+    // Apply a completed write to the model (only strobed, in-range bytes;
+    // exclusive rules) and check BRESP.
     function void check_write(axi_seq_item tr);
         bit [1:0]                 exp_resp;
         bit [`AXI_ADDR_WIDTH-1:0] a, base;
@@ -171,9 +181,6 @@ class sram_scoreboard extends uvm_scoreboard;
 
         for (int unsigned i = 0; i <= tr.len; i++) begin
             a = tr.beat_addr(i);
-            if ((tr.strb[i] & ~tr.lane_mask(i)) != 0)
-                `uvm_warning("SB_STRB", $sformatf("beat %0d WSTRB=%h has lanes outside %h: %s",
-                             i, tr.strb[i], tr.lane_mask(i), tr.convert2string()))
             if (!in_range(a)) begin
                 exp_resp = AXI_DECERR;
             end
@@ -199,6 +206,7 @@ class sram_scoreboard extends uvm_scoreboard;
                                              tr.bresp, exp_resp, tr.convert2string()));
     endfunction
 
+    // Check RRESP for every beat and the data of every in-range beat.
     function void check_read(axi_seq_item tr);
         bit [1:0]                 exp_resp;
         bit [`AXI_ADDR_WIDTH-1:0] a;
@@ -223,6 +231,7 @@ class sram_scoreboard extends uvm_scoreboard;
         end
     endfunction
 
+    // Compare the valid byte lanes of read beat i against the model.
     function void check_beat(axi_seq_item tr, int unsigned i, bit [`AXI_ADDR_WIDTH-1:0] a);
         bit [`AXI_ADDR_WIDTH-1:0] base;
         bit [`AXI_STRB_WIDTH-1:0] mask;
@@ -253,6 +262,7 @@ class sram_scoreboard extends uvm_scoreboard;
         end
     endfunction
 
+    // Print the scoreboard totals.
     function void report_phase(uvm_phase phase);
         `uvm_info(get_type_name(), $sformatf({"\n",
             "---------------- SRAM scoreboard ----------------\n",

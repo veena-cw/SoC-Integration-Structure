@@ -17,10 +17,12 @@ class sram_unaligned_test extends sram_base_test;
 
     `uvm_component_utils(sram_unaligned_test)
 
+    // UVM constructor.
     function new(string name = "sram_unaligned_test", uvm_component parent = null);
         super.new(name, parent);
     endfunction
 
+    // Random unaligned FIXED/INCR bursts, then every unaligned byte offset.
     virtual task run_main();
         axi_seq_item      wr, rd;
         bit [31:0]        a;

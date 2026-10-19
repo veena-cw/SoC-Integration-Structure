@@ -7,12 +7,27 @@
 //   sram_clk : 750 MHz (+SRAM_CLK_MHZ=<f> to change)
 //   axi_rst_if.rst_n  -> aresetn
 //   sram_rst_if.rst_n -> sram_resetn
+//   axi_vif           -> sram_top s_axi_* (AXI agent 0)
+//   g_axi_agent[i].u_if, i = 1..NUM_AXI_AGENTS-1 -> one axi_if per
+//                        extra AXI agent (env.axi_agent_<i>). No slave
+//                        is connected yet: slave outputs are tied idle.
+//                        To use one, replace the tie-offs with your
+//                        DUT / interconnect port.
+//
+// NUM_AXI_AGENTS -- number of AXI master agents, each on its own
+// axi_if. Set it here (default below) or from the command line with
+// 'make NUM_AGENTS=<n>' (Verilator -GNUM_AXI_AGENTS=<n>). tb_top
+// publishes it to uvm_resource_db ("num_axi_agents"); the env and the
+// tests size their agent / config arrays from that, so the classes
+// always match the hardware. Changing it needs a rebuild.
 // ------------------------------------------------------------
 `include "uvm_macros.svh"
 `include "axi_defines.svh"
 import uvm_pkg::*;
 
-module tb_top;
+module tb_top #(
+    parameter int NUM_AXI_AGENTS = 1     // <-- number of AXI agents
+);
 
     // ============================================================
     // Clocks
@@ -148,10 +163,47 @@ module tb_top;
 
 
     // ============================================================
+    // Extra AXI agents (NUM_AXI_AGENTS > 1): one axi_if each
+    // ============================================================
+    for (genvar i = 1; i < NUM_AXI_AGENTS; i++) begin : g_axi_agent
+        axi_if u_if (.aclk(aclk), .aresetn(axi_rst_if.rst_n));
+
+        // No slave behind this interface yet -- slave outputs idle.
+        // Hook-up point: drive these from a DUT / interconnect port
+        // (and the master-side signals into it) instead.
+        assign u_if.awready = 1'b0;
+        assign u_if.wready  = 1'b0;
+        assign u_if.bid     = '0;
+        assign u_if.bresp   = '0;
+        assign u_if.buser   = '0;
+        assign u_if.bvalid  = 1'b0;
+        assign u_if.arready = 1'b0;
+        assign u_if.rid     = '0;
+        assign u_if.rdata   = '0;
+        assign u_if.rresp   = '0;
+        assign u_if.rlast   = 1'b0;
+        assign u_if.ruser   = '0;
+        assign u_if.rvalid  = 1'b0;
+
+        axi_assertions #(.COVER_EN(1'b0)) u_axi_assertions (.vif(u_if));
+
+        initial begin
+            uvm_resource_db#(virtual axi_if)::set(
+                $sformatf("uvm_test_top.env.axi_agent_%0d", i), "vif", u_if);
+            uvm_resource_db#(virtual reset_if)::set(
+                $sformatf("uvm_test_top.env.axi_agent_%0d", i), "rst_vif", axi_rst_if);
+        end
+    end
+
+    // ============================================================
     // UVM resource_db -- each agent reads at its own scope and
     // re-publishes to its children.
     // ============================================================
     initial begin
+        if (NUM_AXI_AGENTS < 1)
+            $fatal(1, "tb_top: NUM_AXI_AGENTS=%0d, must be >= 1", NUM_AXI_AGENTS);
+        uvm_resource_db#(int)::set("uvm_test_top", "num_axi_agents", NUM_AXI_AGENTS);
+
         uvm_resource_db#(virtual axi_if)::set(
             "uvm_test_top.env.axi_agent", "vif", axi_vif);
         uvm_resource_db#(virtual reset_if)::set(
@@ -161,6 +213,15 @@ module tb_top;
         uvm_resource_db#(virtual reset_if)::set(
             "uvm_test_top.env.sram_rst_agent", "rst_vif", sram_rst_if);
 
+        // UVM 1800.2 checks every component name against a POSIX regex.
+        // With UVM_NO_DPI (Verilator) uvm_is_match() cannot evaluate a
+        // regex, so every name is reported as invalid -- a false
+        // UVM/COMP/NAME warning per component. Silence that ID only.
+        uvm_root::get().set_report_id_action("UVM/COMP/NAME", UVM_NO_ACTION);
+
+        // Let the g_axi_agent initial blocks publish their interfaces
+        // first (same time step, they run before this #0 resumes).
+        #0;
         run_test();
     end
 

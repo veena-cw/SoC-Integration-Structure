@@ -29,6 +29,9 @@
 `define SRAM_SIZE_BYTES  32'h0010_0000
 `define SRAM_END_ADDR    (`SRAM_BASE_ADDR + `SRAM_SIZE_BYTES - 1)
 
+// The number of AXI master agents is the tb_top parameter
+// NUM_AXI_AGENTS (see top/tb_top.sv), not a define here.
+
 `include "tb_tool_defines.svh"
 
 `endif

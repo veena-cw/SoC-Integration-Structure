@@ -12,14 +12,17 @@ class sram_full_mem_test extends sram_base_test;
 
     `uvm_component_utils(sram_full_mem_test)
 
+    // UVM constructor.
     function new(string name = "sram_full_mem_test", uvm_component parent = null);
         super.new(name, parent);
     endfunction
 
+    // Zero-delay master to keep the long run short.
     virtual function void configure_axi(axi_agent_config cfg);
         cfg.set_zero_delays();
     endfunction
 
+    // Write every SRAM word, then read the whole 1 MB back.
     virtual task run_main();
         axi_seq_item      wr, rd;
         for (int i = 0; i < 256; i++)

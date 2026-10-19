@@ -21,10 +21,12 @@ class reset_driver extends uvm_driver #(reset_seq_item);
 
     virtual reset_if rst_vif;
 
+    // UVM constructor.
     function new(string name = "reset_driver", uvm_component parent = null);
         super.new(name, parent);
     endfunction
 
+    // Get rst_vif from uvm_resource_db.
     function void build_phase(uvm_phase phase);
         super.build_phase(phase);
         if (!uvm_resource_db#(virtual reset_if)::read_by_name(
@@ -32,6 +34,7 @@ class reset_driver extends uvm_driver #(reset_seq_item);
             `uvm_fatal(get_type_name(), "reset_if not set")
     endfunction
 
+    // Hold reset at power-up, then drive one reset pulse per item.
     task run_phase(uvm_phase phase);
         rst_vif.rst_n = 1'b0;
         forever begin
@@ -41,6 +44,8 @@ class reset_driver extends uvm_driver #(reset_seq_item);
         end
     endtask
 
+    // Wait delay_cycles, assert rst_n on a falling clock edge, hold it for
+    // pulse_cycles, release on a falling edge.
     task drive_reset(reset_seq_item tr);
         repeat (tr.delay_cycles) @(posedge rst_vif.clk);
 

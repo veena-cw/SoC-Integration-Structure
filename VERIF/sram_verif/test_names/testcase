@@ -12,3 +12,4 @@ sram_out_of_range_test
 sram_oor_burst_test
 sram_reset_test
 sram_full_mem_test
+sram_rw_overlap_test

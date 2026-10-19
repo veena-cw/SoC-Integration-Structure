@@ -14,10 +14,12 @@ class sram_strobe_test extends sram_base_test;
 
     `uvm_component_utils(sram_strobe_test)
 
+    // UVM constructor.
     function new(string name = "sram_strobe_test", uvm_component parent = null);
         super.new(name, parent);
     endfunction
 
+    // Random, zero and overwrite strobe patterns at every size.
     virtual task run_main();
         axi_seq_item      wr, rd;
         bit [31:0]        a;

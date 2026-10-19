@@ -21,10 +21,12 @@ class axi_single_sequence extends axi_base_sequence;
     axi_strb_mode_e           sm        = STRB_FULL;
     axi_seq_item              tr;
 
+    // UVM constructor.
     function new(string name = "axi_single_sequence");
         super.new(name);
     endfunction
 
+    // Send the one directed burst described by wr/a/l/sz/b/sm.
     virtual task body();
         directed(wr, a, l, sz, b, sm, tr);
     endtask

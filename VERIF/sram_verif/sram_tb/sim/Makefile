@@ -42,6 +42,8 @@ VERBOSITY ?= UVM_MEDIUM
 PLUSARGS  ?=
 JOBS      ?= 8
 DEFINES   ?=
+# Empty = use tb_top's NUM_AXI_AGENTS default; a number overrides it.
+NUM_AGENTS ?=
 
 # Install prefix of the required Verilator (not VERILATOR_ROOT, which
 # for an installed Verilator is <prefix>/share/verilator).
@@ -70,33 +72,96 @@ VERILATOR_FLAGS := -sv \
 		+incdir+"$(UVM_HOME)" \
 		$(foreach d,$(INCDIRS),+incdir+"$(d)") \
 		+define+UVM_NO_DPI \
+		$(if $(NUM_AGENTS),-GNUM_AXI_AGENTS=$(NUM_AGENTS)) \
 		$(foreach d,$(DEFINES),+define+$(d))
 
 .PHONY: all
 all: verilator
 
+# ---- help text (make help) ----------------------------------
+define HELP_TEXT
+SRAM (sram_top) UVM testbench -- Verilator $(VERILATOR_VERSION)
+Run from: sram_tb/sim   (paths below are relative to it)
+
+Targets
+  make                 same as 'make verilator'
+  make verilator       compile + run TESTNAME
+  make lint            Verilator lint only        -> verilator_logs/verilator_lint.log
+  make compile         build the simulator        -> verilator_files/V$(TOP)
+  make run             run TESTNAME on the built binary (no rebuild)
+                         log      -> verilator_logs/<TESTNAME>.log
+                         coverage -> verilator_cov/<TESTNAME>.dat
+  make regress         compile once, run every test in test_names/testcase,
+                       print PASS/FAIL per test, then 'make cov'
+  make cov             merge verilator_cov/*.dat -> verilator_cov/merged.dat
+                       and print the functional-coverage report (per test,
+                       per covergroup, per coverpoint, uncovered bins)
+                         report   -> verilator_cov/coverage_report.txt
+  make check_verilator fail unless VERILATOR_HOME/bin/verilator is $(VERILATOR_VERSION)
+  make clean           remove logs, build and coverage output
+  make help            this text
+
+Variables (make VAR=value)
+  TESTNAME        test to run                     (default sram_smoke_test)
+  SEED            random seed                     (default 1)
+  VERBOSITY       UVM verbosity                   (default UVM_MEDIUM)
+  PLUSARGS        extra runtime plusargs, see below
+  DEFINES         extra compile defines, e.g. DEFINES="TB_FULL_SV MY_DEBUG"
+  JOBS            parallel C++ build jobs         (default 8)
+  NUM_AGENTS      AXI master agents, each on its own axi_if. Default:
+                  the NUM_AXI_AGENTS parameter of tb_top (edit it there),
+                  this variable overrides it (-GNUM_AXI_AGENTS=<n>).
+                  Agent 0 drives sram_top; agents 1..n-1 are passive on
+                  tied-off interfaces until a slave is hooked up in
+                  tb_top (g_axi_agent[i]). Rebuild after changing it.
+  UVM_HOME        UVM source dir                  (default VERIF/uvm-1.1d/src)
+  VERILATOR_HOME  Verilator install prefix        (default $(VERILATOR_HOME_DEFAULT))
+
+Runtime plusargs (PLUSARGS="...")
+  +NUM_TXN=<n>            transactions for random tests (default 200)
+  +WRITE_PCT=<0..100>     write share in sram_random_test (default 50)
+  +AXI_ZERO_DELAY         no random VALID/READY gaps
+  +AXI_MAX_DELAY=<n>      max random gap on every channel (cycles)
+  +AXI_CLK_MHZ=<f>        aclk frequency     (default 400)
+  +SRAM_CLK_MHZ=<f>       sram_clk frequency (default 750)
+  +DUMP                   write dump.vcd
+  Optional AXI4 features -- all OFF for sram_top, for TB checks only:
+  +AXI4_EXCLUSIVE         exclusive accesses (AxLOCK=1)
+  +AXI4_SLAVE_EXCLUSIVE   expect an exclusive monitor (EXOKAY)
+  +AXI4_REGION            random AxREGION
+  +AXI4_USER              random AxUSER / WUSER
+  +AXI4_OUTSTANDING=<n>   up to n write and n read bursts in flight
+                          (sram_top accepts AW+AR together -> WB_RW_OVERLAP)
+  +AXI4_RD_INTERLEAVE     accept interleaved R beats across IDs
+  Per agent (NUM_AGENTS > 1): every AXI plusarg above applies to all
+  agents; prefix it with AGENT<i>_ to target agent i only:
+  +AGENT<i>_ACTIVE / +AGENT<i>_PASSIVE   agent i mode
+  +AGENT<i>_AXI_ZERO_DELAY, +AGENT<i>_AXI_MAX_DELAY=<n>,
+  +AGENT<i>_AXI4_OUTSTANDING=<n>, +AGENT<i>_AXI4_EXCLUSIVE, ...
+
+Compile defines (DEFINES="...")
+  TB_FULL_SV              force SV features Verilator lacks (binsof crosses,
+                          per-coverpoint get_coverage, dist) -- other tools only
+  TB_NO_FULL_SV           force them off on any tool
+
+Examples
+  make TESTNAME=sram_random_test SEED=7 PLUSARGS="+NUM_TXN=1000"
+  make run TESTNAME=sram_backpressure_test VERBOSITY=UVM_HIGH
+  make run TESTNAME=sram_wrap_test PLUSARGS="+DUMP"
+  make regress SEED=3
+  make compile NUM_AGENTS=3 && make run PLUSARGS="+AGENT1_AXI_ZERO_DELAY"
+  make cov
+
+endef
+export HELP_TEXT
+
 .PHONY: help
 help:
-	@echo "Targets:"
-	@echo "  lint      Verilator lint only"
-	@echo "  compile   build $(WORK_DIR)/V$(TOP)"
-	@echo "  run       run TESTNAME on the built binary"
-	@echo "  verilator compile + run (default)"
-	@echo "  regress   compile once, run every test in test_names/testcase,"
-	@echo "            merge functional coverage"
-	@echo "  cov       merge $(COV_DIR)/*.dat and report coverage holes"
-	@echo "  clean"
+	@echo "$$HELP_TEXT" | sed '/^Runtime plusargs/,$$d'
+	@echo "Tests (test_names/testcase)"
+	@grep -v '^\s*#' "$(TESTLIST)" | grep -v '^\s*$$' | sed 's/^/  /'
 	@echo ""
-	@echo "Variables:"
-	@echo "  TESTNAME  (default sram_smoke_test)"
-	@echo "  SEED      (default 1)"
-	@echo "  VERBOSITY (default UVM_MEDIUM)"
-	@echo "  DEFINES   extra compile defines, e.g. DEFINES=MY_DEBUG"
-	@echo "  PLUSARGS  e.g. PLUSARGS=\"+NUM_TXN=1000 +AXI_ZERO_DELAY +SRAM_CLK_MHZ=200 +DUMP\""
-	@echo "            optional AXI4 features (all off for sram_top):"
-	@echo "            +AXI4_EXCLUSIVE +AXI4_SLAVE_EXCLUSIVE +AXI4_REGION +AXI4_USER"
-	@echo "            +AXI4_OUTSTANDING=<n> +AXI4_RD_INTERLEAVE"
-	@echo "  VERILATOR_HOME (default $(VERILATOR_HOME_DEFAULT), must be $(VERILATOR_VERSION))"
+	@echo "$$HELP_TEXT" | sed -n '/^Runtime plusargs/,$$p'
 
 .PHONY: check_uvm_home
 check_uvm_home:

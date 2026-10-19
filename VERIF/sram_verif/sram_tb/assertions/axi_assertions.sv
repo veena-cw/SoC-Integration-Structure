@@ -23,7 +23,10 @@
 `include "axi_defines.svh"
 import uvm_pkg::*;
 
-module axi_assertions (axi_if vif);
+// COVER_EN=0 drops the cover properties (used for the extra agent
+// interfaces in tb_top, which have no slave yet -- their covers could
+// never be hit and would only add holes to the coverage database).
+module axi_assertions #(parameter bit COVER_EN = 1'b1) (axi_if vif);
 
     localparam int MAX_SIZE = $clog2(`AXI_STRB_WIDTH);
 
@@ -184,21 +187,23 @@ module axi_assertions (axi_if vif);
                         vif.araddr, vif.arlen, vif.arsize, vif.arburst, vif.arlock, vif.arcache))
 
     // ---- Channel-ordering cover points (test plan) -------------------
-    cover_w_before_aw:      cover property (@(posedge vif.aclk) disable iff (!vif.aresetn)
-                                            $rose(vif.wvalid) && !vif.awvalid);
-    cover_aw_w_same_cycle:  cover property (@(posedge vif.aclk) disable iff (!vif.aresetn)
-                                            $rose(vif.awvalid) && $rose(vif.wvalid));
-    cover_aw_ar_same_cycle: cover property (@(posedge vif.aclk) disable iff (!vif.aresetn)
-                                            vif.awvalid && vif.arvalid);
-    cover_aw_while_busy:    cover property (@(posedge vif.aclk) disable iff (!vif.aresetn)
-                                            vif.awvalid && !vif.awready);
-    cover_ar_while_busy:    cover property (@(posedge vif.aclk) disable iff (!vif.aresetn)
-                                            vif.arvalid && !vif.arready);
-    cover_b_backpressure:   cover property (@(posedge vif.aclk) disable iff (!vif.aresetn)
-                                            vif.bvalid && !vif.bready ##1 vif.bvalid && vif.bready);
-    cover_r_backpressure:   cover property (@(posedge vif.aclk) disable iff (!vif.aresetn)
-                                            vif.rvalid && !vif.rready ##1 vif.rvalid && vif.rready);
-    cover_w_gap_in_burst:   cover property (@(posedge vif.aclk) disable iff (!vif.aresetn)
-                                            vif.wvalid && vif.wready && !vif.wlast ##1 !vif.wvalid);
+    if (COVER_EN) begin : g_cover
+        cover_w_before_aw:      cover property (@(posedge vif.aclk) disable iff (!vif.aresetn)
+                                                $rose(vif.wvalid) && !vif.awvalid);
+        cover_aw_w_same_cycle:  cover property (@(posedge vif.aclk) disable iff (!vif.aresetn)
+                                                $rose(vif.awvalid) && $rose(vif.wvalid));
+        cover_aw_ar_same_cycle: cover property (@(posedge vif.aclk) disable iff (!vif.aresetn)
+                                                vif.awvalid && vif.arvalid);
+        cover_aw_while_busy:    cover property (@(posedge vif.aclk) disable iff (!vif.aresetn)
+                                                vif.awvalid && !vif.awready);
+        cover_ar_while_busy:    cover property (@(posedge vif.aclk) disable iff (!vif.aresetn)
+                                                vif.arvalid && !vif.arready);
+        cover_b_backpressure:   cover property (@(posedge vif.aclk) disable iff (!vif.aresetn)
+                                                vif.bvalid && !vif.bready ##1 vif.bvalid && vif.bready);
+        cover_r_backpressure:   cover property (@(posedge vif.aclk) disable iff (!vif.aresetn)
+                                                vif.rvalid && !vif.rready ##1 vif.rvalid && vif.rready);
+        cover_w_gap_in_burst:   cover property (@(posedge vif.aclk) disable iff (!vif.aresetn)
+                                                vif.wvalid && vif.wready && !vif.wlast ##1 !vif.wvalid);
+    end
 
 endmodule

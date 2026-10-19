@@ -15,10 +15,12 @@ class sram_burst_length_test extends sram_base_test;
 
     `uvm_component_utils(sram_burst_length_test)
 
+    // UVM constructor.
     function new(string name = "sram_burst_length_test", uvm_component parent = null);
         super.new(name, parent);
     endfunction
 
+    // AxLEN sweep for INCR (aligned/unaligned/narrow), FIXED and WRAP.
     virtual task run_main();
         axi_seq_item      wr, rd;
         int               lens[$];

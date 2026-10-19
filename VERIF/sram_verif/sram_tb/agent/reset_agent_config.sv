@@ -15,6 +15,7 @@ class reset_agent_config extends uvm_object;
     uvm_active_passive_enum is_active       = UVM_ACTIVE;
     bit                     coverage_enable = 1'b1;
 
+    // UVM constructor.
     function new(string name = "reset_agent_config");
         super.new(name);
     endfunction

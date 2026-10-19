@@ -13,15 +13,18 @@ class sram_back2back_test extends sram_base_test;
 
     `uvm_component_utils(sram_back2back_test)
 
+    // UVM constructor.
     function new(string name = "sram_back2back_test", uvm_component parent = null);
         super.new(name, parent);
     endfunction
 
+    // Zero-delay master (no VALID gaps, READY always high).
     virtual function void configure_axi(axi_agent_config cfg);
         cfg.set_zero_delays();
         cfg.w_before_aw_en = 1'b1;
     endfunction
 
+    // 256-beat INCR bursts and random traffic with no idle cycles.
     virtual task run_main();
         axi_seq_item      wr, rd;
         for (int i = 0; i < 8; i++) begin

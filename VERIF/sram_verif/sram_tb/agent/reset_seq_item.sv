@@ -21,12 +21,14 @@ class reset_seq_item extends uvm_sequence_item;
         pulse_cycles inside {[1:50]};
     }
 
+    // UVM constructor; default pulse: no delay, 10 clocks.
     function new(string name = "reset_seq_item");
         super.new(name);
         delay_cycles = 0;
         pulse_cycles = 10;
     endfunction
 
+    // One-line description for logs.
     function string convert2string();
         return $sformatf("delay_cycles=%0d pulse_cycles=%0d", delay_cycles, pulse_cycles);
     endfunction

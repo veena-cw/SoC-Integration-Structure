@@ -1,298 +1,235 @@
 # ============================================================
-# SPI UVM Verification Makefile
-# Run from the sim/ directory:
-#     cd sim && make
+# APB_SPI_IP (spi_tb) UVM Verification Makefile
+# Run from the sim/ directory: cd sim && make
 # ============================================================
 
 SHELL := /bin/bash
 
-# ============================================================
-# Project Directories
-# ============================================================
+PROJECT_DIR := $(CURDIR)
 
-PROJECT_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
-SIM_DIR      := $(PROJECT_ROOT)/sim
+# ---- SoC-Integration-Structure repository root ----
+SOC_ROOT := $(abspath $(PROJECT_DIR)/../../../..)
+export REPO_ROOT := $(SOC_ROOT)
 
-# ============================================================
-# UVM
-# ============================================================
+# ---- SPI RTL path ----
+#SPI_RTL_DIR := $(SOC_ROOT)/DSN/ip/peripherals/spi/dsn/rtl
+SPI_CORE_RTL_DIR := $(SOC_ROOT)/DSN/ip/peripherals/spi/ip/spi/rtl
+SPI_APB_RTL_DIR  := $(SOC_ROOT)/DSN/ip/peripherals/spi/dsn/rtl
 
-UVM_HOME := $(REPO_ROOT)/VERIF/uvm-1.1d
-UVM_SRC  := $(UVM_HOME)/src
-UVM_PKG  := $(UVM_SRC)/uvm_pkg.sv
 
-# ============================================================
-# SPI Testbench
-# ============================================================
+VIVADO_LOG_DIR     := $(PROJECT_DIR)/vivado_logs
+VIVADO_WORK_DIR    := $(PROJECT_DIR)/vivado_files
+VERILATOR_LOG_DIR  := $(PROJECT_DIR)/verilator_logs
+VERILATOR_WORK_DIR := $(PROJECT_DIR)/verilator_files
 
-FILELIST := $(SIM_DIR)/spi_tb_filelist.f
-TOP      := top
+FILELIST := $(PROJECT_DIR)/spi_tb_filelist.f
+TOP      := tb_top
 
-TESTNAME ?= spi_full_duplex_test
+# ---- UVM_HOME (only used by Verilator) ----
+UVM_HOME_DEFAULT := $(SOC_ROOT)/VERIF/uvm-1.1d/src
+ifeq ($(UVM_HOME),)
+  UVM_HOME := $(UVM_HOME_DEFAULT)
+endif
 
-# ============================================================
-# Verilator
-# ============================================================
+TESTNAME ?= apb_spi_smoke_test
+SEED     ?= 1
 
-VERILATOR       ?= verilator
-VERILATOR_MDIR  := $(SIM_DIR)/verilator_obj_dir
-VERILATOR_EXE   := $(VERILATOR_MDIR)/V$(TOP)
-VERILATOR_STAMP := $(SIM_DIR)/.verilator_build
-
-VERILATOR_LOG_DIR := $(SIM_DIR)/verilator_log
-
-# ============================================================
-# Waveform
-# ============================================================
-
-WAVEFORM := $(SIM_DIR)/dump.vcd
-
-# ============================================================
-# Targets
-# ============================================================
+XVLOG     := xvlog
+XELAB     := xelab
+XSIM      := xsim
+VERILATOR := verilator
 
 .PHONY: all
-all: verilator
+all: vivado
 
-# ============================================================
-# Verilator Flow
-# ============================================================
-
-.PHONY: verilator
-verilator: verilator-build verilator-sim
-	@echo "========================================"
-	@echo "   VERILATOR FLOW COMPLETE"
-	@echo "========================================"
-
-# ------------------------------------------------------------
-# Verilator Build
-# ------------------------------------------------------------
-
-.PHONY: verilator-build
-
-verilator-build: $(VERILATOR_STAMP)
-
-$(VERILATOR_STAMP): $(FILELIST)
-
+.PHONY: help
+help:
+	@echo "Targets:"
+	@echo "  vivado / vivado_compile / vivado_elaborate / vivado_run / vivado_clean"
+	@echo "  verilator / verilator_lint / verilator_compile / verilator_run / verilator_clean"
+	@echo "  clean"
 	@echo ""
-	@echo "========================================"
-	@echo "        VERILATOR BUILD"
-	@echo "========================================"
+	@echo "TESTNAME (default apb_spi_smoke_test) selects the UVM test."
+	@echo "SOC_ROOT = $(SOC_ROOT)"
+	@echo "UVM_HOME (for Verilator) = $(UVM_HOME)"
 
-	@mkdir -p "$(VERILATOR_LOG_DIR)" "$(VERILATOR_MDIR)"
+# UVM check -- needed only for Verilator
+.PHONY: check_uvm_home
+check_uvm_home:
+	@if [ ! -f "$(UVM_HOME)/uvm_pkg.sv" ]; then \
+		echo "ERROR: uvm_pkg.sv not found in $(UVM_HOME)"; \
+		exit 1; \
+	fi
+	@echo "UVM_HOME = $(UVM_HOME)"
 
-	@echo "PROJECT_ROOT = $(PROJECT_ROOT)"
-	@echo "SIM_DIR      = $(SIM_DIR)"
-	@echo "UVM_HOME     = $(UVM_HOME)"
-	@echo "FILELIST     = $(FILELIST)"
-	@echo "TOP          = $(TOP)"
+# ============================================================
+# Vivado -- uses Vivado's precompiled UVM via -L uvm
+# ============================================================
 
-	cd "$(SIM_DIR)" && \
-	$(VERILATOR) \
-		--binary \
-		--timing \
-		--trace \
-		--language 1800-2012 \
-		--top-module "$(TOP)" \
+.PHONY: vivado_compile
+vivado_compile:
+	@echo ""
+	@echo "=================================================="
+	@echo "  Vivado: xvlog (compile)"
+	@echo "=================================================="
+	@mkdir -p "$(VIVADO_LOG_DIR)" "$(VIVADO_WORK_DIR)"
+	$(XVLOG) -sv \
+		-L uvm \
+		-i "$(SPI_CORE_RTL_DIR)" \
+		-i "$(SPI_APB_RTL_DIR)" \
+		-i "$(PROJECT_DIR)/../interface" \
+		-i "$(PROJECT_DIR)/../agent" \
+		-i "$(PROJECT_DIR)/../agent/sequences" \
+		-i "$(PROJECT_DIR)/../ral" \
+		-i "$(PROJECT_DIR)/../ral/ral_sequence" \
+		-i "$(PROJECT_DIR)/../env" \
+		-i "$(PROJECT_DIR)/../tests" \
+		-i "$(PROJECT_DIR)/../top" \
+		-f "$(FILELIST)" \
+		--log "$(VIVADO_LOG_DIR)/xvlog.log"
+	@echo "xvlog finished. Log: vivado_logs/xvlog.log"
+
+.PHONY: vivado_elaborate
+vivado_elaborate:
+	@echo ""
+	@echo "=================================================="
+	@echo "  Vivado: xelab (elaborate)"
+	@echo "=================================================="
+	@mkdir -p "$(VIVADO_LOG_DIR)" "$(VIVADO_WORK_DIR)"
+	$(XELAB) -L uvm \
+		--timescale 1ns/1ps \
+		$(TOP) \
+		-s $(TOP)_sim \
+		--log "$(VIVADO_LOG_DIR)/xelab.log"
+	@echo "xelab finished. Log: vivado_logs/xelab.log"
+
+.PHONY: vivado_run
+vivado_run:
+	@echo ""
+	@echo "=================================================="
+	@echo "  Vivado: xsim (run)  Test: $(TESTNAME)  Seed: $(SEED)"
+	@echo "=================================================="
+	@mkdir -p "$(VIVADO_LOG_DIR)" "$(VIVADO_WORK_DIR)"
+	$(XSIM) $(TOP)_sim \
+		--runall \
+		--testplusarg UVM_TESTNAME=$(TESTNAME) \
+		--testplusarg UVM_VERBOSITY=UVM_MEDIUM \
+		--sv_seed $(SEED) \
+		--log "$(VIVADO_LOG_DIR)/$(TESTNAME).log"
+	@echo "xsim finished. Log: vivado_logs/$(TESTNAME).log"
+
+.PHONY: vivado
+vivado: vivado_compile vivado_elaborate vivado_run
+	@echo "=== Vivado flow complete ==="
+
+.PHONY: vivado_clean
+vivado_clean:
+	rm -rf "$(VIVADO_LOG_DIR)" "$(VIVADO_WORK_DIR)"
+	rm -rf xsim.dir *.jou *.pb *.wdb
+	@echo "Vivado clean complete."
+
+# ============================================================
+# Verilator -- uses UVM_HOME from SoC-Integration-Structure
+# ============================================================
+
+VERILATOR_INCLUDES := \
+	+incdir+"$(UVM_HOME)" \
+	+incdir+"$(SPI_RTL_DIR)" \
+	+incdir+"$(PROJECT_DIR)/../interface" \
+	+incdir+"$(PROJECT_DIR)/../agent" \
+	+incdir+"$(PROJECT_DIR)/../agent/sequences" \
+	+incdir+"$(PROJECT_DIR)/../ral" \
+	+incdir+"$(PROJECT_DIR)/../ral/ral_sequence" \
+	+incdir+"$(PROJECT_DIR)/../env" \
+	+incdir+"$(PROJECT_DIR)/../tests" \
+	+incdir+"$(PROJECT_DIR)/../top"
+
+.PHONY: verilator_lint
+verilator_lint: check_uvm_home
+	@echo ""
+	@echo "=================================================="
+	@echo "  Verilator: lint"
+	@echo "=================================================="
+	@mkdir -p "$(VERILATOR_LOG_DIR)"
+	@set -o pipefail; \
+	$(VERILATOR) --lint-only \
+		-sv \
+		--top-module $(TOP) \
+		--timescale 1ns/1ps \
+		-Wall -Wno-fatal \
+		-Wno-UNOPTFLAT -Wno-UNUSEDSIGNAL -Wno-DECLFILENAME \
+		-Wno-WIDTHEXPAND -Wno-WIDTHTRUNC \
+		-Wno-COVERIGN -Wno-EOFNEWLINE -Wno-IMPORTSTAR \
+		-Wno-UNDRIVEN -Wno-UNSIGNED \
+		"$(UVM_HOME)/uvm_pkg.sv" \
+		-f "$(FILELIST)" \
+		$(VERILATOR_INCLUDES) \
+		+define+UVM_NO_DPI \
+		2>&1 | tee "$(VERILATOR_LOG_DIR)/verilator_lint.log"
+	@echo "Verilator lint finished."
+
+.PHONY: verilator_compile
+verilator_compile: check_uvm_home
+	@echo ""
+	@echo "=================================================="
+	@echo "  Verilator: compile"
+	@echo "=================================================="
+	@mkdir -p "$(VERILATOR_LOG_DIR)" "$(VERILATOR_WORK_DIR)"
+	@set -o pipefail; \
+	$(VERILATOR) --binary \
+		-sv \
+		--Mdir "$(VERILATOR_WORK_DIR)" \
+		--top-module $(TOP) \
+		--timescale 1ns/1ps \
 		--build-jobs 4 \
 		-CFLAGS "-O0" \
-		"$(UVM_PKG)" \
+		--trace --trace-depth 2 \
+		-Wall -Wno-fatal \
+		-Wno-UNOPTFLAT -Wno-UNUSEDSIGNAL -Wno-DECLFILENAME \
+		-Wno-WIDTHEXPAND -Wno-WIDTHTRUNC \
+		-Wno-COVERIGN -Wno-EOFNEWLINE -Wno-IMPORTSTAR \
+		-Wno-UNDRIVEN -Wno-UNSIGNED \
+		"$(UVM_HOME)/uvm_pkg.sv" \
 		-f "$(FILELIST)" \
+		$(VERILATOR_INCLUDES) \
 		+define+UVM_NO_DPI \
-		+define+TB_NUM_CS=4 \
-		+incdir+"$(UVM_SRC)" \
-		--Mdir "$(VERILATOR_MDIR)" \
-		-Wno-TIMESCALEMOD \
-		-Wno-WIDTHEXPAND \
-		-Wno-WIDTHTRUNC \
-		-Wno-UNSIGNED \
-		-Wno-PINMISSING \
-		-Wno-IMPLICIT \
-		-Wno-IGNOREDRETURN \
-		2>&1 | tee "$(VERILATOR_LOG_DIR)/verilator_build.log"
-
-	@if [ ! -f "$(VERILATOR_EXE)" ]; then \
+		2>&1 | tee "$(VERILATOR_LOG_DIR)/verilator_compile.log"
+	@if [ ! -f "$(VERILATOR_WORK_DIR)/V$(TOP)" ]; then \
 		echo ""; \
-		echo "ERROR: Verilator executable was not generated."; \
-		echo "Check: $(VERILATOR_LOG_DIR)/verilator_build.log"; \
+		echo "ERROR: Verilator build failed - V$(TOP) not produced."; \
+		echo "See $(VERILATOR_LOG_DIR)/verilator_compile.log"; \
 		exit 1; \
 	fi
+	@echo "Verilator compile finished."
+	@echo "Executable: $(VERILATOR_WORK_DIR)/V$(TOP)"
 
-	@touch "$(VERILATOR_STAMP)"
-
+.PHONY: verilator_run
+verilator_run:
 	@echo ""
-	@echo "Verilator build completed."
-	@echo "Executable: $(VERILATOR_EXE)"
-
-# ------------------------------------------------------------
-# Verilator Simulation
-# ------------------------------------------------------------
-
-.PHONY: verilator-sim
-
-verilator-sim: verilator-build
-
-	@echo ""
-	@echo "========================================"
-	@echo "        VERILATOR SIMULATION"
-	@echo "        TEST = $(TESTNAME)"
-	@echo "========================================"
-
-	@if [ ! -f "$(VERILATOR_EXE)" ]; then \
-		echo "ERROR: $(VERILATOR_EXE) not found."; \
-		echo "Run 'make verilator-build' first."; \
+	@echo "=================================================="
+	@echo "  Verilator: run  Test: $(TESTNAME)"
+	@echo "=================================================="
+	@if [ ! -f "$(VERILATOR_WORK_DIR)/V$(TOP)" ]; then \
+		echo "ERROR: $(VERILATOR_WORK_DIR)/V$(TOP) not found."; \
+		echo "       Run 'make verilator_compile' first."; \
 		exit 1; \
 	fi
-
-	@mkdir -p "$(VERILATOR_LOG_DIR)"
-
-	"$(VERILATOR_EXE)" \
-		+UVM_TESTNAME="$(TESTNAME)" \
+	"$(VERILATOR_WORK_DIR)/V$(TOP)" \
+		+UVM_TESTNAME=$(TESTNAME) \
 		+UVM_VERBOSITY=UVM_MEDIUM \
 		+UVM_NO_RELNOTES \
 		2>&1 | tee "$(VERILATOR_LOG_DIR)/$(TESTNAME).log"
+	@echo "Verilator run finished. Log: verilator_logs/$(TESTNAME).log"
 
-	@echo ""
-	@echo "Verilator simulation completed."
-	@echo "Log: $(VERILATOR_LOG_DIR)/$(TESTNAME).log"
+.PHONY: verilator
+verilator: verilator_compile verilator_run
+	@echo "=== Verilator flow complete ==="
 
-# ============================================================
-# Waveform
-# ============================================================
-
-.PHONY: waveform
-
-waveform: verilator-sim
-
-	@echo ""
-	@echo "========================================"
-	@echo "        OPENING GTKWAVE"
-	@echo "========================================"
-
-	@if [ -f "$(WAVEFORM)" ]; then \
-		gtkwave "$(WAVEFORM)" & \
-	else \
-		echo "ERROR: Waveform file not found:"; \
-		echo "$(WAVEFORM)"; \
-		exit 1; \
-	fi
-
-# ============================================================
-# Vivado
-# ============================================================
-
-.PHONY: vivado-compile
-
-vivado-compile:
-
-	@echo ""
-	@echo "========================================"
-	@echo "        VIVADO COMPILE"
-	@echo "========================================"
-
-	cd "$(SIM_DIR)" && \
-	xvlog -sv \
-		-L uvm \
-		-f "$(FILELIST)"
-
-# ------------------------------------------------------------
-# Vivado Elaborate
-# ------------------------------------------------------------
-
-.PHONY: vivado-elab
-
-vivado-elab: vivado-compile
-
-	@echo ""
-	@echo "========================================"
-	@echo "        VIVADO ELABORATE"
-	@echo "========================================"
-
-	cd "$(SIM_DIR)" && \
-	xelab "$(TOP)" \
-		-s "$(TOP)_sim" \
-		--timescale 1ns/1ps
-
-# ------------------------------------------------------------
-# Vivado GUI Simulation
-# ------------------------------------------------------------
-
-.PHONY: vivado
-
-vivado: vivado-elab
-
-	@echo ""
-	@echo "========================================"
-	@echo "        VIVADO SIMULATION"
-	@echo "        TEST = $(TESTNAME)"
-	@echo "========================================"
-
-	cd "$(SIM_DIR)" && \
-	xsim "$(TOP)_sim" \
-		--gui \
-		--testplusarg "UVM_TESTNAME=$(TESTNAME)"
-
-# ------------------------------------------------------------
-# Vivado GUI Simulation
-# ------------------------------------------------------------
-
-.PHONY: vivado-sim
-
-vivado-sim:
-
-	@echo ""
-	@echo "========================================"
-	@echo "        VIVADO SIMULATION"
-	@echo "        TEST = $(TESTNAME)"
-	@echo "========================================"
-
-	cd "$(SIM_DIR)" && \
-	xsim "$(TOP)_sim" \
-		--gui \
-		--testplusarg "UVM_TESTNAME=$(TESTNAME)"
-
-# ------------------------------------------------------------
-# Vivado Non-GUI Simulation
-# ------------------------------------------------------------
-
-.PHONY: vivado-nogui
-
-vivado-nogui:
-
-	@echo ""
-	@echo "========================================"
-	@echo "        VIVADO NON-GUI SIMULATION"
-	@echo "        TEST = $(TESTNAME)"
-	@echo "========================================"
-
-	cd "$(SIM_DIR)" && \
-	xsim "$(TOP)_sim" \
-		--runall \
-		--testplusarg "UVM_TESTNAME=$(TESTNAME)"
-
-# ============================================================
-# Clean
-# ============================================================
-
-.PHONY: verilator-clean
-
-verilator-clean:
-
-	rm -rf "$(VERILATOR_MDIR)"
-	rm -rf "$(VERILATOR_LOG_DIR)"
-	rm -f "$(VERILATOR_STAMP)"
-
+.PHONY: verilator_clean
+verilator_clean:
+	rm -rf "$(VERILATOR_LOG_DIR)" "$(VERILATOR_WORK_DIR)"
 	@echo "Verilator clean complete."
 
-# ------------------------------------------------------------
-
 .PHONY: clean
-
-clean: verilator-clean
-
-	rm -rf "$(SIM_DIR)/xsim.dir"
-	rm -rf "$(SIM_DIR)/.Xil"
-	rm -rf "$(SIM_DIR)/$(TOP)_sim"*
-	rm -f "$(SIM_DIR)/xvlog.pb"
-
-	@echo "All clean."
+clean: vivado_clean verilator_clean
+	@echo "All generated files removed."

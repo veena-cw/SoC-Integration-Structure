@@ -1,0 +1,187 @@
+//==================================================================================
+//  Copyright (c) 2024 Chipweave Technologies Private Limited. All rights reserved.
+//  THIS PROGRAM IS AN UNPUBLISHED WORK FULLY PROTECTED BY
+//  COPYRIGHT LAWS AND IS CONSIDERED A TRADE SECRET BELONGING
+//  TO THE CHIPWEAVE TECHNOLOGIES PRIVATE LIMITED.
+//
+//  Chipweave Technologies Confidential
+//==================================================================================
+//  Project                                     : APB_SPI (apb_spi_top) UVM testbench
+//  Module                                      : apb_spi_coverage
+//  Primary Unit Owner                          :
+//  Secondary Contact                           :
+//  Source [SystemVerilog|Verilog|VHDL|Other]   : SystemVerilog
+//=================================================================================
+//  Description: Functional coverage: APB register access, SPI mode/clock/CS/data, slave view and reset scenarios (gated by agent_config coverage_enable)
+//=================================================================================
+
+class apb_spi_coverage extends uvm_component;
+
+  `uvm_component_utils(apb_spi_coverage)
+
+  uvm_analysis_imp_apb       #(apb_seq_item,        apb_spi_coverage) apb_imp;
+  uvm_analysis_imp_mst       #(spi_master_seq_item, apb_spi_coverage) mst_imp;
+  uvm_analysis_imp_mst_start #(spi_master_seq_item, apb_spi_coverage) mst_start_imp;
+  uvm_analysis_imp_slv       #(spi_slave_seq_item,  apb_spi_coverage) slv_imp;
+  uvm_analysis_imp_rst       #(reset_seq_item,      apb_spi_coverage) rst_imp;
+
+  apb_agent_config        apb_cfg;
+  reset_agent_config      rst_cfg;
+  spi_master_agent_config mst_cfg;
+  spi_slave_agent_config  slv_cfg;
+
+  bit spi_frame_active;   // tracked from master start/byte events (used by the reset coverage)
+  bit reset_hit_spi;      // the last reset assertion hit a running SPI frame
+
+  // ---------------- APB register access ----------------
+  covergroup cg_apb with function sample(bit [15:0] addr, bit wr, bit err);
+    cp_addr : coverpoint addr {
+      bins ctrl     = {16'h00};
+      bins status   = {16'h04};
+      bins irq_stat = {16'h08};
+      bins irq_mask = {16'h0C};
+      bins clk_div  = {16'h10};
+      bins tx_data  = {16'h14};
+      bins rx_data  = {16'h18};
+      bins fifo_lvl = {16'h1C};
+      bins id       = {16'h20};
+      bins version  = {16'h24};
+      bins scratch[] = {16'h28, 16'h2C, 16'h30, 16'h34, 16'h38, 16'h3C};
+      bins invalid  = default;
+    }
+    cp_wr  : coverpoint wr  { bins read = {0}; bins write = {1}; }
+    cp_err : coverpoint err { bins ok = {0}; bins slverr = {1}; }
+    x_addr_wr  : cross cp_addr, cp_wr;
+    x_addr_err : cross cp_addr, cp_err;
+  endgroup
+
+  // ---------------- APB transfers aborted by reset ----------------
+  covergroup cg_apb_abort with function sample(bit wr, bit in_access);
+    cp_wr     : coverpoint wr        { bins read = {0}; bins write = {1}; }
+    cp_phase  : coverpoint in_access { bins setup = {0}; bins access = {1}; }
+    x_abort   : cross cp_wr, cp_phase;
+  endgroup
+
+  // ---------------- SPI master byte ----------------
+  covergroup cg_spi with function sample(bit cpol, bit cpha, bit lsb, bit inter, bit [1:0] cs,
+                                         int unsigned hp, int unsigned setup, int unsigned hold,
+                                         int unsigned byte_idx, bit [7:0] mosi, bit [7:0] miso);
+    cp_mode : coverpoint {cpol, cpha} {
+      bins mode0 = {2'b00};
+      bins mode1 = {2'b01};
+      bins mode2 = {2'b10};
+      bins mode3 = {2'b11};
+    }
+    cp_lsb   : coverpoint lsb   { bins msb_first = {0}; bins lsb_first = {1}; }
+    cp_inter : coverpoint inter { bins per_byte_cs = {0}; bins cs_held = {1}; }
+    cp_cs    : coverpoint cs    { bins cs[] = {[0:3]}; }
+    cp_hp    : coverpoint hp {
+      bins hp1       = {1};
+      bins hp2       = {2};
+      bins hp3       = {3};
+      bins hp4_7     = {[4:7]};
+      bins hp8_31    = {[8:31]};
+      bins hp32_plus = {[32:$]};
+    }
+    cp_setup : coverpoint setup {
+      bins s0 = {0}; bins s1 = {1}; bins s2 = {2}; bins s3_4 = {[3:4]}; bins s5_15 = {[5:15]}; bins s16_plus = {[16:$]};
+    }
+    cp_hold  : coverpoint hold {
+      bins h0 = {0}; bins h1 = {1}; bins h2 = {2}; bins h3_4 = {[3:4]}; bins h5_15 = {[5:15]}; bins h16_plus = {[16:$]};
+    }
+    cp_byte  : coverpoint byte_idx { bins first = {0}; bins second = {1}; bins third_plus = {[2:$]}; }
+    cp_mosi  : coverpoint mosi { bins zero = {8'h00}; bins ones = {8'hFF}; bins a5 = {8'hA5}; bins five_a = {8'h5A}; bins others = default; }
+    cp_miso  : coverpoint miso { bins slave_const = {SLAVE_TX_CONST}; bins others = default; }
+    x_mode_lsb  : cross cp_mode, cp_lsb;
+    x_cs_mode   : cross cp_cs, cp_mode;
+    x_hp_mode   : cross cp_hp, cp_mode;
+    x_inter_byte: cross cp_inter, cp_byte;
+  endgroup
+
+  // ---------------- SPI slave view ----------------
+  covergroup cg_slave with function sample(bit cpol, bit cpha, bit lsb, bit [7:0] rx, bit [7:0] tx);
+    cp_mode : coverpoint {cpol, cpha} { bins mode[] = {[0:3]}; }
+    cp_lsb  : coverpoint lsb { bins msb_first = {0}; bins lsb_first = {1}; }
+    cp_rx   : coverpoint rx  { bins zero = {8'h00}; bins ones = {8'hFF}; bins others = default; }
+    cp_tx   : coverpoint tx  { bins slave_const = {SLAVE_TX_CONST}; bins others = default; }
+    x_mode_lsb : cross cp_mode, cp_lsb;
+  endgroup
+
+  // ---------------- reset scenarios ----------------
+  covergroup cg_reset with function sample(bit during_spi, int unsigned width);
+    cp_ctx   : coverpoint during_spi { bins idle_or_apb_only = {0}; bins during_spi_frame = {1}; }
+    cp_width : coverpoint width {
+      bins w_short  = {[1:2]};
+      bins w_medium = {[3:5]};
+      bins w_long   = {[6:$]};
+    }
+    x_ctx_width : cross cp_ctx, cp_width;
+  endgroup
+
+  function new(string name = "apb_spi_coverage", uvm_component parent = null);
+    super.new(name, parent);
+    apb_imp       = new("apb_imp", this);
+    mst_imp       = new("mst_imp", this);
+    mst_start_imp = new("mst_start_imp", this);
+    slv_imp       = new("slv_imp", this);
+    rst_imp       = new("rst_imp", this);
+    cg_apb       = new();
+    cg_apb_abort = new();
+    cg_spi       = new();
+    cg_slave     = new();
+    cg_reset     = new();
+  endfunction
+
+  function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    // coverage enables live in the agent configs; a missing config means "enabled"
+    if (!uvm_resource_db#(apb_agent_config)::read_by_name(get_full_name(), "apb_agent_config", apb_cfg))
+      apb_cfg = apb_agent_config::type_id::create("apb_cfg_default");
+    if (!uvm_resource_db#(reset_agent_config)::read_by_name(get_full_name(), "reset_agent_config", rst_cfg))
+      rst_cfg = reset_agent_config::type_id::create("rst_cfg_default");
+    if (!uvm_resource_db#(spi_master_agent_config)::read_by_name(get_full_name(), "spi_master_agent_config", mst_cfg))
+      mst_cfg = spi_master_agent_config::type_id::create("mst_cfg_default");
+    if (!uvm_resource_db#(spi_slave_agent_config)::read_by_name(get_full_name(), "spi_slave_agent_config", slv_cfg))
+      slv_cfg = spi_slave_agent_config::type_id::create("slv_cfg_default");
+  endfunction
+
+  function void write_apb(apb_seq_item t);
+    if (apb_cfg.coverage_enable != COV_ENABLE) return;
+    if (t.aborted_by_reset) cg_apb_abort.sample(t.pwrite, t.abort_in_access);
+    else                    cg_apb.sample(t.paddr[15:0], t.pwrite, t.pslverr);
+  endfunction
+
+  function void write_mst_start(spi_master_seq_item t);
+    spi_frame_active = 1'b1;
+  endfunction
+
+  function void write_mst(spi_master_seq_item t);
+    if (t.last_in_burst) spi_frame_active = 1'b0;
+    if (mst_cfg.coverage_enable != COV_ENABLE) return;
+    cg_spi.sample(t.cpol, t.cpha, t.lsb_first, t.inter_byte, t.cs_sel, t.hp_min,
+                  t.cs_setup, t.cs_hold, t.byte_idx, t.mosi_data, t.miso_data);
+  endfunction
+
+  function void write_slv(spi_slave_seq_item t);
+    if (slv_cfg.coverage_enable != COV_ENABLE) return;
+    if (t.kind == SLV_BYTE) cg_slave.sample(t.cpol, t.cpha, t.lsb_first, t.rx_data, t.tx_data);
+  endfunction
+
+  function void write_rst(reset_seq_item t);
+    if (t.is_assert) begin
+      // remember whether the reset hit a running SPI frame; sampled at de-assert together with the width
+      reset_hit_spi = spi_frame_active;
+      spi_frame_active = 1'b0;
+    end else begin
+      if (rst_cfg.coverage_enable == COV_ENABLE) cg_reset.sample(reset_hit_spi, t.width_cycles);
+    end
+  endfunction
+
+  function void report_phase(uvm_phase phase);
+    super.report_phase(phase);
+    `uvm_info("COV_REPORT", $sformatf("cg_apb=%0.1f%% cg_apb_abort=%0.1f%% cg_spi=%0.1f%% cg_slave=%0.1f%% cg_reset=%0.1f%%",
+              cg_apb.get_inst_coverage(), cg_apb_abort.get_inst_coverage(), cg_spi.get_inst_coverage(),
+              cg_slave.get_inst_coverage(), cg_reset.get_inst_coverage()), UVM_LOW)
+  endfunction
+
+endclass

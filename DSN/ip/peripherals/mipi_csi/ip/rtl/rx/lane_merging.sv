@@ -246,11 +246,11 @@ always_ff @(posedge cphy_rxwordclkhs or negedge rst_n)
                              lane_merging_sync_data_valid_r ?  {52'h0,lane_merging_sync_data_r[11:0]} :
                                              64'h0;   		*/					  			
 	
-  always_ff @(posedge rxwordclkhs or negedge rst_n)
+ always_ff @(posedge rxwordclkhs or negedge rst_n)
   if(~rst_n) lm_data_in <= 64'h0;
-  else       lm_data_in   <= (rxactivehs & (|(rxvalidhs[3:0]))) ? {rxdatahs[3][15:0], rxdatahs[2][15:0], rxdatahs[1][15:0], rxdatahs[0][15:0]}: 
-                             (rxactivehs & (|(rxsynchs[3:0]))) ?  {52'h0,rxsynctypehs3,rxsynctypehs2,rxsynctypehs1,rxsynctypehs0} :
-                                             64'h0;   
+  else       lm_data_in   <= (rxactivehs & (|(rxvalidhs[3:0]))) ?  (rxactivehs & (|(rxsynchs[3:0]))) ?  
+                              {52'h0,rxsynctypehs3,rxsynctypehs2,rxsynctypehs1,rxsynctypehs0} :{rxdatahs[3][15:0], rxdatahs[2][15:0], rxdatahs[1][15:0], rxdatahs[0][15:0]}:
+                                             64'h0;     
  
 /*always_ff @(posedge cphy_rxwordclkhs or negedge rst_n)
   if(~rst_n) lm_data_in <= 64'h0;

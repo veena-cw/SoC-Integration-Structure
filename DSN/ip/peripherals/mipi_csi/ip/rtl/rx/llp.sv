@@ -317,7 +317,7 @@ always_ff @(posedge cphy_rxwordclkhs or negedge rst_n)
 //13 x 4
 always_ff @(posedge cphy_rxwordclkhs or negedge rst_n)
   if(~rst_n) llp_dec_ctr <= 5'h0;
-  else if(llp_dec_ctr == 4'hc /*5'h17*/) llp_dec_ctr <= 5'h0;   
+  else if(llp_dec_ctr == /*4'hc*/ 5'h17) llp_dec_ctr <= 5'h0;   
   else if(rx_lm_byte_vld) llp_dec_ctr <= llp_dec_ctr + 5'h1;
  
 //end of the payload transmission indication from the c-phy register

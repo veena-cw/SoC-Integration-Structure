@@ -12,7 +12,7 @@
 //  Secondary Contact                           :
 //  Source [SystemVerilog|Verilog|VHDL|Other]   : SystemVerilog
 //=================================================================================
-//  Description: All virtual sequences: base helpers + RAL runner + smoke, register, mode, clock divider, CS, burst, FIFO, interrupt, reset (APB and SPI) and random scenarios
+//  Description: Virtual sequences: base helpers (APB / SPI / reset), RAL runner and the smoke scenarios. New test scenarios are added here one at a time.
 //=================================================================================
 
 class apb_spi_base_vseq extends uvm_sequence;
@@ -139,501 +139,237 @@ class apb_spi_ral_vseq extends apb_spi_base_vseq;
 
 endclass
 
+// ======================================================================================
+// SMOKE TEST SCENARIOS (apb_spi_smoke_test)  -  every step prints "---- SM-xx ----" and
+// its own PASS/FAIL lines (id SMOKE) so a failure is attributed to one scenario.
+//
+//  SM-01  Reset state            all RW registers = 0; STATUS = 0x0A (tx_empty, rx_empty); FIFO_LVL = 0
+//  SM-02  Identification         ID = 0x5910017E, VERSION = 0x00010000
+//  SM-03  Scratch registers      6 scratch registers: write pattern, read back, then the complement
+//                                (no cross-talk between registers)
+//  SM-04  Config registers       CLK_DIV, IRQ_MASK, CTRL (START=0) write / read-back, then restore 0
+//  SM-05  Read-only protection   writes to ID and VERSION are ignored
+//  SM-06  APB error response     valid address -> PSLVERR=0; invalid read/write -> PSLVERR=1, read data 0
+//  SM-07  TX FIFO write          one byte queued with START=0: tx level 1, tx_empty=0, master stays idle
+//  SM-08  Single SPI byte        mode 0, MSB first, CS0, CLK_DIV=2, setup 3, hold 2: START -> idle,
+//                                TX level 0, RX level 1, STATUS idle. (monitor/scoreboard check MOSI byte,
+//                                CS index, SCK period, CS setup/hold, slave reception)
+//  SM-09  RX read                RX_DATA read returns the received byte (scoreboard), RX level back to 0
+//  SM-10  Interrupt status       IRQ_STAT done bit set after the transfer; write-1 clears it; IRQ_MASK write
+//  SM-11  Two bytes, one START   2 bytes queued, tx level 2 -> 2 transfers -> rx level 2 -> both read back
+//  SM-12  Reset after activity   scratch/mask/config/queued TX byte are cleared by reset, STATUS idle/empty
+//  SM-13  Transfer after reset   one byte after reset: design and testbench recover
+//  End of test (in the test)     4 SPI bytes seen by the master monitor, slave saw every CS0 byte,
+//                                no aborted APB transfers
+// ======================================================================================
 class apb_spi_smoke_vseq extends apb_spi_base_vseq;
 
   `uvm_object_utils(apb_spi_smoke_vseq)
+
+  string       cur_step;
+  int unsigned n_chk;
+  int unsigned n_fail;
 
   function new(string name = "apb_spi_smoke_vseq");
     super.new(name);
   endfunction
 
-  task body();
-    bit [31:0] d;
-    bit [7:0]  q[$];
-
-    apb_rd(ADDR_ID, d);       expect_eq("ID", d, ID_VALUE);
-    apb_rd(ADDR_VERSION, d);  expect_eq("VERSION", d, VERSION_VALUE);
-    apb_wr(ADDR_SCRATCH0, 32'hDEAD_BEEF);
-    apb_rd(ADDR_SCRATCH0, d); expect_eq("SCRATCH0", d, 32'hDEAD_BEEF);
-
-    spi_config(2'b00, 1'b0, 2, 2'd0, 3, 2, 1'b0);
-    q.push_back(8'hA5);
-    spi_send(q);
-    spi_read_rx(1);
-  endtask
-
-endclass
-
-class apb_spi_reg_vseq extends apb_spi_base_vseq;
-
-  `uvm_object_utils(apb_spi_reg_vseq)
-
-  bit do_rw = 1'b1;   // 0: reset-value reads only
-
-  function new(string name = "apb_spi_reg_vseq");
-    super.new(name);
+  // ---------------- reporting helpers ----------------
+  function void smoke_step(string id, string desc);
+    cur_step = id;
+    `uvm_info("SMOKE", $sformatf("---- %s : %s ----", id, desc), UVM_LOW)
   endfunction
 
-  task read_all();
-    bit [31:0] d;
-    for (int unsigned i = 0; i < 16; i++) apb_rd(i * 4, d);
-  endtask
-
-  task walk_reg(bit [31:0] addr, bit [31:0] keep_mask);
-    bit [31:0] d, p;
-    for (int unsigned i = 0; i < 32; i++) begin
-      p = (32'h1 << i) & keep_mask;
-      apb_wr(addr, p);  apb_rd(addr, d);  expect_eq($sformatf("walk-1 @0x%02h bit%0d", addr[7:0], i), d, p);
-      p = (~(32'h1 << i)) & keep_mask;
-      apb_wr(addr, p);  apb_rd(addr, d);  expect_eq($sformatf("walk-0 @0x%02h bit%0d", addr[7:0], i), d, p);
+  function void smoke_chk(bit cond, string msg);
+    n_chk++;
+    if (cond) begin
+      `uvm_info("SMOKE", $sformatf("[%s] PASS: %s", cur_step, msg), UVM_MEDIUM)
+    end else begin
+      n_fail++;
+      `uvm_error("SMOKE", $sformatf("[%s] FAIL: %s", cur_step, msg))
     end
-  endtask
+  endfunction
 
-  task body();
+  function void smoke_eq(string what, bit [31:0] got, bit [31:0] exp);
+    smoke_chk(got === exp, $sformatf("%s = 0x%08h (expected 0x%08h)", what, got, exp));
+  endfunction
+
+  // levels / flags from FIFO_LVL and STATUS
+  task read_levels(output bit [4:0] tx_lvl, output bit [4:0] rx_lvl);
     bit [31:0] d;
-    bit        err;
-    bit [31:0] bad_addr[$];
-
-    // 1. reset / default values of every register
-    read_all();
-    if (!do_rw) return;
-
-    // 2. walking ones / zeros on the RW registers (START bit excluded from CTRL)
-    walk_reg(ADDR_CTRL,     32'hFFFF_FFFE);
-    apb_wr(ADDR_CTRL, 32'h0);
-    walk_reg(ADDR_IRQ_MASK, 32'hFFFF_FFFF);
-    walk_reg(ADDR_CLK_DIV,  32'hFFFF_FFFF);
-    walk_reg(ADDR_SCRATCH0, 32'hFFFF_FFFF);
-    walk_reg(ADDR_SCRATCH1, 32'hFFFF_FFFF);
-    walk_reg(ADDR_SCRATCH2, 32'hFFFF_FFFF);
-    walk_reg(ADDR_SCRATCH3, 32'hFFFF_FFFF);
-    walk_reg(ADDR_SCRATCH4, 32'hFFFF_FFFF);
-    walk_reg(ADDR_SCRATCH5, 32'hFFFF_FFFF);
-    apb_wr(ADDR_CLK_DIV, 32'h0);
-    apb_wr(ADDR_IRQ_MASK, 32'h0);
-
-    // 3. TX_DATA read-back (one byte is also queued in the TX FIFO, START is 0)
-    apb_wr(ADDR_TX_DATA, 32'h5A5A_5A5A);
-    apb_rd(ADDR_TX_DATA, d);  expect_eq("TX_DATA read-back", d, 32'h5A5A_5A5A);
-    do_reset();               // flush the queued byte and return every register to its reset value
-
-    // 4. writes to read-only registers must be ignored (no PSLVERR, no change)
-    apb_wr(ADDR_STATUS,   32'hFFFF_FFFF);
-    apb_wr(ADDR_FIFO_LVL, 32'hFFFF_FFFF);
-    apb_wr(ADDR_RX_DATA,  32'hFFFF_FFFF);
-    apb_wr(ADDR_ID,       32'hFFFF_FFFF);
-    apb_wr(ADDR_VERSION,  32'hFFFF_FFFF);
-    apb_rd(ADDR_ID, d);       expect_eq("ID after write", d, ID_VALUE);
-    apb_rd(ADDR_VERSION, d);  expect_eq("VERSION after write", d, VERSION_VALUE);
-    apb_rd(ADDR_STATUS, d);
     apb_rd(ADDR_FIFO_LVL, d);
-
-    // 5. invalid addresses: PSLVERR=1 and read data 0
-    bad_addr = '{32'h0000_0040, 32'h0000_0044, 32'h0000_0100, 32'h0000_FFFC,
-                 32'h0000_0001, 32'h0000_0002, 32'h0000_003D, 32'h0000_8000};
-    foreach (bad_addr[i]) begin
-      apb_rd_err(bad_addr[i], d, err);
-      if (!err) `uvm_error("VSEQ_CHECK", $sformatf("read of invalid address 0x%08h did not raise PSLVERR", bad_addr[i]))
-      expect_eq($sformatf("invalid read data @0x%08h", bad_addr[i]), d, 32'h0);
-      apb_wr_err(bad_addr[i], 32'hFFFF_FFFF, err);
-      if (!err) `uvm_error("VSEQ_CHECK", $sformatf("write to invalid address 0x%08h did not raise PSLVERR", bad_addr[i]))
-    end
-
-    // 6. only PADDR[15:0] is decoded: an address alias reaches the same register
-    apb_wr(32'h0001_0028, 32'h1234_5678);
-    apb_rd(ADDR_SCRATCH0, d);  expect_eq("SCRATCH0 via alias write", d, 32'h1234_5678);
-    apb_rd(32'hABCD_002C, d);  // alias of SCRATCH1 (value checked by the scoreboard)
+    tx_lvl = d[4:0];
+    rx_lvl = d[20:16];
   endtask
 
-endclass
-
-class apb_spi_mode_vseq extends apb_spi_base_vseq;
-
-  `uvm_object_utils(apb_spi_mode_vseq)
-
-  function new(string name = "apb_spi_mode_vseq");
-    super.new(name);
-  endfunction
-
-  task body();
-    bit [7:0] q[$];
-    for (int unsigned m = 0; m < 4; m++) begin
-      for (int unsigned l = 0; l < 2; l++) begin
-        spi_config(m[1:0], l[0], 2, 2'd0, 3, 2, 1'b0);
-        q = '{8'hA5, 8'h5A, 8'hFF, 8'h00, 8'h81, 8'h3C};
-        spi_send(q);
-        spi_read_rx(q.size());
-      end
-    end
-  endtask
-
-endclass
-
-class apb_spi_clk_div_vseq extends apb_spi_base_vseq;
-
-  `uvm_object_utils(apb_spi_clk_div_vseq)
-
-  function new(string name = "apb_spi_clk_div_vseq");
-    super.new(name);
-  endfunction
-
-  task body();
-    bit [7:0]    q[$];
-    int unsigned divs[$];
-    divs = '{0, 1, 2, 3, 4, 5, 7, 8, 15, 31};
-    foreach (divs[i]) begin
-      spi_config((i % 2 == 0) ? 2'b00 : 2'b11, 1'b0, divs[i], 2'd0, 3, 2, 1'b0);
-      q = '{8'hA5, 8'h3C};
-      spi_send(q);
-      if (divs[i] == 0) do_reset();     // at CLK_DIV=0 the slave cannot track SCK (RTL note): do not use the RX data
-      else              spi_read_rx(q.size());
-    end
-  endtask
-
-endclass
-
-class apb_spi_cs_select_vseq extends apb_spi_base_vseq;
-
-  `uvm_object_utils(apb_spi_cs_select_vseq)
-
-  function new(string name = "apb_spi_cs_select_vseq");
-    super.new(name);
-  endfunction
-
-  task body();
-    bit [7:0] q[$];
-    for (int unsigned cs = 0; cs < 4; cs++) begin
-      for (int unsigned m = 0; m < 4; m += 2) begin
-        spi_config(m[1:0], 1'b0, 2, cs[1:0], 3, 2, 1'b0);
-        q = '{8'hA5, 8'h5A};
-        spi_send(q);
-        spi_read_rx(q.size());
-      end
-    end
-  endtask
-
-endclass
-
-class apb_spi_cs_timing_vseq extends apb_spi_base_vseq;
-
-  `uvm_object_utils(apb_spi_cs_timing_vseq)
-
-  function new(string name = "apb_spi_cs_timing_vseq");
-    super.new(name);
-  endfunction
-
-  task body();
-    bit [7:0]    q[$];
-    int unsigned setups[$];
-    int unsigned holds[$];
-    setups = '{0, 1, 2, 3, 4, 8, 16, 255};
-    holds  = '{0, 1, 2, 4, 8, 16, 255};
-    q = '{8'hC3};
-    foreach (setups[i]) begin
-      spi_config(2'b00, 1'b0, 1, 2'd0, setups[i], 2, 1'b0);
-      spi_send(q);
-      spi_read_rx(1);
-    end
-    foreach (holds[i]) begin
-      spi_config(2'b11, 1'b0, 1, 2'd0, 3, holds[i], 1'b0);
-      spi_send(q);
-      spi_read_rx(1);
-    end
-  endtask
-
-endclass
-
-class apb_spi_burst_vseq extends apb_spi_base_vseq;
-
-  `uvm_object_utils(apb_spi_burst_vseq)
-
-  function new(string name = "apb_spi_burst_vseq");
-    super.new(name);
-  endfunction
-
-  task body();
-    bit [7:0]    q[$];
-    int unsigned sizes[$];
-    sizes = '{1, 2, 3, 4, 8, 16};
-    foreach (sizes[s]) begin
-      for (int unsigned inter = 0; inter < 2; inter++) begin
-        for (int unsigned m = 0; m < 4; m += 3) begin
-          spi_config(m[1:0], 1'b0, 2, 2'd0, 3, 2, inter[0]);
-          q.delete();
-          for (int unsigned n = 0; n < sizes[s]; n++) q.push_back(8'(8'h11 * n + 8'h07));
-          spi_send(q);
-          spi_read_rx(q.size());
-        end
-      end
-    end
-  endtask
-
-endclass
-
-class apb_spi_fifo_vseq extends apb_spi_base_vseq;
-
-  `uvm_object_utils(apb_spi_fifo_vseq)
-
-  function new(string name = "apb_spi_fifo_vseq");
-    super.new(name);
-  endfunction
-
-  task body();
-    bit [31:0] st, lvl;
-    bit [7:0]  q[$];
-
-    do_reset();
-    spi_config(2'b00, 1'b0, 2, 2'd0, 3, 2, 1'b0);
-
-    // fill the TX FIFO (START stays 0): 16 entries, then 3 writes that must be dropped
-    for (int unsigned i = 0; i < 16; i++) apb_wr(ADDR_TX_DATA, 32'(i + 1));
-    wait_clks(8);
-    apb_rd(ADDR_STATUS, st);    if (!st[2]) `uvm_error("VSEQ_CHECK", "STATUS.tx_full not set with 16 bytes queued")
-    for (int unsigned i = 0; i < 3; i++) apb_wr(ADDR_TX_DATA, 32'hE0 + i);
-    wait_clks(8);
-    apb_rd(ADDR_FIFO_LVL, lvl); expect_eq("TX level after overflow writes", lvl[4:0], 32'd16);
-
-    // transmit all 16: the RX FIFO becomes full
+  // run the master until idle: START=1, wait for idle, START=0
+  task run_master();
     apb_wr(ADDR_CTRL, ctrl_val | 32'h1);
     spi_wait_idle();
     apb_wr(ADDR_CTRL, ctrl_val);
-    wait_clks(8);
-    apb_rd(ADDR_STATUS, st);    if (!st[4]) `uvm_error("VSEQ_CHECK", "STATUS.rx_full not set after 16 received bytes")
-    apb_rd(ADDR_FIFO_LVL, lvl); expect_eq("RX level when full", lvl[20:16], 32'd16);
-    expect_eq("TX level after transmit", lvl[4:0], 32'd0);
-
-    // two more bytes while the RX FIFO is full: received data is dropped, level stays 16
-    q = '{8'h5A, 8'hA5};
-    spi_send(q);
-    wait_clks(8);
-    apb_rd(ADDR_FIFO_LVL, lvl); expect_eq("RX level after overflow", lvl[20:16], 32'd16);
-
-    // drain
-    spi_read_rx(16);
-    wait_clks(8);
-    apb_rd(ADDR_FIFO_LVL, lvl); expect_eq("RX level after drain", lvl[20:16], 32'd0);
-    apb_rd(ADDR_STATUS, st);    if (!st[3]) `uvm_error("VSEQ_CHECK", "STATUS.rx_empty not set after draining the RX FIFO")
+    wait_clks(10);
   endtask
 
-endclass
-
-class apb_spi_irq_vseq extends apb_spi_base_vseq;
-
-  `uvm_object_utils(apb_spi_irq_vseq)
-
-  function new(string name = "apb_spi_irq_vseq");
-    super.new(name);
-  endfunction
-
+  // ---------------- the scenarios ----------------
   task body();
-    bit [31:0] d;
-    bit [7:0]  q[$];
-
-    do_reset();
-    wait_clks(8);
-
-    // idle after reset: TX FIFO empty -> IRQ_STAT[0]; nothing else pending
-    apb_rd(ADDR_IRQ_STAT, d);
-    if (!d[0])       `uvm_error("VSEQ_CHECK", $sformatf("IRQ_STAT[0] (tx_empty) not set after reset: 0x%08h", d))
-    if (d[3:1] != 0) `uvm_error("VSEQ_CHECK", $sformatf("unexpected IRQ_STAT bits after reset: 0x%08h", d))
-
-    apb_wr(ADDR_IRQ_MASK, 32'hF);
-    apb_rd(ADDR_IRQ_MASK, d);  expect_eq("IRQ_MASK", d, 32'hF);
-
-    // one transfer -> done pulse sets IRQ_STAT[2]
-    spi_config(2'b00, 1'b0, 2, 2'd0, 3, 2, 1'b0);
-    q = '{8'hA5};
-    spi_send(q);
-    spi_read_rx(1);
-    apb_rd(ADDR_IRQ_STAT, d);
-    if (!d[2]) `uvm_error("VSEQ_CHECK", $sformatf("IRQ_STAT[2] (done) not set after a transfer: 0x%08h", d))
-
-    // write-one-to-clear: writing 0 must not clear anything
-    apb_wr(ADDR_IRQ_STAT, 32'h0);
-    apb_rd(ADDR_IRQ_STAT, d);
-    if (!d[2]) `uvm_error("VSEQ_CHECK", $sformatf("IRQ_STAT[2] cleared by writing 0 (W1C violated): 0x%08h", d))
-
-    // writing 1 to bit 2 clears it
-    apb_wr(ADDR_IRQ_STAT, 32'h4);
-    apb_rd(ADDR_IRQ_STAT, d);
-    if (d[2])  `uvm_error("VSEQ_CHECK", $sformatf("IRQ_STAT[2] not cleared by writing 1: 0x%08h", d))
-
-    // RX overrun: 16 bytes without reading -> RX FIFO full and error pulse on the last transfer
-    q.delete();
-    for (int unsigned i = 0; i < 16; i++) q.push_back(8'(i));
-    spi_send(q);
-    wait_clks(8);
-    apb_rd(ADDR_IRQ_STAT, d);
-    if (!d[1]) `uvm_error("VSEQ_CHECK", $sformatf("IRQ_STAT[1] (rx_full) not set: 0x%08h", d))
-    if (!d[3]) `uvm_error("VSEQ_CHECK", $sformatf("IRQ_STAT[3] (error) not set after RX FIFO filled: 0x%08h", d))
-    apb_wr(ADDR_IRQ_STAT, 32'h8);
-    apb_rd(ADDR_IRQ_STAT, d);
-    if (d[3])  `uvm_error("VSEQ_CHECK", $sformatf("IRQ_STAT[3] not cleared by writing 1: 0x%08h", d))
-    spi_read_rx(16);
-  endtask
-
-endclass
-
-class apb_spi_reset_apb_vseq extends apb_spi_base_vseq;
-
-  `uvm_object_utils(apb_spi_reset_apb_vseq)
-
-  function new(string name = "apb_spi_reset_apb_vseq");
-    super.new(name);
-  endfunction
-
-  task body();
-    bit [31:0] d;
-    int unsigned aborted;
-
-    // 1. single write interrupted by reset at different clock phases
-    for (int unsigned k = 0; k < 6; k++) begin
-      fork
-        apb_wr(ADDR_SCRATCH0, 32'hC0DE_0000 | k);
-        do_reset(k, 3);
-      join
-      apb_rd(ADDR_SCRATCH0, d);  expect_eq($sformatf("SCRATCH0 after reset (delay %0d)", k), d, 32'h0);
-    end
-
-    // 2. single read interrupted by reset
-    apb_wr(ADDR_SCRATCH1, 32'hFACE_B00C);
-    for (int unsigned k = 0; k < 4; k++) begin
-      fork
-        apb_rd(ADDR_SCRATCH1, d);
-        do_reset(k, 4);
-      join
-      apb_rd(ADDR_SCRATCH1, d);  expect_eq($sformatf("SCRATCH1 after reset (delay %0d)", k), d, 32'h0);
-      apb_wr(ADDR_SCRATCH1, 32'hFACE_B00C);
-    end
-
-    // 3. back-to-back writes with a reset in the middle: transfers after the reset must complete
-    aborted = 0;
-    fork
-      begin
-        apb_spi_apb_write_sequence w;
-        for (int unsigned i = 0; i < 8; i++) begin
-          w = apb_spi_apb_write_sequence::type_id::create("w");
-          w.addr = ADDR_SCRATCH2;
-          w.data = 32'h1000_0000 + i;
-          w.start(p_sequencer.apb_sqr);
-          if (w.aborted) aborted++;
-        end
-      end
-      do_reset(5, 3);
-    join
-    `uvm_info("VSEQ", $sformatf("%0d of 8 back-to-back writes were aborted by the reset", aborted), UVM_LOW)
-    apb_wr(ADDR_SCRATCH3, 32'hA5A5_A5A5);
-    apb_rd(ADDR_SCRATCH3, d);  expect_eq("SCRATCH3 write/read after reset", d, 32'hA5A5_A5A5);
-
-    // 4. reset while the bus is idle, and a long reset
-    do_reset(0, 2);
-    apb_rd(ADDR_SCRATCH3, d);  expect_eq("SCRATCH3 after idle reset", d, 32'h0);
-    do_reset(0, 12);
-    apb_rd(ADDR_ID, d);        expect_eq("ID after long reset", d, ID_VALUE);
-  endtask
-
-endclass
-
-class apb_spi_reset_xfer_vseq extends apb_spi_base_vseq;
-
-  `uvm_object_utils(apb_spi_reset_xfer_vseq)
-
-  function new(string name = "apb_spi_reset_xfer_vseq");
-    super.new(name);
-  endfunction
-
-  task body();
-    bit [31:0]   d;
+    bit [31:0]   d, st;
+    bit [4:0]    txl, rxl;
+    bit          err;
+    bit [15:0]   zero_regs[$];
+    bit [15:0]   scr_addr[$];
+    bit [31:0]   scr_pat[$];
     bit [7:0]    q[$];
-    int unsigned delays[$];
-    delays = '{8, 25, 45, 70, 110};
 
-    for (int unsigned m = 0; m < 4; m += 3) begin
-      foreach (delays[i]) begin
-        // start a 4-byte transfer, reset while it is running
-        spi_config(m[1:0], (m == 3), 2, 2'd0, 3, 2, 1'b0);
-        for (int unsigned n = 0; n < 4; n++) apb_wr(ADDR_TX_DATA, 32'h30 + n);
-        apb_wr(ADDR_CTRL, ctrl_val | 32'h1);
-        wait_clks(delays[i]);
-        do_reset(0, 4);
-        wait_clks(4);
+    n_chk = 0; n_fail = 0;
 
-        // everything must be back at its reset value
-        apb_rd(ADDR_CTRL, d);      expect_eq("CTRL after reset", d, 32'h0);
-        apb_rd(ADDR_FIFO_LVL, d);  expect_eq("FIFO_LVL after reset", d, 32'h0);
-        apb_rd(ADDR_STATUS, d);
-        if (!d[1] || d[0]) `uvm_error("VSEQ_CHECK", $sformatf("STATUS not idle/empty after reset: 0x%08h", d))
-
-        // a fresh transfer must work
-        spi_config(m[1:0], 1'b0, 2, 2'd0, 3, 2, 1'b0);
-        q = '{8'h3C, 8'hC3};
-        spi_send(q);
-        spi_read_rx(q.size());
-      end
+    // ---- SM-01 -------------------------------------------------------------------
+    smoke_step("SM-01", "Reset state of registers, STATUS and FIFO_LVL");
+    wait_clks(10);
+    zero_regs = '{ADDR_CTRL, ADDR_IRQ_MASK, ADDR_CLK_DIV, ADDR_TX_DATA,
+                  ADDR_SCRATCH0, ADDR_SCRATCH1, ADDR_SCRATCH2, ADDR_SCRATCH3, ADDR_SCRATCH4, ADDR_SCRATCH5};
+    foreach (zero_regs[i]) begin
+      apb_rd(zero_regs[i], d);
+      smoke_eq($sformatf("reset value @0x%02h", zero_regs[i]), d, 32'h0);
     end
+    apb_rd(ADDR_STATUS, st);
+    smoke_eq("STATUS after reset (tx_empty, rx_empty)", st, 32'h0000_000A);
+    read_levels(txl, rxl);
+    smoke_eq("TX level after reset", txl, 32'd0);
+    smoke_eq("RX level after reset", rxl, 32'd0);
 
-    // reset while CS is held between bytes (inter-byte mode)
-    spi_config(2'b00, 1'b0, 2, 2'd0, 3, 2, 1'b1);
-    for (int unsigned n = 0; n < 4; n++) apb_wr(ADDR_TX_DATA, 32'h50 + n);
-    apb_wr(ADDR_CTRL, ctrl_val | 32'h1);
-    wait_clks(90);
-    do_reset(0, 4);
+    // ---- SM-02 -------------------------------------------------------------------
+    smoke_step("SM-02", "ID and VERSION");
+    apb_rd(ADDR_ID, d);       smoke_eq("ID", d, ID_VALUE);
+    apb_rd(ADDR_VERSION, d);  smoke_eq("VERSION", d, VERSION_VALUE);
+
+    // ---- SM-03 -------------------------------------------------------------------
+    smoke_step("SM-03", "Scratch registers: pattern, read-back, complement");
+    scr_addr = '{ADDR_SCRATCH0, ADDR_SCRATCH1, ADDR_SCRATCH2, ADDR_SCRATCH3, ADDR_SCRATCH4, ADDR_SCRATCH5};
+    scr_pat  = '{32'hA5A5_A5A5, 32'h5A5A_5A5A, 32'hFFFF_FFFF, 32'h0000_0001, 32'h8000_0000, 32'hDEAD_BEEF};
+    foreach (scr_addr[i]) apb_wr(scr_addr[i], scr_pat[i]);
+    foreach (scr_addr[i]) begin
+      apb_rd(scr_addr[i], d);
+      smoke_eq($sformatf("SCRATCH%0d pattern", i), d, scr_pat[i]);
+    end
+    foreach (scr_addr[i]) apb_wr(scr_addr[i], ~scr_pat[i]);
+    foreach (scr_addr[i]) begin
+      apb_rd(scr_addr[i], d);
+      smoke_eq($sformatf("SCRATCH%0d complement", i), d, ~scr_pat[i]);
+    end
+    foreach (scr_addr[i]) apb_wr(scr_addr[i], 32'h0);
+
+    // ---- SM-04 -------------------------------------------------------------------
+    smoke_step("SM-04", "CLK_DIV, IRQ_MASK and CTRL write / read-back");
+    apb_wr(ADDR_CLK_DIV, 32'h0000_0005);  apb_rd(ADDR_CLK_DIV, d);  smoke_eq("CLK_DIV", d, 32'h0000_0005);
+    apb_wr(ADDR_IRQ_MASK, 32'h0000_000F); apb_rd(ADDR_IRQ_MASK, d); smoke_eq("IRQ_MASK", d, 32'h0000_000F);
+    apb_wr(ADDR_CTRL, 32'h0203_0000);     apb_rd(ADDR_CTRL, d);     smoke_eq("CTRL (START=0)", d, 32'h0203_0000);
+    apb_wr(ADDR_CLK_DIV, 32'h0);
+    apb_wr(ADDR_IRQ_MASK, 32'h0);
+    apb_wr(ADDR_CTRL, 32'h0);
+
+    // ---- SM-05 -------------------------------------------------------------------
+    smoke_step("SM-05", "Writes to read-only registers are ignored");
+    apb_wr(ADDR_ID, 32'hFFFF_FFFF);
+    apb_wr(ADDR_VERSION, 32'hFFFF_FFFF);
+    apb_rd(ADDR_ID, d);       smoke_eq("ID after write", d, ID_VALUE);
+    apb_rd(ADDR_VERSION, d);  smoke_eq("VERSION after write", d, VERSION_VALUE);
+
+    // ---- SM-06 -------------------------------------------------------------------
+    smoke_step("SM-06", "PSLVERR: valid address OK, invalid address error");
+    apb_rd_err(ADDR_ID, d, err);        smoke_chk(err == 1'b0, "valid read: PSLVERR = 0");
+    apb_rd_err(32'h0000_0040, d, err);  smoke_chk(err == 1'b1, "invalid read @0x40: PSLVERR = 1");
+                                        smoke_eq("invalid read data", d, 32'h0);
+    apb_wr_err(32'h0000_0040, 32'hFFFF_FFFF, err);
+                                        smoke_chk(err == 1'b1, "invalid write @0x40: PSLVERR = 1");
+
+    // ---- SM-07 -------------------------------------------------------------------
+    smoke_step("SM-07", "TX FIFO: one byte queued, START=0, master stays idle");
+    apb_wr(ADDR_TX_DATA, 32'h0000_00A5);
+    wait_clks(20);
+    read_levels(txl, rxl);
+    smoke_eq("TX level", txl, 32'd1);
+    apb_rd(ADDR_STATUS, st);
+    smoke_chk(st[1] == 1'b0, "STATUS.tx_empty = 0");
+    smoke_chk(st[0] == 1'b0, "STATUS.busy = 0 (no transfer without START)");
+
+    // ---- SM-08 -------------------------------------------------------------------
+    smoke_step("SM-08", "Single SPI byte 0xA5: mode 0, MSB first, CS0, CLK_DIV=2, setup 3, hold 2");
+    spi_config(2'b00, 1'b0, 2, 2'd0, 3, 2, 1'b0);
+    run_master();
+    read_levels(txl, rxl);
+    smoke_eq("TX level after transfer", txl, 32'd0);
+    smoke_eq("RX level after transfer", rxl, 32'd1);
+    apb_rd(ADDR_STATUS, st);
+    smoke_chk(st[0] == 1'b0, "STATUS.busy = 0");
+    smoke_chk(st[1] == 1'b1, "STATUS.tx_empty = 1");
+    smoke_chk(st[3] == 1'b0, "STATUS.rx_empty = 0");
+
+    // ---- SM-09 -------------------------------------------------------------------
+    smoke_step("SM-09", "RX_DATA read (data checked by the scoreboard against the monitored MISO byte)");
+    apb_rd(ADDR_RX_DATA, d);
+    smoke_chk(d[31:8] == 24'h0, "RX_DATA upper bits are zero");
+    wait_clks(10);
+    read_levels(txl, rxl);
+    smoke_eq("RX level after read", rxl, 32'd0);
+    apb_rd(ADDR_STATUS, st);
+    smoke_chk(st[3] == 1'b1, "STATUS.rx_empty = 1");
+
+    // ---- SM-10 -------------------------------------------------------------------
+    smoke_step("SM-10", "IRQ_STAT done bit and IRQ_MASK");
+    apb_rd(ADDR_IRQ_STAT, d);
+    smoke_chk(d[2] == 1'b1, "IRQ_STAT[2] (transfer done) set after the transfer");
+    apb_wr(ADDR_IRQ_MASK, 32'h0000_0004);
+    apb_rd(ADDR_IRQ_MASK, d);  smoke_eq("IRQ_MASK", d, 32'h0000_0004);
+    apb_wr(ADDR_IRQ_STAT, 32'h0000_0004);
     wait_clks(4);
-    apb_rd(ADDR_STATUS, d);
-    if (!d[1] || d[0]) `uvm_error("VSEQ_CHECK", $sformatf("STATUS not idle/empty after reset (inter-byte): 0x%08h", d))
-  endtask
+    apb_rd(ADDR_IRQ_STAT, d);
+    smoke_chk(d[2] == 1'b0, "IRQ_STAT[2] cleared by writing 1");
+    apb_wr(ADDR_IRQ_MASK, 32'h0);
 
-endclass
+    // ---- SM-11 -------------------------------------------------------------------
+    smoke_step("SM-11", "Two bytes (0x5A, 0xC3) with one START");
+    apb_wr(ADDR_TX_DATA, 32'h0000_005A);
+    apb_wr(ADDR_TX_DATA, 32'h0000_00C3);
+    wait_clks(10);
+    read_levels(txl, rxl);
+    smoke_eq("TX level with two bytes queued", txl, 32'd2);
+    run_master();
+    read_levels(txl, rxl);
+    smoke_eq("TX level after transfers", txl, 32'd0);
+    smoke_eq("RX level after two transfers", rxl, 32'd2);
+    apb_rd(ADDR_RX_DATA, d);
+    apb_rd(ADDR_RX_DATA, d);
+    wait_clks(10);
+    read_levels(txl, rxl);
+    smoke_eq("RX level after reading both", rxl, 32'd0);
 
-class apb_spi_random_vseq extends apb_spi_base_vseq;
+    // ---- SM-12 -------------------------------------------------------------------
+    smoke_step("SM-12", "Reset after activity clears registers and FIFOs");
+    apb_wr(ADDR_SCRATCH0, 32'h1234_5678);
+    apb_wr(ADDR_IRQ_MASK, 32'h0000_000F);
+    spi_config(2'b00, 1'b0, 2, 2'd0, 3, 2, 1'b0);
+    apb_wr(ADDR_TX_DATA, 32'h0000_0077);
+    do_reset(0, 4);
+    wait_clks(10);
+    apb_rd(ADDR_SCRATCH0, d);  smoke_eq("SCRATCH0 after reset", d, 32'h0);
+    apb_rd(ADDR_IRQ_MASK, d);  smoke_eq("IRQ_MASK after reset", d, 32'h0);
+    apb_rd(ADDR_CTRL, d);      smoke_eq("CTRL after reset", d, 32'h0);
+    apb_rd(ADDR_CLK_DIV, d);   smoke_eq("CLK_DIV after reset", d, 32'h0);
+    read_levels(txl, rxl);
+    smoke_eq("TX level after reset (queued byte flushed)", txl, 32'd0);
+    apb_rd(ADDR_STATUS, st);   smoke_eq("STATUS after reset", st, 32'h0000_000A);
 
-  `uvm_object_utils(apb_spi_random_vseq)
+    // ---- SM-13 -------------------------------------------------------------------
+    smoke_step("SM-13", "Single SPI byte 0x81 after reset");
+    spi_config(2'b00, 1'b0, 2, 2'd0, 3, 2, 1'b0);
+    q.push_back(8'h81);
+    spi_send(q);
+    wait_clks(10);
+    read_levels(txl, rxl);
+    smoke_eq("RX level after transfer", rxl, 32'd1);
+    spi_read_rx(1);
 
-  int unsigned num_iter = 25;
-
-  rand bit [1:0]    mode;
-  rand bit          lsb;
-  rand bit [1:0]    cs;
-  rand bit          inter;
-  rand int unsigned div;
-  rand int unsigned setup;
-  rand int unsigned hold;
-  rand int unsigned nbytes;
-
-  constraint c_cfg {
-    div    inside {[1:12]};
-    setup  inside {[0:8]};
-    hold   inside {[0:8]};
-    nbytes inside {[1:8]};
-  }
-
-  function new(string name = "apb_spi_random_vseq");
-    super.new(name);
-  endfunction
-
-  task body();
-    bit [7:0]  q[$];
-    bit [31:0] d, v;
-    int unsigned pick;
-
-    for (int unsigned it = 0; it < num_iter; it++) begin
-      if (!randomize()) `uvm_fatal("RAND", "randomize() failed")
-      spi_config(mode, lsb, div, cs, setup, hold, inter);
-      q.delete();
-      for (int unsigned n = 0; n < nbytes; n++) q.push_back(8'($urandom_range(0, 255)));
-      spi_send(q);
-      spi_read_rx(q.size());
-
-      pick = $urandom_range(0, 9);
-      if (pick < 2) begin                   // random scratch traffic
-        v = $urandom();
-        apb_wr(ADDR_SCRATCH4, v);
-        apb_rd(ADDR_SCRATCH4, d);
-        expect_eq("SCRATCH4 random read-back", d, v);
-      end else if (pick == 9) begin         // occasional reset
-        do_reset($urandom_range(0, 3), $urandom_range(2, 8));
-      end
-    end
+    `uvm_info("SMOKE", $sformatf("SMOKE SEQUENCE SUMMARY: %0d checks, %0d failed", n_chk, n_fail), UVM_LOW)
   endtask
 
 endclass

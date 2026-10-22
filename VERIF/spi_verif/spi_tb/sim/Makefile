@@ -134,7 +134,8 @@ vivado_clean:
 
 VERILATOR_INCLUDES := \
 	+incdir+"$(UVM_HOME)" \
-	+incdir+"$(SPI_RTL_DIR)" \
+	+incdir+"$(SPI_CORE_RTL_DIR)" \
+	+incdir+"$(SPI_APB_RTL_DIR)"\
 	+incdir+"$(PROJECT_DIR)/../interface" \
 	+incdir+"$(PROJECT_DIR)/../agent" \
 	+incdir+"$(PROJECT_DIR)/../agent/sequences" \
@@ -142,7 +143,6 @@ VERILATOR_INCLUDES := \
 	+incdir+"$(PROJECT_DIR)/../ral/ral_sequence" \
 	+incdir+"$(PROJECT_DIR)/../env" \
 	+incdir+"$(PROJECT_DIR)/../tests" \
-	+incdir+"$(PROJECT_DIR)/../top"
 
 .PHONY: verilator_lint
 verilator_lint: check_uvm_home

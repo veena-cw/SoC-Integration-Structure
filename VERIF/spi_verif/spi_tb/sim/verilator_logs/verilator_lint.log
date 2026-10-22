@@ -1,0 +1,312 @@
+%Warning-MODDUP: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/DSN/ip/peripherals/spi/ip/spi/rtl/spi_top.sv:19:8: Duplicate declaration of module: 'spi_top'
+   19 | module spi_top #(
+      |        ^~~~~~~
+                 /home/cw029_pravallika/Desktop/SoC-Integration-Structure/DSN/ip/peripherals/spi/ip/spi/rtl/spi_top.sv:19:8: ... Location of original declaration
+   19 | module spi_top #(
+      |        ^~~~~~~
+                 ... For warning description see https://verilator.org/warn/MODDUP?v=5.052
+                 ... Use "/* verilator lint_off MODDUP */" and lint_on around source to disable this message.
+%Warning-PINCONNECTEMPTY: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/DSN/ip/peripherals/spi/dsn/rtl/apb_spi_top.sv:277:6: Instance pin connected by name with empty reference: 's_busy_o'
+  277 |     .s_busy_o           (),
+      |      ^~~~~~~~
+                          ... For warning description see https://verilator.org/warn/PINCONNECTEMPTY?v=5.052
+                          ... Use "/* verilator lint_off PINCONNECTEMPTY */" and lint_on around source to disable this message.
+%Warning-PINMISSING: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/DSN/ip/peripherals/spi/dsn/rtl/apb_spi_top.sv:233:3: Instance has missing pin: 'irq_tx_empty_o'
+  233 | ) u_spi_top (
+      |   ^~~~~~~~~
+                     /home/cw029_pravallika/Desktop/SoC-Integration-Structure/DSN/ip/peripherals/spi/ip/spi/rtl/spi_top.sv:81:41: ... Location of port declaration
+   81 |   output logic                          irq_tx_empty_o,
+      |                                         ^~~~~~~~~~~~~~
+                     ... For warning description see https://verilator.org/warn/PINMISSING?v=5.052
+                     ... Use "/* verilator lint_off PINMISSING */" and lint_on around source to disable this message.
+%Warning-VARHIDDEN: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:39:53: Declaration of signal hides declaration in upper scope: 'addr'
+   39 |   covergroup cg_apb with function sample(bit [15:0] addr, bit wr, bit err);
+      |                                                     ^~~~
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../top/tb_top.sv:112:1: ... note: In file included from 'tb_top.sv'
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:39:53: ... Location of original declaration
+   39 |   covergroup cg_apb with function sample(bit [15:0] addr, bit wr, bit err);
+      |                                                     ^~~~
+                    ... For warning description see https://verilator.org/warn/VARHIDDEN?v=5.052
+                    ... Use "/* verilator lint_off VARHIDDEN */" and lint_on around source to disable this message.
+%Warning-VARHIDDEN: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:39:63: Declaration of signal hides declaration in upper scope: 'wr'
+   39 |   covergroup cg_apb with function sample(bit [15:0] addr, bit wr, bit err);
+      |                                                               ^~
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../top/tb_top.sv:112:1: ... note: In file included from 'tb_top.sv'
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:39:63: ... Location of original declaration
+   39 |   covergroup cg_apb with function sample(bit [15:0] addr, bit wr, bit err);
+      |                                                               ^~
+%Warning-VARHIDDEN: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:39:71: Declaration of signal hides declaration in upper scope: 'err'
+   39 |   covergroup cg_apb with function sample(bit [15:0] addr, bit wr, bit err);
+      |                                                                       ^~~
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../top/tb_top.sv:112:1: ... note: In file included from 'tb_top.sv'
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:39:71: ... Location of original declaration
+   39 |   covergroup cg_apb with function sample(bit [15:0] addr, bit wr, bit err);
+      |                                                                       ^~~
+%Warning-VARHIDDEN: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:61:52: Declaration of signal hides declaration in upper scope: 'wr'
+   61 |   covergroup cg_apb_abort with function sample(bit wr, bit in_access);
+      |                                                    ^~
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../top/tb_top.sv:112:1: ... note: In file included from 'tb_top.sv'
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:61:52: ... Location of original declaration
+   61 |   covergroup cg_apb_abort with function sample(bit wr, bit in_access);
+      |                                                    ^~
+%Warning-VARHIDDEN: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:61:60: Declaration of signal hides declaration in upper scope: 'in_access'
+   61 |   covergroup cg_apb_abort with function sample(bit wr, bit in_access);
+      |                                                            ^~~~~~~~~
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../top/tb_top.sv:112:1: ... note: In file included from 'tb_top.sv'
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:61:60: ... Location of original declaration
+   61 |   covergroup cg_apb_abort with function sample(bit wr, bit in_access);
+      |                                                            ^~~~~~~~~
+%Warning-VARHIDDEN: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:68:46: Declaration of signal hides declaration in upper scope: 'cpol'
+   68 |   covergroup cg_spi with function sample(bit cpol, bit cpha, bit lsb, bit inter, bit [1:0] cs,
+      |                                              ^~~~
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../top/tb_top.sv:112:1: ... note: In file included from 'tb_top.sv'
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:68:46: ... Location of original declaration
+   68 |   covergroup cg_spi with function sample(bit cpol, bit cpha, bit lsb, bit inter, bit [1:0] cs,
+      |                                              ^~~~
+%Warning-VARHIDDEN: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:68:56: Declaration of signal hides declaration in upper scope: 'cpha'
+   68 |   covergroup cg_spi with function sample(bit cpol, bit cpha, bit lsb, bit inter, bit [1:0] cs,
+      |                                                        ^~~~
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../top/tb_top.sv:112:1: ... note: In file included from 'tb_top.sv'
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:68:56: ... Location of original declaration
+   68 |   covergroup cg_spi with function sample(bit cpol, bit cpha, bit lsb, bit inter, bit [1:0] cs,
+      |                                                        ^~~~
+%Warning-VARHIDDEN: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:68:66: Declaration of signal hides declaration in upper scope: 'lsb'
+   68 |   covergroup cg_spi with function sample(bit cpol, bit cpha, bit lsb, bit inter, bit [1:0] cs,
+      |                                                                  ^~~
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../top/tb_top.sv:112:1: ... note: In file included from 'tb_top.sv'
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:68:66: ... Location of original declaration
+   68 |   covergroup cg_spi with function sample(bit cpol, bit cpha, bit lsb, bit inter, bit [1:0] cs,
+      |                                                                  ^~~
+%Warning-VARHIDDEN: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:68:75: Declaration of signal hides declaration in upper scope: 'inter'
+   68 |   covergroup cg_spi with function sample(bit cpol, bit cpha, bit lsb, bit inter, bit [1:0] cs,
+      |                                                                           ^~~~~
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../top/tb_top.sv:112:1: ... note: In file included from 'tb_top.sv'
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:68:75: ... Location of original declaration
+   68 |   covergroup cg_spi with function sample(bit cpol, bit cpha, bit lsb, bit inter, bit [1:0] cs,
+      |                                                                           ^~~~~
+%Warning-VARHIDDEN: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:68:92: Declaration of signal hides declaration in upper scope: 'cs'
+   68 |   covergroup cg_spi with function sample(bit cpol, bit cpha, bit lsb, bit inter, bit [1:0] cs,
+      |                                                                                            ^~
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../top/tb_top.sv:112:1: ... note: In file included from 'tb_top.sv'
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:68:92: ... Location of original declaration
+   68 |   covergroup cg_spi with function sample(bit cpol, bit cpha, bit lsb, bit inter, bit [1:0] cs,
+      |                                                                                            ^~
+%Warning-VARHIDDEN: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:69:55: Declaration of signal hides declaration in upper scope: 'hp'
+   69 |                                          int unsigned hp, int unsigned setup, int unsigned hold,
+      |                                                       ^~
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../top/tb_top.sv:112:1: ... note: In file included from 'tb_top.sv'
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:69:55: ... Location of original declaration
+   69 |                                          int unsigned hp, int unsigned setup, int unsigned hold,
+      |                                                       ^~
+%Warning-VARHIDDEN: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:69:72: Declaration of signal hides declaration in upper scope: 'setup'
+   69 |                                          int unsigned hp, int unsigned setup, int unsigned hold,
+      |                                                                        ^~~~~
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../top/tb_top.sv:112:1: ... note: In file included from 'tb_top.sv'
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:69:72: ... Location of original declaration
+   69 |                                          int unsigned hp, int unsigned setup, int unsigned hold,
+      |                                                                        ^~~~~
+%Warning-VARHIDDEN: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:69:92: Declaration of signal hides declaration in upper scope: 'hold'
+   69 |                                          int unsigned hp, int unsigned setup, int unsigned hold,
+      |                                                                                            ^~~~
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../top/tb_top.sv:112:1: ... note: In file included from 'tb_top.sv'
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:69:92: ... Location of original declaration
+   69 |                                          int unsigned hp, int unsigned setup, int unsigned hold,
+      |                                                                                            ^~~~
+%Warning-VARHIDDEN: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:70:55: Declaration of signal hides declaration in upper scope: 'byte_idx'
+   70 |                                          int unsigned byte_idx, bit [7:0] mosi, bit [7:0] miso);
+      |                                                       ^~~~~~~~
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../top/tb_top.sv:112:1: ... note: In file included from 'tb_top.sv'
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:70:55: ... Location of original declaration
+   70 |                                          int unsigned byte_idx, bit [7:0] mosi, bit [7:0] miso);
+      |                                                       ^~~~~~~~
+%Warning-VARHIDDEN: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:70:75: Declaration of signal hides declaration in upper scope: 'mosi'
+   70 |                                          int unsigned byte_idx, bit [7:0] mosi, bit [7:0] miso);
+      |                                                                           ^~~~
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../top/tb_top.sv:112:1: ... note: In file included from 'tb_top.sv'
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:70:75: ... Location of original declaration
+   70 |                                          int unsigned byte_idx, bit [7:0] mosi, bit [7:0] miso);
+      |                                                                           ^~~~
+%Warning-VARHIDDEN: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:70:91: Declaration of signal hides declaration in upper scope: 'miso'
+   70 |                                          int unsigned byte_idx, bit [7:0] mosi, bit [7:0] miso);
+      |                                                                                           ^~~~
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../top/tb_top.sv:112:1: ... note: In file included from 'tb_top.sv'
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:70:91: ... Location of original declaration
+   70 |                                          int unsigned byte_idx, bit [7:0] mosi, bit [7:0] miso);
+      |                                                                                           ^~~~
+%Warning-VARHIDDEN: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:104:48: Declaration of signal hides declaration in upper scope: 'cpol'
+  104 |   covergroup cg_slave with function sample(bit cpol, bit cpha, bit lsb, bit [7:0] rx, bit [7:0] tx);
+      |                                                ^~~~
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../top/tb_top.sv:112:1: ... note: In file included from 'tb_top.sv'
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:104:48: ... Location of original declaration
+  104 |   covergroup cg_slave with function sample(bit cpol, bit cpha, bit lsb, bit [7:0] rx, bit [7:0] tx);
+      |                                                ^~~~
+%Warning-VARHIDDEN: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:104:58: Declaration of signal hides declaration in upper scope: 'cpha'
+  104 |   covergroup cg_slave with function sample(bit cpol, bit cpha, bit lsb, bit [7:0] rx, bit [7:0] tx);
+      |                                                          ^~~~
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../top/tb_top.sv:112:1: ... note: In file included from 'tb_top.sv'
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:104:58: ... Location of original declaration
+  104 |   covergroup cg_slave with function sample(bit cpol, bit cpha, bit lsb, bit [7:0] rx, bit [7:0] tx);
+      |                                                          ^~~~
+%Warning-VARHIDDEN: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:104:68: Declaration of signal hides declaration in upper scope: 'lsb'
+  104 |   covergroup cg_slave with function sample(bit cpol, bit cpha, bit lsb, bit [7:0] rx, bit [7:0] tx);
+      |                                                                    ^~~
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../top/tb_top.sv:112:1: ... note: In file included from 'tb_top.sv'
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:104:68: ... Location of original declaration
+  104 |   covergroup cg_slave with function sample(bit cpol, bit cpha, bit lsb, bit [7:0] rx, bit [7:0] tx);
+      |                                                                    ^~~
+%Warning-VARHIDDEN: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:104:83: Declaration of signal hides declaration in upper scope: 'rx'
+  104 |   covergroup cg_slave with function sample(bit cpol, bit cpha, bit lsb, bit [7:0] rx, bit [7:0] tx);
+      |                                                                                   ^~
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../top/tb_top.sv:112:1: ... note: In file included from 'tb_top.sv'
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:104:83: ... Location of original declaration
+  104 |   covergroup cg_slave with function sample(bit cpol, bit cpha, bit lsb, bit [7:0] rx, bit [7:0] tx);
+      |                                                                                   ^~
+%Warning-VARHIDDEN: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:104:97: Declaration of signal hides declaration in upper scope: 'tx'
+  104 |   covergroup cg_slave with function sample(bit cpol, bit cpha, bit lsb, bit [7:0] rx, bit [7:0] tx);
+      |                                                                                                 ^~
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../top/tb_top.sv:112:1: ... note: In file included from 'tb_top.sv'
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:104:97: ... Location of original declaration
+  104 |   covergroup cg_slave with function sample(bit cpol, bit cpha, bit lsb, bit [7:0] rx, bit [7:0] tx);
+      |                                                                                                 ^~
+%Warning-VARHIDDEN: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:113:48: Declaration of signal hides declaration in upper scope: 'during_spi'
+  113 |   covergroup cg_reset with function sample(bit during_spi, int unsigned width);
+      |                                                ^~~~~~~~~~
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../top/tb_top.sv:112:1: ... note: In file included from 'tb_top.sv'
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:113:48: ... Location of original declaration
+  113 |   covergroup cg_reset with function sample(bit during_spi, int unsigned width);
+      |                                                ^~~~~~~~~~
+%Warning-VARHIDDEN: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:113:73: Declaration of signal hides declaration in upper scope: 'width'
+  113 |   covergroup cg_reset with function sample(bit during_spi, int unsigned width);
+      |                                                                         ^~~~~
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../top/tb_top.sv:112:1: ... note: In file included from 'tb_top.sv'
+                    /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../env/apb_spi_coverage.sv:113:73: ... Location of original declaration
+  113 |   covergroup cg_reset with function sample(bit during_spi, int unsigned width);
+      |                                                                         ^~~~~
+%Warning-IMPLICIT: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/DSN/ip/peripherals/spi/dsn/rtl/apb_spi_top.sv:114:12: Signal definition not found, creating implicitly: 'm_lsb_first_i'
+  114 |     assign m_lsb_first_i     = ctrl_reg[1];
+      |            ^~~~~~~~~~~~~
+                   ... For warning description see https://verilator.org/warn/IMPLICIT?v=5.052
+                   ... Use "/* verilator lint_off IMPLICIT */" and lint_on around source to disable this message.
+%Warning-IMPLICIT: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/DSN/ip/peripherals/spi/dsn/rtl/apb_spi_top.sv:115:12: Signal definition not found, creating implicitly: 'm_cpol_i'
+                                                                                                                                : ... Suggested alternative: 'm_cs_hold_i'
+  115 |     assign m_cpol_i          = ctrl_reg[2];
+      |            ^~~~~~~~
+%Warning-IMPLICIT: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/DSN/ip/peripherals/spi/dsn/rtl/apb_spi_top.sv:116:12: Signal definition not found, creating implicitly: 'm_cpha_i'
+                                                                                                                                : ... Suggested alternative: 'm_cpol_i'
+  116 |     assign m_cpha_i          = ctrl_reg[3];
+      |            ^~~~~~~~
+%Warning-IMPLICIT: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/DSN/ip/peripherals/spi/dsn/rtl/apb_spi_top.sv:117:12: Signal definition not found, creating implicitly: 'm_cs_inter_byte_i'
+  117 |     assign m_cs_inter_byte_i = ctrl_reg[4];
+      |            ^~~~~~~~~~~~~~~~~
+%Warning-IMPLICIT: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/DSN/ip/peripherals/spi/dsn/rtl/apb_spi_top.sv:278:26: Signal definition not found, creating implicitly: 'xfer_done_o'
+  278 |     .s_xfer_done_o      (xfer_done_o),
+      |                          ^~~~~~~~~~~
+%Warning-UNUSEDPARAM: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../agent/apb_spi_types_pkg.sv:21:18: Parameter is not used: 'CLK_PERIOD'
+                                                                                                                                                          : ... note: In instance 'tb_top.dut.u_spi_top'
+   21 |   parameter time CLK_PERIOD = 10ns;
+      |                  ^~~~~~~~~~
+                      ... For warning description see https://verilator.org/warn/UNUSEDPARAM?v=5.052
+                      ... Use "/* verilator lint_off UNUSEDPARAM */" and lint_on around source to disable this message.
+%Warning-UNUSEDPARAM: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../agent/apb_spi_types_pkg.sv:22:17: Parameter is not used: 'DATA_WIDTH'
+                                                                                                                                                          : ... note: In instance 'tb_top.dut.u_spi_top'
+   22 |   parameter int DATA_WIDTH = 8;
+      |                 ^~~~~~~~~~
+%Warning-UNUSEDPARAM: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../agent/apb_spi_types_pkg.sv:24:26: Parameter is not used: 'FIFO_DEPTH'
+                                                                                                                                                          : ... note: In instance 'tb_top.dut.u_spi_top'
+   24 |   parameter int unsigned FIFO_DEPTH     = 16;
+      |                          ^~~~~~~~~~
+%Warning-UNUSEDPARAM: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../agent/apb_spi_types_pkg.sv:25:26: Parameter is not used: 'SLAVE_TX_CONST'
+                                                                                                                                                          : ... note: In instance 'tb_top.dut.u_spi_top'
+   25 |   parameter bit [7:0]    SLAVE_TX_CONST = 8'h0C;
+      |                          ^~~~~~~~~~~~~~
+%Warning-UNUSEDPARAM: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../agent/apb_spi_types_pkg.sv:26:26: Parameter is not used: 'ID_VALUE'
+                                                                                                                                                          : ... note: In instance 'tb_top.dut.u_spi_top'
+   26 |   parameter bit [31:0]   ID_VALUE       = 32'h5910_017E;
+      |                          ^~~~~~~~
+%Warning-UNUSEDPARAM: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../agent/apb_spi_types_pkg.sv:27:26: Parameter is not used: 'VERSION_VALUE'
+                                                                                                                                                          : ... note: In instance 'tb_top.dut.u_spi_top'
+   27 |   parameter bit [31:0]   VERSION_VALUE  = 32'h0001_0000;
+      |                          ^~~~~~~~~~~~~
+%Warning-UNUSEDPARAM: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../agent/apb_spi_types_pkg.sv:29:24: Parameter is not used: 'ADDR_CTRL'
+                                                                                                                                                          : ... note: In instance 'tb_top.dut.u_spi_top'
+   29 |   parameter bit [15:0] ADDR_CTRL      = 16'h0000;
+      |                        ^~~~~~~~~
+%Warning-UNUSEDPARAM: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../agent/apb_spi_types_pkg.sv:30:24: Parameter is not used: 'ADDR_STATUS'
+                                                                                                                                                          : ... note: In instance 'tb_top.dut.u_spi_top'
+   30 |   parameter bit [15:0] ADDR_STATUS    = 16'h0004;
+      |                        ^~~~~~~~~~~
+%Warning-UNUSEDPARAM: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../agent/apb_spi_types_pkg.sv:31:24: Parameter is not used: 'ADDR_IRQ_STAT'
+                                                                                                                                                          : ... note: In instance 'tb_top.dut.u_spi_top'
+   31 |   parameter bit [15:0] ADDR_IRQ_STAT  = 16'h0008;
+      |                        ^~~~~~~~~~~~~
+%Warning-UNUSEDPARAM: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../agent/apb_spi_types_pkg.sv:32:24: Parameter is not used: 'ADDR_IRQ_MASK'
+                                                                                                                                                          : ... note: In instance 'tb_top.dut.u_spi_top'
+   32 |   parameter bit [15:0] ADDR_IRQ_MASK  = 16'h000C;
+      |                        ^~~~~~~~~~~~~
+%Warning-UNUSEDPARAM: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../agent/apb_spi_types_pkg.sv:33:24: Parameter is not used: 'ADDR_CLK_DIV'
+                                                                                                                                                          : ... note: In instance 'tb_top.dut.u_spi_top'
+   33 |   parameter bit [15:0] ADDR_CLK_DIV   = 16'h0010;
+      |                        ^~~~~~~~~~~~
+%Warning-UNUSEDPARAM: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../agent/apb_spi_types_pkg.sv:34:24: Parameter is not used: 'ADDR_TX_DATA'
+                                                                                                                                                          : ... note: In instance 'tb_top.dut.u_spi_top'
+   34 |   parameter bit [15:0] ADDR_TX_DATA   = 16'h0014;
+      |                        ^~~~~~~~~~~~
+%Warning-UNUSEDPARAM: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../agent/apb_spi_types_pkg.sv:35:24: Parameter is not used: 'ADDR_RX_DATA'
+                                                                                                                                                          : ... note: In instance 'tb_top.dut.u_spi_top'
+   35 |   parameter bit [15:0] ADDR_RX_DATA   = 16'h0018;
+      |                        ^~~~~~~~~~~~
+%Warning-UNUSEDPARAM: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../agent/apb_spi_types_pkg.sv:36:24: Parameter is not used: 'ADDR_FIFO_LVL'
+                                                                                                                                                          : ... note: In instance 'tb_top.dut.u_spi_top'
+   36 |   parameter bit [15:0] ADDR_FIFO_LVL  = 16'h001C;
+      |                        ^~~~~~~~~~~~~
+%Warning-UNUSEDPARAM: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../agent/apb_spi_types_pkg.sv:37:24: Parameter is not used: 'ADDR_ID'
+                                                                                                                                                          : ... note: In instance 'tb_top.dut.u_spi_top'
+   37 |   parameter bit [15:0] ADDR_ID        = 16'h0020;
+      |                        ^~~~~~~
+%Warning-UNUSEDPARAM: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../agent/apb_spi_types_pkg.sv:38:24: Parameter is not used: 'ADDR_VERSION'
+                                                                                                                                                          : ... note: In instance 'tb_top.dut.u_spi_top'
+   38 |   parameter bit [15:0] ADDR_VERSION   = 16'h0024;
+      |                        ^~~~~~~~~~~~
+%Warning-UNUSEDPARAM: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../agent/apb_spi_types_pkg.sv:39:24: Parameter is not used: 'ADDR_SCRATCH0'
+                                                                                                                                                          : ... note: In instance 'tb_top.dut.u_spi_top'
+   39 |   parameter bit [15:0] ADDR_SCRATCH0  = 16'h0028;
+      |                        ^~~~~~~~~~~~~
+%Warning-UNUSEDPARAM: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../agent/apb_spi_types_pkg.sv:40:24: Parameter is not used: 'ADDR_SCRATCH1'
+                                                                                                                                                          : ... note: In instance 'tb_top.dut.u_spi_top'
+   40 |   parameter bit [15:0] ADDR_SCRATCH1  = 16'h002C;
+      |                        ^~~~~~~~~~~~~
+%Warning-UNUSEDPARAM: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../agent/apb_spi_types_pkg.sv:41:24: Parameter is not used: 'ADDR_SCRATCH2'
+                                                                                                                                                          : ... note: In instance 'tb_top.dut.u_spi_top'
+   41 |   parameter bit [15:0] ADDR_SCRATCH2  = 16'h0030;
+      |                        ^~~~~~~~~~~~~
+%Warning-UNUSEDPARAM: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../agent/apb_spi_types_pkg.sv:42:24: Parameter is not used: 'ADDR_SCRATCH3'
+                                                                                                                                                          : ... note: In instance 'tb_top.dut.u_spi_top'
+   42 |   parameter bit [15:0] ADDR_SCRATCH3  = 16'h0034;
+      |                        ^~~~~~~~~~~~~
+%Warning-UNUSEDPARAM: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../agent/apb_spi_types_pkg.sv:43:24: Parameter is not used: 'ADDR_SCRATCH4'
+                                                                                                                                                          : ... note: In instance 'tb_top.dut.u_spi_top'
+   43 |   parameter bit [15:0] ADDR_SCRATCH4  = 16'h0038;
+      |                        ^~~~~~~~~~~~~
+%Warning-UNUSEDPARAM: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../agent/apb_spi_types_pkg.sv:44:24: Parameter is not used: 'ADDR_SCRATCH5'
+                                                                                                                                                          : ... note: In instance 'tb_top.dut.u_spi_top'
+   44 |   parameter bit [15:0] ADDR_SCRATCH5  = 16'h003C;
+      |                        ^~~~~~~~~~~~~
+%Warning-IGNOREDRETURN: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../ral/apb_spi_apb_predictor.sv:112:9: Ignoring return value of non-void function (IEEE 1800-2023 13.4.1)
+                                                                                                                                                 : ... note: In instance 'apb_spi_tb_pkg.apb_spi_apb_predictor'
+  112 |       f.predict(field_value, rw.byte_en, UVM_PREDICT_WRITE, UVM_FRONTDOOR, map);
+      |         ^~~~~~~
+                        /home/cw029_pravallika/Desktop/SoC-Integration-Structure/VERIF/spi_verif/spi_tb/sim/../interface/../top/tb_top.sv:106:1: ... note: In file included from 'tb_top.sv'
+                        ... For warning description see https://verilator.org/warn/IGNOREDRETURN?v=5.052
+                        ... Use "/* verilator lint_off IGNOREDRETURN */" and lint_on around source to disable this message.
+%Warning-SYNCASYNCNET: /home/cw029_pravallika/Desktop/SoC-Integration-Structure/DSN/ip/peripherals/spi/dsn/rtl/apb_spi_top.sv:16:26: Signal flopped as both synchronous and async: 'tb_top.__Vcellinp__dut__PRESETn'
+                       /home/cw029_pravallika/Desktop/SoC-Integration-Structure/DSN/ip/peripherals/spi/dsn/rtl/apb_spi_top.sv:125:9: ... Location of async usage
+  125 |     if(!rst_n) ctrl_reg <= 32'h0;
+      |         ^~~~~
+                       /home/cw029_pravallika/Desktop/SoC-Integration-Structure/DSN/ip/peripherals/spi/ip/spi/rtl/spi_slave.sv:109:10: ... Location of sync usage
+  109 |     if (!rst_ni) begin
+      |          ^~~~~~
+                       ... For warning description see https://verilator.org/warn/SYNCASYNCNET?v=5.052
+                       ... Use "/* verilator lint_off SYNCASYNCNET */" and lint_on around source to disable this message.
+- V e r i l a t i o n   R e p o r t: Verilator 5.052 2026-09-05 rev v5.052
+- Verilator: Built from 45.080 MB sources in 451 modules, into 17.720 MB in 2744 C++ files needing 0.000 MB
+- Verilator: Walltime 17.351 s (elab=1.998, cvt=13.854, bld=0.000); cpu 17.347 s on 1 threads; allocated 970.703 MB

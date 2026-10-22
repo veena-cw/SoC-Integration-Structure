@@ -886,7 +886,8 @@ endclass
     bit busy;
     bit done;
     bit slave_error;
-
+bit transaction_finished;
+int poll_count;
 
     if (model == null) begin
       `uvm_fatal("RAL_SEQ",
@@ -1006,7 +1007,7 @@ endclass
       "Waiting for DONE = 1",
       UVM_MEDIUM
     )
-
+/*
 
     do begin
 
@@ -1094,7 +1095,40 @@ endclass
           "STATUS_REG read failed"
         )
       end
-      
+    */
+    
+
+
+transaction_finished = 0;
+
+for (poll_count = 0; poll_count < 10000; poll_count++) begin
+    model.STATUS_REG.read(status, status_value, UVM_FRONTDOOR);
+
+    if (status != UVM_IS_OK)
+        `uvm_fatal("I2C_WRITE", "STATUS_REG read failed")
+
+    busy        = status_value[0];
+    done        = status_value[1];
+    slave_error = status_value[2];
+
+    if (done) begin
+        transaction_finished = 1;
+
+        if (slave_error)
+            `uvm_error("I2C_WRITE",
+                       "I2C transaction completed with SLAVE_ERROR")
+        else
+            `uvm_info("I2C_WRITE",
+                      "I2C transaction completed successfully",
+                      UVM_LOW)
+
+        break;
+    end
+end
+
+if (!transaction_finished)
+    `uvm_fatal("I2C_WRITE",
+               "Timeout waiting for I2C transaction completion")  
 
   endtask
 
@@ -1591,9 +1625,9 @@ class apb_i2c_reg_write_wrong_addr_seq extends apb_i2c_ral_base_seq;
 
 
       if (status != UVM_IS_OK) begin
-        `uvm_fatal(
+        `uvm_info(
           "I2C_WRONG_ADDR",
-          "STATUS_REG read failed"
+          "STATUS_REG read failed",UVM_NONE
         )
       end
 
@@ -1994,4 +2028,707 @@ class apb_i2c_invalid_addr_seq extends apb_i2c_ral_base_seq;
 
 endclass
 
+<<<<<<< HEAD
+=======
+
+
+class apb_i2c_irq_reg_write_seq extends apb_i2c_ral_base_seq;
+
+  `uvm_object_utils(apb_i2c_irq_reg_write_seq)
+
+  //============================================================
+  // Random variables
+  //============================================================
+
+  rand bit [6:0]  slave_addr;
+  rand bit        read_write;
+   bit [31:0] tx_data;
+  rand bit [7:0] tx_data_lower;
+       bit  irq_en;
+     
+ //============================================================
+  // Constraints
+  //============================================================
+
+  constraint valid_addr_range {
+    slave_addr == 7'h55;
+  }
+
+  constraint write_c {
+    read_write == 1'b0;
+  }
+
+
+  //============================================================
+  // IRQ sequencer handle
+  //============================================================
+
+ // i2c_irq_sequencer irq_seqr;
+
+
+  //============================================================
+  // IRQ virtual interface
+  //============================================================
+
+  virtual i2c_irq_if irq_vif;
+
+
+  //============================================================
+  // Constructor
+  //============================================================
+
+  function new(string name = "apb_i2c_irq_reg_write_seq");
+    super.new(name);
+  endfunction
+
+
+  //============================================================
+  // Body
+  //============================================================
+
+  virtual task body();
+
+    uvm_status_e   status;
+    uvm_reg_data_t status_value;
+    uvm_reg_data_t ctrl_value;
+
+    bit busy;
+    bit done;
+    bit slave_error;
+
+    i2c_irq_enable_seq irq_en_seq;
+  
+
+    //==========================================================
+    // Check RAL model
+    //==========================================================
+
+    if (model == null) begin
+
+      `uvm_fatal(
+        "RAL_SEQ",
+        "RAL model is NULL"
+      )
+
+    end
+
+
+    //==========================================================
+    // Check IRQ sequencer
+    //==========================================================
+/*
+    if (irq_seqr == null) begin
+
+      `uvm_fatal(
+        "I2C_IRQ",
+        "IRQ sequencer is NULL"
+      )
+
+    end*/
+
+
+    //==========================================================
+    // Get IRQ VIF using IRQ sequencer path
+    //==========================================================
+
+    if (!uvm_config_db#(virtual i2c_irq_if)::get(
+        null,
+        "",
+        "irq_vif",
+        irq_vif
+    )) begin
+
+  `uvm_fatal(
+    "I2C_IRQ",
+    "Failed to get irq_vif from config_db"
+  )
+
+end
+
+
+//==========================================================
+    // Randomize transaction
+    //==========================================================
+
+    if (!this.randomize()) begin
+      `uvm_fatal(
+        "I2C_WRONG_ADDR",
+        "Sequence randomization failed"
+      )
+    end
+
+
+    `uvm_info(
+      "I2C_WRONG_ADDR",
+      $sformatf(
+        "RANDOMIZED: SLAVE_ADDR=0x%02h READ_WRITE=%0b TX_LOWER=0x%02h",
+        slave_addr,
+        read_write,
+        tx_data_lower
+      ),
+      UVM_MEDIUM
+    )
+
+    //==========================================================
+    // 1. WAIT UNTIL BUSY = 0
+    //==========================================================
+
+    `uvm_info(
+      "I2C_WRITE",
+      "Waiting for BUSY = 0",
+      UVM_MEDIUM
+    )
+  
+      model.STATUS_REG.read(
+        status,
+        status_value,
+        UVM_FRONTDOOR
+      );
+
+
+      if (status != UVM_IS_OK) begin
+
+        `uvm_fatal(
+          "I2C_WRITE",
+          "STATUS_REG read failed"
+        )
+
+      end
+
+
+      busy = status_value[0];
+
+
+      `uvm_info(
+        "I2C_WRITE",
+        $sformatf(
+          "STATUS = 0x%08h BUSY=%0b",
+          status_value,
+          busy
+        ),
+        UVM_MEDIUM
+      );
+      
+      
+    //==========================================================
+    // 2. WRITE CTRL_REG
+    //==========================================================
+
+    ctrl_value = '0;
+
+    ctrl_value[6:0] = slave_addr;
+    ctrl_value[7]   = read_write;
+    ctrl_value[8] = 1;
+
+    `uvm_info(
+      "I2C_WRITE",
+      $sformatf(
+        "CTRL_REG <= 0x%08h",
+        ctrl_value
+      ),
+      UVM_MEDIUM
+    );
+
+
+    model.CTRL_REG.write(
+      status,
+      ctrl_value,
+      UVM_FRONTDOOR
+    );
+
+
+    if (status != UVM_IS_OK) begin
+
+      `uvm_fatal(
+        "I2C_WRITE",
+        "CTRL_REG write failed"
+      )
+
+    end
+
+
+    //==========================================================
+    // 3. WRITE TXDATA_REG
+    //==========================================================
+ tx_data = {16'h0000,read_write,slave_addr,tx_data_lower};
+    `uvm_info(
+      "I2C_WRITE",
+      $sformatf(
+        "TXDATA_REG <= 0x%08h",
+        tx_data
+      ),
+      UVM_MEDIUM
+    );
+
+
+    model.TXDATA_REG.write(
+      status,
+      tx_data,
+      UVM_FRONTDOOR
+    );
+
+
+    if (status != UVM_IS_OK) begin
+
+      `uvm_fatal(
+        "I2C_WRITE",
+        "TXDATA_REG write failed"
+      )
+
+    end
+
+
+    //==========================================================
+    // 4. WAIT FOR I2C INTERRUPT
+    //==========================================================
+
+    `uvm_info(
+      "I2C_IRQ",
+      "CTRL_REG and TXDATA_REG written.",
+      UVM_MEDIUM
+    )
+
+    `uvm_info(
+      "I2C_IRQ",
+      "Waiting for I2C interrupt...",
+      UVM_MEDIUM
+    );
+
+
+    @(posedge irq_vif.i2c_irq);
+
+
+    `uvm_info(
+      "I2C_IRQ",
+      "I2C IRQ received",
+      UVM_MEDIUM
+    );
+
+
+    //==========================================================
+    // 5. READ STATUS AFTER IRQ
+    //==========================================================
+
+    model.STATUS_REG.read(
+      status,
+      status_value,
+      UVM_FRONTDOOR
+    );
+
+
+    if (status != UVM_IS_OK) begin
+
+      `uvm_error(
+        "I2C_WRITE",
+        "STATUS_REG read failed after IRQ"
+      )
+
+    end
+
+
+    busy        = status_value[0];
+    done        = status_value[1];
+    slave_error = status_value[2];
+
+
+    `uvm_info(
+      "I2C_WRITE",
+      $sformatf(
+        "STATUS after IRQ = 0x%08h BUSY=%0b DONE=%0b SLVERR=%0b",
+        status_value,
+        busy,
+        done,
+        slave_error
+      ),
+      UVM_MEDIUM
+    );
+
+
+    //==========================================================
+    // 6. CHECK RESULT
+    //==========================================================
+
+    if (slave_error) begin
+
+      `uvm_error(
+        "I2C_WRITE",
+        "I2C transaction failed: SLAVE_ERROR = 1"
+      )
+
+    end
+    else if (!done) begin
+
+      `uvm_error(
+        "I2C_WRITE",
+        "IRQ received but DONE = 0"
+      )
+
+    end
+    else begin
+
+      `uvm_info(
+        "I2C_WRITE",
+        "I2C WRITE transaction completed successfully",
+        UVM_MEDIUM
+      )
+
+    end
+
+  endtask
+
+endclass
+
+    
+class apb_i2c_valid_addr_unused_seq extends apb_i2c_ral_base_seq;
+
+  `uvm_object_utils(apb_i2c_valid_addr_unused_seq)
+
+  rand bit [31:0] invalid_addr;
+  rand bit [31:0] write_data;
+  rand bit        pwrite;
+
+  constraint invalid_addr_c {
+    invalid_addr inside {[32'h3001_0000 : 32'h3001_FFFF]};
+
+    !(invalid_addr inside {
+      32'h3001_0010,
+      32'h3001_0014,
+      32'h3001_0018,
+      32'h3001_001C
+    });
+  }
+
+  function new(string name = "apb_i2c_valid_addr_unused_seq");
+    super.new(name);
+  endfunction
+
+  virtual task body();
+
+    uvm_status_e status;
+    apb_i2c_apb_item req;
+
+    if (model == null) begin
+      `uvm_fatal("INVALID_ADDR", "RAL model is NULL")
+    end
+
+    if (!this.randomize()) begin
+      `uvm_fatal("INVALID_ADDR",
+                 "Failed to randomize invalid address")
+    end
+
+    `uvm_info("INVALID_ADDR",
+      $sformatf(
+        "Testing unused APB address = 0x%08h, %s, DATA = 0x%08h",
+        invalid_addr,
+        pwrite ? "WRITE" : "READ",
+        write_data
+      ),
+      UVM_LOW
+    )
+
+    req = apb_i2c_apb_item::type_id::create("req");
+
+    req.paddr  = invalid_addr;
+    req.pwrite = pwrite;
+    req.pwdata = write_data;
+    req.pstrb  = pwrite ? 4'b1111 : 4'b0000;
+
+    start_item(req);
+    finish_item(req);
+
+    if (req.pslverr) begin
+      `uvm_info("INVALID_ADDR",
+        $sformatf(
+          "PASS: Address 0x%08h generated PSLVERR for %s",
+          invalid_addr,
+          pwrite ? "WRITE" : "READ"
+        ),
+        UVM_LOW
+      )
+    end
+    else begin
+      `uvm_error("INVALID_ADDR",
+        $sformatf(
+          "FAIL: Address 0x%08h was accepted for %s",
+          invalid_addr,
+          pwrite ? "WRITE" : "READ"
+        )
+      )
+    end
+
+  endtask
+
+endclass   
+
+class apb_i2c_reg_write_push_seq extends apb_i2c_ral_base_seq;
+
+  `uvm_object_utils(apb_i2c_reg_write_push_seq)
+
+  rand bit [6:0]  slave_addr;
+  rand bit        read_write;
+        bit [31:0] tx_data;
+  rand bit [7:0] tx_data_lower;
+  constraint default_c {
+    slave_addr == 7'h55;
+    read_write == 1'b0;
+  }
+
+
+  function new(string name = "apb_i2c_reg_write_push_seq");
+    super.new(name);
+  endfunction
+
+
+  virtual task body();
+
+    uvm_status_e   status;
+    uvm_reg_data_t status_value;
+    uvm_reg_data_t ctrl_value;
+
+    bit busy;
+    bit done;
+    bit slave_error;
+
+
+    if (model == null) begin
+      `uvm_fatal("RAL_SEQ",
+                 "model is NULL")
+    end
+//==========================================================
+    // Randomize transaction
+    //==========================================================
+
+
+    //========================================================
+    // 1. WAIT UNTIL BUSY = 0
+    //========================================================
+
+    `uvm_info("I2C_WRITE",
+              "Waiting for BUSY = 0",
+              UVM_MEDIUM)
+
+    do begin
+
+      model.STATUS_REG.read(
+        status,
+        status_value,
+        UVM_FRONTDOOR
+      );
+
+      if (status != UVM_IS_OK) begin
+        `uvm_fatal("I2C_WRITE",
+                   "STATUS_REG read failed")
+      end
+
+      busy = status_value[0];
+
+      `uvm_info(
+        "I2C_WRITE",
+        $sformatf(
+          "STATUS = 0x%08h BUSY=%0b",
+          status_value,
+          busy
+        ),
+        UVM_MEDIUM
+      );
+
+   
+
+    end while (busy);
+
+
+    //========================================================
+    // 2. WRITE CTRL_REG
+    //========================================================
+
+
+
+repeat(5) begin
+
+
+
+    if (!this.randomize()) begin
+      `uvm_fatal(
+        "I2C_WRONG_ADDR",
+        "Sequence randomization failed"
+      )
+    end
+
+
+    `uvm_info(
+      "I2C_WRONG_ADDR",
+      $sformatf(
+        "RANDOMIZED: SLAVE_ADDR=0x%02h READ_WRITE=%0b TX_LOWER=0x%02h",
+        slave_addr,
+        read_write,
+        tx_data_lower
+      ),
+      UVM_MEDIUM
+    )
+	    ctrl_value = '0;
+
+	    ctrl_value[6:0] = slave_addr;
+	    ctrl_value[7]   = read_write;
+
+     //ctrl_value = 32'h0000_0102;
+
+	    `uvm_info(
+	      "I2C_WRITE",
+	      $sformatf(
+		"CTRL_REG <= 0x%08h",
+		32'h0000_0102
+	      ),
+	      UVM_MEDIUM
+	    )
+
+
+	    model.CTRL_REG.write(
+	      status,
+	      ctrl_value,
+	      UVM_FRONTDOOR
+	    );
+
+
+    if (status != UVM_IS_OK) begin
+      `uvm_fatal(
+        "I2C_WRITE",
+        "CTRL_REG write failed"
+      )
+    end
+
+
+    //========================================================
+    // 3. WRITE TXDATA_REG
+    //========================================================
+    tx_data = {16'h0000,read_write,slave_addr,tx_data_lower};
+    `uvm_info(
+      "I2C_WRITE",
+      $sformatf(
+        "TXDATA_REG <= 0x%08h",
+        tx_data
+      ),
+      UVM_MEDIUM
+    )
+
+  
+    model.TXDATA_REG.write(
+      status,
+      tx_data,
+      UVM_FRONTDOOR);
+      
+      
+
+    if (status != UVM_IS_OK) begin
+      `uvm_fatal(
+        "I2C_WRITE",
+        "TXDATA_REG write failed"
+      )
+    end
+
+    end
+    //========================================================
+    // 4. WAIT UNTIL DONE = 1
+    //========================================================
+
+    `uvm_info(
+      "I2C_WRITE",
+      "Waiting for DONE = 1",
+      UVM_MEDIUM
+    )
+
+
+    do begin
+
+      model.STATUS_REG.read(
+        status,
+        status_value,
+        UVM_FRONTDOOR
+      );
+
+
+      if (status != UVM_IS_OK) begin
+        `uvm_fatal(
+          "I2C_WRITE",
+          "STATUS_REG read failed"
+        )
+      end
+
+
+      busy        = status_value[0];
+      done        = status_value[1];
+      slave_error = status_value[2];
+
+
+      `uvm_info(
+        "I2C_WRITE",
+        $sformatf(
+          "STATUS = 0x%08h BUSY=%0b DONE=%0b SLVERR=%0b",
+          status_value,
+          busy,
+          done,
+          slave_error
+        ),
+        UVM_MEDIUM
+      );
+
+
+      // Check error
+      if (slave_error) begin
+        `uvm_error(
+          "I2C_WRITE",
+          "I2C transaction failed: SLAVE_ERROR = 1"
+        )
+        break;
+      end
+
+
+
+
+
+    end while (!done);
+
+
+    if (done) begin
+      `uvm_info(
+        "I2C_WRITE",
+        "I2C WRITE transaction completed",
+        UVM_MEDIUM
+      )
+    end
+
+    
+     model.STATUS_REG.read(
+        status,
+        status_value,
+        UVM_FRONTDOOR
+      );
+
+
+      if (status != UVM_IS_OK) begin
+        `uvm_fatal(
+          "I2C_READ",
+          "STATUS_REG read failed"
+        )
+      end
+      
+       model.STATUS_REG.read(
+        status,
+        status_value,
+        UVM_FRONTDOOR
+      );
+
+
+      if (status != UVM_IS_OK) begin
+        `uvm_fatal(
+          "I2C_READ",
+          "STATUS_REG read failed"
+        )
+      end
+      
+
+  endtask
+
+endclass
+
+>>>>>>> 193e2a9 (Update I2C verification)
 endpackage

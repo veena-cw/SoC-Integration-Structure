@@ -272,13 +272,61 @@ class apb_i2c_reg_write_test extends apb_i2c_base_test;
     wseq = apb_i2c_reg_write_seq :: type_id :: create("wseq",this);
   endfunction
   task run_phase(uvm_phase phase);
+    int completed = 0;
+
+    phase.raise_objection(this);
+
+    do_reset();
+
+    wseq.model      = env.ral_model;
+    wseq.slave_addr = 7'h55;
+    wseq.read_write = 1'b0;
+
+    for (int i = 0; i < 50; i++) begin
+        `uvm_info("I2C_TEST",
+            $sformatf("START transaction %0d at %0t",
+                      i+1, $time), UVM_LOW)
+
+        wseq.start(env.agent.sequencer);
+
+        completed++;
+
+        `uvm_info("I2C_TEST",
+            $sformatf("Sequence returned for transaction %0d at %0t",
+                      completed, $time), UVM_LOW)
+    end
+
+    `uvm_info("I2C_TEST",
+        $sformatf("All %0d sequence calls returned at %0t",
+                  completed, $time), UVM_LOW)
+
+<<<<<<< HEAD
+=======
+    phase.drop_objection(this);
+endtask
+endclass
+
+
+class apb_i2c_reg_write_push_test extends apb_i2c_base_test;
+  `uvm_component_utils(apb_i2c_reg_write_push_test)
+
+  apb_i2c_reg_write_push_seq   wseq;
+  function new(string name = "apb_i2c_reg_write_push_test", uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+  function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    wseq = apb_i2c_reg_write_push_seq :: type_id :: create("wseq",this);
+  endfunction
+  task run_phase(uvm_phase phase);
     phase.raise_objection(this);
     do_reset();
-    `uvm_info(get_type_name(), "WRITE TEST: frontdoor write, check mirrored vs desired", UVM_LOW)
+    `uvm_info(get_type_name(), "WRITE PUSH TEST: frontdoor write, check mirrored vs desired", UVM_LOW)
     wseq.model = env.ral_model;
    wseq.slave_addr = 7'h55;
   wseq.read_write = 1'b0;
 
+>>>>>>> 193e2a9 (Update I2C verification)
  
     repeat(1)
     wseq.start(env.agent.sequencer);
@@ -287,7 +335,35 @@ class apb_i2c_reg_write_test extends apb_i2c_base_test;
     phase.drop_objection(this);
   endtask
 endclass
+/*
+class apb_i2c_reg_read_pull_test extends apb_i2c_base_test;
+  `uvm_component_utils(apb_i2c_reg_read_pull_test)
 
+  apb_i2c_reg_write_pull_seq   wseq;
+  function new(string name = "apb_i2c_reg_read_pull_test", uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+  function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    rseq = apb_i2c_reg_write_pull_seq :: type_id :: create("rseq",this);
+  endfunction
+  task run_phase(uvm_phase phase);
+    phase.raise_objection(this);
+    do_reset();
+    `uvm_info(get_type_name(), "WRITE PUSH TEST: frontdoor write, check mirrored vs desired", UVM_LOW)
+    rseq.model = env.ral_model;
+   rseq.slave_addr = 7'h55;
+  rseq.read_write = 1'b1;
+
+ 
+    repeat(20)
+    wseq.start(env.agent.sequencer);
+    #10;
+   // env.scoreboard.check_mirror_desired("after_write_read");
+    phase.drop_objection(this);
+  endtask
+endclass
+*/
 
 class apb_i2c_reg_read_test extends apb_i2c_base_test;
   `uvm_component_utils(apb_i2c_reg_read_test)
@@ -308,8 +384,13 @@ class apb_i2c_reg_read_test extends apb_i2c_base_test;
     rseq.model = env.ral_model;
     rseq.slave_addr = 7'h55;
   rseq.read_write = 1'b1;
+<<<<<<< HEAD
   rseq.tx_data    = 32'h0000d500;
 
+=======
+ // rseq.tx_data    = 32'h0000d500;
+     repeat(50)
+>>>>>>> 193e2a9 (Update I2C verification)
     rseq.start(env.agent.sequencer);
    // env.scoreboard.check_mirror_desired("after_write_read");
     phase.drop_objection(this);
@@ -336,7 +417,7 @@ class apb_i2c_reg_write_wrong_addr_test extends apb_i2c_base_test;
     wr_seq.model = env.ral_model;
    // rseq.slave_addr = 7'h55;
   //rseq.read_write = 1'b1;
-    //repeat(25)
+    repeat(1)
     wr_seq.start(env.agent.sequencer);
     
     phase.drop_objection(this);

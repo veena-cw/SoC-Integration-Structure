@@ -18,6 +18,7 @@
 // Generated test_top for APB (verification wrapper, DUT external)
 `include "uvm_macros.svh"
 import uvm_pkg::*;
+`timescale 1ns/1ps
 
 module test_top;
     logic pclk;
@@ -79,13 +80,13 @@ module test_top;
     // Clock generation
     initial begin
         pclk = 0;
-        forever #5 pclk = ~pclk;
+        forever #5ns pclk = ~pclk;
     end
 
 
 initial begin
    i2c_clk =0;
-   forever #10 i2c_clk = ~i2c_clk;
+   forever #10ns i2c_clk = ~i2c_clk;
 end
     // Reset generation via reset_if (reset-aware driver will also drive RST_vif.rst_n via resource_db)
     initial begin

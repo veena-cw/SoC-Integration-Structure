@@ -11,6 +11,6 @@ $REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/src/loss_child.sv
 $REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/src/loss_parent.sv
 $REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/src/pe.sv
 $REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/src/systolic.sv
-$REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/src/tpu.sv
-$REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/src/unified_buffer.sv
+#$REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/src/tpu.sv
+#$REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/src/unified_buffer.sv
 $REPO_ROOT/DSN/ip/compute/tpu/ip/tpu/rtl/src/vpu.sv

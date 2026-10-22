@@ -105,10 +105,15 @@ assign version_reg = 32'h0001_0000;
     logic [4:0]   m_rx_count;
     logic [4:0]   s_tx_count;
     logic [4:0]   s_rx_count;
+	logic        m_lsb_first_i;
+	logic        m_cpol_i;
+	logic        m_cpha_i;
+	logic        m_cs_inter_byte_i;
 	logic [1:0] m_cs_sel_i;
 	logic [7:0] m_cs_setup_i;
 	logic [7:0] m_cs_hold_i;
-	logic xfer_done_o;
+	logic        xfer_done_o;
+	
 
     // Control Register Mapping
 
@@ -236,15 +241,15 @@ spi_top #(
     .clk_i              (PCLK),
     .rst_ni             (PRESETn),
     //---------------- Master Control ----------------
-    .m_cpol_i           (ctrl_reg[2]),
-    .m_cpha_i           (ctrl_reg[3]),
-    .m_lsb_first_i      (ctrl_reg[1]),
+	.m_cpol_i          (m_cpol_i),
+	.m_cpha_i          (m_cpha_i),
+	.m_lsb_first_i     (m_lsb_first_i),
     .m_clk_div_i        (clk_div_reg[15:0]),
     .m_cs_sel_i         (m_cs_sel_i),
-    .m_cs_setup_i       (ctrl_reg[23:16]),
-    .m_cs_hold_i        (ctrl_reg[31:24]),
-    .m_cs_inter_byte_i  (ctrl_reg[4]),
-    .m_start_i          (ctrl_reg[0]),
+	.m_cs_setup_i      (m_cs_setup_i),
+	.m_cs_hold_i       (m_cs_hold_i),
+    .m_cs_inter_byte_i (m_cs_inter_byte_i),
+	.m_start_i         (m_start),
     //---------------- Master TX ----------------
     //.m_tx_we_i    (PSEL && PENABLE && PWRITE && (addr == ADDR_TX_DATA)),
     //.m_tx_wdata_i (PWDATA[7:0]),

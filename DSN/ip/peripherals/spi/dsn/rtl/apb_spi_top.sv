@@ -81,6 +81,7 @@ assign version_reg = 32'h0001_0000;
     // SPI Internal Signals
     logic         m_start;
     logic         m_busy;
+	logic         s_busy; 
     logic         m_done;
     logic         m_tx_we;
     logic         m_rx_re;
@@ -107,6 +108,7 @@ assign version_reg = 32'h0001_0000;
 	logic [1:0] m_cs_sel_i;
 	logic [7:0] m_cs_setup_i;
 	logic [7:0] m_cs_hold_i;
+	logic xfer_done_o;
 
     // Control Register Mapping
 
@@ -274,7 +276,7 @@ spi_top #(
     .s_rx_full_o        (s_rx_full),
     .s_rx_empty_o       (s_rx_empty),
     .s_rx_count_o       (s_rx_count),
-    .s_busy_o           (),
+    .s_busy_o           (s_busy),
     .s_xfer_done_o      (xfer_done_o),
     //---------------- SPI Pins ----------------
     .sck_o              (sck_o),

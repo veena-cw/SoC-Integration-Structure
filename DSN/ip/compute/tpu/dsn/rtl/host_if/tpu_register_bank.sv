@@ -26,7 +26,7 @@ module tpu_register_bank #(
     parameter int ENTRY_W = 151
 )(
     input  logic clk,
-    input  logic rst,
+    input  logic rst_n,
 
     input  logic              reg_wr_en,
     input  logic [ADDR_W-1:0] reg_wr_addr,
@@ -150,8 +150,8 @@ module tpu_register_bank #(
         end
     end
 
-    always_ff @(posedge clk or posedge rst) begin
-        if (rst) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             int_en_q <= 32'h0;
             src_q    <= 32'h0;
             dst_q    <= 32'h0;

@@ -13,7 +13,7 @@ module tpu_host_top #(
     parameter int AXI_ID_W    = 1
 )(
     input  logic clk,
-    input  logic rst,
+    input  logic rst_n,
 
     // AXI4-Lite slave
     input  logic [AXIL_ADDR_W-1:0] s_axil_awaddr,
@@ -82,12 +82,12 @@ module tpu_host_top #(
     // ---------------- soft reset (resets core, scheduler, DMA; CSR values are kept) ----------------
     logic soft_reset_pulse;
     logic [2:0] soft_sr;
-    always_ff @(posedge clk or posedge rst) begin
-        if (rst) soft_sr <= 3'b000;
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) soft_sr <= 3'b000;
         else     soft_sr <= {soft_sr[1:0], soft_reset_pulse};
     end
-    logic core_rst;
-    assign core_rst = rst | (|soft_sr);
+    logic core_rst_n;                      // active low async reset: pin reset and soft reset
+    assign core_rst_n = rst_n & ~(|soft_sr);
 
     // ---------------- host bus + CSRs ----------------
     logic                   reg_wr_en;
@@ -96,7 +96,7 @@ module tpu_host_top #(
     logic [3:0]             reg_wr_strb;
 
     tpu_host_interface #(.ADDR_W(AXIL_ADDR_W)) host_if (
-        .clk(clk), .rst(rst),
+        .clk(clk), .rst_n(rst_n),
         .s_axil_awaddr(s_axil_awaddr), .s_axil_awprot(s_axil_awprot), .s_axil_awvalid(s_axil_awvalid), .s_axil_awready(s_axil_awready),
         .s_axil_wdata(s_axil_wdata), .s_axil_wstrb(s_axil_wstrb), .s_axil_wvalid(s_axil_wvalid), .s_axil_wready(s_axil_wready),
         .s_axil_bresp(s_axil_bresp), .s_axil_bvalid(s_axil_bvalid), .s_axil_bready(s_axil_bready),
@@ -113,7 +113,7 @@ module tpu_host_top #(
     logic [ENTRY_W-1:0] cmd_entry;
 
     tpu_register_bank #(.ADDR_W(AXIL_ADDR_W), .ENTRY_W(ENTRY_W)) regs (
-        .clk(clk), .rst(rst),
+        .clk(clk), .rst_n(rst_n),
         .reg_wr_en(reg_wr_en), .reg_wr_addr(reg_wr_addr), .reg_wr_data(reg_wr_data), .reg_wr_strb(reg_wr_strb),
         .reg_rd_addr(reg_rd_addr), .reg_rd_data(reg_rd_data),
         .sch_busy(sch_busy), .sch_done_pulse(sch_done), .sch_err_pulse(sch_err), .sch_err_code(sch_err_code),
@@ -139,7 +139,7 @@ module tpu_host_top #(
     logic [7:0]  dma_err_code;
 
     tpu_command_scheduler #(.QUEUE_DEPTH(QUEUE_DEPTH), .ENTRY_W(ENTRY_W)) sched (
-        .clk(clk), .rst(core_rst),
+        .clk(clk), .rst_n(core_rst_n),
         .start(start_pulse), .push(cmd_push), .push_entry(cmd_entry), .timeout_cycles(timeout_cycles),
         .busy(sch_busy), .done_pulse(sch_done), .err_pulse(sch_err), .err_code(sch_err_code),
         .q_count(q_count), .q_empty(q_empty), .q_full(q_full),
@@ -160,7 +160,7 @@ module tpu_host_top #(
     logic        dma_wr_v0, dma_wr_v1;
 
     tpu_dma_engine #(.UB_DEPTH(UB_DEPTH), .MAX_BURST(MAX_BURST), .ID_W(AXI_ID_W)) dma (
-        .clk(clk), .rst(core_rst),
+        .clk(clk), .rst_n(core_rst_n),
         .start(dma_start), .is_store(dma_is_store), .host_addr_in(dma_host_addr),
         .ub_addr_in(dma_ub_addr), .len_in(dma_len), .beat_timeout(timeout_cycles),
         .busy(dma_busy), .done_pulse(dma_done), .err_pulse(dma_err), .err_code(dma_err_code),
@@ -190,7 +190,7 @@ module tpu_host_top #(
     assign ub_wr_host_data[1]  = dma_wr_v1 ? dma_wr_d1 : sch_wr_d1;
 
     tpu_top #(.SYSTOLIC_ARRAY_WIDTH(2)) core (
-        .clk(clk), .rst(core_rst),
+        .clk(clk), .rst(~core_rst_n),      // upstream core keeps its active high reset
         .ub_wr_host_data_in(ub_wr_host_data),
         .ub_wr_host_valid_in(ub_wr_host_valid),
         .ub_rd_start_in(ub_rd_start_in), .ub_rd_transpose(ub_rd_transpose), .ub_ptr_select(ub_ptr_select),

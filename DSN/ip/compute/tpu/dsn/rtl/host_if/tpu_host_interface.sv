@@ -6,7 +6,7 @@ module tpu_host_interface #(
     parameter int ADDR_W = 8
 )(
     input  logic clk,
-    input  logic rst,
+    input  logic rst_n,
 
     // AXI4-Lite slave
     input  logic [ADDR_W-1:0] s_axil_awaddr,
@@ -48,8 +48,8 @@ module tpu_host_interface #(
     assign reg_wr_strb    = s_axil_wstrb;
     assign s_axil_bresp   = 2'b00;
 
-    always_ff @(posedge clk or posedge rst) begin
-        if (rst) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             s_axil_bvalid <= 1'b0;
         end else if (wr_accept) begin
             s_axil_bvalid <= 1'b1;
@@ -65,8 +65,8 @@ module tpu_host_interface #(
     assign reg_rd_addr    = s_axil_araddr;
     assign s_axil_rresp   = 2'b00;
 
-    always_ff @(posedge clk or posedge rst) begin
-        if (rst) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             s_axil_rvalid <= 1'b0;
             s_axil_rdata  <= 32'h0;
         end else if (rd_accept) begin

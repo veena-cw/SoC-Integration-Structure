@@ -21,7 +21,7 @@ module tpu_command_scheduler #(
     parameter int ENTRY_W     = 151
 )(
     input  logic clk,
-    input  logic rst,
+    input  logic rst_n,
 
     input  logic               start,
     input  logic               push,
@@ -113,8 +113,8 @@ module tpu_command_scheduler #(
     logic [7:0] ec;
     logic       fatal;
 
-    always_ff @(posedge clk or posedge rst) begin
-        if (rst) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             q_wr <= '0;
             q_rd <= '0;
             cnt  <= '0;

@@ -26,7 +26,7 @@ module tpu_dma_engine #(
     parameter int ID_W      = 1
 )(
     input  logic clk,
-    input  logic rst,
+    input  logic rst_n,
 
     input  logic        start,
     input  logic        is_store,
@@ -214,8 +214,8 @@ module tpu_dma_engine #(
         chunk      <= 2'd0;
     endtask
 
-    always_ff @(posedge clk or posedge rst) begin
-        if (rst) begin
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             state      <= S_IDLE;
             store_q    <= 1'b0;
             host_addr  <= '0;

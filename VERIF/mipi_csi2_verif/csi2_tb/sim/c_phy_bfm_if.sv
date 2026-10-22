@@ -340,7 +340,7 @@ interface c_phy_bfm_if #(
   endtask
 
 
-  task automatic drive_rtl_inter_header_sync(
+task automatic drive_rtl_inter_header_sync(
   input logic [2:0] sync_type,
   input logic [3:0] segment_mask
 );
@@ -361,24 +361,28 @@ interface c_phy_bfm_if #(
   end
 
   if (segment_mask == 4'b0000) begin
-    last_status = BFM_STATUS_ILLEGAL_STATE;
+    last_status = BFM_STATUS_BAD_SEGMENT_MASK;
     $error("C-PHY BFM: inter-header Sync has empty segment mask");
     return;
   end
 
-  bfm_state = BFM_HS_SYNC;
+  // Preserve the preceding Header-1 word for a complete sample cycle.
+  @(negedge bfm_clk);
 
-  // Remain inside the current HS burst.
-  stopstate  = 1'b0;
-  direction  = 1'b1;
-  rxactivehs = 1'b1;
+  if (rst_n !== 1'b1) begin
+    last_status = BFM_STATUS_RESET_ABORT;
+    return;
+  end
 
-  // This is not another SoT or EoT.
+  bfm_state     = BFM_HS_SYNC;
+  direction     = 1'b1;
+  stopstate     = 1'b0;
+  rxactivehs    = 1'b1;
+  ulpsactivenot = normal_ulpsactivenot_value();
+
   rx_lane_sts_reg7 = 1'b0;
   rx_lane_sts_reg4 = 1'b0;
 
-  // Important RTL-specific behavior:
-  // rxdatahs must not be selected by lane_merging during Sync.
   rxdatahs        = 64'h0;
   rxvalidhs       = 4'h0;
   rxsynchs        = segment_mask;
@@ -389,21 +393,11 @@ interface c_phy_bfm_if #(
   rxsynctypehs2 = sync_type;
   rxsynctypehs3 = sync_type;
 
-  // Hold the Sync indication for one complete RX word-clock beat.
-  @(negedge bfm_clk);
+  last_status = BFM_STATUS_OK;
 
-  // Remove Sync before Header 2 is driven.
-   rxsynchs = 4'h0;
-
-   rxsynctypehs0 = 3'b000;
-   rxsynctypehs1 = 3'b000;
-   rxsynctypehs2 = 3'b000;
-   rxsynctypehs3 = 3'b000;
-
-   bfm_state  = BFM_HS_DATA;
-   last_status = BFM_STATUS_OK;
-
-  endtask
+  // Do not clear Sync here. The following drive_hs_word()
+  // holds it for one cycle and then replaces it with Header 2.
+endtask
   task automatic drive_sync(
     input logic [2:0] sync_type   = DEFAULT_SYNC_TYPE,
     input bit         initial_sync = 1'b1,
@@ -649,7 +643,7 @@ interface c_phy_bfm_if #(
         drive_hs_word(
           packet_words[index],
           send_eot && (index == packet_words.size()-1),
-          active_segment_mask
+        active_segment_mask
         );
 
         if (last_status != BFM_STATUS_OK)

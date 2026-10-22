@@ -235,39 +235,7 @@ endtask
   // Drive the actual PPI Sync indication required between the two
   // duplicated header beats. This is deliberately separate from data:
   // current lane_merging RTL gives rxvalidhs priority over rxsynchs.
-  task automatic drive_rtl_inter_header_sync(
-    input logic [2:0] sync_type
-  );
-    if (phy_bfm.rst_n !== 1'b1) begin
-      $error("Smoke test: inter-header Sync requested during reset");
-      return;
-    end
 
-    // Header 1 has already completed. Change the PPI indications on the
-    // driving edge and hold them through one complete receive-word cycle.
-    phy_bfm.stopstate          = 1'b0;
-    phy_bfm.direction          = 1'b1;
-    phy_bfm.rxactivehs         = 1'b1;
-    phy_bfm.rx_lane_sts_reg7   = 1'b0;
-    phy_bfm.rx_lane_sts_reg4   = 1'b0;
-    phy_bfm.rxdatahs           = 64'h0;
-    phy_bfm.rxvalidhs          = 4'h0;
-    phy_bfm.rxsynchs           = RTL_SEGMENT_MASK;
-    phy_bfm.rxinvalidcodehs    = 4'h0;
-    phy_bfm.rxsynctypehs0      = sync_type;
-    phy_bfm.rxsynctypehs1      = sync_type;
-    phy_bfm.rxsynctypehs2      = sync_type;
-    phy_bfm.rxsynctypehs3      = sync_type;
-
-    @(negedge bfm_clk);
-
-    // Header 2 will be driven immediately after this task returns.
-    phy_bfm.rxsynchs           = 4'h0;
-    phy_bfm.rxsynctypehs0      = 3'b000;
-    phy_bfm.rxsynctypehs1      = 3'b000;
-    phy_bfm.rxsynctypehs2      = 3'b000;
-    phy_bfm.rxsynctypehs3      = 3'b000;
-  endtask
 
   task automatic transfer_current_rtl_raw7_packet(
     output bit completed
@@ -300,7 +268,10 @@ endtask
       return;
 
     // 64-bit beat 1: actual Sync type indication, not B8 filler data.
-    drive_rtl_inter_header_sync(3'b011);
+    phy_bfm.drive_rtl_inter_header_sync(
+    3'b011,
+    RTL_SEGMENT_MASK
+);
 
     // 64-bit beat 2: duplicated Header copy 2.
     phy_bfm.drive_hs_word(

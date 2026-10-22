@@ -524,7 +524,7 @@
           slv_reg9 [9] <= read_trans_active;
           slv_reg9 [2] <= dat_line_act;
           slv_reg9 [1] <= (command_inh_dat | read_trans_active);
-          slv_reg9 [0] <= slv_reg9 [0] && !com_inh_cmd;//It is a state-retaining operation.
+          slv_reg9 [0] <= slv_reg9 [0] | com_inh_cmd;//It is a state-retaining operation.
 	  end
 	  
 	end    

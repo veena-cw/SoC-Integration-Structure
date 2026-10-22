@@ -78,7 +78,7 @@ module spi_top #(
   output logic [NUM_CS-1:0]             cs_n_o,
 
   // Interrupts (master side).
-  output logic                          irq_tx_empty_o,
+//  output logic                          irq_tx_empty_o,
   output logic                          irq_rx_full_o,
   output logic                          irq_done_o,
   output logic                          irq_err_o

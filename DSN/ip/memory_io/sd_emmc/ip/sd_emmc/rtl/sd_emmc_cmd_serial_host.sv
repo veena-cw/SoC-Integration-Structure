@@ -68,7 +68,7 @@ logic [STATE_SIZE-1:0] next_state;
 `define cmd_idx  (CMD_SIZE-1-counter) 
 
 // command_inhibit_cmd is a control signal indicating that the CMD transaction is in its final/completion stage.
-assign command_inhibit_cmd = (state != IDLE); //((state == FINISH_WO) || (state == FINISH_WR));
+assign command_inhibit_cmd = (/*state != IDLE &&*/ state != INIT); //((state == FINISH_WO) || (state == FINISH_WR));
  
 //sd cmd input logicpad logicister
 always_ff @(posedge sd_clk)

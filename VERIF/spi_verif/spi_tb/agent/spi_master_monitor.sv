@@ -14,6 +14,7 @@
 //=================================================================================
 //  Description: SPI master-side monitor: decodes bytes, SCK timing, CS setup/hold from the SPI pins using the master's sampling edges
 //=================================================================================
+import apb_spi_types_pkg::*;
 
 class spi_master_monitor extends uvm_monitor;
 

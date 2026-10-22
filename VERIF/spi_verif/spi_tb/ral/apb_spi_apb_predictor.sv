@@ -14,6 +14,7 @@
 //=================================================================================
 //  Description: RAL predictor: field-aware mirror update from the APB monitor, ignores aborted/error transfers, resets the mirror on DUT reset
 //=================================================================================
+import apb_spi_types_pkg::*;
 
 class apb_spi_apb_predictor extends uvm_reg_predictor #(apb_seq_item);
 

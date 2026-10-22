@@ -15,6 +15,8 @@
 //  Description: Functional coverage: APB register access, SPI mode/clock/CS/data, slave view and reset scenarios (gated by agent_config coverage_enable)
 //=================================================================================
 
+import apb_spi_types_pkg::*;
+
 class apb_spi_coverage extends uvm_component;
 
   `uvm_component_utils(apb_spi_coverage)

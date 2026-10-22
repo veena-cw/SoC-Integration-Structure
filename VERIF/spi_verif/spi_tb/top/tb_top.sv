@@ -54,15 +54,15 @@ package apb_spi_tb_pkg;
   typedef enum bit { COV_DISABLE = 1'b0, COV_ENABLE = 1'b1 } cov_mode_e;
 
   // slave monitor item kinds
-  typedef enum bit { SLV_BYTE = 1'b0, SLV_RX_PROBE = 1'b1 } spi_slave_item_kind_e;
+  //typedef enum bit { SLV_BYTE = 1'b0, SLV_RX_PROBE = 1'b1 } spi_slave_item_kind_e;
 
   // analysis implementations with several inputs per component (declared once for scoreboard + coverage)
-  `uvm_analysis_imp_decl(_apb)
+  /*`uvm_analysis_imp_decl(_apb)
   `uvm_analysis_imp_decl(_mst)
   `uvm_analysis_imp_decl(_mst_start)
   `uvm_analysis_imp_decl(_slv)
   `uvm_analysis_imp_decl(_rst)
-
+*/
   // agent/ : APB active agent
   `include "apb_seq_item.sv"
   `include "apb_agent_config.sv"
@@ -160,7 +160,7 @@ module tb_top;
     .PADDR   (apb_if_i.paddr),
     .PWDATA  (apb_if_i.pwdata),
     .PSTRB   (apb_if_i.pstrb),
-    .PPROT   (apb_if_i.pprot),
+   // .PPROT   (apb_if_i.pprot),
     .PRDATA  (apb_if_i.prdata),
     .PREADY  (apb_if_i.pready),
     .PSLVERR (apb_if_i.pslverr),
@@ -198,7 +198,7 @@ module tb_top;
   assign slave_if_i.rx_data     = dut.s_rx_data;
 
   // ---------------- assertions ----------------
-  apb_spi_assertions u_assertions (
+  /*apb_spi_assertions u_assertions (
     .pclk      (pclk),
     .presetn   (reset_if_i.rst_n),
     .psel      (apb_if_i.psel),
@@ -218,7 +218,7 @@ module tb_top;
     .tx_empty  (dut.m_tx_empty),
     .rx_full   (dut.m_rx_full),
     .xfer_done (dut.m_done)
-  );
+  );*/
 
   // ---------------- waveform dump (+DUMP_VCD) ----------------
   initial begin

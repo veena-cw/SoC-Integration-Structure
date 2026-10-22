@@ -421,7 +421,7 @@ class apb_spi_reg_rw1c_seq extends apb_spi_ral_base_seq;
     uvm_reg_field fields[$];
     uvm_reg_field f;
     uvm_reg rg;
-    uvm_reg_data_t before;
+    uvm_reg_data_t before_value;
     uvm_reg_data_t after_zero;
     uvm_reg_data_t after_one;
     uvm_reg_data_t write_one;
@@ -438,7 +438,7 @@ class apb_spi_reg_rw1c_seq extends apb_spi_ral_base_seq;
 
       foreach (fields[j]) begin
         f = fields[j];
-        if (f.get_access() != "RW1C") continue;
+        if (f.get_access() != "W1C") continue;
 
         width = f.get_n_bits();
         lsb = f.get_lsb_pos();
@@ -448,14 +448,14 @@ class apb_spi_reg_rw1c_seq extends apb_spi_ral_base_seq;
         mask = mask << lsb;
 
         // Read current value. The sequence does not assume the field starts set.
-        rg.read(status, before, UVM_FRONTDOOR);
+        rg.read(status, before_value, UVM_FRONTDOOR);
         if (status != UVM_IS_OK) begin
           `uvm_error(get_type_name(), $sformatf("RW1C INITIAL READ FAILED: %s.%s", rg.get_name(), f.get_name()))
           continue;
         end
 
         // Write zero to the RW1C field. Zero must have no clear effect.
-        rg.write(status, before & ~mask, UVM_FRONTDOOR);
+        rg.write(status, before_value & ~mask, UVM_FRONTDOOR);
         if (status != UVM_IS_OK) begin
           `uvm_error(get_type_name(), $sformatf("RW1C WRITE-0 FAILED: %s.%s", rg.get_name(), f.get_name()))
           continue;
@@ -465,12 +465,12 @@ class apb_spi_reg_rw1c_seq extends apb_spi_ral_base_seq;
           `uvm_error(get_type_name(), $sformatf("RW1C READ-AFTER-0 FAILED: %s.%s", rg.get_name(), f.get_name()))
           continue;
         end
-        else if ((after_zero & mask) !== (before & mask)) begin
-          `uvm_error(get_type_name(), $sformatf("RW1C WRITE-0 CHANGED FIELD: %s.%s before=0x%0h after=0x%0h", rg.get_name(), f.get_name(), (before & mask), (after_zero & mask)))
+        else if ((after_zero & mask) !== (before_value & mask)) begin
+          `uvm_error(get_type_name(), $sformatf("RW1C WRITE-0 CHANGED FIELD: %s.%s before=0x%0h after=0x%0h", rg.get_name(), f.get_name(), (before_value & mask), (after_zero & mask)))
         end
 
         // Write ones to every RW1C bit. Ones must clear those bits.
-        write_one = before | mask;
+        write_one = before_value | mask;
         rg.write(status, write_one, UVM_FRONTDOOR);
         if (status != UVM_IS_OK) begin
           `uvm_error(get_type_name(), $sformatf("RW1C WRITE-1 FAILED: %s.%s", rg.get_name(), f.get_name()))

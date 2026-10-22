@@ -14,8 +14,12 @@
 //=================================================================================
 //  Description: SPI master-side byte transaction collected by spi_master_monitor (one byte, plus CS setup/hold timing and the programmed configuration)
 //=================================================================================
+import apb_spi_types_pkg::*;
 
 class spi_master_seq_item extends uvm_sequence_item;
+
+
+
 
   // decoded data (sampled at the master's sampling edges)
   bit [DATA_WIDTH-1:0] mosi_data;      // word the master transmitted

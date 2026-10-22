@@ -301,7 +301,7 @@ class irq_stat_reg extends uvm_reg;
     //   access      = field access type "RW1C"
     //   reset       = reset value 0
     //   volatile    = whether the field value can change independently
-    TX_EMPTY.configure(this, 1, 0, "RW1C", 1, 0, 1, 1, 1);
+    TX_EMPTY.configure(this, 1, 0, "W1C", 1, 0, 1, 1, 1);
     // Create the UVM RAL field object through the UVM factory.
     RX_FULL = uvm_reg_field::type_id::create("RX_FULL");
     // Configure the field:
@@ -310,7 +310,7 @@ class irq_stat_reg extends uvm_reg;
     //   access      = field access type "RW1C"
     //   reset       = reset value 0
     //   volatile    = whether the field value can change independently
-    RX_FULL.configure(this, 1, 1, "RW1C", 1, 0, 1, 1, 1);
+    RX_FULL.configure(this, 1, 1, "W1C", 1, 0, 1, 1, 1);
     // Create the UVM RAL field object through the UVM factory.
     DONE = uvm_reg_field::type_id::create("DONE");
     // Configure the field:
@@ -319,7 +319,7 @@ class irq_stat_reg extends uvm_reg;
     //   access      = field access type "RW1C"
     //   reset       = reset value 0
     //   volatile    = whether the field value can change independently
-    DONE.configure(this, 1, 2, "RW1C", 1, 0, 1, 1, 1);
+    DONE.configure(this, 1, 2, "W1C", 1, 0, 1, 1, 1);
     // Create the UVM RAL field object through the UVM factory.
     ERROR = uvm_reg_field::type_id::create("ERROR");
     // Configure the field:
@@ -328,7 +328,7 @@ class irq_stat_reg extends uvm_reg;
     //   access      = field access type "RW1C"
     //   reset       = reset value 0
     //   volatile    = whether the field value can change independently
-    ERROR.configure(this, 1, 3, "RW1C", 1, 0, 1, 1, 1);
+    ERROR.configure(this, 1, 3, "W1C", 1, 0, 1, 1, 1);
     // Create the UVM RAL field object through the UVM factory.
     RESERVED = uvm_reg_field::type_id::create("RESERVED");
     // Configure the field:

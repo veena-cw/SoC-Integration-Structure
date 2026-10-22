@@ -14,8 +14,11 @@
 //=================================================================================
 //  Description: SPI slave-side transaction: decoded byte and the slave RX FIFO probe word
 //=================================================================================
+import apb_spi_types_pkg::*;
 
 class spi_slave_seq_item extends uvm_sequence_item;
+
+
 
   spi_slave_item_kind_e kind;
   bit [DATA_WIDTH-1:0]  rx_data;       // SLV_BYTE: MOSI word decoded with the slave's sampling rule

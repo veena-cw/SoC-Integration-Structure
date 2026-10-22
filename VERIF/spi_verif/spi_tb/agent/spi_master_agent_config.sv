@@ -15,6 +15,8 @@
 //  Description: SPI master (passive) agent configuration: active/passive mode and coverage enable only
 //=================================================================================
 
+import apb_spi_types_pkg::*;
+
 class spi_master_agent_config extends uvm_object;
 
   uvm_active_passive_enum is_active        = UVM_PASSIVE;   // master side lives inside the DUT: passive only

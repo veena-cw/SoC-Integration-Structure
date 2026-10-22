@@ -2,7 +2,7 @@
 # ==================================================
 # UVM
 # ==================================================
-$REPO_ROOT/VERIF/uvm-1.1d/src/uvm_pkg.sv
+#$REPO_ROOT/VERIF/uvm-1.1d/src/uvm_pkg.sv
 
 
 # ============================================================
@@ -18,6 +18,10 @@ $REPO_ROOT/VERIF/uvm-1.1d/src/uvm_pkg.sv
 ../interface/reset_if.sv
 ../interface/spi_master_if.sv
 ../interface/spi_slave_if.sv
+
+# ---------- Shared Types ----------
+../agent/apb_spi_types_pkg.sv
+
 
 # ---------- Sequence Items ----------
 ../agent/apb_seq_item.sv

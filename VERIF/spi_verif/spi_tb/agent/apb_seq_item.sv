@@ -15,6 +15,8 @@
 //  Description: APB transaction item (one APB transfer)
 //=================================================================================
 
+`include "uvm_macros.svh"
+import uvm_pkg::*;
 class apb_seq_item extends uvm_sequence_item;
 
   rand bit [31:0] paddr;

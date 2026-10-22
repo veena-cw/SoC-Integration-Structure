@@ -15,6 +15,8 @@
 //  Description: APB agent configuration: active/passive mode and coverage enable only
 //=================================================================================
 
+import apb_spi_types_pkg::*;
+
 class apb_agent_config extends uvm_object;
 
   uvm_active_passive_enum is_active        = UVM_ACTIVE;

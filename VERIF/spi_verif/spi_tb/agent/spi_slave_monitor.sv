@@ -14,6 +14,7 @@
 //=================================================================================
 //  Description: SPI slave-side monitor: decodes MOSI/MISO with the slave's sampling rule and probes the slave RX FIFO word
 //=================================================================================
+import apb_spi_types_pkg::*;
 
 class spi_slave_monitor extends uvm_monitor;
 

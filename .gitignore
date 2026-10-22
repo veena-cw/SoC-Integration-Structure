@@ -56,3 +56,7 @@ VERIF/lpddr_verif/lpddr5c_tb_l/sim/verilator_obj_dir/
 
 # Generated Verilator build marker
 /VERIF/plic_verif/plic_tb/sim/.verilator_build
+
+#SPI Verilator logs
+/VERIF/spi_verif/spi_tb/sim/verilator_logs/
+*.swp

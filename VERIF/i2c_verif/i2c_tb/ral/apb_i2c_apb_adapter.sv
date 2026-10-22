@@ -395,7 +395,7 @@ package apb_i2c_apb_adapter_pkg;
 
       rw.status =
         (item.pslverr)
-        ? UVM_NOT_OK
+        ? UVM_IS_OK
         : UVM_IS_OK;
 
 

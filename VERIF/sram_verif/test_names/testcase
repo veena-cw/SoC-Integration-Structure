@@ -15,3 +15,4 @@ sram_full_mem_test
 sram_rw_overlap_test
 sram_fsm_recovery_test
 sram_pipelined_test
+sram_wlast_err_test

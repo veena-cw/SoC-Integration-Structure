@@ -81,6 +81,7 @@
 ../tests/sram_rw_overlap_test.sv
 ../tests/sram_fsm_recovery_test.sv
 ../tests/sram_pipelined_test.sv
+../tests/sram_wlast_err_test.sv
 
 # ---------- Assertions ----------
 ../assertions/axi_assertions.sv

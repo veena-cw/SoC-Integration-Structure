@@ -90,6 +90,15 @@ class axi_seq_item extends uvm_sequence_item;
     bit                             w_done;     // last W beat accepted
     bit                             completed;  // response(s) received or aborted
 
+    // ---- WLAST error injection (sram_wlast_err_test) --------------
+    // Defaults = legal AXI: len+1 W beats, WLAST on the last one.
+    //   n_wbeats   : W beats to drive (0 = len+1); data[]/strb[] must
+    //                hold at least that many entries
+    //   wlast_beat : beat index carrying WLAST; -1 = the last driven
+    //                beat (normal), -2 = no beat (WLAST never asserted)
+    int unsigned                    n_wbeats   = 0;
+    int                             wlast_beat = -1;
+
     // ---- Monitor timing (aclk cycles) ----------------------------
     int unsigned                    addr_wait;     // AxVALID high before AxREADY
     int unsigned                    w_gap_cycles;  // WVALID low inside the W burst
@@ -304,6 +313,7 @@ class axi_seq_item extends uvm_sequence_item;
         aborted   = t.aborted;   timed_out = t.timed_out;
         aw_done   = t.aw_done;   completed = t.completed;
         w_done    = t.w_done;
+        n_wbeats  = t.n_wbeats;  wlast_beat = t.wlast_beat;
         addr_wait = t.addr_wait; w_gap_cycles = t.w_gap_cycles;
         w_lead    = t.w_lead;    resp_stall   = t.resp_stall;
         idle_before = t.idle_before;

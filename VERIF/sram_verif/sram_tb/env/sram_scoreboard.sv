@@ -179,7 +179,11 @@ class sram_scoreboard extends uvm_scoreboard;
         end
         if (update) clear_excl_monitors(tr);
 
-        for (int unsigned i = 0; i <= tr.len; i++) begin
+        // One entry per W beat the slave actually accepted (normally
+        // AWLEN+1; fewer / more when WLAST was early / late, which the
+        // monitor reports as AXI_WLAST). The model writes exactly those
+        // beats, at the burst's beat addresses.
+        for (int unsigned i = 0; i < tr.data.size(); i++) begin
             a = tr.beat_addr(i);
             if (!in_range(a)) begin
                 exp_resp = AXI_DECERR;

@@ -239,10 +239,14 @@ class axi_driver extends uvm_driver #(axi_seq_item);
         tr.aw_done = 1'b1;
     endtask
 
-    // Drive all W beats of one burst (shared by both modes).
+    // Drive the W beats of one burst (shared by both modes): len+1 beats
+    // with WLAST on the last, unless the item injects a WLAST error
+    // (n_wbeats / wlast_beat).
     task drive_w(axi_seq_item tr);
         int unsigned gap;
-        for (int unsigned i = 0; i <= tr.len; i++) begin
+        int unsigned n    = (tr.n_wbeats != 0) ? tr.n_wbeats : 32'(tr.len) + 1;
+        int          last = (tr.wlast_beat == -1) ? int'(n) - 1 : tr.wlast_beat;
+        for (int unsigned i = 0; i < n; i++) begin
             gap = $urandom_range(0, cfg.max_wvalid_gap);
             if (gap > 0) begin
                 vif.wvalid <= 1'b0;
@@ -252,7 +256,7 @@ class axi_driver extends uvm_driver #(axi_seq_item);
             vif.wdata  <= tr.data[i];
             vif.wstrb  <= tr.strb[i];
             vif.wuser  <= (i < tr.wuser.size()) ? tr.wuser[i] : '0;
-            vif.wlast  <= (i == tr.len);
+            vif.wlast  <= (int'(i) == last);
             vif.wvalid <= 1'b1;
             do tick(); while (vif.mst_cb.wready !== 1'b1);
         end

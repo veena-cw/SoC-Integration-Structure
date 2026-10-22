@@ -1,0 +1,39 @@
+# ------------------------------------------------------------
+# code_cov_waivers.txt -- RTL code-coverage waivers (make code_cov)
+#
+# Points listed here stay in the coverage database but are reported
+# as WAIVED and left out of the percentages. Only points that no
+# legal stimulus can reach with sram_top's configuration belong here.
+#
+# Format (one waiver per line):
+#   <file>:<line>  <type>  [@<instance substring>]  ["<point text>"]  <reason>
+#     type        = line | branch | expr | toggle | *   (* = every type)
+#     point text  = substring of the point's description (expression
+#                   term, branch if/else, toggle signal); limits the
+#                   waiver to those points -- a line usually has several
+#                   points and only some are unreachable
+#
+# code_cov_report.py warns about a waiver that matches no point
+# (stale line number) and about a waived point that was hit.
+# ------------------------------------------------------------
+
+# ---- axi4_slave.sv ------------------------------------------------
+axi4_slave.sv:154  *     WRAP AxLEN other than 1/3/7/15 is AXI-illegal (axi_assertions flags it on the master)
+axi4_slave.sv:244  expr  "(s_axi_wready==0) => 0"  s_axi_wready == (sw_state == SW_DATA), so it is always 1 inside "case SW_DATA"
+axi4_slave.sv:266  expr  "(s_axi_bvalid==0) => 0"  s_axi_bvalid == (sw_state == SW_RESP), so it is always 1 inside "case SW_RESP"
+axi4_slave.sv:377  expr  "(s_axi_rvalid==0) => 0"  s_axi_rvalid == (sr_state == SR_DATA), so it is always 1 inside "case SR_DATA"
+axi4_slave.sv:394  *     sr_state uses all four 2-bit encodings: the read-FSM default branch is dead code
+
+# ---- tc_sram.sv (sram_top: SimInit="zeros", Latency=1) -------------
+tc_sram.sv:102     *     random_init_word() is only used with SimInit="random"
+tc_sram.sv:104     *     random_init_word() is only used with SimInit="random"
+tc_sram.sv:113     *     SimInit="ones" not used
+tc_sram.sv:114     *     SimInit="random" not used
+tc_sram.sv:115     *     SimInit default ('x) not used
+tc_sram.sv:137     *     read-latency pipeline loop body runs only for Latency > 1
+tc_sram.sv:189     branch  "else"  Latency != 0 is constant true (Latency=1): the else branch is dead
+tc_sram.sv:198     branch  "else"  Latency != 0 is constant true (Latency=1): the else branch is dead
+
+# ---- response path: one read in flight -> response FIFO never fills ----
+axi_sram_cdc.sv:290  expr  @u_axi_sram_cdc  "(resp_fifo_full==1) => 0"  axi4_slave allows one read beat in flight, so the response FIFO holds at most 1 of 8 entries
+fifo_mem.v:11        expr  @u_resp_fifo     "(full==1) => 0"  same: the response FIFO can never be full

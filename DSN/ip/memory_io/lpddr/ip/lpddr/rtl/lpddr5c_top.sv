@@ -318,7 +318,7 @@ assign s_axi_arcache = 4'b0000;
 assign s_axi_arprot  = 3'b000;
 assign s_axi_arqos   = 4'b0000;
     
-    
+wire rd_cmd_accept = ar_pending && (wr_state != WR_WRITE_CMD) && cmd_ready;
     
     
 //========================================================================
@@ -333,15 +333,13 @@ assign s_axi_arqos   = 4'b0000;
 assign s_axi_awready = (wr_state == WR_IDLE) &&
                        !ar_pending &&
                        !bvalid_q &&
-	(lp_state != 4'b0010) &&
-	(lp_state != 4'b0011)&&
-	(lp_state != 4'b1010)
-	;
+                       (lp_state != 4'b0010);
 
 assign s_axi_arready = (wr_state == WR_IDLE) &&
                        !aw_pending &&
                        !bvalid_q &&
-                       !s_axi_awvalid;
+                       !s_axi_awvalid &&
+                       !ar_pending;
 
 
 
@@ -449,6 +447,7 @@ always_ff @(posedge clk or negedge rst_n) begin
             end
 
         endcase
+if(rd_cmd_accept) ar_pending <= 1'b0;
     end
 end
 

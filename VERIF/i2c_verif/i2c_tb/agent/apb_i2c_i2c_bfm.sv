@@ -226,7 +226,7 @@ if(slv_detected==1'b1 ) begin
  	
 task receive_data();
  bit scl_last;
- int i=0;
+ int i=7;
  scl_last = vif.i2c_scl ;
  vif.sda_drive_low=0;
  repeat(8) begin
@@ -245,7 +245,7 @@ $display("slv_data_rcv [%0t] Bit %0d = %b",
                              $time,
                              i,
                              vif.i2c_sda);      
-      i++; 
+     i--;
       
    end  
      scl_last = vif.i2c_scl;

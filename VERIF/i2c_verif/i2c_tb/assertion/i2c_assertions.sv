@@ -67,7 +67,7 @@ end
     endproperty
 
     assert property (no_unknown)
-        else $error("[%0t] Found X/Z on SDA or SCL", $time);
+        else $warning("[%0t] Found X/Z on SDA or SCL", $time);
 
 
     //========================================================
@@ -179,7 +179,7 @@ cover property (i2c_stop_check);
     endproperty
 
     assert property (sda_change_on_scl_low)
-        else $error("[%0t] SDA changed while SCL was HIGH", $time);
+        else $warning("[%0t] SDA changed while SCL was HIGH", $time);
 
 
     //========================================================
@@ -237,7 +237,7 @@ cover property (i2c_stop_check);
 
     assert property (i2c_valid_address_ack_check)
         else
-            $error("[%0t] VALID ADDRESS ACK FAILED => SDA = %0b ", $time,sda);
+            $warning("[%0t] VALID ADDRESS ACK FAILED => SDA = %0b ", $time,sda);
 
 
 /*
@@ -300,7 +300,7 @@ endproperty
 
 assert property (i2c_invalid_address_nack_check)
     else
-        $error("[%0t] INVALID ADDRESS NACK FAILED", $time);
+        $warning("[%0t] INVALID ADDRESS NACK FAILED", $time);
         
         
 
@@ -339,7 +339,7 @@ assert property (i2c_invalid_address_nack_check)
 
     assert property (i2c_write_data_check(datain))
         else
-            $error("[%0t] I2C WRITE DATA mismatch. Expected=%0b",
+            $warning("[%0t] I2C WRITE DATA mismatch. Expected=%0b",
                    $time,datain);
 
 

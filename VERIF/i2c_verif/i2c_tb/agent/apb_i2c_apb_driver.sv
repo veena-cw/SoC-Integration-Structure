@@ -43,6 +43,7 @@ class apb_i2c_apb_driver extends uvm_driver #(apb_i2c_apb_item);
     vif.paddr   <= '0;
     vif.pwdata  <= '0;
     vif.pstrb   <= '0;
+   // vif.i2c_irq_en <= '0;
     `uvm_info(get_type_name(), "Reset asserted: all APB master signals driven to 0", UVM_MEDIUM)
   endtask
   task run_phase(uvm_phase phase);
@@ -70,6 +71,7 @@ class apb_i2c_apb_driver extends uvm_driver #(apb_i2c_apb_item);
     vif.paddr   <= '0;
     vif.pwdata  <= '0;
     vif.pstrb   <= '0;
+ //    vif.i2c_irq_en <= '0;
     @(posedge vif.pclk);
     // 2. After IDLE clock
     if (rst_vif != null && !rst_vif.rst_n) begin
@@ -85,6 +87,7 @@ class apb_i2c_apb_driver extends uvm_driver #(apb_i2c_apb_item);
     vif.pstrb   <= tr.pstrb;
     vif.psel    <= 1;
     vif.penable <= 0;
+   //  vif.i2c_irq_en <=tr.i2c_irq_en;
     @(posedge vif.pclk);
     // 3. After SETUP clock
     if (rst_vif != null && !rst_vif.rst_n) begin

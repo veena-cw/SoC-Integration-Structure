@@ -79,7 +79,7 @@ class apb_i2c_apb_coverage extends uvm_component;
         RXDATA_REG_ADDR
       };
 
-      bins OTHER = default;
+      illegal_bins  OTHER = default;
 
     }
 

@@ -30,7 +30,8 @@ interface apb_i2c_apb_if (
     logic                    pready;
     logic                    pslverr;
     logic [3:0] pstrb;
-    
+    logic        i2c_irq_en;
+    logic       i2c_irq;
     
      //============================================================
     // Temporary PREADY generation

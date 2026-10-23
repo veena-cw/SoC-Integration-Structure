@@ -24,6 +24,8 @@ module test_top;
     logic pclk;
     logic i2c_clk;
     apb_i2c_reset_if RST_vif();
+    
+    i2c_irq_if   IRQ_vif(.clk(pclk));
 
     apb_i2c_apb_if APB_vif (
         .pclk     (pclk),
@@ -60,8 +62,8 @@ module test_top;
     .t_o_pready (APB_vif.pready),
 
     // I2C
-    .i2c_irq_en  (i2c_irq_en),
-    .i2c_irq    (i2c_irq),
+    .i2c_irq_en  (IRQ_vif.i2c_irq_en),
+    .i2c_irq    (IRQ_vif.i2c_irq),
     .i2c_scl    (I2C_vif.i2c_scl),
     .i2c_sda    (I2C_vif.i2c_sda)
   );
@@ -105,6 +107,7 @@ end
     // Resource DB registration - only resource_db, no config_db, no modports
     initial begin
         uvm_resource_db#(virtual apb_i2c_reset_if)::set("*", "rst_vif", RST_vif);
+        uvm_resource_db#(virtual i2c_irq_if)::set("*", "irq_vif", IRQ_vif);
         uvm_resource_db#(virtual apb_i2c_apb_if)::set("*", "vif", APB_vif);
         uvm_resource_db#(virtual apb_i2c_i2c_if)::set("*", "vif", I2C_vif);
         run_test("apb_i2c_reg_reset_test");

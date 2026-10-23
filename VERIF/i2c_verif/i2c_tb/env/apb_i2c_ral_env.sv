@@ -34,6 +34,7 @@ class apb_i2c_ral_env extends uvm_env;
   apb_i2c_scoreboard scoreboard; // <--- scoreboard uses mirror/desired/predictor concepts
   apb_i2c_reset_agent reset_agent; // reset agent for stable known state
   apb_i2c_i2c_agent  i2c_agent;
+  i2c_irq_agent   irq_agent;
   apb_i2c_apb_coverage  coverage;
   function new(string name = "apb_i2c_ral_env", uvm_component parent = null);
     super.new(name, parent);
@@ -47,6 +48,7 @@ class apb_i2c_ral_env extends uvm_env;
     predictor = apb_i2c_apb_predictor::type_id::create("predictor", this);
     agent = apb_i2c_apb_agent::type_id::create("agent", this);
     i2c_agent = apb_i2c_i2c_agent::type_id::create("i2c_agent", this);
+    irq_agent = i2c_irq_agent::type_id::create("irq_agent", this);
     scoreboard = apb_i2c_scoreboard::type_id::create("scoreboard", this);
     reset_agent = apb_i2c_reset_agent::type_id::create("reset_agent", this);
     coverage = apb_i2c_apb_coverage:: type_id::create("coverage",this);

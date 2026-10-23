@@ -171,7 +171,7 @@ class apb_i2c_scoreboard extends uvm_component;
       if (rg.get_name() == "CTRL_REG") begin
 
         // Replace READ_WRITE_BIT with actual field position
-        i2c_rw = tr.pwdata[8];
+        i2c_rw = tr.pwdata[15];
 	  rxdata_pushed = 1'b0;
 
         `uvm_info(

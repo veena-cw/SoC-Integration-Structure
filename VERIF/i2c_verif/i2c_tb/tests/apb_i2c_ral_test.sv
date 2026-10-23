@@ -43,6 +43,7 @@ import apb_i2c_ral_sequences_pkg::*;
 class apb_i2c_base_test extends uvm_test;
   `uvm_component_utils(apb_i2c_base_test)
   apb_i2c_ral_env env;
+   bit irq_enable_test = 0;
   function new(string name = "apb_i2c_base_test", uvm_component parent = null);
     super.new(name, parent);
   endfunction
@@ -451,7 +452,7 @@ class apb_i2c_reg_write_wrong_addr_test extends apb_i2c_base_test;
     wr_seq.model = env.ral_model;
    // rseq.slave_addr = 7'h55;
   //rseq.read_write = 1'b1;
-    //repeat(25)
+    repeat(25)
     wr_seq.start(env.agent.sequencer);
     
     phase.drop_objection(this);
@@ -460,3 +461,176 @@ class apb_i2c_reg_write_wrong_addr_test extends apb_i2c_base_test;
 endclass
 
 
+
+  class apb_i2c_invalid_addr_test extends apb_i2c_base_test;
+  `uvm_component_utils(apb_i2c_invalid_addr_test)
+
+  apb_i2c_invalid_addr_seq   wr_seq;
+  function new(string name = "apb_i2c_invalid_addr_test", uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+  function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+
+    wr_seq = apb_i2c_invalid_addr_seq :: type_id :: create("wr_seq",this);
+   uvm_resource_db#(bit)::set(
+    "*",
+    "generate_nack",
+    1'b1,
+    this
+);	
+  endfunction
+  task run_phase(uvm_phase phase);
+    phase.raise_objection(this);
+    do_reset();
+    `uvm_info(get_type_name(), "WRITE + NACK:", UVM_LOW)
+    wr_seq.model = env.ral_model;
+   // rseq.slave_addr = 7'h55;
+  //rseq.read_write = 1'b1;
+    //repeat(25)
+    wr_seq.start(env.agent.sequencer);
+    
+    phase.drop_objection(this);
+  endtask
+  
+endclass
+/*
+  class apb_i2c_interrupt_test extends apb_i2c_base_test;
+  `uvm_component_utils(apb_i2c_interrupt_test)
+
+  apb_i2c_irq_reg_write_seq   irq_seq;
+  function new(string name = "apb_i2c_interrupt_test", uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+  function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+
+    irq_seq = apb_i2c_irq_reg_write_seq :: type_id :: create("irq_seq",this);
+  uvm_config_db#(bit)::set(
+    this,
+    "*",
+    "irq_enable_test",
+    1'b1
+);	
+  endfunction
+  task run_phase(uvm_phase phase);
+    phase.raise_objection(this);
+    do_reset();
+    `uvm_info(get_type_name(), "IRQ TEST:", UVM_LOW)
+    irq_seq.model = env.ral_model;
+irq_seq.irq_seqr = env.irq_agent.irq_sequencer;
+	repeat(3)
+    irq_seq.start(env.agent.sequencer);
+    
+    phase.drop_objection(this);
+  endtask
+  
+endclass
+
+*/
+
+class apb_i2c_valid_addr_unused_test extends apb_i2c_base_test;
+  `uvm_component_utils(apb_i2c_valid_addr_unused_test)
+  
+
+  apb_i2c_valid_addr_unused_seq   wr_seq;
+  function new(string name = "apb_i2c_valid_addr_unused_test", uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+  function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+
+    wr_seq = apb_i2c_valid_addr_unused_seq :: type_id :: create("wr_seq",this);
+  endfunction
+  task run_phase(uvm_phase phase);
+    phase.raise_objection(this);
+    do_reset();
+    `uvm_info(get_type_name(), "WRONG ADDR- WITHIN THE RANGE :", UVM_LOW)
+    wr_seq.model = env.ral_model;
+    repeat(10)
+    wr_seq.start(env.agent.sequencer);
+    
+    phase.drop_objection(this);
+  endtask
+  
+  endclass
+  
+  
+  class apb_i2c_irq_test extends apb_i2c_base_test;
+
+  `uvm_component_utils(apb_i2c_irq_test)
+
+  // IRQ enable sequence
+  i2c_irq_enable_seq irq_en_seq;
+
+
+virtual i2c_irq_if irq_vif;
+  // APB sequences
+  apb_i2c_irq_reg_write_seq seq1;
+
+
+  function new(string name = "apb_i2c_irq_test",
+               uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+ virtual function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+
+    // Get IRQ interface
+    if (!uvm_config_db#(virtual i2c_irq_if)::get(
+          this,
+          "",
+          "irq_vif",
+          irq_vif
+        )) begin
+
+      `uvm_fatal("IRQ_VIF",
+                 "Failed to get i2c_irq_if in test")
+    end
+  endfunction
+
+  virtual task run_phase(uvm_phase phase);
+
+    phase.raise_objection(this);
+ 	do_reset();
+    `uvm_info(get_type_name(), "IRQ TEST:", UVM_LOW)
+
+    seq1 = apb_i2c_irq_reg_write_seq::type_id::create("seq1");
+        seq1.irq_seqr = env.irq_agent.irq_sequencer;
+    seq1.model = env.ral_model;
+    //============================================================
+    // 1. Enable IRQ - only once
+    //============================================================
+
+    irq_en_seq =
+      i2c_irq_enable_seq::type_id::create("irq_en_seq");
+
+    irq_en_seq.start(env.irq_agent.irq_sequencer);
+
+
+    //============================================================
+    // 2. Wait for FIRST interrupt
+    //============================================================
+
+    `uvm_info("IRQ_TEST",
+              "Waiting for first I2C interrupt...",
+              UVM_LOW)
+
+    @(posedge irq_vif.i2c_irq);
+
+    `uvm_info("IRQ_TEST",
+              "First I2C interrupt received",
+              UVM_LOW)
+
+
+  repeat(3)
+    seq1.start(env.agent.sequencer);
+
+
+    phase.drop_objection(this);
+
+  endtask
+
+endclass
+  
+  

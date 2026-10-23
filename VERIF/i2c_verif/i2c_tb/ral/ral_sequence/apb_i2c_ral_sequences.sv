@@ -863,13 +863,12 @@ endclass
 
   rand bit [6:0]  slave_addr;
   rand bit        read_write;
-  rand bit [31:0] tx_data;
-
-  /*constraint default_c {
-    slave_addr == 7'h50;
+        bit [31:0] tx_data;
+  rand bit [7:0] tx_data_lower;
+  constraint default_c {
+    slave_addr == 7'h55;
     read_write == 1'b0;
-    tx_data[15:8]    == {read_write,slave_addr};
-  }*/
+  }
 
 
   function new(string name = "apb_i2c_reg_write_seq");
@@ -893,7 +892,28 @@ int poll_count;
       `uvm_fatal("RAL_SEQ",
                  "model is NULL")
     end
+//==========================================================
+    // Randomize transaction
+    //==========================================================
 
+    if (!this.randomize()) begin
+      `uvm_fatal(
+        "I2C_WRONG_ADDR",
+        "Sequence randomization failed"
+      )
+    end
+
+
+    `uvm_info(
+      "I2C_WRONG_ADDR",
+      $sformatf(
+        "RANDOMIZED: SLAVE_ADDR=0x%02h READ_WRITE=%0b TX_LOWER=0x%02h",
+        slave_addr,
+        read_write,
+        tx_data_lower
+      ),
+      UVM_MEDIUM
+    )
 
     //========================================================
     // 1. WAIT UNTIL BUSY = 0
@@ -972,7 +992,7 @@ int poll_count;
     //========================================================
     // 3. WRITE TXDATA_REG
     //========================================================
-   // tx_data = {16'h0000,read_write,slave_addr,tx_data[7:0]};
+    tx_data = {16'h0000,read_write,slave_addr,tx_data_lower};
     `uvm_info(
       "I2C_WRITE",
       $sformatf(
@@ -1140,15 +1160,15 @@ class apb_i2c_reg_read_seq extends apb_i2c_ral_base_seq;
 
   rand bit [6:0] slave_addr;
   rand bit       read_write;
-  rand bit [31:0] tx_data;
+    bit [31:0] tx_data;
   bit [7:0] rx_data;
+rand bit [7:0]	tx_data_lower;
 
-/*
   constraint default_c {
     slave_addr == 7'h55;
     read_write == 1'b1;
-    tx_data[15:8] == {read_write,slave_addr};
-  }*/
+    tx_data_lower == 8'b0;
+  }
 
 
   function new(string name = "apb_i2c_reg_read_seq");
@@ -1174,6 +1194,27 @@ class apb_i2c_reg_read_seq extends apb_i2c_ral_base_seq;
         "model is NULL"
       )
     end
+// Randomize transaction
+    //==========================================================
+
+    if (!this.randomize()) begin
+      `uvm_fatal(
+        "I2C_ADDR",
+        "Sequence randomization failed"
+      )
+    end
+
+
+    `uvm_info(
+      "I2C__ADDR",
+      $sformatf(
+        "RANDOMIZED: SLAVE_ADDR=0x%02h READ_WRITE=%0b TX_LOWER=0x%02h",
+        slave_addr,
+        read_write,
+        tx_data_lower
+      ),
+      UVM_MEDIUM
+    )
 
 
     //========================================================
@@ -1264,7 +1305,7 @@ class apb_i2c_reg_read_seq extends apb_i2c_ral_base_seq;
      //========================================================
     // 3. WRITE TXDATA_REG
     //========================================================
-   // tx_data = {16'h0000,read_write,slave_addr,8'h00};
+    tx_data = {16'h0000,read_write,slave_addr,8'h00};
     `uvm_info(
       "I2C_WRITE",
       $sformatf(
@@ -2029,7 +2070,10 @@ class apb_i2c_invalid_addr_seq extends apb_i2c_ral_base_seq;
 endclass
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> 1de4f7b (Adding IRQ AGENT)
 
 
 class apb_i2c_irq_reg_write_seq extends apb_i2c_ral_base_seq;
@@ -2044,13 +2088,21 @@ class apb_i2c_irq_reg_write_seq extends apb_i2c_ral_base_seq;
   rand bit        read_write;
    bit [31:0] tx_data;
   rand bit [7:0] tx_data_lower;
+<<<<<<< HEAD
        bit  irq_en;
      
+=======
+
+>>>>>>> 1de4f7b (Adding IRQ AGENT)
  //============================================================
   // Constraints
   //============================================================
 
+<<<<<<< HEAD
   constraint valid_addr_range {
+=======
+  constraint wrong_addr_c {
+>>>>>>> 1de4f7b (Adding IRQ AGENT)
     slave_addr == 7'h55;
   }
 
@@ -2063,7 +2115,11 @@ class apb_i2c_irq_reg_write_seq extends apb_i2c_ral_base_seq;
   // IRQ sequencer handle
   //============================================================
 
+<<<<<<< HEAD
  // i2c_irq_sequencer irq_seqr;
+=======
+  i2c_irq_sequencer irq_seqr;
+>>>>>>> 1de4f7b (Adding IRQ AGENT)
 
 
   //============================================================
@@ -2116,7 +2172,11 @@ class apb_i2c_irq_reg_write_seq extends apb_i2c_ral_base_seq;
     //==========================================================
     // Check IRQ sequencer
     //==========================================================
+<<<<<<< HEAD
 /*
+=======
+
+>>>>>>> 1de4f7b (Adding IRQ AGENT)
     if (irq_seqr == null) begin
 
       `uvm_fatal(
@@ -2124,7 +2184,11 @@ class apb_i2c_irq_reg_write_seq extends apb_i2c_ral_base_seq;
         "IRQ sequencer is NULL"
       )
 
+<<<<<<< HEAD
     end*/
+=======
+    end
+>>>>>>> 1de4f7b (Adding IRQ AGENT)
 
 
     //==========================================================
@@ -2132,6 +2196,7 @@ class apb_i2c_irq_reg_write_seq extends apb_i2c_ral_base_seq;
     //==========================================================
 
     if (!uvm_config_db#(virtual i2c_irq_if)::get(
+<<<<<<< HEAD
         null,
         "",
         "irq_vif",
@@ -2146,6 +2211,50 @@ class apb_i2c_irq_reg_write_seq extends apb_i2c_ral_base_seq;
 end
 
 
+=======
+          irq_seqr,
+          "",
+          "irq_vif",
+          irq_vif
+        )) begin
+
+      `uvm_fatal(
+        "I2C_IRQ",
+        "Failed to get irq_vif using IRQ sequencer"
+      )
+
+    end
+
+/*
+    //==========================================================
+    // 0. ENABLE I2C IRQ
+    //
+    // IRQ sequence is executed on the IRQ sequencer.
+    //==========================================================
+
+    `uvm_info(
+      "I2C_IRQ",
+      "Starting IRQ enable sequence",
+      UVM_MEDIUM
+    )
+
+
+    irq_en_seq =
+      i2c_irq_enable_seq::type_id::create(
+        "irq_en_seq"
+      );
+
+
+    irq_en_seq.start(irq_seqr);
+
+
+    `uvm_info(
+      "I2C_IRQ",
+      "IRQ enable sequence completed",
+      UVM_MEDIUM
+    );
+*/
+>>>>>>> 1de4f7b (Adding IRQ AGENT)
 //==========================================================
     // Randomize transaction
     //==========================================================
@@ -2178,6 +2287,47 @@ end
       "Waiting for BUSY = 0",
       UVM_MEDIUM
     )
+<<<<<<< HEAD
+=======
+/*
+    do begin
+
+      model.STATUS_REG.read(
+        status,
+        status_value,
+        UVM_FRONTDOOR
+      );
+
+
+      if (status != UVM_IS_OK) begin
+
+        `uvm_fatal(
+          "I2C_WRITE",
+          "STATUS_REG read failed"
+        )
+
+      end
+
+
+      busy = status_value[0];
+
+
+      `uvm_info(
+        "I2C_WRITE",
+        $sformatf(
+          "STATUS = 0x%08h BUSY=%0b",
+          status_value,
+          busy
+        ),
+        UVM_MEDIUM
+      );
+
+
+    end while (busy);
+
+*/
+ // @(posedge irq_vif.i2c_irq);
+>>>>>>> 1de4f7b (Adding IRQ AGENT)
   
       model.STATUS_REG.read(
         status,
@@ -2218,7 +2368,11 @@ end
 
     ctrl_value[6:0] = slave_addr;
     ctrl_value[7]   = read_write;
+<<<<<<< HEAD
     ctrl_value[8] = 1;
+=======
+
+>>>>>>> 1de4f7b (Adding IRQ AGENT)
 
     `uvm_info(
       "I2C_WRITE",
@@ -2460,6 +2614,7 @@ class apb_i2c_valid_addr_unused_seq extends apb_i2c_ral_base_seq;
 
 endclass   
 
+<<<<<<< HEAD
 class apb_i2c_reg_write_push_seq extends apb_i2c_ral_base_seq;
 
   `uvm_object_utils(apb_i2c_reg_write_push_seq)
@@ -2731,4 +2886,6 @@ repeat(5) begin
 endclass
 
 >>>>>>> 193e2a9 (Update I2C verification)
+=======
+>>>>>>> 1de4f7b (Adding IRQ AGENT)
 endpackage

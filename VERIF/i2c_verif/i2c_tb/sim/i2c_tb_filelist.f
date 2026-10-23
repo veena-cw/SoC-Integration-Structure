@@ -17,6 +17,18 @@
 ../interface/apb_i2c_apb_if.sv
 ../interface/apb_i2c_reset_if.sv
 ../interface/apb_i2c_i2c_if.sv
+../interface/i2c_irq_if.sv
+
+
+# irq
+
+../agent/i2c_irq_item.sv
+../agent/i2c_irq_sequencer.sv
+../agent/i2c_irq_driver.sv
+../agent/i2c_irq_monitor.sv
+
+../agent/i2c_irq_agent.sv
+../agent/i2c_irq_enable_seq.sv
 
 ../agent/apb_i2c_apb_item.sv
 ../agent/apb_i2c_reset_agent.sv
@@ -37,6 +49,10 @@
 
 ../env/apb_i2c_coverage.sv
 ../env/apb_i2c_scoreboard.sv
+
+
+
+
 
 ../env/apb_i2c_ral_env.sv
 ../tests/apb_i2c_ral_test.sv

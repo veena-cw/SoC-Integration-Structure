@@ -344,7 +344,8 @@ module lpddr5c_data_path #(
     
     // AXI Read Output
     assign axi_rvalid = !rd_fifo_rd_empty;
-    assign axi_rdata = rd_data_fifo_out;
+    assign axi_rdata = axi_rvalid ? rd_data_fifo_out : 1'b0;
+     
     assign axi_rresp = 2'b00;  // OKAY
     assign axi_rlast = 1'b1;    // Simplified: single beat
     assign rd_fifo_rd_en = axi_rvalid && axi_rready;

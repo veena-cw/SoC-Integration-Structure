@@ -1,8 +1,7 @@
 # Store this file as VERIF/mipi_csi2_verif/csi2_tb/sim/Makefile.
 # Run from csi2_tb/ with commands such as:
-#   make -C sim run TESTNAME=csi2_smoke_test RTL_FILELIST=/absolute/path/csi2_design.f
-#   make -C sim wave TESTNAME=csi2_smoke_test RTL_FILELIST=/absolute/path/csi2_design.f
-#   make -C sim vivado TESTNAME=csi2_smoke_test RTL_FILELIST=/absolute/path/csi2_design.f
+#   make -C sim run TESTNAME=csi2_rx_raw7_test
+#   make -C sim wave TESTNAME=csi2_rx_raw7_test
 
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
@@ -11,41 +10,40 @@ SHELL := /bin/bash
 SIM_DIR    := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 TB_DIR     := $(abspath $(SIM_DIR)/..)
 REPO_ROOT  := $(abspath $(SIM_DIR)/../../../..)
-IGNORE_DIR := $(SIM_DIR)/ignore
-LOG_DIR    := $(SIM_DIR)/log
+BUILD_ROOT ?= /tmp/opencode/csi2_uvm
+IGNORE_DIR := $(BUILD_ROOT)/obj
+LOG_DIR    := $(BUILD_ROOT)/log
 TEST_LIST  := $(TB_DIR)/../test_names/testcase
 
-VERILATOR ?= $(HOME)/tools/verilator-5.052/bin/verilator
+VERILATOR ?= /opt/verilator-5.052/bin/verilator
 UVM_HOME  ?= $(HOME)/tools/uvm-verilator
 JOBS      ?= 2
-TESTNAME  ?= csi2_smoke_test
+TESTNAME  ?= csi2_rx_raw7_test
 SEED      ?= 1
 RUN_TIMEOUT ?= 120s
-VFLAGS    ?=
+# Warnings remain printed and logged.  The current unmodified RTL has known
+# lint warnings, so they are non-fatal while being tracked as design issues.
+VFLAGS    ?= -Wno-fatal
 WAVES     ?= 0
-
-# Set this to the official design-team RTL file list when it is delivered.
-# For Vivado compatibility, that RTL file list should use absolute source paths.
-RTL_FILELIST ?=
 
 # Verilator places all generated C++ and its executable directly in ignore/.
 VERILATOR_SIM := $(IGNORE_DIR)/Vcsi2_tb_top
-WAVE_FILE     := $(IGNORE_DIR)/csi2_wave.fst
+WAVE_FILE     := $(BUILD_ROOT)/csi2_wave.fst
 
 INCLUDES := \
   -I"$(TB_DIR)/agent/tx_agent" \
   -I"$(TB_DIR)/agent/rx_agent" \
+  -I"$(TB_DIR)/agent/axi_agent" \
   -I"$(TB_DIR)/agent/reset_agent" \
   -I"$(TB_DIR)/env" \
   -I"$(TB_DIR)/interface" \
   -I"$(TB_DIR)/tests" \
   -I"$(TB_DIR)/assertion"
-COMMON := --timing --assert --vpi --top-module csi2_tb_top --timescale 1ns/1ps -Wno-fatal
+COMMON := --timing --assert --vpi --top-module csi2_tb_top --timescale 1ns/1ps
 UVM_ARGS = -I"$(UVM_HOME)/src" "$(UVM_HOME)/src/uvm_pkg.sv"
-RTL_ARGS = -f "$(RTL_FILELIST)"
 PROJECT_ARGS := -f files.f
 TRACE_FLAGS = $(if $(filter 1,$(WAVES)),--trace-fst --trace-structs,)
-WAVE_ARGS   = $(if $(filter 1,$(WAVES)),+WAVES,)
+WAVE_ARGS   = $(if $(filter 1,$(WAVES)),+WAVES +WAVE_FILE=$(WAVE_FILE),)
 
 TB_SOURCES := \
   $(TB_DIR)/interface/csi2_if.sv \
@@ -69,12 +67,11 @@ XSIM_SNAPSHOT := csi2_standalone
 
 help:
 	@echo 'Verilator commands:'
-	@echo '  make -C sim run  TESTNAME=csi2_smoke_test RTL_FILELIST=/absolute/path/csi2_design.f'
-	@echo '  make -C sim wave TESTNAME=csi2_smoke_test RTL_FILELIST=/absolute/path/csi2_design.f'
+	@echo '  make -C sim run  TESTNAME=csi2_rx_raw7_test'
+	@echo '  make -C sim wave TESTNAME=csi2_rx_raw7_test'
 	@echo 'Vivado/XSIM command:'
 	@echo '  make -C sim vivado TESTNAME=csi2_smoke_test RTL_FILELIST=/absolute/path/csi2_design.f'
-	@echo 'Tests: csi2_smoke_test csi2_reset_tx_test csi2_reset_rx_test'
-	@echo '       csi2_ecc1_test csi2_ecc2_test csi2_crc_test csi2_short_packet_test'
+	@echo 'Tests: csi2_rx_raw7_test'
 	@echo 'Other targets: lint build organize clean'
 	@echo 'Overrides: JOBS=2 SEED=1 RUN_TIMEOUT=120s UVM_HOME=/path/to/uvm'
 
@@ -89,10 +86,6 @@ check-test:
 	  echo 'Available tests:'; sed 's/^/  /' "$(TEST_LIST)"; exit 1; \
 	}
 
-check-rtl:
-	@test -n "$(RTL_FILELIST)" || { echo 'Set RTL_FILELIST to the official CSI-2 design file list'; exit 1; }
-	@test -f "$(RTL_FILELIST)" || { echo 'RTL file list not found: $(RTL_FILELIST)'; exit 1; }
-
 check-tools:
 	@"$(VERILATOR)" --version
 	@"$(VERILATOR)" --version | awk '{split($$2,v,"."); if(v[1]<5 || (v[1]==5 && v[2]<52)) {print "This build targets Verilator >=5.052."; exit 1}}'
@@ -102,17 +95,17 @@ check-tools:
 	@z3 --version
 	@command -v timeout >/dev/null
 
-lint: check-tools check-rtl dirs
+lint: check-tools dirs
 	@cd "$(SIM_DIR)" && \
 	  "$(VERILATOR)" --lint-only $(COMMON) $(INCLUDES) $(VFLAGS) $(TRACE_FLAGS) \
-	  $(UVM_ARGS) $(RTL_ARGS) $(PROJECT_ARGS) \
+	  $(UVM_ARGS) $(PROJECT_ARGS) \
 	  2>&1 | tee "$(LOG_DIR)/verilator_lint.log"
 
 # Verilator is called on every build so source and flag changes are detected.
-build: check-tools check-rtl dirs
+build: check-tools dirs
 	@cd "$(SIM_DIR)" && \
 	  "$(VERILATOR)" --binary -j $(JOBS) $(COMMON) $(INCLUDES) $(VFLAGS) $(TRACE_FLAGS) \
-	  --Mdir "$(IGNORE_DIR)" $(UVM_ARGS) $(RTL_ARGS) $(PROJECT_ARGS) \
+	  --Mdir "$(IGNORE_DIR)" $(UVM_ARGS) $(PROJECT_ARGS) \
 	  "$(UVM_HOME)/src/dpi/uvm_dpi.cc" \
 	  -CFLAGS '-I$(UVM_HOME)/src/dpi' \
 	  2>&1 | tee "$(LOG_DIR)/verilator_build.log"

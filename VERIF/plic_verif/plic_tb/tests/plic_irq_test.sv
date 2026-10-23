@@ -112,6 +112,8 @@ class plic_irq_base_test extends plic_base_test;
   task serve(int t, int unsigned exp_id, string ctx = "");
     int unsigned id;
     claim(t, id, ctx);
+    repeat(5)@(posedge env.irq_agent.driver.vif.clk);
+    
     if (id != exp_id)
       `uvm_error("CLAIM_ID", $sformatf("[%s] target %0d claimed ID=%0d, scenario expects ID=%0d", ctx, t, id, exp_id))
     complete(t, id);
@@ -135,6 +137,7 @@ class plic_irq_single_test extends plic_irq_base_test;
         drop(src_bit(s));
         serve(t, s + 1, $sformatf("t%0d s%0d", t, s));
         check($sformatf("t%0d s%0d completed", t, s));
+         set_enable(t, '0);
       end
   endtask
 endclass

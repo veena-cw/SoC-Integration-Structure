@@ -162,7 +162,7 @@ task send_ack_nack();
    int i=0;	
  if(slv_addr_rcv[7:1] == slave_addr)
 	slv_detected =1;
-	else 
+   else
 	slv_detected =0;
     vif.write = slv_addr_rcv[0];
  scl_last = vif.i2c_scl;
@@ -179,7 +179,7 @@ begin
    begin 
    scl_neg_edge = 1'b1; 
  
-    if(slv_addr_rcv[7:1] == slave_addr ) begin
+    if(slv_detected==1'b1 ) begin
     	vif.sda_drive_low=1;
     	
     	end
@@ -200,7 +200,7 @@ begin
    if((vif.i2c_scl == 0) & scl_last==1'b1)
    begin 
    scl_neg_edge = 1'b1; 
-    if(slv_addr_rcv[7:1] == slave_addr)	
+    if(slv_detected==1'b1)	
     	vif.sda_drive_low=1;
     else 
     vif.sda_drive_low=0;

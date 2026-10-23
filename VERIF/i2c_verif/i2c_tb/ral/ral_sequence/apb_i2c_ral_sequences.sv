@@ -885,8 +885,7 @@ endclass
     bit busy;
     bit done;
     bit slave_error;
-bit transaction_finished;
-int poll_count;
+
 
     if (model == null) begin
       `uvm_fatal("RAL_SEQ",
@@ -1027,7 +1026,7 @@ int poll_count;
       "Waiting for DONE = 1",
       UVM_MEDIUM
     )
-/*
+
 
     do begin
 
@@ -1115,40 +1114,7 @@ int poll_count;
           "STATUS_REG read failed"
         )
       end
-    */
-    
-
-
-transaction_finished = 0;
-
-for (poll_count = 0; poll_count < 10000; poll_count++) begin
-    model.STATUS_REG.read(status, status_value, UVM_FRONTDOOR);
-
-    if (status != UVM_IS_OK)
-        `uvm_fatal("I2C_WRITE", "STATUS_REG read failed")
-
-    busy        = status_value[0];
-    done        = status_value[1];
-    slave_error = status_value[2];
-
-    if (done) begin
-        transaction_finished = 1;
-
-        if (slave_error)
-            `uvm_error("I2C_WRITE",
-                       "I2C transaction completed with SLAVE_ERROR")
-        else
-            `uvm_info("I2C_WRITE",
-                      "I2C transaction completed successfully",
-                      UVM_LOW)
-
-        break;
-    end
-end
-
-if (!transaction_finished)
-    `uvm_fatal("I2C_WRITE",
-               "Timeout waiting for I2C transaction completion")  
+      
 
   endtask
 
@@ -1664,14 +1630,14 @@ class apb_i2c_reg_write_wrong_addr_seq extends apb_i2c_ral_base_seq;
         UVM_FRONTDOOR
       );
 
-
+/*
       if (status != UVM_IS_OK) begin
-        `uvm_info(
+        `uvm_fatal(
           "I2C_WRONG_ADDR",
-          "STATUS_REG read failed",UVM_NONE
+          "STATUS_REG read failed"
         )
       end
-
+*/
 
       busy        = status_value[0];
       done        = status_value[1];

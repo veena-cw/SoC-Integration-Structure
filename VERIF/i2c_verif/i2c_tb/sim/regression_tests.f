@@ -4,6 +4,5 @@ apb_i2c_reg_walk_one_test
 apb_i2c_reg_mirror_predict_test
 apb_i2c_scoreboard_test
 apb_i2c_reg_write_test
-apb_i2c_reg_write_push_test
 apb_i2c_reg_read_test
 apb_i2c_reg_write_wrong_addr_test

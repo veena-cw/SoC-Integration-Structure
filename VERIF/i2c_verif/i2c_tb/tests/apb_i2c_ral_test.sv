@@ -332,36 +332,6 @@ class apb_i2c_reg_write_push_test extends apb_i2c_base_test;
     phase.drop_objection(this);
   endtask
 endclass
-/*
-class apb_i2c_reg_read_pull_test extends apb_i2c_base_test;
-  `uvm_component_utils(apb_i2c_reg_read_pull_test)
-
-  apb_i2c_reg_write_pull_seq   wseq;
-  function new(string name = "apb_i2c_reg_read_pull_test", uvm_component parent = null);
-    super.new(name, parent);
-  endfunction
-  function void build_phase(uvm_phase phase);
-    super.build_phase(phase);
-    rseq = apb_i2c_reg_write_pull_seq :: type_id :: create("rseq",this);
-  endfunction
-  task run_phase(uvm_phase phase);
-    phase.raise_objection(this);
-    do_reset();
-    `uvm_info(get_type_name(), "WRITE PUSH TEST: frontdoor write, check mirrored vs desired", UVM_LOW)
-    rseq.model = env.ral_model;
-   rseq.slave_addr = 7'h55;
-  rseq.read_write = 1'b1;
-
- 
-    repeat(20)
-    wseq.start(env.agent.sequencer);
-    #10;
-   // env.scoreboard.check_mirror_desired("after_write_read");
-    phase.drop_objection(this);
-  endtask
-endclass
-*/
-
 
 
 class apb_i2c_reg_read_test extends apb_i2c_base_test;
@@ -385,7 +355,6 @@ class apb_i2c_reg_read_test extends apb_i2c_base_test;
   rseq.read_write = 1'b1;
  // rseq.tx_data    = 32'h0000d500;
      repeat(50)
-
     rseq.start(env.agent.sequencer);
    // env.scoreboard.check_mirror_desired("after_write_read");
     phase.drop_objection(this);

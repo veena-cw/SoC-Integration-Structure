@@ -1664,14 +1664,14 @@ class apb_i2c_reg_write_wrong_addr_seq extends apb_i2c_ral_base_seq;
         UVM_FRONTDOOR
       );
 
-/*
+
       if (status != UVM_IS_OK) begin
         `uvm_info(
           "I2C_WRONG_ADDR",
           "STATUS_REG read failed",UVM_NONE
         )
       end
-*/
+
 
       busy        = status_value[0];
       done        = status_value[1];
@@ -2665,6 +2665,7 @@ class apb_i2c_reg_write_push_seq extends apb_i2c_ral_base_seq;
     //========================================================
     // 2. WRITE CTRL_REG
     //========================================================
+
 
 
 

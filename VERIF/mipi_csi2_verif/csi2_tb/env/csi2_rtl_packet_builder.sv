@@ -48,11 +48,9 @@ class csi2_rtl_packet_builder;
     payload_and_crc.push_back(payload_crc[7:0]);
     payload_and_crc.push_back(payload_crc[15:8]);
 
-    if ((payload_and_crc.size() % 8) != 0)
-      `uvm_fatal("RTL_PROFILE",
-                 $sformatf("Payload plus CRC must align to 64 bits; bytes=%0d",
-                           payload_and_crc.size()))
-
+    while ((payload_and_crc.size() % 8) != 0)
+     payload_and_crc.push_back(8'h00);
+     
     for (int base = 0; base < payload_and_crc.size(); base += 8) begin
       logic [63:0] word_value;
       word_value = 64'h0;

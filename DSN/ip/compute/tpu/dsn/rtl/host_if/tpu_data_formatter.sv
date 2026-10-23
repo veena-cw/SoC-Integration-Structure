@@ -49,3 +49,4 @@ module tpu_data_formatter (
         end
     end
 endmodule
+`default_nettype wire

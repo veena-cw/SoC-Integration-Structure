@@ -282,3 +282,4 @@ module tpu_command_scheduler #(
     assign vpu_leak_factor_in          = lvl_now ? cu_leak    : leak_q;
     assign inv_batch_size_times_two_in = lvl_now ? cu_invb    : invb_q;
 endmodule
+`default_nettype wire

@@ -53,7 +53,11 @@ module tpu_register_bank #(
     output logic [ENTRY_W-1:0]  cmd_entry,
     output logic [15:0]         learning_rate,
     output logic [31:0]         timeout_cycles,
-    output logic                irq
+    output logic                irq,
+
+    // live STATUS / ERROR_CODE words for the clk_axil shadow (the AXI4-Lite read path no longer uses reg_rd_*)
+    output logic [31:0]         status_word,
+    output logic [7:0]          err_word
 );
     localparam int A_CONTROL = 0,  A_STATUS = 1,  A_INT_EN = 2,  A_ERR = 3;
     localparam int A_SRC     = 4,  A_DST    = 5,  A_LEN    = 6,  A_UB  = 7;
@@ -191,6 +195,9 @@ module tpu_register_bank #(
         end
     end
 
+    assign status_word = {ub_wr_ptr, q_count, 2'b00, dma_busy, q_full, q_empty, err_q, done_q, sch_busy};
+    assign err_word    = err_code_q;
+
     assign learning_rate  = lr_q[15:0];
     assign timeout_cycles = tmo_q;
     assign irq = (done_q & int_en_q[0]) | (err_q & int_en_q[1]);
@@ -217,3 +224,4 @@ module tpu_register_bank #(
         endcase
     end
 endmodule
+`default_nettype wire

@@ -383,3 +383,4 @@ module tpu_dma_engine #(
         end
     end
 endmodule
+`default_nettype wire

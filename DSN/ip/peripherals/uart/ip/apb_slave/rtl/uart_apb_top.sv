@@ -68,7 +68,7 @@ module uart_apb_top(
     else if (!PENABLE)
       apb_setup_seen <= 1'b1;
     else if (PREADY)
-      apb_setup_seen <= 1'b1;
+      apb_setup_seen <= 1'b0;
   end
 
   assign apb_access_valid =

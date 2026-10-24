@@ -118,6 +118,10 @@ Targets
                          report   -> verilator_cov/code_coverage_report.txt
                          waivers  <- code_cov_waivers.txt (unreachable points)
                          sources  -> verilator_cov/annotated/
+  make clk_sweep       run TESTNAME (default sram_random_test) at 10 aclk /
+                       sram_clk configurations (ratios 4:1 .. 1:4, random
+                       phase, jitter) and print a pass/fail table
+                         logs     -> verilator_logs/clk_sweep_<config>.log
   make check_verilator fail unless VERILATOR_HOME/bin/verilator is $(VERILATOR_VERSION)
   make clean           remove logs, build and coverage output
   make help            this text
@@ -148,6 +152,9 @@ Runtime plusargs (PLUSARGS="...")
   +AXI_MAX_DELAY=<n>      max random gap on every channel (cycles)
   +AXI_CLK_MHZ=<f>        aclk frequency     (default 400)
   +SRAM_CLK_MHZ=<f>       sram_clk frequency (default 750)
+  +SRAM_CLK_PHASE_NS=<f>  sram_clk start offset vs aclk (default 0.3)
+  +CLK_RANDOM_PHASE       random sram_clk start offset
+  +CLK_JITTER_PS=<n>      random +/-n ps on every half period of both clocks
   +DUMP                   write dump.vcd
   Optional AXI4 features -- all OFF for sram_top, for TB checks only:
   +AXI4_EXCLUSIVE         exclusive accesses (AxLOCK=1)
@@ -299,6 +306,12 @@ code_cov:
 		| tee "$(COV_DIR)/code_coverage_report.txt"; \
 	echo ""; \
 	echo "Annotated RTL (uncovered lines marked %000000): $(COV_DIR)/annotated/"
+
+.PHONY: clk_sweep
+# Clock-ratio sweep (CDC_001/002): TESTNAME (default sram_random_test) at
+# several aclk/sram_clk ratios, random phase, jitter. Needs 'make compile'.
+clk_sweep:
+	@"$(PROJECT_DIR)/clk_sweep.sh" $(if $(filter sram_smoke_test,$(TESTNAME)),sram_random_test,$(TESTNAME)) $(SEED) $(PLUSARGS)
 
 .PHONY: clean
 clean:

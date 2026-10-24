@@ -89,6 +89,7 @@ class axi_seq_item extends uvm_sequence_item;
     bit                             aw_done;    // address phase accepted
     bit                             w_done;     // last W beat accepted
     bit                             completed;  // response(s) received or aborted
+    int unsigned                    r_beats;    // R beats received so far (reads)
 
     // ---- WLAST error injection (sram_wlast_err_test) --------------
     // Defaults = legal AXI: len+1 W beats, WLAST on the last one.
@@ -314,6 +315,7 @@ class axi_seq_item extends uvm_sequence_item;
         aw_done   = t.aw_done;   completed = t.completed;
         w_done    = t.w_done;
         n_wbeats  = t.n_wbeats;  wlast_beat = t.wlast_beat;
+        r_beats   = t.r_beats;
         addr_wait = t.addr_wait; w_gap_cycles = t.w_gap_cycles;
         w_lead    = t.w_lead;    resp_stall   = t.resp_stall;
         idle_before = t.idle_before;

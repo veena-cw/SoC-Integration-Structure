@@ -139,6 +139,7 @@ class axi_driver extends uvm_driver #(axi_seq_item);
         tr.aw_done   = 1'b0;
         tr.w_done    = 1'b0;
         tr.completed = 1'b0;
+        tr.r_beats   = 0;
     endfunction
 
     // Park the bus, then run the serial or pipelined driver loop forever.
@@ -327,6 +328,7 @@ class axi_driver extends uvm_driver #(axi_seq_item);
             tr.data[i]  = vif.mst_cb.rdata;
             tr.rresp[i] = vif.mst_cb.rresp;
             tr.ruser[i] = vif.mst_cb.ruser;
+            tr.r_beats  = i + 1;
             if (vif.mst_cb.rid !== tr.id)
                 `uvm_error("AXI_RID", $sformatf("beat %0d: RID=%0h expected ARID=%0h",
                                                 i, vif.mst_cb.rid, tr.id))
@@ -569,6 +571,7 @@ class axi_driver extends uvm_driver #(axi_seq_item);
             tr.data[n]  = vif.mst_cb.rdata;
             tr.rresp[n] = vif.mst_cb.rresp;
             tr.ruser[n] = vif.mst_cb.ruser;
+            tr.r_beats  = n + 1;
 
             if (vif.mst_cb.rlast !== (n == 32'(tr.len)))
                 `uvm_error("AXI_RLAST", $sformatf("beat %0d of %0d: RLAST=%b",

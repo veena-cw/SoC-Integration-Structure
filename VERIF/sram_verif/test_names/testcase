@@ -16,3 +16,6 @@ sram_rw_overlap_test
 sram_fsm_recovery_test
 sram_pipelined_test
 sram_wlast_err_test
+sram_4kb_cross_test
+sram_cdc_meta_test
+sram_arb_fairness_test

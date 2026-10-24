@@ -62,6 +62,9 @@
 # ---------- Env ----------
 ../env/sram_env.sv
 
+# ---------- CDC checks (bound into the async FIFOs by tb_top) ----------
+../assertions/cdc_checks.sv
+
 # ---------- Tests ----------
 ../tests/sram_base_test.sv
 ../tests/sram_smoke_test.sv
@@ -82,6 +85,9 @@
 ../tests/sram_fsm_recovery_test.sv
 ../tests/sram_pipelined_test.sv
 ../tests/sram_wlast_err_test.sv
+../tests/sram_4kb_cross_test.sv
+../tests/sram_cdc_meta_test.sv
+../tests/sram_arb_fairness_test.sv
 
 # ---------- Assertions ----------
 ../assertions/axi_assertions.sv

@@ -32,6 +32,13 @@ class csi2_ppi_driver extends uvm_driver #(csi2_rx_packet_item);
 
     header_word = csi2_rtl_packet_builder::build_header_word(item);
     csi2_rtl_packet_builder::build_payload_words(item, payload_words);
+    
+    `uvm_info("STIMULUS_CHECK",$sformatf("RAW7 payload=%0d bytes payload_words=%0d transport_bytes=%0d, header=%016h",
+            item.payload.size(),
+            payload_words.size(),
+            payload_words.size() * 8,
+            header_word),
+            UVM_NONE)
 
     phy_vif.active_segment_mask          = cfg.active_segment_mask;
     phy_vif.rtl_sync_workaround          = cfg.rtl_sync_workaround;
@@ -85,7 +92,16 @@ class csi2_ppi_driver extends uvm_driver #(csi2_rx_packet_item);
 
     UVM_HIGH)
 
-      phy_vif.drive_hs_word(payload_words[index],
+   `uvm_info("PPI_DRV",
+  $sformatf("Driving %0d payload words to PHY BFM",
+            payload_words.size()),
+  UVM_NONE)
+    foreach (payload_words[index]) begin
+     `uvm_info("PPI_DRV",
+    $sformatf("Driving payload word[%0d]=%016h",
+              index, payload_words[index]),
+    UVM_HIGH)
+    phy_vif.drive_hs_word(payload_words[index],
 
                             item.send_eot && index == payload_words.size()-1,
 

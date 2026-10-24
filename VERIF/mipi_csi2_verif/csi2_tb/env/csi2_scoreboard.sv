@@ -33,7 +33,7 @@ class csi2_scoreboard extends uvm_scoreboard;
       bfm_completed = item.bfm_completed;
       bfm_status    = item.bfm_status;
       foreach (item.payload[index])
-        expected_bytes.push_back(item.payload[index]);
+      expected_bytes.push_back(item.payload[index]);
     end
   endtask
 
@@ -97,7 +97,8 @@ class csi2_scoreboard extends uvm_scoreboard;
     compare_count = (actual_bytes.size() < expected_bytes.size()) ?
                     actual_bytes.size() : expected_bytes.size();
     for (int index = 0; index < compare_count; index++) begin
-      if (actual_bytes[index] != expected_bytes[index]) begin
+      if (actual_bytes[index] != expected_bytes[index]) 
+      begin
         mismatch_count++;
         `uvm_error("SB_DATA",
                    $sformatf("Byte[%0d] expected=0x%02h actual=0x%02h",

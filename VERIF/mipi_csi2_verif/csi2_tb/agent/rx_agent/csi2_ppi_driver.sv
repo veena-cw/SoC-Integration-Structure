@@ -82,7 +82,9 @@ class csi2_ppi_driver extends uvm_driver #(csi2_rx_packet_item);
 
   UVM_NONE)
 
-    foreach (payload_words[index]) begin
+    foreach (payload_words[index]) 
+    begin
+
 
      `uvm_info("PPI_DRV",
 
@@ -91,12 +93,14 @@ class csi2_ppi_driver extends uvm_driver #(csi2_rx_packet_item);
               index, payload_words[index]),
 
     UVM_HIGH)
+    end
 
    `uvm_info("PPI_DRV",
   $sformatf("Driving %0d payload words to PHY BFM",
             payload_words.size()),
   UVM_NONE)
-    foreach (payload_words[index]) begin
+    foreach (payload_words[index])
+     begin
      `uvm_info("PPI_DRV",
     $sformatf("Driving payload word[%0d]=%016h",
               index, payload_words[index]),
@@ -107,7 +111,8 @@ class csi2_ppi_driver extends uvm_driver #(csi2_rx_packet_item);
 
                             cfg.active_segment_mask);
 
-      if (phy_vif.last_status != 0) begin
+      if (phy_vif.last_status != 0)
+       begin
 
         phy_vif.force_idle();
 
@@ -128,14 +133,15 @@ class csi2_ppi_driver extends uvm_driver #(csi2_rx_packet_item);
     csi2_rx_packet_item req;
     csi2_rx_packet_item expected;
 
-    forever begin
+    forever 
+    begin
       wait (cfg.rst_vif.rst_n === 1'b1);
       seq_item_port.get_next_item(req);
       drive_item(req);
 
       req.bfm_status    = int'(phy_vif.last_status);
-      req.bfm_completed = (phy_vif.last_status == 0) &&
-                          (phy_vif.bfm_state == 0);
+      req.bfm_completed = ((phy_vif.last_status == 0) &&
+                          (phy_vif.bfm_state == 0));
 
       expected = csi2_rx_packet_item::type_id::create("expected");
       expected.copy_from(req);

@@ -1,27 +1,3 @@
-//------------------------------------------------------------------------------
-// APB slave front-end for the GPIO block
-//   - Decodes the APB access and forwards it to the CDC bridge (req/done handshake)
-//   - Returns PSLVERR for: write to IN, read of SET/CLR, any unmapped offset
-//   - AW = 16 : offset inside the 64 KB GPIO window (base decode is done in top)
-//
-//   Offset  Register     Access
-//   0x00    IN           R
-//   0x04    OUT          R/W
-//   0x08    DIR          R/W
-//   0x0C    SET          W
-//   0x10    CLR          W
-//   0x14    IRQ_EN       R/W
-//   0x18    IRQ_STATUS   R / W1C
-//   others               PSLVERR
-//
-// PSTRB handling (done here only, the GPIO block always receives a full 32-bit word):
-//   - OUT / DIR / IRQ_EN : the slave keeps a shadow copy (out_sh, dir_sh, ien_sh).
-//                          Only the byte lanes with PSTRB=1 are updated, then the whole
-//                          shadow word is sent to the GPIO block.
-//   - SET / CLR / IRQ_STATUS(W1C) : disabled byte lanes are sent as 0, which has no effect.
-//   - PSTRB = 0 on a write : transfer completes without error and nothing is sent to GPIO.
-//   - Reads ignore PSTRB.
-//------------------------------------------------------------------------------
 module apb_slave #(
    parameter DW = 32,
    parameter AW = 16,
@@ -50,8 +26,13 @@ module apb_slave #(
    input  logic [DW-1:0] i_rdata
 );
 
-typedef enum logic [1:0] {IDLE, WAIT_GPIO, RESP} state_t;
+typedef enum logic [1:0] {IDLE, SETUP, ACCESS} state_t;
 state_t state_ff;
+
+// APB phase decode (straight from the bus)
+logic setup_ph, access_ph;
+assign setup_ph  = i_psel && !i_penable;   // APB SETUP  phase
+assign access_ph = i_psel &&  i_penable;   // APB ACCESS phase
 
 localparam ADDR_LSB = $clog2(DW/8);
 
@@ -105,6 +86,7 @@ end
 assign o_we  = i_pwrite;
 assign o_adr = {{(32-AW){1'b0}}, i_paddr[AW-1:ADDR_LSB], {ADDR_LSB{1'b0}}};
 
+// ---------------- APB FSM ----------------
 always_ff @(posedge pclk) begin
    if (!presetn) begin
       state_ff  <= IDLE;
@@ -120,21 +102,30 @@ always_ff @(posedge pclk) begin
       o_req <= 1'b0;                       // default: pulse only
 
       case (state_ff)
-         // Wait for the APB access phase
+         // IDLE: wait for the SETUP phase. The next bus cycle must be ACCESS.
          IDLE: begin
-            if (i_psel && i_penable) begin
-               if (acc_err) begin          // answer errors immediately
+            if (setup_ph)
+               state_ff <= SETUP;
+         end
+
+         // SETUP: bus is in its first ACCESS cycle. Decode and start the transfer.
+         SETUP: begin
+            if (!i_psel) begin
+               state_ff <= IDLE;           // select dropped: no transfer (protocol violation)
+            end
+            else if (access_ph) begin      // PENABLE=1 seen: ACCESS phase confirmed
+               if (acc_err) begin          // answer errors without touching the GPIO
                   o_pready  <= 1'b1;
                   o_pslverr <= 1'b1;
                   o_prdata  <= '0;
-                  state_ff  <= RESP;
+                  state_ff  <= ACCESS;
                end
                else if (i_pwrite && (i_pstrb == '0)) begin
                   // No byte lane enabled: nothing to write, complete without error
                   o_pready  <= 1'b1;
                   o_pslverr <= 1'b0;
                   o_prdata  <= '0;
-                  state_ff  <= RESP;
+                  state_ff  <= ACCESS;
                end
                else begin
                   if (i_pwrite) begin
@@ -159,25 +150,23 @@ always_ff @(posedge pclk) begin
                      endcase
                   end
                   o_req    <= 1'b1;        // start CDC access
-                  state_ff <= WAIT_GPIO;
+                  state_ff <= ACCESS;
                end
             end
+            // else PSEL=1, PENABLE=0 still: stay in SETUP until PENABLE rises
          end
 
-         // Wait for the GPIO side to finish (PREADY low = wait states)
-         WAIT_GPIO: begin
-            if (i_done) begin
+         // ACCESS: PREADY low = wait states, PREADY high for exactly one cycle
+         ACCESS: begin
+            if (o_pready) begin            // master samples PREADY=1 in this cycle
+               o_pready  <= 1'b0;
+               o_pslverr <= 1'b0;
+               state_ff  <= IDLE;
+            end
+            else if (i_done) begin         // GPIO side finished: raise PREADY
                o_pready <= 1'b1;
                o_prdata <= i_pwrite ? '0 : i_rdata;
-               state_ff <= RESP;
             end
-         end
-
-         // PREADY is high for exactly one cycle
-         RESP: begin
-            o_pready  <= 1'b0;
-            o_pslverr <= 1'b0;
-            state_ff  <= IDLE;
          end
 
          default: state_ff <= IDLE;

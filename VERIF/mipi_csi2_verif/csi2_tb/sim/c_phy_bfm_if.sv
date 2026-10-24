@@ -384,7 +384,7 @@ task automatic drive_rtl_inter_header_sync(
   rx_lane_sts_reg4 = 1'b0;
 
   rxdatahs        = 64'h0;
-  rxvalidhs       = 4'h0;
+  rxvalidhs       = segment_mask;
   rxsynchs        = segment_mask;
   rxinvalidcodehs = 4'h0;
 

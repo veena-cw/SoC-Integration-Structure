@@ -43,6 +43,13 @@ module csi2_tb_top;
   logic        pslverr;
   logic [31:0] prdata;
 
+
+  int phy_word_count;
+  int pixel_count;
+  int axi_wr_count;
+  int axi_w_count;
+
+
   assign phy_bfm.rst_n = rst_vif.rst_n;
   assign axi_vif.areset_n = rst_vif.rst_n;
   assign rd_rst_n = rst_vif.rst_n;
@@ -66,6 +73,31 @@ module csi2_tb_top;
   assign axi_vif.awready = 1'b1;
   assign axi_vif.wready  = 1'b1;
   assign axi_vif.bresp   = 2'b00;
+
+always @(posedge phy_bfm.cphy_rxwordclkhs) begin
+  if (!phy_bfm.rst_n) begin
+    phy_word_count <= 0;
+    pixel_count    <= 0;
+    axi_wr_count   <= 0;
+  end
+  else begin
+    if (phy_bfm.rxactivehs && (|phy_bfm.rxvalidhs))
+      phy_word_count++;
+
+    if (dut.rx_pixel_dvalid)
+      pixel_count++;
+
+    if (dut.axim_inst.axi_wr_en)
+      axi_wr_count++;
+  end
+end
+
+always @(posedge axi_vif.aclk) begin
+  if (!axi_vif.areset_n)
+    axi_w_count <= 0;
+  else if (axi_vif.wvalid && axi_vif.wready)
+    axi_w_count++;
+end
 
   always_ff @(posedge aclk or negedge rst_vif.rst_n) begin
     if (!rst_vif.rst_n)
@@ -183,7 +215,7 @@ module csi2_tb_top;
       $dumpvars(0, csi2_tb_top);
     end
   end
-  
+
  int unsigned dbg_w_count;
 
 always @(posedge aclk) begin
@@ -201,5 +233,16 @@ always @(posedge aclk) begin
              axi_vif.wlast);
   end
 end
+
+ final
+ begin
+    $display(
+      "COUNTS: PHY_WORDS=%0d PIXEL_DVALID=%0d AXI_WR_EN=%0d AXI_W=%0d",
+      phy_word_count,
+      pixel_count,
+      axi_wr_count,
+      axi_w_count
+    );
+  end
 
 endmodule : csi2_tb_top

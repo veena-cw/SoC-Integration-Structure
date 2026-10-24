@@ -32,7 +32,7 @@ class csi2_ppi_driver extends uvm_driver #(csi2_rx_packet_item);
 
     header_word = csi2_rtl_packet_builder::build_header_word(item);
     csi2_rtl_packet_builder::build_payload_words(item, payload_words);
-    
+
     `uvm_info("STIMULUS_CHECK",$sformatf("RAW7 payload=%0d bytes payload_words=%0d transport_bytes=%0d, header=%016h",
             item.payload.size(),
             payload_words.size(),
@@ -46,13 +46,15 @@ class csi2_ppi_driver extends uvm_driver #(csi2_rx_packet_item);
     phy_vif.rtl_eot_workaround           = cfg.rtl_eot_workaround;
 
     phy_vif.start_hs(started);
-    if (!started) begin
+    if (!started)
+    begin
       phy_vif.force_idle();
       return;
     end
 
     phy_vif.drive_sync(item.sync_type, 1'b1, cfg.active_segment_mask);
-    if (phy_vif.last_status != 0) begin
+    if (phy_vif.last_status != 0)
+    begin
       phy_vif.force_idle();
       return;
     end
@@ -82,10 +84,8 @@ class csi2_ppi_driver extends uvm_driver #(csi2_rx_packet_item);
 
   UVM_NONE)
 
-    foreach (payload_words[index]) 
+    foreach (payload_words[index])
     begin
-
-
      `uvm_info("PPI_DRV",
 
     $sformatf("Driving payload word[%0d]=%016h",
@@ -101,15 +101,10 @@ class csi2_ppi_driver extends uvm_driver #(csi2_rx_packet_item);
   UVM_NONE)
     foreach (payload_words[index])
      begin
-     `uvm_info("PPI_DRV",
-    $sformatf("Driving payload word[%0d]=%016h",
+     `uvm_info("PPI_DRV", $sformatf("Driving payload word[%0d]=%016h",
               index, payload_words[index]),
     UVM_HIGH)
-    phy_vif.drive_hs_word(payload_words[index],
-
-                            item.send_eot && index == payload_words.size()-1,
-
-                            cfg.active_segment_mask);
+    phy_vif.drive_hs_word(payload_words[index],item.send_eot && index == payload_words.size()-1, cfg.active_segment_mask);
 
       if (phy_vif.last_status != 0)
        begin
@@ -121,7 +116,7 @@ class csi2_ppi_driver extends uvm_driver #(csi2_rx_packet_item);
       end
 
     end
- 
+
 
     if (item.send_eot)
       phy_vif.drive_post_and_eot();
@@ -133,7 +128,7 @@ class csi2_ppi_driver extends uvm_driver #(csi2_rx_packet_item);
     csi2_rx_packet_item req;
     csi2_rx_packet_item expected;
 
-    forever 
+    forever
     begin
       wait (cfg.rst_vif.rst_n === 1'b1);
       seq_item_port.get_next_item(req);

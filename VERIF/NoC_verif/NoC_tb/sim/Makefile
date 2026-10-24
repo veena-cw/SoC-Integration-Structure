@@ -8,7 +8,7 @@ ROOT := ..
 VERILATOR ?= verilator
 REQUIRED_VLT ?= 5.052
 
-TOP ?= NoC_top
+TOP ?=  NoC_top
 TEST ?= NoC_base_test
 SEED ?= 1
 JOBS ?= 0
@@ -22,7 +22,8 @@ SIM_EXE := $(OBJ_DIR)/V$(TOP)
 # make run UVM_HOME=/home/user/uvm-1.2
 UVM_HOME ?= $(shell \
 	for d in "$${UVM_HOME:-}" /usr/share/uvm /usr/local/share/uvm; do \
-		if [ -f "$$d/src/uvm_pkg.sv" ]; then echo "$$d"; break; fi; \
+		if [ -f "$$d/src\
+		/uvm_pkg.sv" ]; then echo "$$d"; break; fi; \
 	done)
 
 # Testbench sources. NoC_package.sv includes the UVM class files.

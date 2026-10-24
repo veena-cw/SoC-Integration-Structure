@@ -1,4 +1,3 @@
-
 //==================================================================================
 //  Copyright (c) 2025 Chipweave Technologies Private Limited. All rights reserved.
 //  THIS PROGRAM IS AN UNPUBLISHED WORK FULLY PROTECTED BY
@@ -34,14 +33,15 @@
 
 //`idfef RGB888
 //`define data_width 24
-//`elseif RGB565
+//`elsif RGB565
 //`define data_width 46
 
 
-module axi_master(cphy_rxwordclkhs, aclk, areset_n, rd_rst_n, rx_pixel_dvalid, awready, wready, bvalid, data_type_rx_reg, rx_pixel_data, awlock, awvalid, wvalid,
+module axi_master(rxwordclkhs, cphy_rxwordclkhs, aclk, areset_n, rd_rst_n, rx_pixel_dvalid, awready, wready, bvalid, data_type_rx_reg, rx_pixel_data, awlock, awvalid, wvalid,
 wlast, awuser, wuser, bready, bresp, axim_err, awburst, axim_sts, awprot, awqos, awregion, awcache, awid, awaddr, awsize, wstrb, awlen, wdata, rxdataesc_reg_vld,
 rxalpnibble_reg_vld);
 
+input               rxwordclkhs;
 input               cphy_rxwordclkhs;                //high speed receive word clock from csi2 rx controller via PPI
 input               aclk;                    //clock in AXI 
 input               areset_n;                    //negative edge asynchronous reset signal
@@ -168,12 +168,12 @@ async_fifo_binary #(.DATA_WIDTH(`axi_data_width), .ADDR_WIDTH(`axi_depth)) async
                                         .rd_clk(aclk), /*.areset_n(areset_n),*/ .rd_en(axi_rd_vld), .rd_data(axi_rd_data), .empty(axi_empty)); 
 										
 //for ALP Mode
-async_fifo_binary #(.DATA_WIDTH(`axi_data_width), .ADDR_WIDTH(`axi_depth)) async_fifo_binary_axi_inst_alp(.wr_clk(cphy_rxwordclkhs),  .wr_rst_n(areset_n), 
+async_fifo_binary #(.DATA_WIDTH(`axi_data_width), .ADDR_WIDTH(`axi_depth)) async_fifo_binary_axi_inst_alp(.wr_clk(rxwordclkhs),  .wr_rst_n(areset_n), 
                     .rd_rst_n(rd_rst_n),  .wr_en(axi_wr_en_alp), .wr_data(axi_data_in_alp), .full(axi_full_alp), .rd_clk(aclk), .rd_en(axi_rd_vld_alp),
 					.rd_data(axi_rd_data_alp), .empty(axi_empty_alp)); 		
 
 //for Escape Mode
-async_fifo_binary #(.DATA_WIDTH(`axi_data_width), .ADDR_WIDTH(`axi_depth)) async_fifo_binary_axi_inst_esc(.wr_clk(cphy_rxwordclkhs),  .wr_rst_n(areset_n), 
+async_fifo_binary #(.DATA_WIDTH(`axi_data_width), .ADDR_WIDTH(`axi_depth)) async_fifo_binary_axi_inst_esc(.wr_clk(rxwordclkhs),  .wr_rst_n(areset_n), 
                     .rd_rst_n(rd_rst_n),  .wr_en(axi_wr_en_esc), .wr_data(axi_data_in_esc), .full(axi_full_esc), .rd_clk(aclk), .rd_en(axi_rd_vld_esc),
 					.rd_data(axi_rd_data_esc), .empty(axi_empty_esc)); 							
 
@@ -306,11 +306,68 @@ localparam WUSER_SEL                               = 0;                         
 
 integer i; 
 
-//valid data length
-assign data_length_vld = ((TOTAL_TRANSFERS_RGB888 - 1) | 
-                          (TOTAL_TRANSFERS_RAW7_YUV4208b_10b_odd - 1) | 
-						  (TOTAL_TRANSFERS_RAW8 - 1) | (TOTAL_TRANSFERS_COMMON - 1));
-                          
+//burst length (number of W beats = awlen + 1) of the data type this module is built for
+`ifdef RGB888
+localparam [8:0] BURST_BEATS = TOTAL_TRANSFERS_RGB888;
+`elsif RAW7
+localparam [8:0] BURST_BEATS = TOTAL_TRANSFERS_RAW7_YUV4208b_10b_odd;
+`elsif RAW8
+localparam [8:0] BURST_BEATS = TOTAL_TRANSFERS_RAW8;
+`elsif RGB666
+localparam [8:0] BURST_BEATS = TOTAL_TRANSFERS_COMMON;
+`elsif RGB565
+localparam [8:0] BURST_BEATS = TOTAL_TRANSFERS_COMMON;
+`elsif RGB555
+localparam [8:0] BURST_BEATS = TOTAL_TRANSFERS_COMMON;
+`elsif RGB444
+localparam [8:0] BURST_BEATS = TOTAL_TRANSFERS_COMMON;
+`elsif RAW6
+localparam [8:0] BURST_BEATS = TOTAL_TRANSFERS_COMMON;
+`elsif RAW10
+localparam [8:0] BURST_BEATS = TOTAL_TRANSFERS_COMMON;
+`elsif RAW12
+localparam [8:0] BURST_BEATS = TOTAL_TRANSFERS_COMMON;
+`elsif RAW14
+localparam [8:0] BURST_BEATS = TOTAL_TRANSFERS_COMMON;
+`elsif RAW16
+localparam [8:0] BURST_BEATS = TOTAL_TRANSFERS_COMMON;
+`elsif RAW20
+localparam [8:0] BURST_BEATS = TOTAL_TRANSFERS_COMMON;
+`elsif RAW24
+localparam [8:0] BURST_BEATS = TOTAL_TRANSFERS_COMMON;
+`elsif RAW28
+localparam [8:0] BURST_BEATS = TOTAL_TRANSFERS_COMMON;
+`elsif LEGACY_YUV420_8b
+localparam [8:0] BURST_BEATS = TOTAL_TRANSFERS_COMMON;
+`elsif YUV420_8b
+localparam [8:0] BURST_BEATS = TOTAL_TRANSFERS_COMMON;
+`elsif YUV420_10b
+localparam [8:0] BURST_BEATS = TOTAL_TRANSFERS_COMMON;
+`elsif YUV422_8b
+localparam [8:0] BURST_BEATS = TOTAL_TRANSFERS_COMMON;
+`elsif YUV422_10b
+localparam [8:0] BURST_BEATS = TOTAL_TRANSFERS_COMMON;
+`else
+localparam [8:0] BURST_BEATS = 9'd1;                  //ALP / escape mode: single-beat bursts (awlen = 0)
+`endif
+
+logic [8:0] beat_cnt;                                  //W beats already accepted in the current burst
+logic       burst_active;                              //an AW has been raised for the current burst
+logic       rd_dvld;                                   //axi_rd_data holds a new FIFO word in this cycle
+logic       rd_issue;                                  //start a FIFO read
+
+//counts the accepted W beats of a burst; data_length_vld pulses in the cycle after the last beat of the burst
+//has been accepted (counter reached the limit) and clears the burst attributes below
+always_ff @(posedge aclk or negedge areset_n)
+  if(~areset_n) beat_cnt <= 9'h0;
+  else if(wvalid & wready) beat_cnt <= (beat_cnt == (BURST_BEATS - 9'd1)) ? 9'h0 : (beat_cnt + 9'h1);
+
+always_ff @(posedge aclk or negedge areset_n)
+  if(~areset_n) data_length_vld <= 1'b0;
+  else          data_length_vld <= wvalid & wready & (beat_cnt == (BURST_BEATS - 9'd1));
+
+//last write data: high together with the last beat of the burst
+assign wlast = wvalid & (beat_cnt == (BURST_BEATS - 9'd1));
 
 //storing of incoming valid from byte to pixel converter 
 always_ff @(posedge cphy_rxwordclkhs or negedge areset_n)
@@ -322,11 +379,19 @@ always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n) axi_pixel_rd <= 1'b0;
   else   axi_pixel_rd <= axi_pixel_dvld;
   
-//read enable indication to AXI FIFO in order to read the pixel data
+//read enable indication to AXI FIFO in order to read the pixel data.
+//A word is popped only when the W channel is idle (one beat in flight):
+//rd_issue -> axi_rd_vld (FIFO read) -> rd_dvld (read data valid) -> wvalid/wdata -> handshake.
+assign rd_issue = (!axi_empty) & (!axi_rd_vld) & (!rd_dvld) & (!wvalid) & burst_active;
+
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n) axi_rd_vld <= 1'b0;
-  else axi_rd_vld <= (wvalid & wready & (!(axi_empty))); 
-  
+  else          axi_rd_vld <= rd_issue;
+
+always_ff @(posedge aclk or negedge areset_n)
+  if(~areset_n) rd_dvld <= 1'b0;
+  else          rd_dvld <= axi_rd_vld;
+
 logic [8:0] yuv_ctr;  
   //counter for counting 480 lines in a frame in case of yuv formats
  always_ff @(posedge aclk or negedge areset_n)
@@ -351,8 +416,7 @@ always_ff @(posedge aclk or negedge areset_n)
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               awaddr <= 32'h0;
   else if(data_length_vld) awaddr <= 32'h0;
-  else  if (axi_wr_en) for (i = 0; i < TOTAL_TRANSFERS_RAW8; i = i + 1)
-						awaddr <= BASE_ADDR_RAW8 + i;
+  else  if (axi_wr_en) awaddr <= BASE_ADDR_RAW8;   //burst start address
 
 //transaction size from AXI master in write address channel						
 always_ff @(posedge aclk or negedge areset_n)
@@ -362,8 +426,8 @@ always_ff @(posedge aclk or negedge areset_n)
 
 //write data strobes from AXI master via the write data channel
 always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n)               wstrb <= 1'b0; //(data_width/8)'h0;
-  else if(data_length_vld) wstrb <= 1'b0; //(data_width/8)'h0;
+  if(~areset_n)               wstrb <= 1'b0; //{(`wstrb){1'b0}};
+  else if(data_length_vld) wstrb <= 1'b0; //{(`wstrb){1'b0}};
   else if(axi_wr_en)       wstrb <= WSTRB_RAW8;   
 
 //data width determining the data strobe in AXI master for transmitting the data
@@ -381,7 +445,7 @@ always_ff @(posedge aclk or negedge areset_n)
 //write data (pixel data) from AXI master via the write data channel 
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n) wdata <= 8'h0;
-  else wdata <= (wvalid & wready & (!(axi_empty))) ? axi_rd_data[7:0] : 8'h0;    
+  else if(rd_dvld) wdata <= axi_rd_data[7:0];    
   
 always @(posedge aclk or negedge areset_n) 
     if (!areset_n) awid <= 32'h0;
@@ -414,8 +478,7 @@ always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               awaddr <= 32'h0;
   else if(data_length_vld) awaddr <= 32'h0;
   //else if(!wready) awaddr <= awaddr;
-  else  if (axi_wr_en) for (i = 0; i < TOTAL_TRANSFERS_RGB888; i = i + 8) 
-						   awaddr <= BASE_ADDR_888 + i;    
+  else  if (axi_wr_en) awaddr <= BASE_ADDR_888;   //burst start address    
 
 //transaction size from AXI master in write address channel						   
 always_ff @(posedge aclk or negedge areset_n)
@@ -427,7 +490,7 @@ always_ff @(posedge aclk or negedge areset_n)
 //write data strobes from AXI master via the write data channel
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               wstrb <= {(`wstrb) {1'b0}}; //'h0; //{(data_width/8){1'b0}};
-  else if(data_length_vld) wstrb <= {(`wstrb) {1'b0}}; //'h0; //{(data_width/8){1'b0}}; //(data_width/8)'h0;
+  else if(data_length_vld) wstrb <= {(`wstrb) {1'b0}}; //'h0; //{(data_width/8){1'b0}}; //{(`wstrb){1'b0}};
   else if(axi_wr_en)       wstrb <= WSTRB_RGB888_RAW12_lyuv4208;      
 
 //data width determining the data strobe in AXI master for transmitting the data						   
@@ -487,8 +550,7 @@ always_ff @(posedge cphy_rxwordclkhs or negedge areset_n)
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               awaddr <= 32'h0; 
   else if(data_length_vld) awaddr <= 32'h0;
-  else  if (axi_wr_en) for (i = 0; i < TOTAL_TRANSFERS_COMMON; i = i + 16)  
-						awaddr <= BASE_ADDR_666 + i; 
+  else  if (axi_wr_en) awaddr <= BASE_ADDR_666;   //burst start address 
 
 //transaction size from AXI master in write address channel							
 always_ff @(posedge aclk or negedge areset_n)
@@ -499,8 +561,8 @@ always_ff @(posedge aclk or negedge areset_n)
 
 //write data strobes from AXI master via the write data channel
 always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n)               wstrb <= (data_width/8)'h0;
-  else if(data_length_vld) wstrb <= (data_width/8)'h0;
+  if(~areset_n)               wstrb <= {(`wstrb){1'b0}};
+  else if(data_length_vld) wstrb <= {(`wstrb){1'b0}};
   else if(axi_wr_en)       wstrb <= WSTRB_RGB666;        
  
 //data width determining the data strobe in AXI master for transmitting the data 
@@ -518,7 +580,7 @@ always_ff @(posedge aclk or negedge areset_n)
 //write data (pixel data) from AXI master via the write data channel
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n) wdata <= 128'h0;
-  else wdata <= (wvalid & wready & (!(axi_empty))) ? {56'h0,axi_rd_data[71:0]} : 128'h0;  
+  else if(rd_dvld) wdata <= {56'h0,axi_rd_data[71:0]};  
   
 always @(posedge aclk or negedge areset_n) 
     if (!areset_n) awid <= 32'h0;
@@ -548,8 +610,7 @@ always_ff @(posedge cphy_rxwordclkhs or negedge areset_n)
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               awaddr <= 32'h0;
   else if(data_length_vld) awaddr <= 32'h0;
-   else  if (axi_wr_en) for (i = 0; i < TOTAL_TRANSFERS_COMMON; i = i + 8)  
-						awaddr <= BASE_ADDR_565 + i;  
+   else  if (axi_wr_en) awaddr <= BASE_ADDR_565;   //burst start address  
 
 //transaction size from AXI master in write address channel
 always_ff @(posedge aclk or negedge areset_n)
@@ -560,8 +621,8 @@ always_ff @(posedge aclk or negedge areset_n)
 
 //write data strobes from AXI master via the write data channel		
 always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n)               wstrb <= (data_width/8)'h0;
-  else if(data_length_vld) wstrb <= (data_width/8)'h0;
+  if(~areset_n)               wstrb <= {(`wstrb){1'b0}};
+  else if(data_length_vld) wstrb <= {(`wstrb){1'b0}};
   else if(axi_wr_en)       wstrb <= WSTRB_RGB565_55_444_RAW16_yuv4208_4228;  
 
 //data width determining the data strobe in AXI master for transmitting the data
@@ -629,8 +690,7 @@ always_ff @(posedge cphy_rxwordclkhs or negedge areset_n)
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               awaddr <= 32'h0;
   else if(data_length_vld) awaddr <= 32'h0;
-  else  if (axi_wr_en) for (i = 0; i < TOTAL_TRANSFERS_COMMON; i = i + 8)
-						awaddr <= BASE_ADDR_555 + i;  
+  else  if (axi_wr_en) awaddr <= BASE_ADDR_555;   //burst start address  
 
 //transaction size from AXI master in write address channel						
 always_ff @(posedge aclk or negedge areset_n)
@@ -641,8 +701,8 @@ always_ff @(posedge aclk or negedge areset_n)
 
 //write data strobes from AXI master via the write data channel
 always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n)               wstrb <= (data_width/8)'h0;
-  else if(data_length_vld) wstrb <= (data_width/8)'h0;
+  if(~areset_n)               wstrb <= {(`wstrb){1'b0}};
+  else if(data_length_vld) wstrb <= {(`wstrb){1'b0}};
   else if(axi_wr_en)       wstrb <= WSTRB_RGB565_55_444_RAW16_yuv4208_4228;  
  
 //data width determining the data strobe in AXI master for transmitting the data 
@@ -710,8 +770,7 @@ always_ff @(posedge cphy_rxwordclkhs or negedge areset_n)
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               awaddr <= 32'h0;
   else if(data_length_vld) awaddr <= 32'h0;
-  else  if (axi_wr_en) for (i = 0; i < TOTAL_TRANSFERS_COMMON; i = i + 8)
-						awaddr <= BASE_ADDR_444 + i;
+  else  if (axi_wr_en) awaddr <= BASE_ADDR_444;   //burst start address
 
 //transaction size from AXI master in write address channel		
 always_ff @(posedge aclk or negedge areset_n)
@@ -722,8 +781,8 @@ always_ff @(posedge aclk or negedge areset_n)
  
 //write data strobes from AXI master via the write data channel 
 always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n)               wstrb <= (data_width/8)'h0;
-  else if(data_length_vld) wstrb <= (data_width/8)'h0;
+  if(~areset_n)               wstrb <= {(`wstrb){1'b0}};
+  else if(data_length_vld) wstrb <= {(`wstrb){1'b0}};
   else if(axi_wr_en)       wstrb <= WSTRB_RGB565_55_444_RAW16_yuv4208_4228; 
  
 //data width determining the data strobe in AXI master for transmitting the data 
@@ -783,8 +842,7 @@ always_ff @(posedge cphy_rxwordclkhs or negedge areset_n)
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               awaddr <= 32'h0;
   else if(data_length_vld) awaddr <= 32'h0;
-  else  if (axi_wr_en) for (i = 0; i < TOTAL_TRANSFERS_COMMON; i = i + 4)
-						awaddr <= BASE_ADDR_RAW6 + i;  
+  else  if (axi_wr_en) awaddr <= BASE_ADDR_RAW6;   //burst start address  
 
 //transaction size from AXI master in write address channel						
 always_ff @(posedge aclk or negedge areset_n)
@@ -795,8 +853,8 @@ always_ff @(posedge aclk or negedge areset_n)
 
 //write data strobes from AXI master via the write data channel
 always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n)               wstrb <= (data_width/8)'h0;
-  else if(data_length_vld) wstrb <= (data_width/8)'h0;
+  if(~areset_n)               wstrb <= {(`wstrb){1'b0}};
+  else if(data_length_vld) wstrb <= {(`wstrb){1'b0}};
   else if(axi_wr_en)       wstrb <= WSTRB_RAW6;  
  
 //data width determining the data strobe in AXI master for transmitting the data 
@@ -814,7 +872,7 @@ always_ff @(posedge aclk or negedge areset_n)
 //write data (pixel data) from AXI master via the write data channel
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n) wdata <= 32'h0;
-  else wdata <= (wvalid & wready & (!(axi_empty))) ? {8'h0,axi_rd_data[23:0]} : 32'h0;    
+  else if(rd_dvld) wdata <= {8'h0,axi_rd_data[23:0]};    
   
 always @(posedge aclk or negedge areset_n) 
     if (!areset_n) awid <= 32'h0;
@@ -836,8 +894,7 @@ always_ff @(posedge cphy_rxwordclkhs or negedge areset_n)
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               awaddr <= 32'h0;
   else if(data_length_vld) awaddr <= 32'h0;
-  else  if (axi_wr_en) for (i = 0; i < TOTAL_TRANSFERS_RAW7_YUV4208b_10b_odd; i = i + 8)
-						awaddr <= BASE_ADDR_RAW7 + i; 
+  else  if (axi_wr_en) awaddr <= BASE_ADDR_RAW7;   //burst start address 
 
 //transaction size from AXI master in write address channel						
 always_ff @(posedge aclk or negedge areset_n)
@@ -848,8 +905,8 @@ always_ff @(posedge aclk or negedge areset_n)
 
 //write data strobes from AXI master via the write data channel
 always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n)               wstrb <= 127'h0;//(data_width/8)'h0;
-  else if(data_length_vld) wstrb <= 127'h0; //(data_width/8)'h0;
+  if(~areset_n)               wstrb <= 127'h0;//{(`wstrb){1'b0}};
+  else if(data_length_vld) wstrb <= 127'h0; //{(`wstrb){1'b0}};
   else if(axi_wr_en)       wstrb <= WSTRB_RAW7_14;  
 
 //data width determining the data strobe in AXI master for transmitting the data
@@ -867,8 +924,8 @@ always_ff @(posedge aclk or negedge areset_n)
 //write data (pixel data) from AXI master via the write data channel
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n) wdata <= 64'h0;
- else wdata <= (wvalid & wready /*& (!(axi_empty))*/) ? {8'h0,axi_rd_data[55:0]} : 64'h0;     
-  // else wdata <= (wvalid & wready & (!(axi_full))) ? {8'h0,axi_rd_data[55:0]} : 64'h0;    
+ else if(rd_dvld) wdata <= {8'h0,axi_rd_data[55:0]};     
+  // else if(rd_dvld) wdata <= {8'h0,axi_rd_data[55:0]};    
 always @(posedge aclk or negedge areset_n) 
     if (!areset_n) awid <= 32'h0;
     else   awid <= 32'h7;    
@@ -890,8 +947,7 @@ always_ff @(posedge cphy_rxwordclkhs or negedge areset_n)
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               awaddr <= 32'h0;
   else if(data_length_vld) awaddr <= 32'h0;
-  else  if (axi_wr_en)	for (i = 0; i < TOTAL_TRANSFERS_COMMON; i = i + 8)
-						awaddr <= BASE_ADDR_RAW10 + i;  
+  else  if (axi_wr_en)	awaddr <= BASE_ADDR_RAW10;   //burst start address  
 
 //transaction size from AXI master in write address channel						
 always_ff @(posedge aclk or negedge areset_n)
@@ -902,8 +958,8 @@ always_ff @(posedge aclk or negedge areset_n)
 
 //write data strobes from AXI master via the write data channel
 always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n)               wstrb <= (data_width/8)'h0;
-  else if(data_length_vld) wstrb <= (data_width/8)'h0;
+  if(~areset_n)               wstrb <= {(`wstrb){1'b0}};
+  else if(data_length_vld) wstrb <= {(`wstrb){1'b0}};
   else if(axi_wr_en)       wstrb <= WSTRB_RAW10;  
 
 //data width determining the data strobe in AXI master for transmitting the data  
@@ -921,7 +977,7 @@ always_ff @(posedge aclk or negedge areset_n)
 //write data (pixel data) from AXI master via the write data channel 
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n) wdata <= 64'h0;
-  else wdata <= (wvalid_r & wready & (!(axi_empty))) ? {24'h0, axi_rd_data[39:0]} : 64'h0;    
+  else if(rd_dvld) wdata <= {24'h0, axi_rd_data[39:0]};    
 
 always @(posedge aclk or negedge areset_n) 
     if (!areset_n) awid <= 32'h0;
@@ -947,8 +1003,7 @@ always_ff @(posedge cphy_rxwordclkhs or negedge areset_n)
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               awaddr <= 32'h0;
   else if(data_length_vld) awaddr <= 32'h0;
-  else  if (axi_wr_en) 	for (i = 0; i < TOTAL_TRANSFERS_COMMON; i = i + 8)
-						awaddr <= BASE_ADDR_RAW12 + i; 
+  else  if (axi_wr_en) 	awaddr <= BASE_ADDR_RAW12;   //burst start address 
 
 //transaction size from AXI master in write address channel						
 always_ff @(posedge aclk or negedge areset_n)
@@ -959,8 +1014,8 @@ always_ff @(posedge aclk or negedge areset_n)
 
 //write data strobes from AXI master via the write data channel
 always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n)               wstrb <= (data_width/8)'h0;
-  else if(data_length_vld) wstrb <= (data_width/8)'h0;
+  if(~areset_n)               wstrb <= {(`wstrb){1'b0}};
+  else if(data_length_vld) wstrb <= {(`wstrb){1'b0}};
   else if(axi_wr_en)       wstrb <= WSTRB_RAW6;  
 
 //data width determining the data strobe in AXI master for transmitting the data  
@@ -1010,8 +1065,7 @@ always_ff @(posedge cphy_rxwordclkhs or negedge areset_n)
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               awaddr <= 32'h0;
   else if(data_length_vld) awaddr <= 32'h0;
-  else  if (axi_wr_en)	for (i = 0; i < TOTAL_TRANSFERS_COMMON; i = i + 8)
-						awaddr <= BASE_ADDR_RAW14 + i;
+  else  if (axi_wr_en)	awaddr <= BASE_ADDR_RAW14;   //burst start address
 
 //transaction size from AXI master in write address channel
 always_ff @(posedge aclk or negedge areset_n)
@@ -1022,8 +1076,8 @@ always_ff @(posedge aclk or negedge areset_n)
 
 //write data strobes from AXI master via the write data channel  
 always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n)               wstrb <= (data_width/8)'h0;
-  else if(data_length_vld) wstrb <= (data_width/8)'h0;
+  if(~areset_n)               wstrb <= {(`wstrb){1'b0}};
+  else if(data_length_vld) wstrb <= {(`wstrb){1'b0}};
   else if(axi_wr_en)       wstrb <= WSTRB_RAW7_14;   
  
 //data width determining the data strobe in AXI master for transmitting the data 
@@ -1041,7 +1095,7 @@ always_ff @(posedge aclk or negedge areset_n)
 //write data (pixel data) from AXI master via the write data channel  
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n) wdata <= 64'h0;
-  else wdata <= (wvalid & wready & (!(axi_empty))) ? {8'h0, wdata2_raw12[55:0]} : 64'h0;     
+  else if(rd_dvld) wdata <= {8'h0, axi_rd_data[55:0]};     
   
 always @(posedge aclk or negedge areset_n) 
     if (!areset_n) awid <= 32'h0;
@@ -1071,8 +1125,7 @@ always_ff @(posedge cphy_rxwordclkhs or negedge areset_n)
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               awaddr <= 32'h0;
   else if(data_length_vld) awaddr <= 32'h0;
-  else  if (axi_wr_en)	for (i = 0; i < TOTAL_TRANSFERS_COMMON; i = i + 8)
-						awaddr <= BASE_ADDR_RAW16 + i;  
+  else  if (axi_wr_en)	awaddr <= BASE_ADDR_RAW16;   //burst start address  
 
 //transaction size from AXI master in write address channel						
 always_ff @(posedge aclk or negedge areset_n)
@@ -1083,8 +1136,8 @@ always_ff @(posedge aclk or negedge areset_n)
 
 //write data strobes from AXI master via the write data channel
 always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n)               wstrb <= (data_width/8)'h0;
-  else if(data_length_vld) wstrb <= (data_width/8)'h0;
+  if(~areset_n)               wstrb <= {(`wstrb){1'b0}};
+  else if(data_length_vld) wstrb <= {(`wstrb){1'b0}};
   else if(axi_wr_en)       wstrb <= WSTRB_RGB565_55_444_RAW16_yuv4208_4228;
  
 //data width determining the data strobe in AXI master for transmitting the data 
@@ -1122,7 +1175,7 @@ always_ff @(posedge aclk or negedge areset_n)
 //write data (pixel data) from AXI master via the write data channel   
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n) wdata <= 64'h0;
-  else wdata <= wdata4_vld_raw16 ? wdata4_vld_raw16[63:0] : 64'h0;      
+  else wdata <= wdata4_vld_raw16 ? wdata4_raw16[63:0] : 64'h0;      
  
  always_ff @(posedge aclk or negedge areset_n)
     if (!areset_n) awid <= 32'h0;
@@ -1148,8 +1201,7 @@ always_ff @(posedge cphy_rxwordclkhs or negedge areset_n)
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               awaddr <= 32'h0;
   else if(data_length_vld) awaddr <= 32'h0;
-  else  if (axi_wr_en) for (i = 0; i < TOTAL_TRANSFERS_COMMON; i = i + 16)
-						awaddr <= BASE_ADDR_RAW20 + i;
+  else  if (axi_wr_en) awaddr <= BASE_ADDR_RAW20;   //burst start address
 
 //transaction size from AXI master in write address channel						
 always_ff @(posedge aclk or negedge areset_n)
@@ -1160,8 +1212,8 @@ always_ff @(posedge aclk or negedge areset_n)
 
 //write data strobes from AXI master via the write data channel
 always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n)               wstrb <= (data_width/8)'h0;
-  else if(data_length_vld) wstrb <= (data_width/8)'h0;
+  if(~areset_n)               wstrb <= {(`wstrb){1'b0}};
+  else if(data_length_vld) wstrb <= {(`wstrb){1'b0}};
   else if(axi_wr_en)       wstrb <= WSTRB_RAW20_yuv420_42210;     
 
 //data width determining the data strobe in AXI master for transmitting the data
@@ -1219,8 +1271,7 @@ always_ff @(posedge cphy_rxwordclkhs or negedge areset_n)
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               awaddr <= 32'h0;
   else if(data_length_vld) awaddr <= 32'h0;
-  else  if (axi_wr_en) for (i = 0; i < TOTAL_TRANSFERS_COMMON; i = i + 16)
-						awaddr <= BASE_ADDR_RAW24 + i;
+  else  if (axi_wr_en) awaddr <= BASE_ADDR_RAW24;   //burst start address
 
 //transaction size from AXI master in write address channel						
 always_ff @(posedge aclk or negedge areset_n)
@@ -1231,8 +1282,8 @@ always_ff @(posedge aclk or negedge areset_n)
 
 //write data strobes from AXI master via the write data channel
 always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n)               wstrb <= (data_width/8)'h0;
-  else if(data_length_vld) wstrb <= (data_width/8)'h0;
+  if(~areset_n)               wstrb <= {(`wstrb){1'b0}};
+  else if(data_length_vld) wstrb <= {(`wstrb){1'b0}};
   else if(axi_wr_en)       wstrb <= WSTRB_RAW24;   
 
 //data width determining the data strobe in AXI master for transmitting the data
@@ -1296,8 +1347,7 @@ always_ff @(posedge cphy_rxwordclkhs or negedge areset_n)
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               awaddr <= 32'h0;
   else if(data_length_vld) awaddr <= 32'h0;
-  else  if (axi_wr_en) for (i = 0; i < TOTAL_TRANSFERS_COMMON; i = i + 16)
-						awaddr <= BASE_ADDR_RAW28 +i; 			
+  else  if (axi_wr_en) awaddr <= BASE_ADDR_RAW28;   //burst start address 			
 
 //transaction size from AXI master in write address channel
 always_ff @(posedge aclk or negedge areset_n)
@@ -1308,15 +1358,15 @@ always_ff @(posedge aclk or negedge areset_n)
 
 //write data strobes from AXI master via the write data channel
 always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n)               wstrb <= (data_width/8)'h0;
-  else if(data_length_vld) wstrb <= (data_width/8)'h0;
+  if(~areset_n)               wstrb <= {(`wstrb){1'b0}};
+  else if(data_length_vld) wstrb <= {(`wstrb){1'b0}};
   else if(axi_wr_en)       wstrb <= WSTRB_RAW28;    
 
 //data width determining the data strobe in AXI master for transmitting the data
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n) data_width <= 112'h0;			   
   else if(data_length_vld) data_width <= 112'h0;
-  else if(axi_wr_en) data_width <= ; DWIDTH_128; //DWIDTH_RAW28;   
+  else if(axi_wr_en) data_width <= DWIDTH_128; //DWIDTH_RAW28;   
 
 //transaction length from AXI master in write address channel
 always_ff @(posedge aclk or negedge areset_n)
@@ -1359,8 +1409,7 @@ always_ff @(posedge cphy_rxwordclkhs or negedge areset_n)
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               awaddr <= 32'h0;
   else if(data_length_vld) awaddr <= 32'h0;
-  else  if (axi_wr_en) for (i = 0; i < TOTAL_TRANSFERS_RAW8; i = i + 1)
-						awaddr <= BASE_ADDR_RAW8 + i;
+  else  if (axi_wr_en) awaddr <= BASE_ADDR_RAW8;   //burst start address
 
 //transaction size from AXI master in write address channel						
 always_ff @(posedge aclk or negedge areset_n)
@@ -1370,8 +1419,8 @@ always_ff @(posedge aclk or negedge areset_n)
 
 //write data strobes from AXI master via the write data channel
 always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n)               wstrb <= 1'b0; //(data_width/8)'h0;
-  else if(data_length_vld) wstrb <= 1'b0; //(data_width/8)'h0;
+  if(~areset_n)               wstrb <= 1'b0; //{(`wstrb){1'b0}};
+  else if(data_length_vld) wstrb <= 1'b0; //{(`wstrb){1'b0}};
   else if(axi_wr_en)       wstrb <= WSTRB_RAW8_ESC;   
 
 //data width determining the data strobe in AXI master for transmitting the data
@@ -1389,13 +1438,13 @@ always_ff @(posedge aclk or negedge areset_n)
 //write data (pixel data) from AXI master via the write data channel 
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n) wdata <= 8'h0;
-  else wdata <= (wvalid & wready & (!(axi_empty_r))) ? axi_rd_data[7:0] : 8'h0;    
+  else if(rd_dvld) wdata <= axi_rd_data[7:0];    
   
 always @(posedge aclk or negedge areset_n) 
     if (!areset_n) awid <= 32'h0;
     else   awid <= 32'h8;  
 
-`elseif LEGACY_YUV420_8b
+`elsif LEGACY_YUV420_8b
 logic [63:0]        data_width;  //data width determining the data strobe in AXI master for transmitting the data
 logic [47:0]        axi_data_in; //input data to AXI FIFO from byte to pixel converter in CSI2 Rx Controller
 logic [47:0]        axi_rd_data; //data read from AXI FIFO and is forwarded to the Application Layer via AXI master
@@ -1409,8 +1458,7 @@ always_ff @(posedge cphy_rxwordclkhs or negedge areset_n)
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               awaddr <= 32'h0;
   else if(data_length_vld) awaddr <= 32'h0;
-  else  if (axi_wr_en) for (i = 0; i < TOTAL_TRANSFERS_COMMON; i = i + 8)
-						awaddr <= BASE_ADDR_LYUV4208 + i;
+  else  if (axi_wr_en) awaddr <= BASE_ADDR_LYUV4208;   //burst start address
 
 //transaction size from AXI master in write address channel						
 always_ff @(posedge aclk or negedge areset_n)
@@ -1421,8 +1469,8 @@ always_ff @(posedge aclk or negedge areset_n)
 
 //write data strobes from AXI master via the write data channel
 always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n)               wstrb <= 8'h0; //(data_width/8)'h0;
-  else if(data_length_vld) wstrb <= 8'h0; //(data_width/8)'h0;
+  if(~areset_n)               wstrb <= 8'h0; //{(`wstrb){1'b0}};
+  else if(data_length_vld) wstrb <= 8'h0; //{(`wstrb){1'b0}};
   else if(axi_wr_en)       wstrb <= WSTRB_RGB888_RAW12_lyuv4208;   
 
 //data width determining the data strobe in AXI master for transmitting the data
@@ -1440,13 +1488,13 @@ always_ff @(posedge aclk or negedge areset_n)
 //write data (pixel data) from AXI master via the write data channel 
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n) wdata <= 32'h0;
-  else wdata <= (wvalid & wready & (!(axi_empty_r))) ? {16'h0, axi_rd_data[47:0]} : 32'h0;    
+  else if(rd_dvld) wdata <= {16'h0, axi_rd_data[47:0]};    
   
 always @(posedge aclk or negedge areset_n) 
     if (!areset_n) awid <= 32'h0;
     else   awid <= 32'h42080;  
 
-`elseif YUV420_8b
+`elsif YUV420_8b
 logic [63:0]        data_width;  //data width determining the data strobe in AXI master for transmitting the data
 logic [63:0]        axi_data_in; //input data to AXI FIFO from byte to pixel converter in CSI2 Rx Controller
 logic [63:0]        axi_rd_data; //data read from AXI FIFO and is forwarded to the Application Layer via AXI master
@@ -1459,8 +1507,7 @@ always_ff @(posedge cphy_rxwordclkhs or negedge areset_n)
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               awaddr <= 32'h0;
   else if(data_length_vld) awaddr <= 32'h0;
-  else  if (axi_wr_en) for (i = 0; i < TOTAL_TRANSFERS_COMMON; i = i + 8)
-						awaddr <= BASE_ADDR_YUV4208 + i;
+  else  if (axi_wr_en) awaddr <= BASE_ADDR_YUV4208;   //burst start address
 
 //transaction size from AXI master in write address channel						
 always_ff @(posedge aclk or negedge areset_n)
@@ -1473,12 +1520,12 @@ always_ff @(posedge aclk or negedge areset_n)
 //write data (pixel data) from AXI master via the write data channel 
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n) wdata <= 64'h0; 
-  else wdata <= (wvalid & wready & (!(axi_empty_r))) ? axi_rd_data[63:0] : 64'h0;   
+  else if(rd_dvld) wdata <= axi_rd_data[63:0];   
 
 //write data strobes from AXI master via the write data channel
 always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n)            wstrb <= 8'h0; //(data_width/8)'h0;
-  else if(data_length_vld) wstrb <= 8'h0; //(data_width/8)'h0;
+  if(~areset_n)            wstrb <= 8'h0; //{(`wstrb){1'b0}};
+  else if(data_length_vld) wstrb <= 8'h0; //{(`wstrb){1'b0}};
   else if(axi_wr_en)       wstrb <= WSTRB_RGB565_55_444_RAW16_yuv4208_4228;
   
    
@@ -1499,7 +1546,7 @@ always @(posedge aclk or negedge areset_n)
     if (!areset_n) awid <= 32'h0;
     else   awid <= 32'h42081;  
 
-`elseif YUV420_10b
+`elsif YUV420_10b
 logic [127:0]       data_width;  //data width determining the data strobe in AXI master for transmitting the data
 logic [79:0]        axi_data_in; //input data to AXI FIFO from byte to pixel converter in CSI2 Rx Controller
 logic [79:0]        axi_rd_data; //data read from AXI FIFO and is forwarded to the Application Layer via AXI master
@@ -1512,8 +1559,7 @@ always_ff @(posedge cphy_rxwordclkhs or negedge areset_n)
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               awaddr <= 32'h0;
   else if(data_length_vld) awaddr <= 32'h0;
-  else  if (axi_wr_en) for (i = 0; i < TOTAL_TRANSFERS_COMMON; i = i + 16)
-						awaddr <= BASE_ADDR_YUV42010 + i;
+  else  if (axi_wr_en) awaddr <= BASE_ADDR_YUV42010;   //burst start address
 
 //transaction size from AXI master in write address channel						
 always_ff @(posedge aclk or negedge areset_n)
@@ -1526,12 +1572,12 @@ always_ff @(posedge aclk or negedge areset_n)
 //write data (pixel data) from AXI master via the write data channel 
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n) wdata <= 128'h0; 
-  else wdata <= (wvalid & wready & (!(axi_empty_r))) ? {48'h0, axi_rd_data[79:0]} : 128'h0;   
+  else if(rd_dvld) wdata <= {48'h0, axi_rd_data[79:0]};   
 
 //write data strobes from AXI master via the write data channel
 always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n)            wstrb <= 16'h0; //(data_width/8)'h0;
-  else if(data_length_vld) wstrb <= 16'h0; //(data_width/8)'h0;
+  if(~areset_n)            wstrb <= 16'h0; //{(`wstrb){1'b0}};
+  else if(data_length_vld) wstrb <= 16'h0; //{(`wstrb){1'b0}};
   else if(axi_wr_en)       wstrb <= WSTRB_RAW20_yuv420_42210;
   
    
@@ -1550,7 +1596,7 @@ always @(posedge aclk or negedge areset_n)
     if (!areset_n) awid <= 32'h0;
     else   awid <= 32'h42010;  
 
-`elseif YUV422_8b
+`elsif YUV422_8b
 logic [63:0]        data_width;  //data width determining the data strobe in AXI master for transmitting the data
 logic [63:0]        axi_data_in; //input data to AXI FIFO from byte to pixel converter in CSI2 Rx Controller
 logic [63:0]        axi_rd_data; //data read from AXI FIFO and is forwarded to the Application Layer via AXI master
@@ -1563,8 +1609,7 @@ always_ff @(posedge cphy_rxwordclkhs or negedge areset_n)
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               awaddr <= 32'h0;
   else if(data_length_vld) awaddr <= 32'h0;
-  else  if (axi_wr_en) for (i = 0; i < TOTAL_TRANSFERS_COMMON; i = i + 8)
-						awaddr <= BASE_ADDR_YUV4228 + i;
+  else  if (axi_wr_en) awaddr <= BASE_ADDR_YUV4228;   //burst start address
 
 //transaction size from AXI master in write address channel						
 always_ff @(posedge aclk or negedge areset_n)
@@ -1577,12 +1622,12 @@ always_ff @(posedge aclk or negedge areset_n)
 //write data (pixel data) from AXI master via the write data channel 
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n) wdata <= 64'h0; 
-  else wdata <= (wvalid & wready & (!(axi_empty_r))) ? axi_rd_data[63:0] : 64'h0;   
+  else if(rd_dvld) wdata <= axi_rd_data[63:0];   
 
 //write data strobes from AXI master via the write data channel
 always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n)            wstrb <= 8'h0; //(data_width/8)'h0;
-  else if(data_length_vld) wstrb <= 8'h0; //(data_width/8)'h0;
+  if(~areset_n)            wstrb <= 8'h0; //{(`wstrb){1'b0}};
+  else if(data_length_vld) wstrb <= 8'h0; //{(`wstrb){1'b0}};
   else if(axi_wr_en)       wstrb <= WSTRB_RGB565_55_444_RAW16_yuv4208_4228;
   
    
@@ -1601,7 +1646,7 @@ always @(posedge aclk or negedge areset_n)
     if (!areset_n) awid <= 32'h0;
     else   awid <= 32'h4228;  
 
-`elseif YUV422_10b	
+`elsif YUV422_10b	
 logic [79:0]        data_width;  //data width determining the data strobe in AXI master for transmitting the data
 logic [79:0]        axi_data_in; //input data to AXI FIFO from byte to pixel converter in CSI2 Rx Controller
 logic [79:0]        axi_rd_data; //data read from AXI FIFO and is forwarded to the Application Layer via AXI master
@@ -1614,8 +1659,7 @@ always_ff @(posedge cphy_rxwordclkhs or negedge areset_n)
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               awaddr <= 32'h0;
   else if(data_length_vld) awaddr <= 32'h0;
-  else  if (axi_wr_en) for (i = 0; i < TOTAL_TRANSFERS_COMMON; i = i + 16)
-						awaddr <= BASE_ADDR_YUV42210 + i;
+  else  if (axi_wr_en) awaddr <= BASE_ADDR_YUV42210;   //burst start address
 
 //transaction size from AXI master in write address channel						
 always_ff @(posedge aclk or negedge areset_n)
@@ -1628,12 +1672,12 @@ always_ff @(posedge aclk or negedge areset_n)
 //write data (pixel data) from AXI master via the write data channel 
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n) wdata <= 128'h0; 
-  else wdata <= (wvalid & wready & (!(axi_empty_r))) ? {48'h0, axi_rd_data[79:0]} : 128'h0;   
+  else if(rd_dvld) wdata <= {48'h0, axi_rd_data[79:0]};   
 
 //write data strobes from AXI master via the write data channel
 always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n)            wstrb <= 16'h0; //(data_width/8)'h0;
-  else if(data_length_vld) wstrb <= 16'h0; //(data_width/8)'h0;
+  if(~areset_n)            wstrb <= 16'h0; //{(`wstrb){1'b0}};
+  else if(data_length_vld) wstrb <= 16'h0; //{(`wstrb){1'b0}};
   else if(axi_wr_en)       wstrb <= WSTRB_RAW20_yuv420_42210;
   
    
@@ -1652,7 +1696,7 @@ always @(posedge aclk or negedge areset_n)
     if (!areset_n) awid <= 32'h0;
     else   awid <= 32'h42210;  	
 	
-`elseif RxALP_LP_SELECT //ALP Mode
+`elsif RxALP_LP_SELECT //ALP Mode
 //logic                wdata_vld1_raw28;
 //logic                wdata_vld2_raw28;
 //logic [55:0]         wdata1_raw28;
@@ -1676,8 +1720,7 @@ always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               awaddr <= 32'h0;
   //else if(data_length_vld) awaddr <= 32'h0;
   //else if(!wready) awaddr <= awaddr;
-  else  if (axi_wr_en) for (i = 0; i < TOTAL_TRANSFERS_ALP_ESC_MODE; i = i + 2) //increment by 2 bytes
-						   awaddr <= BASE_ADDR_ALP + i;    
+  else  if (axi_wr_en) awaddr <= BASE_ADDR_ALP;   //burst start address    
 
 //transaction size from AXI master in write address channel						   
 always_ff @(posedge aclk or negedge areset_n)
@@ -1689,7 +1732,7 @@ always_ff @(posedge aclk or negedge areset_n)
 //write data strobes from AXI master via the write data channel
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               wstrb <= {(`wstrb) {1'b0}}; //'h0; //{(data_width/8){1'b0}};
- // else if(data_length_vld) wstrb <= {(`wstrb) {1'b0}}; //'h0; //{(data_width/8){1'b0}}; //(data_width/8)'h0;
+ // else if(data_length_vld) wstrb <= {(`wstrb) {1'b0}}; //'h0; //{(data_width/8){1'b0}}; //{(`wstrb){1'b0}};
   else if(axi_wr_en)       wstrb <= WSTRB_ALP;      
 
 //data width determining the data strobe in AXI master for transmitting the data						   
@@ -1708,7 +1751,7 @@ always_ff @(posedge aclk or negedge areset_n)
 //write data (pixel data) from AXI master via the write data channel 
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n) wdata <= 16'h0;
-  else wdata <= (wvalid & wready & (!(axi_empty_r))) ? axi_rd_data[15:0] : 16'h0;   
+  else if(rd_dvld) wdata <= axi_rd_data[15:0];   
   
 always @(posedge aclk or negedge areset_n) 
     if (!areset_n) awid <= 32'h0;
@@ -1736,8 +1779,7 @@ always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               awaddr <= 32'h0;
   //else if(data_length_vld) awaddr <= 32'h0;
   //else if(!wready) awaddr <= awaddr;
-  else  if (axi_wr_en) for (i = 0; i < TOTAL_TRANSFERS_ALP_ESC_MODE; i = i + 1) //increment by 1 byte
-						   awaddr <= BASE_ADDR_ESC + i;    
+  else  if (axi_wr_en) awaddr <= BASE_ADDR_ESC;   //burst start address    
 
 //transaction size from AXI master in write address channel						   
 always_ff @(posedge aclk or negedge areset_n)
@@ -1747,7 +1789,7 @@ always_ff @(posedge aclk or negedge areset_n)
 //write data strobes from AXI master via the write data channel
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               wstrb <= {(`wstrb) {1'b0}}; //'h0; //{(data_width/8){1'b0}};
- // else if(data_length_vld) wstrb <= {(`wstrb) {1'b0}}; //'h0; //{(data_width/8){1'b0}}; //(data_width/8)'h0;
+ // else if(data_length_vld) wstrb <= {(`wstrb) {1'b0}}; //'h0; //{(data_width/8){1'b0}}; //{(`wstrb){1'b0}};
   else if(axi_wr_en)       wstrb <= WSTRB_RAW8_ESC;      
 
 //data width determining the data strobe in AXI master for transmitting the data						   
@@ -1766,7 +1808,7 @@ always_ff @(posedge aclk or negedge areset_n)
 //write data (pixel data) from AXI master via the write data channel 
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n) wdata <= 8'h0;
-  else wdata <= (wvalid & wready & (!(axi_empty_r))) ? axi_rd_data[7:0] : 8'h0;   
+  else if(rd_dvld) wdata <= axi_rd_data[7:0];   
   
 always @(posedge aclk or negedge areset_n) 
     if (!areset_n) awid <= 32'h0;
@@ -1782,26 +1824,27 @@ always_ff @(posedge aclk or negedge areset_n)
 assign data_type_rx_reg_vld = (((data_type_rx_reg >= 6'h20) & (data_type_rx_reg <= 6'h24)) |
                               ((data_type_rx_reg >= 6'h26) & (data_type_rx_reg <= 6'h2f))); 
 
-//valid indicator from master in axi write address channel
+//a new burst starts when the FIFO holds data, no burst is in progress and the data type is valid
+//(the burst attributes awaddr/awlen/awsize/wstrb ... were loaded when the first pixel was written)
+wire burst_start = (!burst_active) & (!axi_empty) & (data_type_rx_reg_vld | rxalpnibble_reg_vld | rxdataesc_reg_vld);
+
+always_ff @(posedge aclk or negedge areset_n)
+  if(~areset_n) burst_active <= 1'b0;
+  else if(data_length_vld) burst_active <= 1'b0;
+  else if(burst_start)     burst_active <= 1'b1;
+
+//valid indicator from master in axi write address channel: one AW per burst, held until awready
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n) awvalid <= 1'b0;
-  else if((awready & awvalid & data_length_vld & axi_full) | 
-        (awready & awvalid & (rxalpnibble_reg_vld | rxdataesc_reg_vld))) awvalid <= 1'b0;
- else if((axi_wr_en & data_type_rx_reg_vld & (!(axi_full))) | 
-        (rxalpnibble_reg_vld | rxdataesc_reg_vld)) awvalid <= 1'b1; 
-  //else if(awready & awvalid & axi_empty) awvalid <= 1'b0;
-  //else if(axi_wr_en & data_type_rx_reg_vld & (!(axi_empty))) awvalid <= 1'b1;
+  else if(awvalid & awready) awvalid <= 1'b0;
+  else if(burst_start)       awvalid <= 1'b1;
 
-//valid indicator from master in axi write data channel  
+//valid indicator from master in axi write data channel: set when a FIFO word reaches wdata, held until wready
 always_ff @(posedge aclk or negedge areset_n)
- if(~areset_n) wvalid <= 1'b0;
- else if((wready & wvalid & data_length_vld & axi_full) | 
-        (wready & wvalid & (rxalpnibble_reg_vld | rxdataesc_reg_vld))) wvalid <= 1'b0;
- else if((axi_wr_en & data_type_rx_reg_vld & (!(axi_full))) | 
-        (rxalpnibble_reg_vld | rxdataesc_reg_vld)) wvalid <= 1'b1; 
- //else if(wready & wvalid & data_length_vld & axi_empty) wvalid <= 1'b0;
- //else if(axi_wr_en & data_type_rx_reg_vld & (!(axi_empty))) wvalid <= 1'b1;   
- 
+  if(~areset_n) wvalid <= 1'b0;
+  else if(rd_dvld)           wvalid <= 1'b1;
+  else if(wvalid & wready)   wvalid <= 1'b0;
+
 //waits for 1 us to receive wready, if not, flags error 
 //logic [9:0] wready_wait_ctr;
 always_ff @(posedge aclk or negedge areset_n)
@@ -1845,11 +1888,6 @@ always_ff @(posedge aclk or negedge areset_n)
   else if(data_length_vld) awregion <= 4'h0;
   else if(axi_wr_en)       awregion <= AWREGION_SEL;  
  
-//last write data from AXI master in axi write data channel 
-always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n) wlast <= 1'b0;
-  else       wlast <= data_length_vld;    
-
 //user-defined extension to a request from AXI master in write address channel
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n) awuser <= 1'b0; //AWUSER_WIDTH'h0;

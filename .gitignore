@@ -1,3 +1,5 @@
+^U
+^^X
 
 
 # Verilator generated files
@@ -24,6 +26,8 @@ VERIF/i2c_verif/i2c_tb/sim/*.str
 # USB Host Controller simulation generated files
 VERIF/usb_verif/usbh_host_tb/sim/xsim.dir/
 VERIF/usb_verif/usbh_host_tb/sim/*.log
+^X
+:wq
 VERIF/usb_verif/usbh_host_tb/sim/*.jou
 VERIF/usb_verif/usbh_host_tb/sim/*.pb
 VERIF/usb_verif/usbh_host_tb/sim/*.vcd

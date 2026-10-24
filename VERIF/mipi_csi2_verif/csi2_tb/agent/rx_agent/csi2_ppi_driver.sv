@@ -67,15 +67,40 @@ class csi2_ppi_driver extends uvm_driver #(csi2_rx_packet_item);
       return;
     end
 
+    `uvm_info("PPI_DRV",
+
+  $sformatf("Driving %0d payload words to PHY BFM",
+
+            payload_words.size()),
+
+  UVM_NONE)
+
     foreach (payload_words[index]) begin
+
+     `uvm_info("PPI_DRV",
+
+    $sformatf("Driving payload word[%0d]=%016h",
+
+              index, payload_words[index]),
+
+    UVM_HIGH)
+
       phy_vif.drive_hs_word(payload_words[index],
+
                             item.send_eot && index == payload_words.size()-1,
+
                             cfg.active_segment_mask);
+
       if (phy_vif.last_status != 0) begin
+
         phy_vif.force_idle();
+
         return;
+
       end
+
     end
+ 
 
     if (item.send_eot)
       phy_vif.drive_post_and_eot();

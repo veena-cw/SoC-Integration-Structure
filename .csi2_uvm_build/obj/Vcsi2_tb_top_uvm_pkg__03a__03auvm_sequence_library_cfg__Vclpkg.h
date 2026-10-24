@@ -1,0 +1,73 @@
+// Verilated -*- C++ -*-
+// DESCRIPTION: Verilator output: Design internal header
+// See Vcsi2_tb_top.h for the primary calling header
+
+#ifndef VERILATED_VCSI2_TB_TOP_UVM_PKG__03A__03AUVM_SEQUENCE_LIBRARY_CFG__VCLPKG_H_
+#define VERILATED_VCSI2_TB_TOP_UVM_PKG__03A__03AUVM_SEQUENCE_LIBRARY_CFG__VCLPKG_H_  // guard
+
+#include "verilated.h"
+#include "verilated_timing.h"
+#include "verilated_random.h"
+class Vcsi2_tb_top_uvm_pkg__03a__03auvm_object;
+class Vcsi2_tb_top_uvm_pkg__03a__03auvm_object_registry__pi53;
+class Vcsi2_tb_top_uvm_pkg__03a__03auvm_object_wrapper;
+class Vcsi2_tb_top_uvm_pkg__03a__03auvm_sequence_library_cfg;
+class Vcsi2_tb_top_uvm_pkg__03a__03auvm_status_container;
+
+
+class Vcsi2_tb_top__Syms;
+
+class alignas(VL_CACHE_LINE_BYTES) Vcsi2_tb_top_uvm_pkg__03a__03auvm_sequence_library_cfg__Vclpkg final {
+  public:
+
+    // DESIGN SPECIFIC STATE
+    std::string __PVT__type_name;
+
+    // INTERNAL VARIABLES
+    Vcsi2_tb_top__Syms* vlSymsp;
+    const char* vlNamep;
+
+    // CONSTRUCTORS
+    Vcsi2_tb_top_uvm_pkg__03a__03auvm_sequence_library_cfg__Vclpkg();
+    ~Vcsi2_tb_top_uvm_pkg__03a__03auvm_sequence_library_cfg__Vclpkg();
+    void ctor(Vcsi2_tb_top__Syms* symsp, const char* namep);
+    void dtor();
+    VL_UNCOPYABLE(Vcsi2_tb_top_uvm_pkg__03a__03auvm_sequence_library_cfg__Vclpkg);
+
+    // INTERNAL METHODS
+    void __Vconfigure(bool first);
+    void __VnoInFunc_get_type(Vcsi2_tb_top__Syms* __restrict vlSymsp, VlClassRef<Vcsi2_tb_top_uvm_pkg__03a__03auvm_object_registry__pi53> &get_type__Vfuncrtn);
+};
+
+#include "Vcsi2_tb_top_uvm_pkg__03a__03auvm_object__Vclpkg.h"
+
+class Vcsi2_tb_top__Syms;
+
+class Vcsi2_tb_top_uvm_pkg__03a__03auvm_sequence_library_cfg : public Vcsi2_tb_top_uvm_pkg__03a__03auvm_object {
+  public:
+
+    // DESIGN SPECIFIC STATE
+    IData/*31:0*/ __PVT__selection_mode;
+    IData/*31:0*/ __PVT__min_random_count;
+    IData/*31:0*/ __PVT__max_random_count;
+
+    // INTERNAL METHODS
+    virtual const char* typeName() const { return "uvm_pkg::uvm_sequence_library_cfg"; }
+    VlClass* clone() const { return new Vcsi2_tb_top_uvm_pkg__03a__03auvm_sequence_library_cfg(*this); }
+    virtual void __VnoInFunc___VBasicRand(Vcsi2_tb_top__Syms* __restrict vlSymsp, IData/*31:0*/ &__VBasicRand__Vfuncrtn);
+    virtual void __VnoInFunc___Vsetup_constraints(Vcsi2_tb_top__Syms* __restrict vlSymsp);
+    void __VnoInFunc____05Fm_uvm_field_automation(VlProcessRef vlProcess, Vcsi2_tb_top__Syms* __restrict vlSymsp, VlClassRef<Vcsi2_tb_top_uvm_pkg__03a__03auvm_object> tmp_data___05F, IData/*31:0*/ what___05F, std::string str___05F);
+    void __VnoInFunc_create(VlProcessRef vlProcess, Vcsi2_tb_top__Syms* __restrict vlSymsp, std::string name, VlClassRef<Vcsi2_tb_top_uvm_pkg__03a__03auvm_object> &create__Vfuncrtn);
+    virtual void __VnoInFunc_get_object_type(Vcsi2_tb_top__Syms* __restrict vlSymsp, VlClassRef<Vcsi2_tb_top_uvm_pkg__03a__03auvm_object_wrapper> &get_object_type__Vfuncrtn);
+    virtual void __VnoInFunc_get_type_name(Vcsi2_tb_top__Syms* __restrict vlSymsp, std::string &get_type_name__Vfuncrtn);
+    virtual void __VnoInFunc_randomize(Vcsi2_tb_top__Syms* __restrict vlSymsp, IData/*31:0*/ &randomize__Vfuncrtn);
+  private:
+    void _ctor_var_reset(Vcsi2_tb_top__Syms* __restrict vlSymsp);
+  public:
+    Vcsi2_tb_top_uvm_pkg__03a__03auvm_sequence_library_cfg() = default;
+    void init(VlProcessRef vlProcess, Vcsi2_tb_top__Syms* __restrict vlSymsp, std::string name, IData/*31:0*/ mode, IData/*31:0*/ min, IData/*31:0*/ max);
+    virtual ~Vcsi2_tb_top_uvm_pkg__03a__03auvm_sequence_library_cfg();
+};
+
+
+#endif  // guard

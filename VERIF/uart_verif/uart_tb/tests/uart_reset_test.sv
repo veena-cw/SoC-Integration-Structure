@@ -142,11 +142,11 @@ class uart_reset_test extends uart_base_test;
         // D1: APB register storage and write/read strobes.
         check_value("D1 THR storage", $root.tb_top.u_dut_d1.thr_reg, 0);
         check_value("D1 RHR storage", $root.tb_top.u_dut_d1.rhr_reg, 0);
-        check_value("D1 SR storage", $root.tb_top.u_dut_d1.sr_reg, 0);
+        check_value("D1 SR storage", $root.tb_top.u_dut_d1.sr_reg, 5);
         check_value("D1 CR storage", $root.tb_top.u_dut_d1.cr_reg, 0);
         check_value("D1 BRDR storage", $root.tb_top.u_dut_d1.brdr_reg, 0);
         check_value("D1 IER storage", $root.tb_top.u_dut_d1.ier_reg, 0);
-        check_value("D1 ISR storage", $root.tb_top.u_dut_d1.isr_reg, 0);
+        check_value("D1 ISR storage", $root.tb_top.u_dut_d1.isr_reg, 5);
         check_value("D1 register valid bits",
             {$root.tb_top.u_dut_d1.thr_reg_vld,
              $root.tb_top.u_dut_d1.rhr_reg_vld,
@@ -224,11 +224,11 @@ class uart_reset_test extends uart_base_test;
         // D2: APB register storage and write/read strobes.
         check_value("D2 THR storage", $root.tb_top.u_dut_d2.thr_reg, 0);
         check_value("D2 RHR storage", $root.tb_top.u_dut_d2.rhr_reg, 0);
-        check_value("D2 SR storage", $root.tb_top.u_dut_d2.sr_reg, 0);
+        check_value("D2 SR storage", $root.tb_top.u_dut_d2.sr_reg, 5);
         check_value("D2 CR storage", $root.tb_top.u_dut_d2.cr_reg, 0);
         check_value("D2 BRDR storage", $root.tb_top.u_dut_d2.brdr_reg, 0);
         check_value("D2 IER storage", $root.tb_top.u_dut_d2.ier_reg, 0);
-        check_value("D2 ISR storage", $root.tb_top.u_dut_d2.isr_reg, 0);
+        check_value("D2 ISR storage", $root.tb_top.u_dut_d2.isr_reg, 5);
         check_value("D2 register valid bits",
             {$root.tb_top.u_dut_d2.thr_reg_vld,
              $root.tb_top.u_dut_d2.rhr_reg_vld,

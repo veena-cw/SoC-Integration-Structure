@@ -10,3 +10,4 @@ uart_stress_test
 uart_reset_test
 uart_baud_gen_test
 uart_apb_test
+uart_fsm_fault_test

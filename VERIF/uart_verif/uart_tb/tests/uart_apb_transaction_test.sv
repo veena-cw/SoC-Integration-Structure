@@ -315,6 +315,22 @@ class uart_apb_transaction_test extends uart_base_test;
             1'b1,
             5'd14
         );
+        
+        //13. rts thresh with 0 value.
+        run_named_scenario(
+            "Long D1_TO_D2 directed odd parity",
+            uart_virtual_sequence::D1_TO_D2,
+            17,
+            4'd9,
+            1'b1,
+            2'b01,
+            1'b1,
+            uart_virtual_sequence::DIRECTED_DATA,
+            1'b1,
+            1'b0,
+            1'b1,
+            5'd0
+        );
 
         grand_pass = env.scoreboard.pass_count + local_pass_total;
         grand_fail = env.scoreboard.error_count + local_fail_total;

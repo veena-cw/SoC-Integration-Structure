@@ -148,11 +148,11 @@ import uvm_pkg::*;
             RX_FULL     = uart_reg_field::type_id::create("RX_FULL");
             RX_FULL.configure    (this, 1, 3, "RO", 1, 1'b0, 1, 0, 1);
             RX_EMPTY    = uart_reg_field::type_id::create("RX_EMPTY");
-            RX_EMPTY.configure   (this, 1, 2, "RO", 1, 1'b0, 1, 0, 1);
+            RX_EMPTY.configure   (this, 1, 2, "RO", 1, 1'b1, 1, 0, 1);
             TX_FULL     = uart_reg_field::type_id::create("TX_FULL");
             TX_FULL.configure    (this, 1, 1, "RO", 1, 1'b0, 1, 0, 1);
             TX_EMPTY    = uart_reg_field::type_id::create("TX_EMPTY");
-            TX_EMPTY.configure   (this, 1, 0, "RO", 1, 1'b0, 1, 0, 1);
+            TX_EMPTY.configure   (this, 1, 0, "RO", 1, 1'b1, 1, 0, 1);
             // Reset value is genuinely 0 for every bit here (rtl:
             // "if (!rst_n) {sr_reg_vld,sr_reg} <= 33'h0;"), even
             // though that momentarily reads TX_EMPTY/RX_EMPTY as 0
@@ -354,10 +354,10 @@ import uvm_pkg::*;
             RX_FULL     = uart_reg_field::type_id::create("RX_FULL");
             RX_FULL.configure    (this, 1, 3, "RO", 1, 1'b0, 1, 0, 1);
             RX_EMPTY    = uart_reg_field::type_id::create("RX_EMPTY");
-            RX_EMPTY.configure   (this, 1, 2, "RO", 1, 1'b0, 1, 0, 1);
+            RX_EMPTY.configure   (this, 1, 2, "RO", 1, 1'b1, 1, 0, 1);
             TX_FULL     = uart_reg_field::type_id::create("TX_FULL");
             TX_FULL.configure    (this, 1, 1, "RO", 1, 1'b0, 1, 0, 1);
             TX_EMPTY    = uart_reg_field::type_id::create("TX_EMPTY");
-            TX_EMPTY.configure   (this, 1, 0, "RO", 1, 1'b0, 1, 0, 1);
+            TX_EMPTY.configure   (this, 1, 0, "RO", 1, 1'b1, 1, 0, 1);
         endfunction
     endclass

@@ -1,0 +1,22 @@
+`verilator_config
+
+// Instrument RTL code only. Do not collect UVM/testbench line, toggle or
+// branch points: those would distort the DUT code coverage denominator.
+coverage_off -file "*/uvm-1.2/src/*"
+coverage_off -file "*uvm_pkg.sv"
+coverage_off -file "*agent/*"
+coverage_off -file "*interface/*"
+coverage_off -file "*ral/*"
+coverage_off -file "*tests/*"
+coverage_off -file "*top/tb_top.sv"
+coverage_off -file "*assertions/*"
+coverage_off -file "*env/uart_env.sv"
+coverage_off -file "*env/uart_scoreboard.sv"
+coverage_off -file "*env/uart_virtual_sequencer.sv"
+coverage_off -file "*env/uart_virtual_sequence.sv"
+
+// IMPORTANT: uart_coverage.sv is intentionally NOT excluded: its
+// SystemVerilog covergroups are the functional coverage data source.
+// Its incidental code points are filtered from the final RTL-only LCOV
+// summary/HTML by the Makefile's '*/rtl/*.sv' extract.
+// All ../rtl/*.sv files remain enabled for code coverage.

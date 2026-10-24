@@ -86,6 +86,7 @@
 ../tests/uart_irq_gen_test.sv
 ../tests/uart_reset_test.sv
 ../tests/uart_baud_gen_test.sv
+../tests/uart_fsm_fault_test.sv
 
 # ---------- Assertions (module; needs uart_if/reset_if) ----------
 ../assertions/uart_assertions.sv

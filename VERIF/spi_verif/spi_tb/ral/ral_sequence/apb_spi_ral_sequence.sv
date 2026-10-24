@@ -450,41 +450,41 @@ class apb_spi_reg_rw1c_seq extends apb_spi_ral_base_seq;
         // Read current value. The sequence does not assume the field starts set.
         rg.read(status, before_value, UVM_FRONTDOOR);
         if (status != UVM_IS_OK) begin
-          `uvm_error(get_type_name(), $sformatf("RW1C INITIAL READ FAILED: %s.%s", rg.get_name(), f.get_name()))
+          `uvm_error(get_type_name(), $sformatf("W1C INITIAL READ FAILED: %s.%s", rg.get_name(), f.get_name()))
           continue;
         end
 
         // Write zero to the RW1C field. Zero must have no clear effect.
         rg.write(status, before_value & ~mask, UVM_FRONTDOOR);
         if (status != UVM_IS_OK) begin
-          `uvm_error(get_type_name(), $sformatf("RW1C WRITE-0 FAILED: %s.%s", rg.get_name(), f.get_name()))
+          `uvm_error(get_type_name(), $sformatf("W1C WRITE-0 FAILED: %s.%s", rg.get_name(), f.get_name()))
           continue;
         end
         rg.read(status, after_zero, UVM_FRONTDOOR);
         if (status != UVM_IS_OK) begin
-          `uvm_error(get_type_name(), $sformatf("RW1C READ-AFTER-0 FAILED: %s.%s", rg.get_name(), f.get_name()))
+          `uvm_error(get_type_name(), $sformatf("W1C READ-AFTER-0 FAILED: %s.%s", rg.get_name(), f.get_name()))
           continue;
         end
         else if ((after_zero & mask) !== (before_value & mask)) begin
-          `uvm_error(get_type_name(), $sformatf("RW1C WRITE-0 CHANGED FIELD: %s.%s before=0x%0h after=0x%0h", rg.get_name(), f.get_name(), (before_value & mask), (after_zero & mask)))
+          `uvm_error(get_type_name(), $sformatf("W1C WRITE-0 CHANGED FIELD: %s.%s before=0x%0h after=0x%0h", rg.get_name(), f.get_name(), (before_value & mask), (after_zero & mask)))
         end
 
         // Write ones to every RW1C bit. Ones must clear those bits.
         write_one = before_value | mask;
         rg.write(status, write_one, UVM_FRONTDOOR);
         if (status != UVM_IS_OK) begin
-          `uvm_error(get_type_name(), $sformatf("RW1C WRITE-1 FAILED: %s.%s", rg.get_name(), f.get_name()))
+          `uvm_error(get_type_name(), $sformatf("W1C WRITE-1 FAILED: %s.%s", rg.get_name(), f.get_name()))
           continue;
         end
         rg.read(status, after_one, UVM_FRONTDOOR);
         if (status != UVM_IS_OK) begin
-          `uvm_error(get_type_name(), $sformatf("RW1C READ-AFTER-1 FAILED: %s.%s", rg.get_name(), f.get_name()))
+          `uvm_error(get_type_name(), $sformatf("W1C READ-AFTER-1 FAILED: %s.%s", rg.get_name(), f.get_name()))
         end
         else if ((after_one & mask) !== '0) begin
-          `uvm_error(get_type_name(), $sformatf("RW1C CLEAR FAILED: %s.%s write=0x%0h actual=0x%0h", rg.get_name(), f.get_name(), (write_one & mask), (after_one & mask)))
+          `uvm_error(get_type_name(), $sformatf("W1C CLEAR FAILED: %s.%s write=0x%0h actual=0x%0h", rg.get_name(), f.get_name(), (write_one & mask), (after_one & mask)))
         end
         else begin
-          `uvm_info(get_type_name(), $sformatf("RW1C PASS: %s.%s mask=0x%0h", rg.get_name(), f.get_name(), mask), UVM_HIGH)
+          `uvm_info(get_type_name(), $sformatf("W1C PASS: %s.%s mask=0x%0h", rg.get_name(), f.get_name(), mask), UVM_HIGH)
         end
       end
     end

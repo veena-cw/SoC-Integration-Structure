@@ -55,7 +55,7 @@ class apb_spi_ral_block extends uvm_reg_block;
     IRQ_STAT = irq_stat_reg::type_id::create("IRQ_STAT");
     IRQ_STAT.configure(this, null, "");
     IRQ_STAT.build();
-    default_map.add_reg(IRQ_STAT, 'h8, "W1C");
+    default_map.add_reg(IRQ_STAT, 'h8, "RW");
 
     IRQ_MASK = irq_mask_reg::type_id::create("IRQ_MASK");
     IRQ_MASK.configure(this, null, "");

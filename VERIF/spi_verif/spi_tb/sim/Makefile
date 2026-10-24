@@ -218,6 +218,7 @@ verilator_run:
 		+UVM_TESTNAME=$(TESTNAME) \
 		+UVM_VERBOSITY=UVM_MEDIUM \
 		+UVM_NO_RELNOTES \
+		+DUMP_VCD \
 		2>&1 | tee "$(VERILATOR_LOG_DIR)/$(TESTNAME).log"
 	@echo "Verilator run finished. Log: verilator_logs/$(TESTNAME).log"
 

@@ -64,3 +64,6 @@ VERIF/lpddr_verif/lpddr5c_tb_l/sim/verilator_obj_dir/
 #SPI Verilator logs
 /VERIF/spi_verif/spi_tb/sim/verilator_logs/
 *.swp
+/VERIF/spi_verif/spi_tb/sim/verilator_files/
+/VERIF/spi_verif/spi_tb/sim/verilator_logs/
+/VERIF/spi_verif/spi_tb/sim/dump.vcd

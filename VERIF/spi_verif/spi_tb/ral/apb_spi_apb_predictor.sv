@@ -109,7 +109,12 @@ class apb_spi_apb_predictor extends uvm_reg_predictor #(apb_seq_item);
       nbits = f.get_n_bits();
       if (nbits >= $bits(uvm_reg_data_t)) field_value = rw.data;
       else                                field_value = (rw.data >> lsb) & ((uvm_reg_data_t'(1) << nbits) - 1);
-      f.predict(field_value, rw.byte_en, UVM_PREDICT_WRITE, UVM_FRONTDOOR, map);
+     // f.predict(field_value, rw.byte_en, UVM_PREDICT_WRITE, UVM_FRONTDOOR, map);
+     if (!f.predict(field_value, rw.byte_en,
+               UVM_PREDICT_WRITE, UVM_FRONTDOOR, map)) begin
+  `uvm_warning("PREDICT_FAIL",
+    $sformatf("RAL prediction failed for %s", f.get_full_name()))
+end
     end
   endfunction
 

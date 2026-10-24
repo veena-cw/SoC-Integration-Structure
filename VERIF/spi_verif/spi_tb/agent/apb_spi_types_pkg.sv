@@ -18,10 +18,10 @@ package apb_spi_types_pkg;
   SLV_RX_PROBE = 1'b1
 } spi_slave_item_kind_e;
 
-  parameter time CLK_PERIOD = 10ns;
-  parameter int DATA_WIDTH = 8;
+  //parameter time CLK_PERIOD = 10ns;
+ // parameter int DATA_WIDTH = 8;
 
-  parameter int unsigned FIFO_DEPTH     = 16;
+  /*parameter int unsigned FIFO_DEPTH     = 16;
   parameter bit [7:0]    SLAVE_TX_CONST = 8'h0C;
   parameter bit [31:0]   ID_VALUE       = 32'h5910_017E;
   parameter bit [31:0]   VERSION_VALUE  = 32'h0001_0000;
@@ -42,6 +42,6 @@ package apb_spi_types_pkg;
   parameter bit [15:0] ADDR_SCRATCH3  = 16'h0034;
   parameter bit [15:0] ADDR_SCRATCH4  = 16'h0038;
   parameter bit [15:0] ADDR_SCRATCH5  = 16'h003C;
-
+*/
 endpackage
 

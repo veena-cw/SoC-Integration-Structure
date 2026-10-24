@@ -36,6 +36,7 @@ class apb_spi_coverage extends uvm_component;
   bit reset_hit_spi;      // the last reset assertion hit a running SPI frame
 
   // ---------------- APB register access ----------------
+  /* verilator lint_off VARHIDDEN */
   covergroup cg_apb with function sample(bit [15:0] addr, bit wr, bit err);
     cp_addr : coverpoint addr {
       bins ctrl     = {16'h00};
@@ -109,6 +110,7 @@ class apb_spi_coverage extends uvm_component;
     x_mode_lsb : cross cp_mode, cp_lsb;
   endgroup
 
+
   // ---------------- reset scenarios ----------------
   covergroup cg_reset with function sample(bit during_spi, int unsigned width);
     cp_ctx   : coverpoint during_spi { bins idle_or_apb_only = {0}; bins during_spi_frame = {1}; }
@@ -119,7 +121,7 @@ class apb_spi_coverage extends uvm_component;
     }
     x_ctx_width : cross cp_ctx, cp_width;
   endgroup
-
+/* verilator lint_on VARHIDDEN */
   function new(string name = "apb_spi_coverage", uvm_component parent = null);
     super.new(name, parent);
     apb_imp       = new("apb_imp", this);

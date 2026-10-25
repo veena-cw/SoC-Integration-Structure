@@ -1,4 +1,3 @@
-
 //==================================================================================
 //  Copyright (c) 2025 Chipweave Technologies Private Limited. All rights reserved.
 //  THIS PROGRAM IS AN UNPUBLISHED WORK FULLY PROTECTED BY
@@ -207,11 +206,13 @@ assign   csi2_rx_data_reg_vld = ((rxactivehs & ((&(rxvalidhs[3:0])))) |
     else lm_wr_en <= //((lane_configuration == 32'h2) & //(mode_selection == 32'h0)) & 
       (rxactivehs /*& (((|(rxvalidhs[3:0])) | (|(rxsynchs[3:0]))))*/); //((rxvalidhs0 | rxvalidhs1 | rxvalidhs2 | rxvalidhs3)));
   
-  always_ff @(posedge rxwordclkhs or negedge rst_n)
+  /*always_ff @(posedge rxwordclkhs or negedge rst_n)
     if(~rst_n)  lm_active_en <= 1'b0;
   else lm_active_en <= //((lane_configuration == 32'h2) & //(mode_selection == 32'h0)) & 
                        ((rxactivehs & ((|(rxvalidhs[3:0])))) | //((rxvalidhs0 | rxvalidhs1 | rxvalidhs2 | rxvalidhs3))) | 
 					   (rxactivehs & (|(rxsynchs[3:0])))); //| rxsynchs1 | rxsynchs2 | rxsynchs3)));
+ */
+ 
   
 always_ff @(posedge rxwordclkhs or negedge rst_n)
   if(~rst_n)  lm_active_vld <= 1'b0;
@@ -220,6 +221,45 @@ always_ff @(posedge rxwordclkhs or negedge rst_n)
 always_ff @(posedge cphy_rxwordclkhs or negedge rst_n)
     if(~rst_n)  lm_rd_vld <= 1'b0;
     else        lm_rd_vld <= lm_active_vld;
+    
+    // ------------------------------------------------------------
+// Lane merger FIFO write control
+// Write only complete, valid 64-bit words.
+// ------------------------------------------------------------
+
+always_ff @(posedge rxwordclkhs or negedge rst_n) begin
+    if (!rst_n) begin
+        lm_wr_en  <= 1'b0;
+        lm_data_in <= 64'h0;
+    end
+    else begin
+        // Default: no FIFO write
+        lm_wr_en   <= 1'b0;
+        lm_data_in <= 64'h0;
+
+        if (rxactivehs && (&rxsynchs[3:0])) begin
+            // Synchronization information
+            lm_wr_en <= 1'b1;
+            lm_data_in <= {
+                52'h0,
+                rxsynctypehs3,
+                rxsynctypehs2,
+                rxsynctypehs1,
+                rxsynctypehs0
+            };
+        end
+        else if (rxactivehs && (&rxvalidhs[3:0])) begin
+            // All four 16-bit lane words are valid
+            lm_wr_en <= 1'b1;
+            lm_data_in <= {
+                rxdatahs[3][15:0],
+                rxdatahs[2][15:0],
+                rxdatahs[1][15:0],
+                rxdatahs[0][15:0]
+            };
+        end
+    end
+end
 /*logic lane_merging_sync_data_valid;
 logic lane_merging_data_valid;
 logic lane_merging_sync_data_valid;  
@@ -246,11 +286,11 @@ always_ff @(posedge cphy_rxwordclkhs or negedge rst_n)
                              lane_merging_sync_data_valid_r ?  {52'h0,lane_merging_sync_data_r[11:0]} :
                                              64'h0;   		*/					  			
 	
- always_ff @(posedge rxwordclkhs or negedge rst_n)
+ /*always_ff @(posedge rxwordclkhs or negedge rst_n)
   if(~rst_n) lm_data_in <= 64'h0;
   else       lm_data_in   <= (rxactivehs & (|(rxvalidhs[3:0]))) ?  (rxactivehs & (|(rxsynchs[3:0]))) ?  
                               {52'h0,rxsynctypehs3,rxsynctypehs2,rxsynctypehs1,rxsynctypehs0} :{rxdatahs[3][15:0], rxdatahs[2][15:0], rxdatahs[1][15:0], rxdatahs[0][15:0]}:
-                                             64'h0;     
+                                             64'h0; */    
  
 /*always_ff @(posedge cphy_rxwordclkhs or negedge rst_n)
   if(~rst_n) lm_data_in <= 64'h0;
@@ -525,7 +565,7 @@ csi2rx_next_state = csi2rx_err | stopstate ? CSI2RX_IDLE :
 					CSI2RX_IDLE;
 
 CSI2RX_HS_MODE:
-csi2rx_next_state = csi2rx_err | stopstate ? CSI2RX_IDLE :
+csi2rx_next_state = csi2rx_err /*| stopstate*/  ? CSI2RX_IDLE :
                     ((|rxalpvalidhs[3:0]) & (!rxactivehs)) ? CSI2RX_ALP_MODE : CSI2RX_HS_MODE;
 
 CSI2RX_ALP_MODE:

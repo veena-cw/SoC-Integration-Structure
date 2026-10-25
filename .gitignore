@@ -20,7 +20,8 @@ VERIF/i2c_verif/i2c_tb/sim/*.jou
 VERIF/i2c_verif/i2c_tb/sim/*.pb
 VERIF/i2c_verif/i2c_tb/sim/*.vcd
 VERIF/i2c_verif/i2c_tb/sim/*.str
-
+# CSI-2 Verilator/UVM build artifacts
+/VERIF/mipi_csi2_verif/csi2_tb/sim/.csi2_uvm_build/
 
 <<<<<<< Updated upstream
 # USB Host Controller simulation generated files

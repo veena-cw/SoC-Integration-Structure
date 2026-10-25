@@ -141,7 +141,7 @@ module i2c_top #(
 
 
     asynchronous_fifo #(
-        .DEPTH(1),
+        .DEPTH(2),
         .DATA_WIDTH(32)
     ) fifo_inst_write (
 

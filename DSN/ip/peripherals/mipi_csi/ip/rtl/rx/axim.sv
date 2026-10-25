@@ -369,15 +369,28 @@ always_ff @(posedge aclk or negedge areset_n)
 //last write data: high together with the last beat of the burst
 assign wlast = wvalid & (beat_cnt == (BURST_BEATS - 9'd1));
 
-//storing of incoming valid from byte to pixel converter 
-always_ff @(posedge cphy_rxwordclkhs or negedge areset_n)
-  if(~areset_n) axi_pixel_dvld <= 1'b0;
-  else   axi_pixel_dvld <= rx_pixel_dvalid;
-  
-//delay of pixel data valid to align with the clock cycle while reading from the AXI asynchronous FIFO	
+logic axi_pixel_dvld_sync1;
+logic axi_pixel_dvld_sync2;
+
 always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n) axi_pixel_rd <= 1'b0;
-  else   axi_pixel_rd <= axi_pixel_dvld;
+begin
+    if(!areset_n) begin
+        axi_pixel_dvld_sync1 <= 1'b0;
+        axi_pixel_dvld_sync2 <= 1'b0;
+    end
+    else begin
+        axi_pixel_dvld_sync1 <= axi_pixel_dvld;
+        axi_pixel_dvld_sync2 <= axi_pixel_dvld_sync1;
+    end
+end
+
+always_ff @(posedge aclk or negedge areset_n)
+begin
+    if(!areset_n)
+        axi_pixel_rd <= 1'b0;
+    else
+        axi_pixel_rd <= axi_pixel_dvld_sync2;
+end
   
 //read enable indication to AXI FIFO in order to read the pixel data.
 //A word is popped only when the W channel is idle (one beat in flight):

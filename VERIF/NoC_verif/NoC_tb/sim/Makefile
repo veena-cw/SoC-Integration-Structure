@@ -1,136 +1,186 @@
-# NoC UVM simulation flow for Verilator 5.052
-# Run this Makefile from: NoC_tb/sim
-
 SHELL := /bin/bash
+.SHELLFLAGS := -eu -o pipefail -c
 
-ROOT := ..
+#------------------------------------------------------------
+# Directories
+#------------------------------------------------------------
 
-VERILATOR ?= verilator
-REQUIRED_VLT ?= 5.052
+SIM_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+TB_DIR  := $(abspath $(SIM_DIR)/..)
 
-TOP ?=  NoC_top
-TEST ?= NoC_base_test
-SEED ?= 1
-JOBS ?= 0
+BUILD_ROOT ?= $(SIM_DIR)/build
+OBJ_DIR    := $(BUILD_ROOT)/verilator/obj_dir
+LOG_DIR    := $(BUILD_ROOT)/log
 
-BUILD_DIR ?= build/verilator
-OBJ_DIR := $(BUILD_DIR)/obj_dir
-SIM_EXE := $(OBJ_DIR)/V$(TOP)
+#------------------------------------------------------------
+# Tools
+#------------------------------------------------------------
 
-# Set this to the directory containing src/uvm_pkg.sv.
-# Example:
-# make run UVM_HOME=/home/user/uvm-1.2
-UVM_HOME ?= $(shell \
-	for d in "$${UVM_HOME:-}" /usr/share/uvm /usr/local/share/uvm; do \
-		if [ -f "$$d/src\
-		/uvm_pkg.sv" ]; then echo "$$d"; break; fi; \
-	done)
+VERILATOR ?= $(shell \
+	if [ -x /opt/verilator-5.052/bin/verilator ]; then \
+		echo /opt/verilator-5.052/bin/verilator; \
+	else \
+		command -v verilator; \
+	fi)
 
-# Testbench sources. NoC_package.sv includes the UVM class files.
-TB_SRCS := \
-	$(ROOT)/interface/NoC_master_interface.sv \
-	$(ROOT)/interface/NoC_slave_interface.sv \
-	$(ROOT)/interface/NoC_reset_interface.sv \
-	$(ROOT)/assertion/NoC_assertions.sv \
-	$(ROOT)/env/NoC_package.sv \
-	$(ROOT)/top/NoC_top.sv
+# UVM is located at VERIF/uvm-1.1d
+UVM_HOME ?= $(abspath $(SIM_DIR)/../../../uvm-1.1d)
+UVM_SRC  := $(UVM_HOME)/src
+UVM_DPI  := $(UVM_SRC)/dpi/uvm_dpi.cc
 
-TB_INC_DIRS := \
-	-I$(ROOT)/interface \
-	-I$(ROOT)/agent/master_agent \
-	-I$(ROOT)/agent/slave_agent \
-	-I$(ROOT)/agent/reset_agent \
-	-I$(ROOT)/env \
-	-I$(ROOT)/test \
-	-I$(ROOT)/assertion \
-	-I$(ROOT)/top
+#------------------------------------------------------------
+# User options
+#------------------------------------------------------------
 
-# Pass the RTL file list from the sim directory, for example:
-# RTL_FILELIST=../../rtl/filelist.f
-RTL_FILELIST ?=
-RTL_SRCS ?=
+TESTNAME ?= NoC_test
+SEED     ?= 1
+JOBS     ?= 1
+TIMEOUT  ?= 120s
+WAVES    ?= 0
 
-ifneq ($(strip $(UVM_HOME)),)
-UVM_INC_DIRS := -I$(UVM_HOME)/src -I$(UVM_HOME)/src/uvm
-UVM_SRCS := $(UVM_HOME)/src/uvm_pkg.sv
+SIM_BINARY := $(OBJ_DIR)/VNoC_top
+COMPILE_LOG := $(LOG_DIR)/compile.log
+RUN_LOG     := $(LOG_DIR)/$(TESTNAME).log
+
+#------------------------------------------------------------
+# Include directories
+#------------------------------------------------------------
+
+INCLUDES := \
+	-I../interface \
+	-I../agent/master_agent \
+	-I../agent/slave_agent \
+	-I../agent/reset_agent \
+	-I../env \
+	-I../test \
+	-I../assertion \
+	-I../top \
+	-I$(UVM_SRC) \
+	-I$(UVM_SRC)/uvm
+
+#------------------------------------------------------------
+# SystemVerilog sources
+#------------------------------------------------------------
+
+SV_FILES := \
+	../interface/NoC_master_interface.sv \
+	../interface/NoC_slave_interface.sv \
+	../interface/NoC_reset_interface.sv \
+	../assertion/NoC_assertions.sv \
+	../env/NoC_package.sv \
+	../top/NoC_top.sv
+
+#------------------------------------------------------------
+# Waveform options
+#------------------------------------------------------------
+
+ifeq ($(WAVES),1)
+TRACE_FLAGS := --trace-vcd --trace-structs
+WAVE_ARGS   := +WAVES
 else
-UVM_INC_DIRS :=
-UVM_SRCS :=
+TRACE_FLAGS :=
+WAVE_ARGS   :=
 endif
 
-VLT_FLAGS := \
-	--sv \
-	--timing \
-	--binary \
-	--top-module $(TOP) \
-	--Mdir $(OBJ_DIR) \
-	--prefix V$(TOP) \
-	--Wno-fatal \
-	--Wno-DECLFILENAME \
-	--Wno-TIMESCALEMOD
+#------------------------------------------------------------
+# Targets
+#------------------------------------------------------------
 
-ifneq ($(WAVES),)
-VLT_FLAGS += --trace --trace-structs
-endif
-
-ifneq ($(JOBS),0)
-VLT_FLAGS += -j $(JOBS)
-endif
-
-VLT_INPUTS := $(TB_INC_DIRS) $(UVM_INC_DIRS) $(UVM_SRCS) $(TB_SRCS) $(RTL_SRCS)
-
-ifneq ($(strip $(RTL_FILELIST)),)
-VLT_INPUTS += -f $(RTL_FILELIST)
-endif
-
-.PHONY: all help version check compile run clean distclean
+.PHONY: all check compile build run wave clean help
 
 all: run
 
 help:
-	@echo "NoC Verilator 5.052 flow"
-	@echo "make check   - check Verilator, UVM, top module, and RTL inputs"
-	@echo "make compile - compile the design"
-	@echo "make run     - compile and run the UVM test"
-	@echo "make clean   - remove Verilator build files"
 	@echo ""
-	@echo "Example:"
-	@echo "make run UVM_HOME=/path/to/uvm TOP=NoC_top RTL_FILELIST=../../rtl/filelist.f TEST=NoC_base_test SEED=1"
-
-version:
-	@$(VERILATOR) --version
+	@echo "Available commands:"
+	@echo "  make compile"
+	@echo "  make build TESTNAME=NoC_test"
+	@echo "  make run TESTNAME=NoC_test"
+	@echo "  make wave TESTNAME=NoC_test"
+	@echo "  make clean"
+	@echo ""
 
 check:
-	@command -v $(VERILATOR) >/dev/null 2>&1 || { echo "ERROR: Verilator was not found in PATH"; exit 2; }
-	@actual=$$($(VERILATOR) --version | sed -n 's/.*Verilator \([0-9][0-9.]*\).*/\1/p'); \
-	if [ "$$actual" != "$(REQUIRED_VLT)" ]; then \
-		echo "WARNING: required Verilator $(REQUIRED_VLT), found $$actual"; \
-	fi
-	@if [ -z "$(UVM_HOME)" ] || [ ! -f "$(UVM_HOME)/src/uvm_pkg.sv" ]; then \
-		echo "ERROR: set UVM_HOME to a directory containing src/uvm_pkg.sv"; \
-		exit 2; \
-	fi
-	@top_file=$$(for f in $(TB_SRCS); do \
-		[ -f "$$f" ] && printf '%s\n' "$$f"; \
-	done | xargs -r grep -l -E "^[[:space:]]*module[[:space:]]+$(TOP)([[:space:](]|$$)" | head -n1); \
-	if [ -z "$$top_file" ]; then \
-		echo "ERROR: module $(TOP) was not found in TB_SRCS"; \
-		echo "Set TOP to the real testbench top module"; \
-		exit 2; \
-	fi
-	@if [ -z "$(strip $(RTL_FILELIST)$(RTL_SRCS))" ]; then \
-		echo "WARNING: no RTL source list supplied"; \
-	fi
+	@test -x "$(VERILATOR)" || { \
+		echo "ERROR: Verilator was not found"; \
+		exit 1; \
+	}
+
+	@test -f "$(UVM_SRC)/uvm_pkg.sv" || { \
+		echo "ERROR: UVM package not found:"; \
+		echo "       $(UVM_SRC)/uvm_pkg.sv"; \
+		exit 1; \
+	}
+
+	@test -f "$(UVM_DPI)" || { \
+		echo "ERROR: UVM DPI source not found:"; \
+		echo "       $(UVM_DPI)"; \
+		exit 1; \
+	}
+
+	@mkdir -p "$(OBJ_DIR)" "$(LOG_DIR)"
+
+	@echo "Using Verilator:"
+	@"$(VERILATOR)" --version
+
+	@echo "Using UVM:"
+	@echo "$(UVM_SRC)"
 
 compile: check
-	@mkdir -p $(BUILD_DIR)
-	$(VERILATOR) $(VLT_FLAGS) $(VLT_INPUTS)
+	@echo "Compiling NoC UVM environment..."
+
+	@cd "$(SIM_DIR)" && \
+	"$(VERILATOR)" \
+		--sv \
+		--timing \
+		--vpi \
+		--binary \
+		--top-module NoC_top \
+		--Mdir "$(OBJ_DIR)" \
+		--prefix VNoC_top \
+		-j "$(JOBS)" \
+		-Wno-fatal \
+		-Wno-DECLFILENAME \
+		-Wno-TIMESCALEMOD \
+		$(TRACE_FLAGS) \
+		$(INCLUDES) \
+		"$(UVM_SRC)/uvm_pkg.sv" \
+		$(SV_FILES) \
+		"$(UVM_DPI)" \
+		-CFLAGS "-I$(UVM_SRC)/dpi" \
+		2>&1 | tee "$(COMPILE_LOG)"
+
+build: compile
 
 run: compile
-	$(SIM_EXE) +UVM_TESTNAME=$(TEST) +ntb_random_seed=$(SEED) $(PLUSARGS)
+	@echo "Running test: $(TESTNAME)"
+
+	@timeout "$(TIMEOUT)" \
+		"$(SIM_BINARY)" \
+		+UVM_TESTNAME="$(TESTNAME)" \
+		+verilator+seed+"$(SEED)" \
+		$(WAVE_ARGS) \
+		2>&1 | tee "$(RUN_LOG)"
+
+wave:
+	@$(MAKE) clean
+	@$(MAKE) \
+		WAVES=1 \
+		TESTNAME="$(TESTNAME)" \
+		SEED="$(SEED)" \
+		run
+
+	@if [ -f "$(SIM_DIR)/NoC_top.vcd" ]; then \
+		gtkwave "$(SIM_DIR)/NoC_top.vcd" & \
+	elif [ -f "$(SIM_DIR)/wave.vcd" ]; then \
+		gtkwave "$(SIM_DIR)/wave.vcd" & \
+	else \
+		echo "Waveform file was not generated."; \
+	fi
 
 clean:
-	rm -rf $(BUILD_DIR)
+	@rm -rf "$(BUILD_ROOT)"
+	@rm -f "$(SIM_DIR)"/*.vcd
+	@rm -f "$(SIM_DIR)"/*.fst
 
-distclean: clean
-	rm -f *.log *.vcd *.fst
+	@echo "NoC build files and logs removed."

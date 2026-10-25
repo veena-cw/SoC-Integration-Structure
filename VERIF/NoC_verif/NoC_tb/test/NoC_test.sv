@@ -1,18 +1,19 @@
 class NoC_base_test extends uvm_test;
     `uvm_component_utils(NoC_base_test)
 	 NoC_env en;
+
          NoC_vseq_base       vseq;
 	 NoC_master_config   NoC_master_cfg[];
 	 NoC_slave_config    NoC_slave_cfg[];
 	 NoC_env_config      env_cfg;
-	 int                 no_of_NoC_master_agents = 1;
-	 int                 no_of_NoC_slave_agents = 1;
+	 int                 no_of_NoC_master_agents = 10;
+	 int                 no_of_NoC_slave_agents = 5;
 
-     function new(string name = "test",uvm_component parent);
+     function new(string name = "NoC_base_test",uvm_component parent);
         super.new(name,parent);
      endfunction
 	 function void build_phase(uvm_phase phase);
-	               super.build_phase(phase);
+	        super.build_phase(phase);
 	        NoC_master_cfg                  =  new[no_of_NoC_master_agents];
 		NoC_slave_cfg                   =  new[no_of_NoC_slave_agents];
 		env_cfg                         =  NoC_env_config::type_id::create("env_cfg");
@@ -53,8 +54,8 @@ class NoC_base_test extends uvm_test;
 		   end
 		  uvm_config_db#(NoC_env_config)::set(this,"*","env_cfg",env_cfg);
 		  en    = NoC_env::type_id::create("en",this);
-		  NoC_master_sq = NoC_master_seq::type_id::create("NoC_master_sq");
-		  NoC_slave_sq = NoC_slave_seq::type_id::create("NoC_slave_sq");
+		 // NoC_master_sq = NoC_master_seq::type_id::create("NoC_master_sq");
+		 // NoC_slave_sq = NoC_slave_seq::type_id::create("NoC_slave_sq");
 	 endfunction
 
 

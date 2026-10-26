@@ -166,6 +166,18 @@ TEST_ID      ?= 33
 else ifeq ($(TEST),bp_dv_034_cbo_inval_test)
 TCNAME       ?= cbo_inval
 TEST_ID      ?= 34
+else ifeq ($(TEST),bp_dv_058_plic_irq_test)
+TCNAME       ?= plic_irq
+TEST_ID      ?= 58
+else ifeq ($(TEST),bp_dv_059_plic_reg_full_test)
+TCNAME       ?= plic_reg_full
+TEST_ID      ?= 59
+else ifeq ($(TEST),bp_dv_060_plic_irq_scenarios_test)
+TCNAME       ?= plic_irq_scenarios
+TEST_ID      ?= 60
+else ifeq ($(TEST),bp_dv_061_plic_irq_single_test)
+TCNAME       ?= plic_irq_single
+TEST_ID      ?= 61
 else ifeq ($(TEST),bp_dv_056_cbo_zero_test)
 TCNAME       ?= cbo_zero
 TEST_ID      ?= 56
@@ -284,7 +296,7 @@ COVERAGE_INFO := $(COVERAGE_DIR)/coverage.info
 # Waivers for features not supported in this CPU version (file / line
 # ranges); also mirrored in coverage.vlt so they are not instrumented.
 COVERAGE_WAIVERS := $(SIM_DIR)/coverage_waivers.txt
-COVERAGE_EXCLUDE := '*/VERIF/uvm-1.1d/*' '*/VERIF/cpu_verif/*' '*/share/verilator/*'
+COVERAGE_EXCLUDE := '*/VERIF/uvm-1.1d/*' '*/VERIF/cpu_verif/*' '*/VERIF/plic_verif/*' '*/share/verilator/*'
 COVERAGE_SUMMARY := $(COVERAGE_DIR)/summary.txt
 COVERAGE_HTML_DIR := $(COVERAGE_DIR)/html
 
@@ -425,7 +437,7 @@ all: compile sim
 
 compile: $(TCNAME).nbf
 
-$(TCNAME).elf: $(C_DIR)/$(TCNAME).c $(C_DIR)/link.ld $(C_DIR)/dual_core.h $(wildcard $(C_DIR)/cbo_ops.c $(C_DIR)/axi_block_dual_core.c $(C_DIR)/vm_sv39.c $(C_DIR)/l2_uncached_ops.c)
+$(TCNAME).elf: $(C_DIR)/$(TCNAME).c $(C_DIR)/link.ld $(C_DIR)/dual_core.h $(wildcard $(C_DIR)/plic_cpu.h $(C_DIR)/plic_irq_scenarios.c $(C_DIR)/cbo_ops.c $(C_DIR)/axi_block_dual_core.c $(C_DIR)/vm_sv39.c $(C_DIR)/l2_uncached_ops.c)
 	@mkdir -p $(LOG_DIR)
 	@echo "=================================================="
 	@echo " Compiling RISC-V C test"

@@ -22,6 +22,11 @@ $CPU_RTL_DIR/bp_top/test/common/bp_nonsynth_cfg_loader.sv
 $CPU_RTL_DIR/bp_top/test/common/bp_nonsynth_host.sv
 $CPU_RTL_DIR/bp_top/test/common/bp_nonsynth_dram.sv
 
+# PLIC interrupt agent, reused from the PLIC testbench
++incdir+$REPO_ROOT/VERIF/plic_verif/plic_tb/agent/irq_agent
++incdir+$REPO_ROOT/VERIF/plic_verif/plic_tb/irq_sequence
+$REPO_ROOT/VERIF/plic_verif/plic_tb/agent/irq_agent/plic_irq_item.sv
+$REPO_ROOT/VERIF/plic_verif/plic_tb/interface/plic_irq_if.sv
 # UVM verification environment
 $TB_DIR/package/bp_uvm_pkg.sv
 $TB_DIR/interface/bedrock_if.sv

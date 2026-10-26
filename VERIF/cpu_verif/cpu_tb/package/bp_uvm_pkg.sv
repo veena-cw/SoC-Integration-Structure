@@ -42,6 +42,16 @@ package bp_uvm_pkg;
   `include "axi_agent/cpu_axi_agent_monitor.sv"
   `include "axi_agent/cpu_axi_agent.sv"
   `include "cpu_axi_coverage.sv"
+  // PLIC interrupt agent and source sequence, reused unchanged from the
+  // PLIC testbench (VERIF/plic_verif/plic_tb); plic_irq_item_pkg is compiled
+  // ahead of this package (tb_filelist.f).
+  import plic_irq_item_pkg::*;
+  `include "plic_irq_sequencer.sv"
+  `include "plic_irq_driver.sv"
+  `include "plic_irq_monitor.sv"
+  `include "plic_irq_agent.sv"
+  `include "plic_irq_sequences.sv"
+  `include "plic_irq_ctrl.sv"
   `include "nbf_load_seq.sv"
   `include "alu_test_seq.sv"
   `include "immediate_test_seq.sv"
@@ -71,6 +81,7 @@ package bp_uvm_pkg;
   `include "smp_atomics_test_seq.sv"
   `include "fpu_test_seq.sv"
   `include "plic_reg_test_seq.sv"
+  `include "plic_irq_test_seq.sv"
   `include "bus_error_test_seq.sv"
   `include "axi_backpressure_test_seq.sv"
   `include "l2_thrash_test_seq.sv"

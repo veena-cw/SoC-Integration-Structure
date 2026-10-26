@@ -868,6 +868,94 @@ class bp_dv_042_plic_reg_test extends bp_base_test;
   endtask
 endclass
 
+// Test ID: BP-DV-058 | Feature: external interrupts through the shared PLIC
+// Both harts program the PLIC and take M/S external interrupts (c/plic_irq.c).
+// plic_src_i is driven by the PLIC testbench's interrupt agent (reused from
+// VERIF/plic_verif/plic_tb); plic_irq_ctrl turns the program's mailbox
+// writes into source changes on that agent.
+class bp_dv_058_plic_irq_test extends bp_base_test;
+  `uvm_component_utils(bp_dv_058_plic_irq_test)
+
+  plic_irq_agent irq_agt;
+  plic_irq_ctrl  irq_ctrl;
+  time           run_limit = 1500us;   // tohost deadline (subclasses may raise it)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    if (run_limit + 100us > 2ms)       // keep the global watchdog behind ours
+      uvm_top.set_timeout(run_limit + 100us, 1);
+    irq_agt  = plic_irq_agent::type_id::create("irq_agt", this);
+    irq_ctrl = plic_irq_ctrl::type_id::create("irq_ctrl", this);
+  endfunction
+
+  function void connect_phase(uvm_phase phase);
+    super.connect_phase(phase);
+    env.axi_agt.monitor.ap.connect(irq_ctrl.analysis_export);
+    irq_ctrl.sequencer = irq_agt.sequencer;
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    plic_irq_test_seq seq;
+    bit timeout;
+
+    phase.raise_objection(this);
+    apply_cpu_reset();
+    seq = plic_irq_test_seq::type_id::create("seq");
+    seq.start(env.bedrock_agt.bedrock_sqr);
+
+    timeout = 1'b0;
+    fork : completion_or_timeout
+      begin
+        wait (env.sb.finished);
+      end
+      begin
+        #(run_limit);
+        timeout = 1'b1;
+      end
+    join_any
+    disable completion_or_timeout;
+
+    if (timeout)
+      `uvm_fatal("PLIC_IRQ_TIMEOUT",
+                 $sformatf("%s did not write tohost within %0t (see the 0x0010_8F00 progress markers)",
+                           get_type_name(), run_limit))
+
+    phase.drop_objection(this);
+  endtask
+endclass
+
+// PLIC testbench tests ported to CPU level (VERIF/plic_verif/plic_tb/tests).
+// Same environment as BP-DV-058 (PLIC interrupt agent + plic_irq_ctrl); the
+// program comes from +NBF_FILE (Makefile TCNAME).
+// Test ID: BP-DV-059 | plic_reg_reset/write_read/walk_one tests (c/plic_reg_full.c)
+class bp_dv_059_plic_reg_full_test extends bp_dv_058_plic_irq_test;
+  `uvm_component_utils(bp_dv_059_plic_reg_full_test)
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+endclass
+
+// Test ID: BP-DV-060 | the 7 plic_irq_*_test scenarios (c/plic_irq_scenarios.c)
+class bp_dv_060_plic_irq_scenarios_test extends bp_dv_058_plic_irq_test;
+  `uvm_component_utils(bp_dv_060_plic_irq_scenarios_test)
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+endclass
+
+// Test ID: BP-DV-061 | plic_irq_single_test: 64 sources x 4 targets (c/plic_irq_single.c)
+class bp_dv_061_plic_irq_single_test extends bp_dv_058_plic_irq_test;
+  `uvm_component_utils(bp_dv_061_plic_irq_single_test)
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+    run_limit = 6ms;
+  endfunction
+endclass
+
 // Test ID: BP-DV-043 | Feature: AXI SLVERR/DECERR on uncached MMIO accesses
 // (both harts). The AXI agent answers 0x3003_0000-0x3003_1FFF with SLVERR
 // and 0x3004_0000-0x3004_1FFF with DECERR; the CPU is expected to raise a

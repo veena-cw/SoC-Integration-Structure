@@ -4,6 +4,7 @@
 // instrumented, so they do not appear in coverage.dat or the reports.
 coverage_off -file "*/VERIF/uvm-1.1d/*"
 coverage_off -file "*/VERIF/cpu_verif/*"
+coverage_off -file "*/VERIF/plic_verif/*"
 coverage_off -file "*/share/verilator/*"
 
 // Features not supported in this CPU version (see coverage_waivers.txt;

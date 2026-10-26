@@ -252,6 +252,17 @@ module cpu_tb_top
    );
 
 
+  // ---- PLIC interrupt sources ----
+  // plic_src_i is driven by the PLIC testbench's interrupt agent
+  // (VERIF/plic_verif/plic_tb/agent/irq_agent, used unchanged). Its driver
+  // and monitor find this interface as "irq_vif" in uvm_resource_db. With no
+  // interrupt agent in the test (every test except BP-DV-058) src stays 0.
+  wire plic_irq_rstn = dut.u_bp.m.multicore.shared_plic.ahb_rstn;
+  plic_irq_if #(.SOURCES(64), .TARGETS(4)) plic_irq_vif (.clk(plic_clk), .rst_n(plic_irq_rstn));
+  initial plic_irq_vif.src = '0;
+  assign plic_irq_vif.irq = dut.u_bp.m.multicore.plic_irq_lo;
+  initial uvm_resource_db#(virtual plic_irq_if #(64, 4))::set("*", "irq_vif", plic_irq_vif);
+
   // ---- cpu_top instantiation ----
   cpu_top #(
     .bp_params_p(bp_params_p),
@@ -259,9 +270,9 @@ module cpu_tb_top
     .AXI_DATA_WIDTH(`CPU_AXI_DATA_WIDTH)
   ) dut
    ( .clk_i(clk), .rt_clk_i(rt_clk), .reset_i(reset)
-   // Shared PLIC. The AHB side runs on CLK_GIC; no external interrupt is
-   // raised.
-   , .plic_ahb_clk_i(plic_clk), .plic_src_i('0)
+   // Shared PLIC. The AHB side runs on CLK_GIC; interrupt sources come
+   // from plic_irq_vif (PLIC interrupt agent).
+   , .plic_ahb_clk_i(plic_clk), .plic_src_i(plic_irq_vif.src)
    , .my_did_i(proc_did), .host_did_i(host_did)
    , .axi_clk_i(axi_clk), .axi_reset_i(reset)
    , .m_axi_awid(cpu_axi_vif.m_axi_awid), .m_axi_awaddr(cpu_axi_vif.m_axi_awaddr)

@@ -166,6 +166,29 @@ bp_dv_041_bitmanip_shadd_test 41 bitmanip_shadd.nbf
 # (c/plic_reg_access.c).
 bp_dv_042_plic_reg_test 42 plic_reg_access.nbf
 
+# BP-DV-058 - External interrupts through the shared PLIC on both harts
+# (c/plic_irq.c): reset priorities, level / edge sources, re-trigger, IE
+# masking, threshold, priority 0, priority order and ties, S-target
+# (mcause 9), wfi wake-up. plic_src_i is driven by the PLIC testbench's
+# interrupt agent (VERIF/plic_verif/plic_tb); the program requests source
+# changes through a mailbox at 0x0010_8E00 (cpu_tb/env/plic_irq_ctrl.sv).
+# Progress at 0x0010_8F00. Nonzero tohost per hart:
+# (fail_count << 16) | 0x5800 | first failing check.
+bp_dv_058_plic_irq_test 58 plic_irq.nbf
+
+# BP-DV-059/060/061 - the PLIC testbench's tests (VERIF/plic_verif/plic_tb/
+# tests) at CPU level: core 0 accesses the PLIC over AHB, the interrupt lines
+# are read from the cores' mip (MEIP/SEIP), sources from the PLIC irq agent.
+#   059 register reset / write-read / walking ones   (c/plic_reg_full.c)
+#   060 simultaneous, disabled, threshold, equal priority, four targets,
+#       claim/complete, nested complete             (c/plic_irq_scenarios.c)
+#   061 each of the 64 sources on each of the 4 targets (c/plic_irq_single.c)
+# Nonzero tohost (hart 0): (fail_count << 16) | 0x5900/0x6000/0x6100 | first
+# failing check. Progress at 0x0010_8F00.
+bp_dv_059_plic_reg_full_test 59 plic_reg_full.nbf
+bp_dv_060_plic_irq_scenarios_test 60 plic_irq_scenarios.nbf
+bp_dv_061_plic_irq_single_test 61 plic_irq_single.nbf
+
 # BP-DV-043 - AXI SLVERR (0x3003_xxxx) / DECERR (0x3004_xxxx) on uncached
 # sd/ld from both harts; expects store/load access faults (mcause 7/5,
 # mtval = address) and a working bus afterwards. Nonzero tohost per hart:

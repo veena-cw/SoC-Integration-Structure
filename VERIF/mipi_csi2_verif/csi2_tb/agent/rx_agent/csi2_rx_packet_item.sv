@@ -9,8 +9,10 @@ class csi2_rx_packet_item extends uvm_sequence_item;
   bit [2:0] sync_type = 3'b011;
   bit       send_eot = 1'b1;
   byte unsigned payload[$];
-
+  logic        errsoths     = 0;
+  logic        errsotsynchs = 0;
   bit bfm_completed;
+  string test_case ;
   int unsigned bfm_status;
 
   function new(string name = "csi2_rx_packet_item");

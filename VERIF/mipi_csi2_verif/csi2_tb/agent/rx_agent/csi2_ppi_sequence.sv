@@ -33,7 +33,7 @@ class csi2_raw8_seq extends csi2_ppi_sequence;
     start_item(req);
     // RAW8 is selected
     req.datatype       = DT_RAW8;
-    req.rtl_word_count = 16'h001F;
+    req.rtl_word_count = 16'h0020;
     req.sync_type      = 3'b011;
     req.send_eot       = 1'b1;
     req.payload.delete();

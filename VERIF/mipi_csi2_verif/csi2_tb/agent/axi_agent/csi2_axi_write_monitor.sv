@@ -81,7 +81,7 @@ class csi2_axi_write_monitor extends uvm_monitor;
 
         // The active RAW7 RTL has seven strobe bits.  Bytes without a strobe
         // are intentionally discarded even when WDATA is nonzero.
-        for (int byte_index = 0; byte_index < 8; byte_index++)
+        for (int byte_index = 0; byte_index < $bits(axi_vif.mon_cb.wstrb); byte_index++)
           if (axi_vif.mon_cb.wstrb[byte_index])
             item.accepted_bytes.push_back(axi_vif.mon_cb.wdata[byte_index*8 +: 8]);
 

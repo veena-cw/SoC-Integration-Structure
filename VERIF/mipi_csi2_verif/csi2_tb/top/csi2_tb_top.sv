@@ -222,15 +222,11 @@ always @(posedge aclk) begin
   if (!axi_vif.areset_n) begin
     dbg_w_count = 0;
   end
-  else if (axi_vif.wvalid && axi_vif.wready) begin
+  else if (axi_vif.wvalid && axi_vif.wready) 
+  begin
     dbg_w_count++;
 
-    $display("[%0t] AXI_W #%0d data=%016h strb=%0h last=%b",
-             $time,
-             dbg_w_count,
-             axi_vif.wdata,
-             axi_vif.wstrb,
-             axi_vif.wlast);
+    $display("[%0t] AXI_W #%0d data=%016h strb=%0h last=%b",$time,dbg_w_count,axi_vif.wdata,axi_vif.wstrb,axi_vif.wlast);
   end
 end
 

@@ -10,8 +10,8 @@ class csi2_ppi_sequence extends uvm_sequence #(csi2_rx_packet_item);
     req = csi2_rx_packet_item::type_id::create("req");
     start_item(req);
     // RAW7 is selected because it is the only active RTL compile profile.
-    req.datatype       = DT_RAW8;
-    req.rtl_word_count = 16'h0040;
+    req.datatype       = DT_RAW7;
+    req.rtl_word_count = 16'h0117;
     req.sync_type      = 3'b011;
     req.send_eot       = 1'b1;
     req.payload.delete();
@@ -20,3 +20,27 @@ class csi2_ppi_sequence extends uvm_sequence #(csi2_rx_packet_item);
     finish_item(req);
   endtask
 endclass : csi2_ppi_sequence
+
+
+class csi2_raw8_seq extends csi2_ppi_sequence;
+ `uvm_object_utils(csi2_raw8_seq)
+  function new(string name = "csi2_raw8_seq");
+           super.new(name);
+  endfunction
+   task body();
+    csi2_rx_packet_item req;
+    req = csi2_rx_packet_item::type_id::create("req");
+    start_item(req);
+    // RAW8 is selected
+    req.datatype       = DT_RAW8;
+    req.rtl_word_count = 16'h0020;
+    req.sync_type      = 3'b011;
+    req.send_eot       = 1'b1;
+    req.payload.delete();
+    for (int index = 0; index < 64 ; index++)
+    req.payload.push_back(byte'(32'h10 + index));
+    finish_item(req);
+  endtask
+  
+endclass
+ 

@@ -24,17 +24,10 @@ class csi2_ppi_driver extends uvm_driver #(csi2_rx_packet_item);
     logic [63:0] header_word;
     logic [63:0] payload_words[$];
 
-    if (item.datatype != DT_RAW7 || item.rtl_word_count != 16'h0118 ||
-        item.payload.size() != 560)
-      `uvm_fatal("RTL_PROFILE",
-                 $sformatf("Unsupported current-RTL transaction: %s",
-                           item.convert2string()))
-
     header_word = csi2_rtl_packet_builder::build_header_word(item);
     csi2_rtl_packet_builder::build_payload_words(item, payload_words);
 
-    `uvm_info("STIMULUS_CHECK",$sformatf("RAW7 payload=%0d bytes payload_words=%0d transport_bytes=%0d, header=%016h",
-            item.payload.size(),
+    `uvm_info("STIMULUS_CHECK",$sformatf("DATA TYPE:%0h payload=%0d bytes payload_words=%0d transport_bytes=%0d, header=%016h", item.datatype ,item.payload.size(),
             payload_words.size(),
             payload_words.size() * 8,
             header_word),
@@ -76,13 +69,7 @@ class csi2_ppi_driver extends uvm_driver #(csi2_rx_packet_item);
       return;
     end
 
-    `uvm_info("PPI_DRV",
-
-  $sformatf("Driving %0d payload words to PHY BFM",
-
-            payload_words.size()),
-
-  UVM_NONE)
+    `uvm_info("PPI_DRV", $sformatf("Driving %0d payload words to PHY BFM",payload_words.size()), UVM_NONE)
 
     foreach (payload_words[index])
     begin

@@ -50,7 +50,8 @@ class csi2_axi_write_monitor extends uvm_monitor;
         aw_handshake_count++;
       end
 
-      if (axi_vif.mon_cb.wvalid && axi_vif.mon_cb.wready) begin
+      if (axi_vif.mon_cb.wvalid && axi_vif.mon_cb.wready) 
+      begin
         csi2_axi_write_item item;
         csi2_axi_write_item aw_item;
         w_handshake_count++;
@@ -80,10 +81,9 @@ class csi2_axi_write_monitor extends uvm_monitor;
 
         // The active RAW7 RTL has seven strobe bits.  Bytes without a strobe
         // are intentionally discarded even when WDATA is nonzero.
-        for (int byte_index = 0; byte_index < 7; byte_index++)
+        for (int byte_index = 0; byte_index < 8; byte_index++)
           if (axi_vif.mon_cb.wstrb[byte_index])
-            item.accepted_bytes.push_back(
-                axi_vif.mon_cb.wdata[byte_index*8 +: 8]);
+            item.accepted_bytes.push_back(axi_vif.mon_cb.wdata[byte_index*8 +: 8]);
 
         effective_write_count++;
         ap.write(item);

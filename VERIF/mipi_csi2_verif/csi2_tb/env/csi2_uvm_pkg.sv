@@ -27,5 +27,6 @@ package csi2_uvm_pkg;
   `include "csi2_scoreboard.sv"
   `include "csi2_env.sv"
   `include "csi2_base_test.sv"
+  `include "csi2_raw8_test.sv"
   `include "csi2_rx_raw7_test.sv"
 endpackage : csi2_uvm_pkg

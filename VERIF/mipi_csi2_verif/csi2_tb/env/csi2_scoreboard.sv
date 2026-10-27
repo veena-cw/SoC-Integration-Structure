@@ -1,6 +1,7 @@
 class csi2_scoreboard extends uvm_scoreboard;
   `uvm_component_utils(csi2_scoreboard)
-
+  int dt_type_scoreboard ;
+  int dt_type_exp;
   csi2_env_config cfg;
   uvm_tlm_analysis_fifo #(csi2_rx_packet_item) expected_fifo;
   uvm_tlm_analysis_fifo #(csi2_axi_write_item) actual_fifo;
@@ -29,6 +30,7 @@ class csi2_scoreboard extends uvm_scoreboard;
     csi2_rx_packet_item item;
     forever begin
       expected_fifo.get(item);
+      dt_type_exp = int'(item.datatype);
       expected_transaction_count++;
       bfm_completed = item.bfm_completed;
       bfm_status    = item.bfm_status;
@@ -41,14 +43,34 @@ class csi2_scoreboard extends uvm_scoreboard;
     csi2_axi_write_item item;
     forever begin
       actual_fifo.get(item);
+      //dt_type_scoreboard = int'(item.datatype) ;
       effective_write_count++;
       foreach (item.accepted_bytes[index])
         actual_bytes.push_back(item.accepted_bytes[index]);
     end
   endtask
+  
+  
+  bit llp_err_seen = 0;
+  bit [2:0] llp_err_code = 0;
 
+  task collect_errors();
+    forever begin
+      @(cfg.status_vif.rx_cb);
+      if (cfg.status_vif.rst_n !== 1'b1) continue;
+      
+      // Latch the 1-cycle pulse!
+      if (cfg.status_vif.llp_err_vld) 
+       begin
+        llp_err_seen = 1'b1;
+        llp_err_code = cfg.status_vif.llp_err;
+      end
+      if (cfg.status_vif.lane_err) llp_err_seen = 1'b1;
+    end
+  endtask
   task run_phase(uvm_phase phase);
     fork
+      collect_errors();
       collect_expected();
       collect_actual();
     join
@@ -57,8 +79,10 @@ class csi2_scoreboard extends uvm_scoreboard;
   function void check_phase(uvm_phase phase);
     int unsigned compare_count;
     super.check_phase(phase);
-
-    if (expected_transaction_count != 1) begin
+    if(llp_err_seen)
+    `uvm_warning("SCORE_BOARD","LOW LEVEL PROTOCAL ERROR IS ASSERTED")
+    if (expected_transaction_count != 1) 
+    begin
       mismatch_count++;
       `uvm_error("SB_CHECK",
                  $sformatf("Expected one completed BFM transaction, observed %0d",
@@ -69,10 +93,11 @@ class csi2_scoreboard extends uvm_scoreboard;
       `uvm_error("SB_CHECK", $sformatf("BFM did not complete; status=%0d",
                                         bfm_status))
     end
-    if (cfg.status_vif.dtype !== DT_RAW7) begin
+    if (cfg.status_vif.dtype !== dt_type_exp) 
+    begin
       mismatch_count++;
       `uvm_error("SB_DTYPE",
-                 $sformatf("Expected datatype 0x29, observed 0x%02h",
+                 $sformatf("Expected datatype :%0d, observed 0x%02h",dt_type_exp ,
                            cfg.status_vif.dtype))
     end
     if (cfg.status_vif.lane_err || cfg.status_vif.llp_err_vld) begin
@@ -96,7 +121,8 @@ class csi2_scoreboard extends uvm_scoreboard;
 
     compare_count = (actual_bytes.size() < expected_bytes.size()) ?
                     actual_bytes.size() : expected_bytes.size();
-    for (int index = 0; index < compare_count; index++) begin
+    for (int index = 0; index < compare_count; index++) 
+    begin
       if (actual_bytes[index] != expected_bytes[index]) 
       begin
         mismatch_count++;

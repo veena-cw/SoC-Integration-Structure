@@ -27,12 +27,20 @@ VERILATOR_STAMP := $(SIM_DIR)/.verilator_build
 
 VERILATOR_LOG_DIR := $(SIM_DIR)/verilator_log
 
+VERILATOR_HOME_DEFAULT := /opt/verilator-5.052
+VERILATOR_VERSION      := 5.052
+ifeq ($(VERILATOR_HOME),)
+  VERILATOR_HOME := $(VERILATOR_HOME_DEFAULT)
+endif
+VERILATOR     := $(VERILATOR_HOME)/bin/verilator
+VERILATOR_COV := $(VERILATOR_HOME)/bin/verilator_coverage
+
 
 # ==================================================
 # VERILATOR
 # ==================================================
 
-verilator: verilator-sim
+
 
 
 # --------------------------------------------------
@@ -54,7 +62,7 @@ $(VERILATOR_STAMP): $(FILELIST) $(SOURCE_FILES) $(TB_SOURCES)
 	@mkdir -p $(VERILATOR_LOG_DIR)
 
 	cd $(SIM_DIR) && \
-	verilator \
+	$(VERILATOR) \
 		--binary \
 		-j 0 \
 		--timing \

@@ -18,6 +18,7 @@
 // Generated RAL Env (AHB-Lite) for RoaLogic_PLIC
 // Integrates: ral_model + adapter + predictor + agent + scoreboard
 //             + interrupt agent (src[] BFM, src/irq monitor) + interrupt checker
+//             + functional coverage collector
 `include "uvm_macros.svh"
 import uvm_pkg::*;
 import plic_ahb_lite_item_pkg::*;
@@ -39,6 +40,7 @@ class plic_env extends uvm_env;
   plic_reset_agent reset_agent;
   plic_irq_agent irq_agent;
   plic_irq_scoreboard irq_sb;
+  plic_coverage cov;
   
   function new(string name = "plic_env", uvm_component parent = null);
     super.new(name, parent);
@@ -55,6 +57,7 @@ class plic_env extends uvm_env;
     reset_agent = plic_reset_agent::type_id::create("reset_agent", this);
     irq_agent = plic_irq_agent::type_id::create("irq_agent", this);
     irq_sb = plic_irq_scoreboard::type_id::create("irq_sb", this);
+    cov = plic_coverage::type_id::create("cov", this);
   endfunction
   function void connect_phase(uvm_phase phase);
     super.connect_phase(phase);
@@ -69,5 +72,9 @@ class plic_env extends uvm_env;
     scoreboard.ral_model = ral_model;
     irq_sb.ral_model = ral_model;
     irq_agent.monitor.analysis_port.connect(irq_sb.irq_in);
+    // Functional coverage
+    cov.irq_sb = irq_sb;
+    agent.monitor.analysis_port.connect(cov.ahb_in);
+    irq_agent.monitor.analysis_port.connect(cov.irq_in);
   endfunction
 endclass

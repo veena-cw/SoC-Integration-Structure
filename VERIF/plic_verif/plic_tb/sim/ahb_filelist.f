@@ -23,6 +23,7 @@ $REPO_ROOT/VERIF/plic_verif/plic_tb/agent/irq_agent/plic_irq_monitor.sv
 $REPO_ROOT/VERIF/plic_verif/plic_tb/agent/irq_agent/plic_irq_sequencer.sv
 $REPO_ROOT/VERIF/plic_verif/plic_tb/agent/irq_agent/plic_irq_agent.sv
 $REPO_ROOT/VERIF/plic_verif/plic_tb/env/ahb_env/plic_irq_scoreboard.sv
+$REPO_ROOT/VERIF/plic_verif/plic_tb/env/ahb_env/plic_coverage.sv
 $REPO_ROOT/VERIF/plic_verif/plic_tb/env/ahb_env/plic_env.sv
 $REPO_ROOT/VERIF/plic_verif/plic_tb/irq_sequence/plic_irq_sequences.sv
 $REPO_ROOT/VERIF/plic_verif/plic_tb/tests/plic_ral_test.sv

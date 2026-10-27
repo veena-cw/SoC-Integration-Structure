@@ -9,6 +9,7 @@ plic_irq_single_test
 plic_irq_simultaneous_test
 plic_irq_disabled_test
 plic_irq_threshold_test
+plic_irq_zero_prio_test
 plic_irq_equal_prio_test
 plic_irq_four_target_test
 plic_irq_claim_complete_test

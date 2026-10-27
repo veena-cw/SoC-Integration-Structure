@@ -210,8 +210,46 @@ class plic_irq_threshold_test extends plic_irq_base_test;
     serve(1, 51, "below threshold, still claimable");
     set_threshold(1, 0);
     check("done");
+
+     set_priority(56, 4);
+    set_enable(1, src_bit(56));
+    raise(src_bit(56));
+    for (int th = 4; th < PLIC_PRIORITIES; th++) begin
+      set_threshold(1, th);
+      check($sformatf("priority 4, threshold %0d", th));
+    end
+    drop(src_bit(56));
+    serve(1, 57, "below threshold, still claimable");
+    set_threshold(1, 0);
+    check("done");
   endtask
 endclass
+
+// TEST NAME: plic_irq_zero_prio_test
+// PURPOSE: equal priorities resolve to the lower ID; priority 0 never interrupts
+class plic_irq_zero_prio_test extends plic_irq_base_test;
+  `uvm_component_utils(plic_irq_zero_prio_test)
+  function new(string name = "plic_irq_zero_prio_test", uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+  task scenario();
+    plic_src_t mask = src_bit(5) | src_bit(31) | src_bit(32) | src_bit(63);
+   // foreach (mask[s]) if (mask[s]) set_priority(s, 3);
+    set_enable(0, mask | src_bit(10));
+    raise(mask);
+    check("four equal priorities");
+    drop(mask);
+    serve(0, 6,  "s5 first");
+    serve(0, 32, "s31");
+    serve(0, 33, "s32");
+    serve(0, 64, "s63 last");
+    raise(src_bit(10));  // priority 0 (reset value)
+    check("priority 0 never interrupts");
+    drop(src_bit(10));
+  endtask
+endclass
+
+//=======================================
 
 // TEST NAME: plic_irq_equal_prio_test
 // PURPOSE: equal priorities resolve to the lower ID; priority 0 never interrupts
@@ -236,6 +274,7 @@ class plic_irq_equal_prio_test extends plic_irq_base_test;
     drop(src_bit(10));
   endtask
 endclass
+
 
 // TEST NAME: plic_irq_four_target_test
 // PURPOSE: independent delivery on all four targets; a shared source is claimed once

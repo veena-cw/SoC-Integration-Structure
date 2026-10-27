@@ -85,6 +85,9 @@
     ,e_bedrock_amomax          = 4'b1001
     ,e_bedrock_amominu         = 4'b1010
     ,e_bedrock_amomaxu         = 4'b1011
+    ,e_bedrock_cbo_clean = 4'b1100
+    ,e_bedrock_cbo_inval = 4'b1101
+    ,e_bedrock_cbo_flush = 4'b1110
   } bp_bedrock_wr_subop_e;
 
 

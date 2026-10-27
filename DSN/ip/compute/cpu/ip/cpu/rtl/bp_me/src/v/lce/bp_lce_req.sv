@@ -99,6 +99,8 @@ module bp_lce_req
 
   logic cache_req_ready_lo;
   bp_cache_req_s cache_req_r;
+
+
   logic cache_req_v_r, cache_req_done;
   bsg_two_fifo
    #(.width_p($bits(bp_cache_req_s)), .ready_THEN_valid_p(1))
@@ -143,7 +145,11 @@ module bp_lce_req
   wire uc_amo_v_li      = cache_req_v_i & cache_req_cast_i.msg_type inside {e_uc_amo};
   wire uc_store_v_li    = cache_req_v_i & cache_req_cast_i.msg_type inside {e_uc_store};
   wire blocking_v_li    = miss_load_v_li | miss_store_v_li | uc_load_v_li | uc_amo_v_li;
-  wire nonblocking_v_li = uc_store_v_li;
+  //wire nonblocking_v_li = uc_store_v_li;
+  wire nonblocking_v_li = uc_store_v_li | cbo_v_li;
+
+  // classifies Clean, Invalidate, and Flush as non-blocking requests, alongside ordinary uncached stores.
+  wire cbo_v_li = cache_req_v_i & cache_req_cast_i.msg_type inside { e_cache_bclean, e_cache_binval, e_cache_bflush};
 
   bp_bedrock_lce_req_header_s fsm_req_header_lo;
   logic [paddr_width_p-1:0] fsm_req_addr_lo;
@@ -179,13 +185,15 @@ module bp_lce_req
   wire miss_load_v_r   = cache_req_v_r & cache_req_r.msg_type inside {e_miss_load};
   wire miss_store_v_r  = cache_req_v_r & cache_req_r.msg_type inside {e_miss_store};
   wire miss_v_r        = miss_load_v_r | miss_store_v_r;
-  wire bflush_v_r      = cache_req_v_r & cache_req_r.msg_type inside {e_cache_bclean, e_cache_binval, e_cache_bflush};
   wire clean_v_r       = cache_req_v_r & cache_req_r.msg_type inside {e_cache_clean};
   wire uc_load_v_r     = cache_req_v_r & cache_req_r.msg_type inside {e_uc_load};
   wire uc_amo_v_r      = cache_req_v_r & cache_req_r.msg_type inside {e_uc_amo};
   wire uc_store_v_r    = cache_req_v_r & cache_req_r.msg_type inside {e_uc_store};
   wire blocking_v_r    = miss_load_v_r | miss_store_v_r | uc_load_v_r | uc_amo_v_r;
-  wire nonblocking_v_r = uc_store_v_r;
+  //wire nonblocking_v_r = uc_store_v_r;
+  wire bflush_v_r = cache_req_v_r & cache_req_r.msg_type inside {e_cache_bclean, e_cache_binval, e_cache_bflush};
+  //Identifies CBO requests after they enter the request FIFO.
+  wire nonblocking_v_r = uc_store_v_r | bflush_v_r;
 
   // Outstanding request credit counter
   // one credit used per LCE request sent
@@ -242,20 +250,40 @@ module bp_lce_req
     begin
       // Request message defaults
       fsm_req_header_lo = '0;
-      fsm_req_header_lo.addr = cache_req_r.addr;
-      fsm_req_header_lo.size = bp_bedrock_msg_size_e'(cache_req_r.size);
+      fsm_req_header_lo.addr = bflush_v_r
+                             ? {cache_req_r.addr[paddr_width_p-1:3], 3'b000}
+                             : cache_req_r.addr;
+      fsm_req_header_lo.size = bflush_v_r
+                             ? e_bedrock_msg_size_8
+                             : bp_bedrock_msg_size_e'(cache_req_r.size);
+
       fsm_req_header_lo.payload.dst_id = req_cce_id_lo;
       fsm_req_header_lo.payload.src_id = lce_id_i;
       fsm_req_header_lo.payload.src_did = did_i;
-      fsm_req_header_lo.payload.lru_way_id = lce_assoc_width_p'(cache_req_metadata.hit_or_repl_way);
-      fsm_req_header_lo.payload.non_exclusive =
-        (miss_load_v_r && (non_excl_reads_p == 1)) ? e_bedrock_req_non_excl : e_bedrock_req_excl;
-      fsm_req_header_lo.subop = bflush_v_r ? e_bedrock_amoor : req_subop;
-      fsm_req_data_lo = cache_req_r.data;
+      fsm_req_header_lo.payload.lru_way_id =
+        lce_assoc_width_p'(cache_req_metadata.hit_or_repl_way);
 
-      // Send request header when able
-      // requires valid cache request and possibly valid metadata (cached requests only)
+      fsm_req_header_lo.payload.non_exclusive =
+        (miss_load_v_r && (non_excl_reads_p == 1))
+        ? e_bedrock_req_non_excl
+        : e_bedrock_req_excl;
+
+      // Keep the current encoding until CBO handling is corrected end-to-end.
+      //fsm_req_header_lo.subop =
+      //bflush_v_r ? e_bedrock_amoor : req_subop;
+      //Assign dedicated BedRock sub-operations
       unique case (cache_req_r.msg_type)
+          e_cache_bclean: fsm_req_header_lo.subop = e_bedrock_cbo_clean;
+          e_cache_binval: fsm_req_header_lo.subop = e_bedrock_cbo_inval;
+          e_cache_bflush: fsm_req_header_lo.subop = e_bedrock_cbo_flush;
+          default:        fsm_req_header_lo.subop = req_subop;
+	endcase
+
+      fsm_req_data_lo = bflush_v_r ? '0 : cache_req_r.data;
+      //Assign the correct BedRock request type
+      unique case (cache_req_r.msg_type)
+        e_cache_bclean,
+        e_cache_binval,
         e_cache_bflush: fsm_req_header_lo.msg_type.req = e_bedrock_req_uc_wr;
         e_uc_store    : fsm_req_header_lo.msg_type.req = e_bedrock_req_uc_wr;
         e_uc_load     : fsm_req_header_lo.msg_type.req = e_bedrock_req_uc_rd;

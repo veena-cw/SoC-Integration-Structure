@@ -405,6 +405,10 @@ module bp_me_cache_controller
                         e_bedrock_amomax : cache_pkt.opcode = is_word_op ? AMOMAX_W : AMOMAX_D;
                         e_bedrock_amominu: cache_pkt.opcode = is_word_op ? AMOMINU_W : AMOMINU_D;
                         e_bedrock_amomaxu: cache_pkt.opcode = is_word_op ? AMOMAXU_W : AMOMAXU_D;
+                        // Zicbom cache-block operations
+                        e_bedrock_cbo_clean: cache_pkt.opcode = AFL;// address flush
+                        e_bedrock_cbo_inval: cache_pkt.opcode = AINV;// address flush invalidate
+                        e_bedrock_cbo_flush: cache_pkt.opcode = AFLINV;// address invalidate
                         default : begin end
                       endcase
                     //e_bedrock_msg_size_16

@@ -1,4 +1,5 @@
 
+
 //=============================================================================
 // spi_apb_top.sv
 // opensource registers
@@ -122,9 +123,9 @@ assign version_reg = 32'h0001_0000;
     assign m_cpol_i          = ctrl_reg[2];
     assign m_cpha_i          = ctrl_reg[3];
     assign m_cs_inter_byte_i = ctrl_reg[4];
-    assign m_cs_sel_i        = ctrl_reg[1:0];
-    assign m_cs_setup_i      = ctrl_reg[23:16];
-    assign m_cs_hold_i       = ctrl_reg[31:24];
+    assign m_cs_sel_i        = ctrl_reg[6:5];
+    assign m_cs_setup_i      = ctrl_reg[15:8];
+    assign m_cs_hold_i       = ctrl_reg[23:16];
 //=====================================================
 // CTRL Register
 //=====================================================
@@ -253,8 +254,8 @@ spi_top #(
     //---------------- Master TX ----------------
     //.m_tx_we_i    (PSEL && PENABLE && PWRITE && (addr == ADDR_TX_DATA)),
     //.m_tx_wdata_i (PWDATA[7:0]),
-    .m_tx_we_i          (m_tx_we),
-    .m_tx_wdata_i       (tx_data_reg[7:0]),
+	.m_tx_we_i          (m_tx_we),
+	.m_tx_wdata_i       (PWDATA[7:0]),
     .m_tx_full_o        (m_tx_full),
     .m_tx_empty_o       (m_tx_empty),
     .m_tx_count_o       (m_tx_count),
@@ -272,7 +273,7 @@ spi_top #(
     .s_cpha_i           (ctrl_reg[3]),
     .s_lsb_first_i      (ctrl_reg[1]),
     .s_tx_we_i 			(m_tx_we),
-    .s_tx_wdata_i       (tx_data_reg[7:0]),
+    .s_tx_wdata_i       (PWDATA[7:0]),
     .s_tx_full_o        (s_tx_full),
     .s_tx_empty_o       (s_tx_empty),
     .s_tx_count_o       (s_tx_count),

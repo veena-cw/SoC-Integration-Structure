@@ -262,7 +262,7 @@ class apb_spi_smoke_vseq extends apb_spi_base_vseq;
     smoke_step("SM-04", "CLK_DIV, IRQ_MASK and CTRL write / read-back");
     apb_wr(ADDR_CLK_DIV, 32'h0000_0005);  apb_rd(ADDR_CLK_DIV, d);  smoke_eq("CLK_DIV", d, 32'h0000_0005);
     apb_wr(ADDR_IRQ_MASK, 32'h0000_000F); apb_rd(ADDR_IRQ_MASK, d); smoke_eq("IRQ_MASK", d, 32'h0000_000F);
-    apb_wr(ADDR_CTRL, 32'h0203_0000);     apb_rd(ADDR_CTRL, d);     smoke_eq("CTRL (START=0)", d, 32'h0203_0000);
+    apb_wr(ADDR_CTRL, 32'h0002_0300);     apb_rd(ADDR_CTRL, d);     smoke_eq("CTRL (START=0)", d, 32'h0002_0300);
     apb_wr(ADDR_CLK_DIV, 32'h0);
     apb_wr(ADDR_IRQ_MASK, 32'h0);
     apb_wr(ADDR_CTRL, 32'h0);

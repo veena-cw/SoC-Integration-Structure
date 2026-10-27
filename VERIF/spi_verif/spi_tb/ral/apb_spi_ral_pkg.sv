@@ -143,7 +143,7 @@ class ctrl_reg extends uvm_reg;
     //   access      = field access type "RO"
     //   reset       = reset value 0
     //   volatile    = whether the field value can change independently
-    RESERVED.configure(this, 3, 5, "RO", 0, 0, 1, 1, 1);
+    RESERVED.configure(this, 1, 7, "RO", 0, 0, 1, 0, 0);
     // Create the UVM RAL field object through the UVM factory.
     CS_SEL = uvm_reg_field::type_id::create("CS_SEL");
     // Configure the field:
@@ -152,7 +152,7 @@ class ctrl_reg extends uvm_reg;
     //   access      = field access type "RW"
     //   reset       = reset value 0
     //   volatile    = whether the field value can change independently
-    CS_SEL.configure(this, 8, 8, "RW", 0, 0, 1, 1, 1);
+    CS_SEL.configure(this, 2, 5, "RW", 0, 0, 1, 1, 1);
     // Create the UVM RAL field object through the UVM factory.
     CS_SETUP = uvm_reg_field::type_id::create("CS_SETUP");
     // Configure the field:
@@ -161,7 +161,7 @@ class ctrl_reg extends uvm_reg;
     //   access      = field access type "RW"
     //   reset       = reset value 0
     //   volatile    = whether the field value can change independently
-    CS_SETUP.configure(this, 8, 16, "RW", 0, 0, 1, 1, 1);
+    CS_SETUP.configure(this, 8, 8, "RW", 0, 0, 1, 1, 1);
     // Create the UVM RAL field object through the UVM factory.
     CS_HOLD = uvm_reg_field::type_id::create("CS_HOLD");
     // Configure the field:
@@ -170,7 +170,7 @@ class ctrl_reg extends uvm_reg;
     //   access      = field access type "RW"
     //   reset       = reset value 0
     //   volatile    = whether the field value can change independently
-    CS_HOLD.configure(this, 8, 24, "RW", 0, 0, 1, 1, 1);
+    CS_HOLD.configure(this, 8, 16, "RW", 0, 0, 1, 1, 1);
   endfunction
 
 endclass

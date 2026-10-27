@@ -183,7 +183,7 @@ verilator_compile: check_uvm_home
 		--timescale 1ns/1ps \
 		--build-jobs 4 \
 		-CFLAGS "-O0" \
-		--trace --trace-depth 2 \
+		--trace --trace-depth 4 \
 		-Wall -Wno-fatal \
 		-Wno-UNOPTFLAT -Wno-UNUSEDSIGNAL -Wno-DECLFILENAME \
 		-Wno-WIDTHEXPAND -Wno-WIDTHTRUNC \

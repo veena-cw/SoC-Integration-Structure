@@ -236,5 +236,12 @@ module tb_top;
     uvm_resource_db#(virtual spi_slave_if)::set("*",  "slave_vif",  slave_if_i,  null);
     run_test();
   end
+  
+  initial begin
+  if ($test$plusargs("DUMP_VCD")) begin
+    $dumpfile("dump.vcd");
+    $dumpvars(0, tb_top);
+  end
+end
 
 endmodule

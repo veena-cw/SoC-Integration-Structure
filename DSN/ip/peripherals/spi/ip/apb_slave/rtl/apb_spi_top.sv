@@ -126,12 +126,12 @@ assign version_reg = 32'h0001_0000;
     assign m_cs_sel_i        = ctrl_reg[6:5];
     assign m_cs_setup_i      = ctrl_reg[15:8];
     assign m_cs_hold_i       = ctrl_reg[23:16];
+	
 //=====================================================
 // CTRL Register
-//=====================================================
-always_ff @(posedge clk or negedge rst_n)
+	always_ff @(posedge clk or negedge rst_n)
     if(!rst_n) ctrl_reg <= 32'h0;
-    else if(PSEL && PENABLE && PWRITE && (addr == ADDR_CTRL)) ctrl_reg <= PWDATA;
+    else if(PSEL && PENABLE && PWRITE && (addr == ADDR_CTRL)) ctrl_reg <= {8'h00, PWDATA[23:8], 1'b0, PWDATA[6:0]};
 //=====================================================
 // IRQ MASK Register
 //=====================================================

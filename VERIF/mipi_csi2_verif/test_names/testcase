@@ -1,2 +1,5 @@
 csi2_rx_raw7_test
 csi2_raw8_test
+csi2_raw6_test
+csi2_errorsync_test
+csi2_end_early_eot_test

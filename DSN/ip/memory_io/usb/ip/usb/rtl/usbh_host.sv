@@ -463,7 +463,7 @@ else if (write_en_w && (wr_addr_w[7:0] == `USB_IRQ_MASK))
     usb_irq_mask_err_q <= cfg_wdata_i_buf[`USB_IRQ_MASK_ERR_R];
 
 logic        usb_irq_mask_err_out_w;
-assign usb_irq_mask_err_out_w = usb_irq_mask_err_q;
+assign usb_irq_mask_err_out_w = usb_irq_mask_err_q & !usb_irq_mask_err_out_w;
 
 
 // usb_irq_mask_done [internal]
@@ -476,7 +476,7 @@ else if (write_en_w && (wr_addr_w[7:0] == `USB_IRQ_MASK))
     usb_irq_mask_done_q <= cfg_wdata_i_buf[`USB_IRQ_MASK_DONE_R];
 
 logic        usb_irq_mask_done_out_w;
-assign usb_irq_mask_done_out_w = usb_irq_mask_done_q;
+assign usb_irq_mask_done_out_w = usb_irq_mask_done_q & !usb_irq_mask_done_out_w;
 
 
 // usb_irq_mask_sof [internal]
@@ -489,7 +489,7 @@ else if (write_en_w && (wr_addr_w[7:0] == `USB_IRQ_MASK))
     usb_irq_mask_sof_q <= cfg_wdata_i_buf[`USB_IRQ_MASK_SOF_R];
 
 logic        usb_irq_mask_sof_out_w;
-assign usb_irq_mask_sof_out_w = usb_irq_mask_sof_q;
+assign usb_irq_mask_sof_out_w = usb_irq_mask_sof_q  & !usb_irq_mask_sof_out_w);
 
 
 //-----------------------------------------------------------------
@@ -1167,20 +1167,20 @@ begin
         intr_err_q <= 1'b0;
 
     // Line state != SE0
-    if (utmi_linestate_i != 2'b0)
-        device_det_q  <= 1'b1;
+ if (utmi_linestate_i != 2'b0 )
+        device_det_q  <= 1'b1  ;
     else if (usb_irq_ack_device_detect_out_w)
         device_det_q <= 1'b0;
 
     err_cond_q  <= (status_crc_err_w | status_timeout_w);
 
-    intr_q <= (intr_done_q  & usb_irq_mask_done_out_w) |
-              (intr_err_q   & usb_irq_mask_err_out_w)  |
-              (intr_sof_q   & usb_irq_mask_sof_out_w)  |
-              (device_det_q & usb_irq_mask_device_detect_out_w);
+ intr_q <= (intr_done_q  & !usb_irq_mask_done_out_w) |
+           (intr_err_q   & !usb_irq_mask_err_out_w)  |
+           (intr_sof_q   & !usb_irq_mask_sof_out_w)  |
+           (device_det_q & !usb_irq_mask_device_detect_out_w);
 end
 
-assign usb_irq_sts_device_detect_in_w = device_det_q ;
+assign usb_irq_sts_device_detect_in_w = device_det_q & !usb_irq_mask_device_detect_out_w;
 
 assign intr_o = intr_q;
 

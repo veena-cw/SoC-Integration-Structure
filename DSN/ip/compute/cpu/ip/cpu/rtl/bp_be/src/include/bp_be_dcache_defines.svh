@@ -2,15 +2,19 @@
 `ifndef BP_BE_DCACHE_DEFINES_SVH
 `define BP_BE_DCACHE_DEFINES_SVH
 
-  `define declare_bp_be_dcache_wbuf_entry_s(caddr_width_mp, ways_mp) \
-    typedef struct packed                            \
-    {                                                \
-      logic                                snoop;    \
-      logic [ways_mp-1:0]                  bank_sel; \
-      logic [(dword_width_gp>>3)-1:0]      mask;     \
-      logic [dword_width_gp-1:0]           data;     \
-      logic [caddr_width_mp-1:0]           caddr;    \
-    } bp_be_dcache_wbuf_entry_s
+	`define declare_bp_be_dcache_wbuf_entry_s(caddr_width_mp, ways_mp) \
+	  typedef struct packed                            \
+	  {                                                \
+	    logic                                snoop;    \
+	    logic                                zero;     \
+	    logic [ways_mp-1:0]                  bank_sel; \
+	    logic [(dword_width_gp>>3)-1:0]      mask;     \
+	    logic [dword_width_gp-1:0]           data;     \
+	    logic [caddr_width_mp-1:0]           caddr;    \
+	  } bp_be_dcache_wbuf_entry_s
+
+	`define bp_be_dcache_wbuf_entry_width(caddr_width_mp, ways_mp) \
+	  (2+ways_mp+(dword_width_gp>>3)+dword_width_gp+caddr_width_mp)
 
   `define declare_bp_be_dcache_pkt_s(vaddr_width_mp) \
     typedef struct packed                            \

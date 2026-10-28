@@ -631,7 +631,7 @@ module bp_be_dcache
 
       assign wbuf_data_in[i] = {(dword_width_gp/slice_width_lp){slice_data}};
     end
-
+  /*
   bsg_mux_one_hot
    #(.width_p(dword_width_gp), .els_p(4))
    wbuf_data_in_mux
@@ -647,10 +647,46 @@ module bp_be_dcache
      ,.sel_one_hot_i({decode_tv_r.double_op, decode_tv_r.word_op, decode_tv_r.half_op, decode_tv_r.byte_op})
      ,.data_o(wbuf_entry_in.mask)
      );
+     */
+     
+    logic [dword_width_gp-1:0]               wbuf_data_mux_lo;
+    logic [wbuf_data_mask_width_lp-1:0]      wbuf_mask_mux_lo;
+
+  bsg_mux_one_hot
+   #(.width_p(dword_width_gp), .els_p(4))
+   wbuf_data_in_mux
+    (.data_i(wbuf_data_in)
+     ,.sel_one_hot_i({decode_tv_r.double_op, decode_tv_r.word_op, decode_tv_r.half_op, decode_tv_r.byte_op})
+     ,.data_o(wbuf_data_mux_lo)
+     );
+
+  bsg_mux_one_hot
+   #(.width_p(wbuf_data_mask_width_lp), .els_p(4))
+   wbuf_data_mem_mask_in_mux
+    (.data_i(wbuf_data_mem_mask_in)
+     ,.sel_one_hot_i({decode_tv_r.double_op, decode_tv_r.word_op, decode_tv_r.half_op, decode_tv_r.byte_op})
+     ,.data_o(wbuf_mask_mux_lo)
+     );
+
+  // cbo.zero (block_op): write zeros to every byte of every bank word.
+  // st_data is rs2 for this encoding, so force data to 0 rather than rely on the mux.
+  /*
+  assign wbuf_entry_in.data = decode_tv_r.block_op ? '0 : wbuf_data_mux_lo;
+  assign wbuf_entry_in.mask = decode_tv_r.block_op ? '1 : wbuf_mask_mux_lo;   
   assign wbuf_entry_in.bank_sel = ld_data_way_select_tv | {assoc_p{decode_tv_r.block_op}};
   assign wbuf_entry_in.caddr = paddr_tv_r;
   assign wbuf_entry_in.snoop = snoop_tv_r;
+  */
+  assign wbuf_entry_in.data = decode_tv_r.block_op ? '0 : wbuf_data_mux_lo;
+  assign wbuf_entry_in.mask = decode_tv_r.block_op ? '1 : wbuf_mask_mux_lo;
 
+  assign wbuf_entry_in.zero = decode_tv_r.block_op;
+
+  assign wbuf_entry_in.bank_sel = decode_tv_r.block_op ? store_hit_v_tv_r : ld_data_way_select_tv;
+  assign wbuf_entry_in.caddr    = decode_tv_r.block_op ? {paddr_tv_r[paddr_width_p-1:block_offset_width_lp],{block_offset_width_lp{1'b0}}}: paddr_tv_r;
+
+  assign wbuf_entry_in.snoop = snoop_tv_r;
+  
   wire [caddr_width_p-1:0] ld_addr_tl = paddr_tl;
   bp_be_dcache_wbuf
    #(.bp_params_p(bp_params_p)
@@ -950,17 +986,34 @@ module bp_be_dcache
 
   logic [assoc_p-1:0] data_mem_fast_read, data_mem_fast_write, data_mem_slow_read, data_mem_slow_write;
   logic [assoc_p-1:0] data_mem_force_write;
+  
+  wire [assoc_p-1:0] wbuf_bank_sel_eff =
+    wbuf_entry_out.zero ? '1 : wbuf_entry_out.bank_sel;
+
+  logic [lg_assoc_lp-1:0] wbuf_zero_way;
+
+  bsg_encode_one_hot
+   #(.width_p(assoc_p), .lo_to_hi_p(1))
+   wbuf_zero_way_encoder
+   (.i(wbuf_entry_out.bank_sel)
+   ,.addr_o(wbuf_zero_way)
+   ,.v_o());
+
+wire [data_mem_mask_width_lp-1:0] wbuf_data_mem_mask_eff =
+    wbuf_entry_out.zero ? '1 : wbuf_data_mem_mask;
+  
   wire data_mem_assoc_read = safe_tl_we & decode_lo.load_op;
   for (genvar i = 0; i < assoc_p; i++)
     begin : data_mem_lines
-      assign data_mem_force_write[i] = wbuf_v_lo & wbuf_force_lo & wbuf_entry_out.bank_sel[i];
+      //assign data_mem_force_write[i] = wbuf_v_lo & wbuf_force_lo & wbuf_entry_out.bank_sel[i];
+      assign data_mem_force_write[i]= wbuf_v_lo & wbuf_force_lo & wbuf_bank_sel_eff[i];
       assign data_mem_slow_write[i] = data_mem_pkt_yumi_o
         & (data_mem_pkt_cast_i.opcode == e_cache_data_mem_write) & data_mem_write_bank_mask[i];
       assign data_mem_slow_read[i] = data_mem_pkt_yumi_o
         & (data_mem_pkt_cast_i.opcode == e_cache_data_mem_read);
       assign data_mem_fast_read[i] = data_mem_assoc_read;
-      assign data_mem_fast_write[i] = wbuf_yumi_li & wbuf_entry_out.bank_sel[i];
-
+      //assign data_mem_fast_write[i] = wbuf_yumi_li & wbuf_entry_out.bank_sel[i];
+      assign data_mem_fast_write[i] = wbuf_yumi_li & wbuf_bank_sel_eff[i];
       assign data_mem_v_li[i] = data_mem_fast_read[i]
         | data_mem_fast_write[i]
         | data_mem_slow_read[i]
@@ -968,13 +1021,21 @@ module bp_be_dcache
       assign data_mem_w_li[i] = data_mem_fast_write[i]
         | data_mem_slow_write[i];
 
-      assign data_mem_mask_li[i] = data_mem_fast_write[i]
-        ? wbuf_data_mem_mask
-        : {data_mem_mask_width_lp{data_mem_write_bank_mask[i]}};
+      //assign data_mem_mask_li[i] = data_mem_fast_write[i]
+        //? wbuf_data_mem_mask
+        //: {data_mem_mask_width_lp{data_mem_write_bank_mask[i]}};
+        assign data_mem_mask_li[i] = data_mem_fast_write[i]
+    		? wbuf_data_mem_mask_eff : {data_mem_mask_width_lp{data_mem_write_bank_mask[i]}};
 
       wire [bindex_width_lp-1:0] data_mem_pkt_offset = (bindex_width_lp'(i) - data_mem_pkt_cast_i.way_id);
+      
+      wire [bindex_width_lp-1:0] wbuf_zero_offset = bindex_width_lp'(i) - wbuf_zero_way;
+
+      wire [bindex_width_lp-1:0] wbuf_bank_offset_i = wbuf_entry_out.zero ? wbuf_zero_offset : wbuf_entry_out_bank_offset;
+      
       assign data_mem_addr_li[i] = data_mem_fast_write[i]
-          ? {wbuf_entry_out_index, {(assoc_p > 1){wbuf_entry_out_bank_offset}}}
+          //? {wbuf_entry_out_index, {(assoc_p > 1){wbuf_entry_out_bank_offset}}}
+          ? {wbuf_entry_out_index, {(assoc_p > 1){wbuf_bank_offset_i}}}
           : data_mem_fast_read[i]
             ? {vaddr_index, {(assoc_p > 1){vaddr_bank}}}
             : {data_mem_pkt_cast_i.index, {(assoc_p > 1){data_mem_pkt_offset}}};
@@ -983,7 +1044,8 @@ module bp_be_dcache
         ? {num_words_per_bank_lp{wbuf_entry_out.data}}
         : data_mem_pkt_data_li[i];
     end
-  assign wbuf_yumi_li = wbuf_v_lo && (~|{data_mem_fast_read & wbuf_entry_out.bank_sel} || wbuf_force_lo);
+  //assign wbuf_yumi_li = wbuf_v_lo && (~|{data_mem_fast_read & wbuf_entry_out.bank_sel} || wbuf_force_lo);
+  assign wbuf_yumi_li = wbuf_v_lo && (~|{data_mem_fast_read & wbuf_bank_sel_eff} || wbuf_force_lo);
   // If we didn't read all banks, this could be more efficient
   assign data_mem_write_hazard = |{data_mem_fast_read & data_mem_force_write};
 

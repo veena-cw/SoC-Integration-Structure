@@ -14,7 +14,6 @@
 //=================================================================================
 //  Description: SPI master-side monitor: decodes bytes, SCK timing, CS setup/hold from the SPI pins using the master's sampling edges
 //=================================================================================
-import apb_spi_types_pkg::*;
 
 class spi_master_monitor extends uvm_monitor;
 
@@ -122,6 +121,8 @@ class spi_master_monitor extends uvm_monitor;
             cur.cs_sel      = cs_obs;
             cur.setup_clks  = (byte_idx == 0) ? (clk_cnt - cs_fall_clk) : 0;
             cur.t_start     = $time;
+            cur.sck_idle     = prev_sck;
+            cur.sck_first    = sck_s;
             st = spi_master_seq_item::type_id::create("mst_byte_start");
             fill_cfg(st);
             st.byte_idx     = byte_idx;
@@ -173,3 +174,4 @@ class spi_master_monitor extends uvm_monitor;
   endtask
 
 endclass
+

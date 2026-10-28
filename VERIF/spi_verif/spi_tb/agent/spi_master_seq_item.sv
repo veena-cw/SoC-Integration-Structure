@@ -14,12 +14,8 @@
 //=================================================================================
 //  Description: SPI master-side byte transaction collected by spi_master_monitor (one byte, plus CS setup/hold timing and the programmed configuration)
 //=================================================================================
-import apb_spi_types_pkg::*;
 
 class spi_master_seq_item extends uvm_sequence_item;
-
-
-
 
   // decoded data (sampled at the master's sampling edges)
   bit [DATA_WIDTH-1:0] mosi_data;      // word the master transmitted
@@ -34,6 +30,8 @@ class spi_master_seq_item extends uvm_sequence_item;
   int unsigned         setup_clks;     // CS fall -> first SCK edge (byte_idx==0 only)
   int unsigned         hold_clks;      // last SCK edge -> CS rise (last_in_burst only)
   bit                  last_in_burst;
+  bit                  sck_idle;       // SCK level just before the first edge of the byte (must equal CPOL)
+  bit                  sck_first;      // SCK level right after the first edge (must equal !CPOL)
   // programmed configuration (probed from the DUT registers)
   bit                  cpol;
   bit                  cpha;
@@ -58,3 +56,4 @@ class spi_master_seq_item extends uvm_sequence_item;
   endfunction
 
 endclass
+

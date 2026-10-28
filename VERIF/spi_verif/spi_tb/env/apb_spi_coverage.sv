@@ -94,7 +94,15 @@ class apb_spi_coverage extends uvm_component;
     }
     cp_byte  : coverpoint byte_idx { bins first = {0}; bins second = {1}; bins third_plus = {[2:$]}; }
     cp_mosi  : coverpoint mosi { bins zero = {8'h00}; bins ones = {8'hFF}; bins a5 = {8'hA5}; bins five_a = {8'h5A}; bins others = default; }
-    cp_miso  : coverpoint miso { bins slave_const = {SLAVE_TX_CONST}; bins others = default; }
+    //cp_miso  : coverpoint miso { bins slave_const = {SLAVE_TX_CONST}; bins others = default; }
+    cp_miso : coverpoint miso {
+    bins zero   = {8'h00};
+    bins ones   = {8'hFF};
+    bins a5     = {8'hA5};
+    bins five_a = {8'h5A};
+    bins others = default;
+	}
+	
     x_mode_lsb  : cross cp_mode, cp_lsb;
     x_cs_mode   : cross cp_cs, cp_mode;
     x_hp_mode   : cross cp_hp, cp_mode;
@@ -106,7 +114,15 @@ class apb_spi_coverage extends uvm_component;
     cp_mode : coverpoint {cpol, cpha} { bins mode[] = {[0:3]}; }
     cp_lsb  : coverpoint lsb { bins msb_first = {0}; bins lsb_first = {1}; }
     cp_rx   : coverpoint rx  { bins zero = {8'h00}; bins ones = {8'hFF}; bins others = default; }
-    cp_tx   : coverpoint tx  { bins slave_const = {SLAVE_TX_CONST}; bins others = default; }
+    //cp_tx   : coverpoint tx  { bins slave_const = {SLAVE_TX_CONST}; bins others = default; }
+    cp_tx : coverpoint tx {
+    bins zero   = {8'h00};
+    bins ones   = {8'hFF};
+    bins a5     = {8'hA5};
+    bins five_a = {8'h5A};
+    bins others = default;
+	}
+	
     x_mode_lsb : cross cp_mode, cp_lsb;
   endgroup
 

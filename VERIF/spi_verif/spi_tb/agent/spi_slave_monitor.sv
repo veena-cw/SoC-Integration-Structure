@@ -35,10 +35,7 @@ class spi_slave_monitor extends uvm_monitor;
   endfunction
 
   task run_phase(uvm_phase phase);
-    fork
-      decode_loop();
-      probe_loop();
-    join
+  decode_loop();
   endtask
 
   // The slave detects SCK edges one PCLK after they happen, so it samples MOSI with the

@@ -41,9 +41,9 @@ class apb_spi_config_sequence extends apb_spi_base_sequence;
     c[2]     = mode[1];
     c[3]     = mode[0];
     c[4]     = inter;
-    c[9:8]   = cs;
-    c[23:16] = setup[7:0];
-    c[31:24] = hold[7:0];
+    c[6:5]   = cs;
+    c[15:8]  = setup[7:0];
+    c[23:16] = hold[7:0];
     return c;
   endfunction
 

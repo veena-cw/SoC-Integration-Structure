@@ -28,7 +28,7 @@ package apb_spi_tb_pkg;
   localparam time          CLK_PERIOD      = 10ns;        // PCLK period
   localparam int unsigned  DATA_WIDTH      = 8;           // apb_spi_top instantiates spi_top with DATA_WIDTH=8
   localparam int unsigned  FIFO_DEPTH      = 16;          // ... FIFO_DEPTH=16
-  localparam bit [7:0]     SLAVE_TX_CONST  = 8'h0C;       // apb_spi_top ties s_tx_wdata_i to 8'h0c
+  //localparam bit [7:0]     SLAVE_TX_CONST  = 8'h0C;       // apb_spi_top ties s_tx_wdata_i to 8'h0c
   localparam bit [31:0]    ID_VALUE        = 32'h5910_017E;
   localparam bit [31:0]    VERSION_VALUE   = 32'h0001_0000;
 
@@ -115,6 +115,7 @@ package apb_spi_tb_pkg;
   // tests/
   `include "apb_spi_base_test.sv"
   `include "apb_spi_smoke_test.sv"
+  `include "spi_fifo_test.sv"
   //`include "apb_spi_reg_access_test.sv"
   //`include "apb_spi_ral_test.sv"
   //`include "apb_spi_mode_test.sv"
@@ -181,10 +182,10 @@ module tb_top;
   assign master_if_i.cpha       = dut.ctrl_reg[3];
   assign master_if_i.lsb_first  = dut.ctrl_reg[1];
   assign master_if_i.inter_byte = dut.ctrl_reg[4];
-  assign master_if_i.cs_sel_cfg = dut.ctrl_reg[9:8];
+  assign master_if_i.cs_sel_cfg = dut.ctrl_reg[6:5];
   assign master_if_i.clk_div    = dut.clk_div_reg[15:0];
-  assign master_if_i.cs_setup   = dut.ctrl_reg[23:16];
-  assign master_if_i.cs_hold    = dut.ctrl_reg[31:24];
+  assign master_if_i.cs_setup   = dut.ctrl_reg[15:8];
+  assign master_if_i.cs_hold    = dut.ctrl_reg[23:16];
 
   // the internal slave only sees chip select 0
   assign slave_if_i.sck         = sck_o;

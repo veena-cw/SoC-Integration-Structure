@@ -15,8 +15,6 @@
 //  Description: Scoreboard: APB register model + TX/RX FIFO model checked against the master/slave monitors, reset-aware
 //=================================================================================
 
-import apb_spi_types_pkg::*;
-
 class apb_spi_scoreboard extends uvm_scoreboard;
 
   `uvm_component_utils(apb_spi_scoreboard)
@@ -47,6 +45,12 @@ class apb_spi_scoreboard extends uvm_scoreboard;
   bit         frame_active;
   time        last_activity;
 
+  // per-byte history (appended in arrival order, never cleared): lets a test compare what each monitor saw
+  bit [7:0]   hist_mosi  [$];   // master monitor: MOSI byte on the wire
+  bit [7:0]   hist_miso  [$];   // master monitor: MISO byte on the wire
+  bit [7:0]   hist_slv_tx[$];   // slave monitor: byte the slave presented on MISO
+  bit [7:0]   hist_slv_rx[$];   // slave RX FIFO word (probe)
+
   apb_spi_ral_block ral_model;    // set by the env: used by the RAL mirror checks below
 
   // ---------------- statistics ----------------
@@ -63,7 +67,7 @@ class apb_spi_scoreboard extends uvm_scoreboard;
   endfunction
 
   // ------------------------------------------------------------------
-  function void check_value(bit cond, string id, string msg);
+  function void check(bit cond, string id, string msg);
     if (cond) begin
       n_chk_pass++;
     end else begin
@@ -110,11 +114,11 @@ class apb_spi_scoreboard extends uvm_scoreboard;
     end
     a     = t.paddr[15:0];
     valid = addr_valid(a);
-    check_value(t.pslverr == !valid, "SB_APB_ERR",
+    check(t.pslverr == !valid, "SB_APB_ERR",
           $sformatf("PSLVERR=%0b but address 0x%08h is %s", t.pslverr, t.paddr, valid ? "valid" : "invalid"));
     if (t.pwrite) n_apb_wr++; else n_apb_rd++;
     if (!valid) begin
-      if (!t.pwrite) check_value(t.prdata == 32'h0, "SB_APB_RD", $sformatf("read of invalid address 0x%08h returned 0x%08h (expected 0)", t.paddr, t.prdata));
+      if (!t.pwrite) check(t.prdata == 32'h0, "SB_APB_RD", $sformatf("read of invalid address 0x%08h returned 0x%08h (expected 0)", t.paddr, t.prdata));
       return;
     end
     if (t.pwrite) apb_write_model(a, t.pwdata);
@@ -145,19 +149,19 @@ class apb_spi_scoreboard extends uvm_scoreboard;
   function void apb_read_check(bit [15:0] a, bit [31:0] d);
     string nm;
     case (a)
-      ADDR_CTRL:     check_value(d == m_ctrl,     "SB_REG", $sformatf("CTRL read 0x%08h expected 0x%08h", d, m_ctrl));
-      ADDR_IRQ_MASK: check_value(d == m_irq_mask, "SB_REG", $sformatf("IRQ_MASK read 0x%08h expected 0x%08h", d, m_irq_mask));
-      ADDR_CLK_DIV:  check_value(d == m_clk_div,  "SB_REG", $sformatf("CLK_DIV read 0x%08h expected 0x%08h", d, m_clk_div));
-      ADDR_TX_DATA:  check_value(d == m_tx_data,  "SB_REG", $sformatf("TX_DATA read 0x%08h expected 0x%08h", d, m_tx_data));
-      ADDR_SCRATCH0: check_value(d == m_scratch[0], "SB_REG", $sformatf("SCRATCH0 read 0x%08h expected 0x%08h", d, m_scratch[0]));
-      ADDR_SCRATCH1: check_value(d == m_scratch[1], "SB_REG", $sformatf("SCRATCH1 read 0x%08h expected 0x%08h", d, m_scratch[1]));
-      ADDR_SCRATCH2: check_value(d == m_scratch[2], "SB_REG", $sformatf("SCRATCH2 read 0x%08h expected 0x%08h", d, m_scratch[2]));
-      ADDR_SCRATCH3: check_value(d == m_scratch[3], "SB_REG", $sformatf("SCRATCH3 read 0x%08h expected 0x%08h", d, m_scratch[3]));
-      ADDR_SCRATCH4: check_value(d == m_scratch[4], "SB_REG", $sformatf("SCRATCH4 read 0x%08h expected 0x%08h", d, m_scratch[4]));
-      ADDR_SCRATCH5: check_value(d == m_scratch[5], "SB_REG", $sformatf("SCRATCH5 read 0x%08h expected 0x%08h", d, m_scratch[5]));
-      ADDR_ID:       check_value(d == ID_VALUE,      "SB_REG", $sformatf("ID read 0x%08h expected 0x%08h", d, ID_VALUE));
-      ADDR_VERSION:  check_value(d == VERSION_VALUE, "SB_REG", $sformatf("VERSION read 0x%08h expected 0x%08h", d, VERSION_VALUE));
-      ADDR_IRQ_STAT: check_value(d[31:4] == '0, "SB_REG", $sformatf("IRQ_STAT reserved bits non-zero: 0x%08h", d));
+      ADDR_CTRL:     check(d == m_ctrl,     "SB_REG", $sformatf("CTRL read 0x%08h expected 0x%08h", d, m_ctrl));
+      ADDR_IRQ_MASK: check(d == m_irq_mask, "SB_REG", $sformatf("IRQ_MASK read 0x%08h expected 0x%08h", d, m_irq_mask));
+      ADDR_CLK_DIV:  check(d == m_clk_div,  "SB_REG", $sformatf("CLK_DIV read 0x%08h expected 0x%08h", d, m_clk_div));
+      ADDR_TX_DATA:  check(d == m_tx_data,  "SB_REG", $sformatf("TX_DATA read 0x%08h expected 0x%08h", d, m_tx_data));
+      ADDR_SCRATCH0: check(d == m_scratch[0], "SB_REG", $sformatf("SCRATCH0 read 0x%08h expected 0x%08h", d, m_scratch[0]));
+      ADDR_SCRATCH1: check(d == m_scratch[1], "SB_REG", $sformatf("SCRATCH1 read 0x%08h expected 0x%08h", d, m_scratch[1]));
+      ADDR_SCRATCH2: check(d == m_scratch[2], "SB_REG", $sformatf("SCRATCH2 read 0x%08h expected 0x%08h", d, m_scratch[2]));
+      ADDR_SCRATCH3: check(d == m_scratch[3], "SB_REG", $sformatf("SCRATCH3 read 0x%08h expected 0x%08h", d, m_scratch[3]));
+      ADDR_SCRATCH4: check(d == m_scratch[4], "SB_REG", $sformatf("SCRATCH4 read 0x%08h expected 0x%08h", d, m_scratch[4]));
+      ADDR_SCRATCH5: check(d == m_scratch[5], "SB_REG", $sformatf("SCRATCH5 read 0x%08h expected 0x%08h", d, m_scratch[5]));
+      ADDR_ID:       check(d == ID_VALUE,      "SB_REG", $sformatf("ID read 0x%08h expected 0x%08h", d, ID_VALUE));
+      ADDR_VERSION:  check(d == VERSION_VALUE, "SB_REG", $sformatf("VERSION read 0x%08h expected 0x%08h", d, VERSION_VALUE));
+      ADDR_IRQ_STAT: check(d[31:4] == '0, "SB_REG", $sformatf("IRQ_STAT reserved bits non-zero: 0x%08h", d));
       ADDR_STATUS:   check_status(d);
       ADDR_FIFO_LVL: check_fifo_lvl(d);
       ADDR_RX_DATA:  check_rx_read(d);
@@ -168,35 +172,35 @@ class apb_spi_scoreboard extends uvm_scoreboard;
   // STATUS = {27'h0, rx_full, rx_empty, tx_full, tx_empty, busy}
   function void check_status(bit [31:0] d);
     bit [4:0] exp;
-    check_value(d[31:5] == '0, "SB_STATUS", $sformatf("STATUS reserved bits non-zero: 0x%08h", d));
+    check(d[31:5] == '0, "SB_STATUS", $sformatf("STATUS reserved bits non-zero: 0x%08h", d));
     if (is_quiet()) begin
       exp[0] = 1'b0;
       exp[1] = (exp_tx_q.size() == 0);
       exp[2] = (exp_tx_q.size() == FIFO_DEPTH);
       exp[3] = (exp_rx_q.size() == 0);
       exp[4] = (exp_rx_q.size() == FIFO_DEPTH);
-      check_value(d[4:0] == exp, "SB_STATUS",
+      check(d[4:0] == exp, "SB_STATUS",
             $sformatf("STATUS[4:0]=0x%02h expected 0x%02h (tx=%0d rx=%0d)", d[4:0], exp, exp_tx_q.size(), exp_rx_q.size()));
     end
   endfunction
 
   // FIFO_LVL = {11'h0, rx_count[4:0], 11'h0, tx_count[4:0]}
   function void check_fifo_lvl(bit [31:0] d);
-    check_value(d[15:5] == '0 && d[31:21] == '0, "SB_FIFO_LVL", $sformatf("FIFO_LVL reserved bits non-zero: 0x%08h", d));
+    check(d[15:5] == '0 && d[31:21] == '0, "SB_FIFO_LVL", $sformatf("FIFO_LVL reserved bits non-zero: 0x%08h", d));
     if (is_quiet()) begin
-      check_value(d[4:0]   == exp_tx_q.size(), "SB_FIFO_LVL", $sformatf("TX level %0d expected %0d", d[4:0],   exp_tx_q.size()));
-      check_value(d[20:16] == exp_rx_q.size(), "SB_FIFO_LVL", $sformatf("RX level %0d expected %0d", d[20:16], exp_rx_q.size()));
+      check(d[4:0]   == exp_tx_q.size(), "SB_FIFO_LVL", $sformatf("TX level %0d expected %0d", d[4:0],   exp_tx_q.size()));
+      check(d[20:16] == exp_rx_q.size(), "SB_FIFO_LVL", $sformatf("RX level %0d expected %0d", d[20:16], exp_rx_q.size()));
     end
   endfunction
 
   // RX_DATA read: pops one byte from the master RX FIFO and must return that byte
   function void check_rx_read(bit [31:0] d);
     bit [7:0] exp;
-    check_value(d[31:8] == '0, "SB_RX_DATA", $sformatf("RX_DATA upper bits non-zero: 0x%08h", d));
+    check(d[31:8] == '0, "SB_RX_DATA", $sformatf("RX_DATA upper bits non-zero: 0x%08h", d));
     last_activity = $time;
     if (exp_rx_q.size() > 0) begin
       exp = exp_rx_q.pop_front();
-      check_value(d[7:0] == exp, "SB_RX_DATA", $sformatf("RX_DATA read 0x%02h but the oldest received byte is 0x%02h", d[7:0], exp));
+      check(d[7:0] == exp, "SB_RX_DATA", $sformatf("RX_DATA read 0x%02h but the oldest received byte is 0x%02h", d[7:0], exp));
     end else begin
       `uvm_info("SB_RX_DATA", "RX_DATA read while the RX FIFO model is empty: data not checked", UVM_HIGH)
     end
@@ -213,32 +217,38 @@ class apb_spi_scoreboard extends uvm_scoreboard;
       cur_tx_valid = 1'b1;
     end else begin
       cur_tx_valid = 1'b0;
-      check_value(1'b0, "SB_MST_TX", "master started a byte but the TX FIFO model is empty");
+      check(1'b0, "SB_MST_TX", "master started a byte but the TX FIFO model is empty");
     end
   endfunction
 
   function void write_mst(spi_master_seq_item t);
     n_mst_bytes++;
+    hist_mosi.push_back(t.mosi_data);
+    hist_miso.push_back(t.miso_data);
     last_activity = $time;
     if (cur_tx_valid)
-      check_value(t.mosi_data == cur_tx_exp, "SB_MST_TX",
+      check(t.mosi_data == cur_tx_exp, "SB_MST_TX",
             $sformatf("MOSI byte 0x%02h expected 0x%02h (%s)", t.mosi_data, cur_tx_exp, t.convert2string()));
-    check_value(t.edge_count == 2*DATA_WIDTH && t.bit_count == DATA_WIDTH, "SB_MST_PROTO",
+    check(t.edge_count == 2*DATA_WIDTH && t.bit_count == DATA_WIDTH, "SB_MST_PROTO",
           $sformatf("byte had %0d SCK edges / %0d sampled bits", t.edge_count, t.bit_count));
-    check_value(t.cs_sel == t.cs_sel_cfg, "SB_MST_CS",
+    check(t.cs_sel == t.cs_sel_cfg, "SB_MST_CS",
           $sformatf("asserted CS%0d but CTRL.CS_SEL[1:0]=%0d", t.cs_sel, t.cs_sel_cfg));
-    check_value(t.hp_min == t.hp_max && t.hp_min == (t.clk_div + 1), "SB_MST_SCK",
+    check(t.sck_idle == t.cpol, "SB_MST_MODE",
+          $sformatf("SCK idle level is %0b but CPOL=%0b", t.sck_idle, t.cpol));
+    check(t.sck_first == !t.cpol, "SB_MST_MODE",
+          $sformatf("first SCK edge goes to %0b, expected %0b (leading edge for CPOL=%0b)", t.sck_first, !t.cpol, t.cpol));
+    check(t.hp_min == t.hp_max && t.hp_min == (t.clk_div + 1), "SB_MST_SCK",
           $sformatf("SCK half period %0d..%0d clocks, expected %0d (CLK_DIV=%0d)", t.hp_min, t.hp_max, t.clk_div + 1, t.clk_div));
     if (t.byte_idx == 0)
-      check_value(t.setup_clks == (t.cs_setup + t.clk_div + 3), "SB_MST_SETUP",
+      check(t.setup_clks == (t.cs_setup + t.clk_div + 3), "SB_MST_SETUP",
             $sformatf("CS fall -> first SCK edge = %0d clocks, expected CS_SETUP+CLK_DIV+3 = %0d", t.setup_clks, t.cs_setup + t.clk_div + 3));
     if (t.last_in_burst)
-     check_value(t.hold_clks == (t.cs_hold + 1), "SB_MST_HOLD",
+      check(t.hold_clks == (t.cs_hold + 1), "SB_MST_HOLD",
             $sformatf("last SCK edge -> CS rise = %0d clocks, expected CS_HOLD+1 = %0d", t.hold_clks, t.cs_hold + 1));
     // the slave answers with the constant tied off by apb_spi_top; at CLK_DIV=0 the slave cannot keep up (RTL note)
     if (t.cs_sel == 2'd0 && t.clk_div >= 1)
-      check_value(t.miso_data == SLAVE_TX_CONST, "SB_MST_RX",
-            $sformatf("master received 0x%02h, slave presents 0x%02h", t.miso_data, SLAVE_TX_CONST));
+      check(t.miso_data == cur_tx_exp, "SB_MST_RX",
+            $sformatf("master received 0x%02h, slave presents 0x%02h", t.miso_data, cur_tx_exp));
     // RX FIFO model
     if (exp_rx_q.size() < FIFO_DEPTH) exp_rx_q.push_back(t.miso_data);
     else                              n_rx_drop++;
@@ -256,11 +266,13 @@ class apb_spi_scoreboard extends uvm_scoreboard;
   function void write_slv(spi_slave_seq_item t);
     if (t.kind == SLV_BYTE) begin
       n_slv_bytes++;
-      check_value(t.edge_count == 2*DATA_WIDTH && t.bit_count == DATA_WIDTH, "SB_SLV_PROTO",
+      check(t.edge_count == 2*DATA_WIDTH && t.bit_count == DATA_WIDTH, "SB_SLV_PROTO",
             $sformatf("slave byte had %0d SCK edges / %0d sampled bits", t.edge_count, t.bit_count));
       slv_dec_q.push_back(t.rx_data);
+      hist_slv_tx.push_back(t.tx_data);
     end else begin
       slv_probe_q.push_back(t.rx_data);
+      hist_slv_rx.push_back(t.rx_data);
     end
     match_slave();
   endfunction
@@ -271,7 +283,7 @@ class apb_spi_scoreboard extends uvm_scoreboard;
     while (mst_cs0_q.size() > 0 && slv_probe_q.size() > 0) begin
       m = mst_cs0_q.pop_front();
       p = slv_probe_q.pop_front();
-      check_value(p == m, "SB_SLV_RX", $sformatf("slave received 0x%02h but the master sent 0x%02h", p, m));
+      check(p == m, "SB_SLV_RX", $sformatf("slave received 0x%02h but the master sent 0x%02h", p, m));
       if (slv_dec_q.size() > 0) begin
         d = slv_dec_q.pop_front();
         if (d != p)
@@ -317,7 +329,7 @@ class apb_spi_scoreboard extends uvm_scoreboard;
       if (!reg_readable(rg)) continue;
       exp_v = rg.get_reset();
       mir_v = rg.get_mirrored_value();
-      check_value(mir_v === exp_v, "SB_RAL_RESET",
+      check(mir_v === exp_v, "SB_RAL_RESET",
             $sformatf("RESET MISMATCH %s: mirrored=0x%0h reset=0x%0h", rg.get_name(), mir_v, exp_v));
     end
   endtask
@@ -345,3 +357,4 @@ class apb_spi_scoreboard extends uvm_scoreboard;
   endfunction
 
 endclass
+

@@ -22,7 +22,7 @@ package apb_spi_types_pkg;
  // parameter int DATA_WIDTH = 8;
 
   /*parameter int unsigned FIFO_DEPTH     = 16;
-  parameter bit [7:0]    SLAVE_TX_CONST = 8'h0C;
+  
   parameter bit [31:0]   ID_VALUE       = 32'h5910_017E;
   parameter bit [31:0]   VERSION_VALUE  = 32'h0001_0000;
 

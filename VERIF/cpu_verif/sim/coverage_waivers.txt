@@ -85,3 +85,54 @@
 */external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv5125-5125  # X-assign default: grant case is complete
 */external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv5736-5736  # X-assign default: grant case is complete
 */external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv6396-6396  # X-assign default: grant case is complete
+
+# Constant / tied-off interface signals and single-beat-only AXI bridge
+# logic (review table, 27 Oct). toggle= entries apply at report time only.
+*/ip/axi4_master/rtl/axi4_master.sv toggle=m_axi_awid,m_axi_arid,m_axi_bid,m_axi_rid  # transaction ID hard-wired to 0
+*/ip/axi4_master/rtl/axi4_master.sv toggle=wr_id,rd_id,aw_id_q,ar_id_q,wr_resp_id,rid_out  # single transaction at a time, ID unused
+*/ip/axi4_master/rtl/axi4_master.sv toggle=m_axi_awlen,m_axi_arlen,wr_len,rd_len,aw_len_q,ar_len_q  # single-beat transfers only (len 0)
+*/ip/axi4_master/rtl/axi4_master.sv toggle=m_axi_awburst[1],m_axi_arburst[1]  # burst type always INCR (01)
+*/ip/axi4_master/rtl/axi4_master.sv toggle=m_axi_awlock,m_axi_arlock  # lock tied off
+*/ip/axi4_master/rtl/axi4_master.sv toggle=m_axi_awprot,m_axi_arprot  # protection attributes tied off
+*/ip/axi4_master/rtl/axi4_master.sv toggle=m_axi_awqos,m_axi_arqos  # QoS tied off
+*/ip/axi4_master/rtl/axi4_master.sv toggle=m_axi_awsize[2],m_axi_arsize[2]  # uncached accesses are at most 8 bytes
+*/dsn/rtl/bp_cpu_axi4m_if/bp_bedrock_axi4_bridge.sv toggle=wr_id,rd_id,wr_resp_id,rid_out  # single transaction at a time, ID unused
+*/dsn/rtl/bp_cpu_axi4m_if/bp_bedrock_axi4_bridge.sv toggle=wr_len,rd_len  # single-beat transfers only
+*/dsn/rtl/bp_cpu_axi4m_if/bp_bedrock_axi4_bridge.sv toggle=bridge_fwd_header_cast_i\.subop,bridge_fwd_header_cast_i\.payload\.way_id,bridge_fwd_header_cast_i\.payload\.state,bridge_fwd_header_cast_i\.payload\.prefetch,bridge_fwd_header_cast_i\.payload\.speculative,req_hdr_r\.subop,req_hdr_r\.payload\.way_id,req_hdr_r\.payload\.state,req_hdr_r\.payload\.prefetch,req_hdr_r\.payload\.speculative,resp_hdr_r\.subop,resp_hdr_r\.payload\.way_id,resp_hdr_r\.payload\.state,resp_hdr_r\.payload\.prefetch,resp_hdr_r\.payload\.speculative  # BedRock header fields not used for uncached I/O
+*/dsn/rtl/bp_cpu_ahb3lite_if/bp_bedrock_ahb3lite_bridge.sv toggle=bridge_fwd_header_cast_i\.subop,bridge_fwd_header_cast_i\.payload\.way_id,bridge_fwd_header_cast_i\.payload\.state,bridge_fwd_header_cast_i\.payload\.prefetch,bridge_fwd_header_cast_i\.payload\.speculative,req_hdr_r\.subop,req_hdr_r\.payload\.way_id,req_hdr_r\.payload\.state,req_hdr_r\.payload\.prefetch,req_hdr_r\.payload\.speculative,resp_hdr_r\.subop,resp_hdr_r\.payload\.way_id,resp_hdr_r\.payload\.state,resp_hdr_r\.payload\.prefetch,resp_hdr_r\.payload\.speculative  # BedRock header fields not used for uncached I/O
+*/dsn/rtl/bp_plic_shared_top.sv toggle=sel_hdr_cast\.subop,sel_hdr_cast\.payload\.way_id,sel_hdr_cast\.payload\.state,sel_hdr_cast\.payload\.prefetch,sel_hdr_cast\.payload\.speculative  # BedRock header fields not used for uncached I/O
+*/dsn/rtl/bp_plic_shared_top.sv toggle=ahb_hreadyout  # PLIC is zero-wait (HREADYOUT = 1)
+*/dsn/rtl/bp_plic_shared_top.sv toggle=ahb_hresp  # PLIC HRESP is always OKAY
+*/ip/ahb3-lite_master/rtl/ahb3lite_master.sv toggle=HBURST  # only SINGLE transfers
+*/ip/ahb3-lite_master/rtl/ahb3lite_master.sv toggle=HMASTLOCK  # locked transfers not supported
+*/ip/ahb3-lite_master/rtl/ahb3lite_master.sv toggle=HPROT[3:2]  # fixed protection attributes
+*/plic/ip/plic/rtl/ahb3lite/ahb3lite_plic_top.sv toggle=HREADYOUT  # PLIC is zero-wait (HREADYOUT = 1)
+*/plic/ip/plic/rtl/ahb3lite/ahb3lite_plic_top.sv toggle=HRESP  # PLIC HRESP is always OKAY
+*/dsn/rtl/bp_cpu_axi4m_if/bp_bedrock_axi4_bridge.sv     392-397  # axi_size(): transfers of 16 bytes or more not supported
+*/dsn/rtl/bp_cpu_axi4m_if/bp_bedrock_axi4_bridge.sv     415-416  # beat_strb(): transfers of 16 bytes or more not supported
+*/dsn/rtl/bp_cpu_axi4m_if/bp_bedrock_axi4_bridge.sv     472-472  # single-beat only: multi-beat write counter
+*/dsn/rtl/bp_cpu_axi4m_if/bp_bedrock_axi4_bridge.sv     484-484  # single-beat only: rlast == 0
+*/dsn/rtl/bp_cpu_axi4m_if/bp_bedrock_axi4_bridge.sv     542-542  # single-beat only: write beat > 0
+*/dsn/rtl/bp_cpu_axi4m_if/bp_bedrock_axi4_bridge.sv     548-554  # single-beat only: write beat > 0
+*/dsn/rtl/bp_cpu_axi4m_if/bp_bedrock_axi4_bridge.sv     546-547  # all AXI writes are uncached (uc_wr_lo_only == 0 unreachable)
+*/dsn/rtl/bp_cpu_axi4m_if/bp_bedrock_axi4_bridge.sv     605-605  # single-beat only: write beat counter
+*/dsn/rtl/bp_cpu_axi4m_if/bp_bedrock_axi4_bridge.sv     626-626  # single-beat only: rlast == 0
+
+# Sv39 virtual memory not used in this CPU version (design team, 28 Oct):
+# remaining Sv39-only logic (was covered only by BP-DV-036, now excluded)
+*/basejump_stl/bsg_mem/bsg_cam_1r1w*.sv                          # CAM, used only by bp_tlb
+*/bp_be/src/v/bp_be_checker/bp_be_scheduler.sv          238-242  # PTW page faults / TLB fills, ITLB miss, sfence.vma
+*/bp_be/src/v/bp_be_checker/bp_be_scheduler.sv          247-248  # PTW page faults / TLB fills, ITLB miss, sfence.vma
+*/bp_be/src/v/bp_be_checker/bp_be_scheduler.sv          261-261  # PTW page faults / TLB fills, ITLB miss, sfence.vma
+*/bp_fe/src/v/bp_fe_controller.sv                       165-165  # ITLB fill response / ITLB miss / ITLB flush
+*/bp_fe/src/v/bp_fe_controller.sv                       169-169  # ITLB fill response / ITLB miss / ITLB flush
+*/bp_fe/src/v/bp_fe_controller.sv                       200-200  # ITLB fill response / ITLB miss / ITLB flush
+*/bp_fe/src/v/bp_fe_controller.sv                       272-272  # ITLB fill response / ITLB miss / ITLB flush
+*/bp_be/src/v/bp_be_calculator/bp_be_calculator_top.sv  579-580  # DTLB miss, load/store page fault
+*/bp_be/src/v/bp_be_calculator/bp_be_calculator_top.sv  583-583  # DTLB miss, load/store page fault
+*/bp_be/src/v/bp_be_calculator/bp_be_calculator_top.sv  586-586  # DTLB miss, load/store page fault
+*/bp_be/src/v/bp_be_checker/bp_be_director.sv           169-169  # ITLB fill, sfence.vma
+*/bp_be/src/v/bp_be_checker/bp_be_director.sv           179-179  # ITLB fill, sfence.vma
+*/bp_be/src/v/bp_be_dcache/bp_be_dcache_decoder.sv      132-132  # PTW load
+*/bp_common/src/v/bp_mmu.sv                             140-141  # translation-enabled TLB muxes
+*/bp_be/src/v/bp_be_checker/bp_be_instr_decoder.sv      512-516  # sfence.vma decode

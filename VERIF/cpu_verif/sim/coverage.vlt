@@ -89,3 +89,33 @@ coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -li
 coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 5125-5125
 coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 5736-5736
 coverage_off -file "*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv" -lines 6396-6396
+
+// Single-beat-only AXI bridge logic (keep in sync with coverage_waivers.txt;
+// the signal-level toggle waivers there have no coverage.vlt form)
+coverage_off -file "*/dsn/rtl/bp_cpu_axi4m_if/bp_bedrock_axi4_bridge.sv" -lines 392-397
+coverage_off -file "*/dsn/rtl/bp_cpu_axi4m_if/bp_bedrock_axi4_bridge.sv" -lines 415-416
+coverage_off -file "*/dsn/rtl/bp_cpu_axi4m_if/bp_bedrock_axi4_bridge.sv" -lines 472-472
+coverage_off -file "*/dsn/rtl/bp_cpu_axi4m_if/bp_bedrock_axi4_bridge.sv" -lines 484-484
+coverage_off -file "*/dsn/rtl/bp_cpu_axi4m_if/bp_bedrock_axi4_bridge.sv" -lines 542-542
+coverage_off -file "*/dsn/rtl/bp_cpu_axi4m_if/bp_bedrock_axi4_bridge.sv" -lines 548-554
+coverage_off -file "*/dsn/rtl/bp_cpu_axi4m_if/bp_bedrock_axi4_bridge.sv" -lines 546-547
+coverage_off -file "*/dsn/rtl/bp_cpu_axi4m_if/bp_bedrock_axi4_bridge.sv" -lines 605-605
+coverage_off -file "*/dsn/rtl/bp_cpu_axi4m_if/bp_bedrock_axi4_bridge.sv" -lines 626-626
+
+// Sv39 virtual memory not used (28 Oct): remaining Sv39-only logic
+coverage_off -file "*/basejump_stl/bsg_mem/bsg_cam_1r1w*.sv"
+coverage_off -file "*/bp_be/src/v/bp_be_checker/bp_be_scheduler.sv" -lines 238-242
+coverage_off -file "*/bp_be/src/v/bp_be_checker/bp_be_scheduler.sv" -lines 247-248
+coverage_off -file "*/bp_be/src/v/bp_be_checker/bp_be_scheduler.sv" -lines 261-261
+coverage_off -file "*/bp_fe/src/v/bp_fe_controller.sv" -lines 165-165
+coverage_off -file "*/bp_fe/src/v/bp_fe_controller.sv" -lines 169-169
+coverage_off -file "*/bp_fe/src/v/bp_fe_controller.sv" -lines 200-200
+coverage_off -file "*/bp_fe/src/v/bp_fe_controller.sv" -lines 272-272
+coverage_off -file "*/bp_be/src/v/bp_be_calculator/bp_be_calculator_top.sv" -lines 579-580
+coverage_off -file "*/bp_be/src/v/bp_be_calculator/bp_be_calculator_top.sv" -lines 583-583
+coverage_off -file "*/bp_be/src/v/bp_be_calculator/bp_be_calculator_top.sv" -lines 586-586
+coverage_off -file "*/bp_be/src/v/bp_be_checker/bp_be_director.sv" -lines 169-169
+coverage_off -file "*/bp_be/src/v/bp_be_checker/bp_be_director.sv" -lines 179-179
+coverage_off -file "*/bp_be/src/v/bp_be_dcache/bp_be_dcache_decoder.sv" -lines 132-132
+coverage_off -file "*/bp_common/src/v/bp_mmu.sv" -lines 140-141
+coverage_off -file "*/bp_be/src/v/bp_be_checker/bp_be_instr_decoder.sv" -lines 512-516

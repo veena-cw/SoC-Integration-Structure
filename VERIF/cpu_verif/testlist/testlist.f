@@ -117,16 +117,16 @@ bp_dv_057_default_arm_test 57 muldiv_function.nbf
 # (step << 8) | (trap index << 4) | check (c/priv_modes.c).
 bp_dv_035_priv_modes_test 35 priv_modes.nbf
 
-# NOTE: Sv39 virtual memory is not a supported feature in this CPU version
-# (design team). BP-DV-036 is kept as an informational check of the current
-# behaviour; BP-DV-037 is deferred (excluded from the regression) until Sv39
-# support is implemented.
+# NOTE: Sv39 virtual memory is not used in this CPU version (design team,
+# 28 Oct). BP-DV-036 and BP-DV-037 are excluded from the regression (run by
+# hand only), and the Sv39-only logic is waived in sim/coverage_waivers.txt.
 # BP-DV-036 - Sv39 virtual memory on both harts: 4K/2M/1G mappings, TLB
 # capacity misses (16 pages), page faults with exact mtval (unmapped, RO
 # store, A=0, D=0, U page from S, misaligned megapage), sfence.vma after a
 # PTE change, SUM. Nonzero tohost per hart: (step << 8) | detail
 # (c/vm_sv39.c).
-bp_dv_036_vm_sv39_test 36 vm_sv39.nbf
+# Run by hand only:  make sim TEST=bp_dv_036_vm_sv39_test NO_VCD=1
+# bp_dv_036_vm_sv39_test 36 vm_sv39.nbf
 
 # BP-DV-037 - Sv39 instruction page fault (jump to a non-executable page).
 # DEFERRED until Sv39 support is implemented (design team): the fault is

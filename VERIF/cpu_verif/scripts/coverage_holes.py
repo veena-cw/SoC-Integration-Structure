@@ -84,6 +84,8 @@ def main():
         if coverage_waive.waived(rules, path, int(f.get("l", "0"))):
             continue
         page = f.get("page", "").split("/")[0]
+        if page == "v_toggle" and coverage_waive.waived_toggle(rules, path, f.get("o", "")):
+            continue
         line = int(f.get("l", "0"))
         if page == "v_toggle":
             m = re.match(r"(.*?)(\[\d+\])?:(0->1|1->0)$", f.get("o", ""))

@@ -167,7 +167,7 @@ logic m_rx_re_d;
 always_ff @(posedge clk or negedge rst_n) 
     if (!rst_n)  m_rx_re_d <= 1'b0;
     else m_rx_re_d <= m_rx_re;
-always_ff @(posedge clk or negedge rst_n) begin
+always_ff @(posedge clk or negedge rst_n) 
     if (!rst_n)  rx_data_reg <= 32'h0;
     else if (m_rx_re_d) rx_data_reg <= {24'h0, m_rx_data};
 	

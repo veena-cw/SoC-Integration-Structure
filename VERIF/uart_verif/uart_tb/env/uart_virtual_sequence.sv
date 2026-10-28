@@ -24,7 +24,8 @@ class uart_virtual_sequence extends uvm_sequence;
         ERROR_PARITY,
         ERROR_OVERRUN,
         ERROR_BREAK,
-        ERROR_CLEAR_RECOVERY
+        ERROR_CLEAR_RECOVERY,
+        ERROR_BREAK_SATURATION
     } error_case_e;
 
     typedef enum {
@@ -75,6 +76,11 @@ class uart_virtual_sequence extends uvm_sequence;
     // queued in the source TX FIFO and the destination RX FIFO is
     // not read until the hold check is complete.
     bit rts_hold_test = 1'b0;
+
+    // Threshold equal to FIFO depth (16): RTS must remain ready throughout
+    // a legal transfer smaller than the FIFO capacity. This is NOT an RTS
+    // threshold-cycling test, since RX occupancy cannot exceed 16.
+    bit rts_full_depth_test = 1'b0;
 
     // The APB wrapper exposes IER[3] as rx_full_irq_en_i.
     bit check_rx_full_irq = 1'b1;
@@ -1265,8 +1271,15 @@ class uart_virtual_sequence extends uvm_sequence;
                     isr[7:4] == 4'b0000);
     endtask
 
-    protected task automatic run_error_break_case();
+    protected task automatic run_error_break_case(input bit saturate_counter = 1'b0);
         uvm_reg_data_t isr;
+        int unsigned low_bit_times;
+        string case_name;
+
+        // 13 bits covers BREAK detection; 520 bits = 8320 x16 ticks,
+        // exceeding the 13-bit counter limit (8191) to cover saturation.
+        low_bit_times = saturate_counter ? 520 : 13;
+        case_name     = saturate_counter ? "BREAK COUNTER SATURATION" : "BREAK";
 
         data_bits   = 4'd8;
         parity_en   = 1'b0;
@@ -1276,16 +1289,16 @@ class uart_virtual_sequence extends uvm_sequence;
         err_irq_en  = 1'b0;
         config_d1();
 
-        error_start_case_state("BREAK");
+        error_start_case_state(case_name);
 
         p_sequencer.d1_vif.spec_rx_drive_en = 1'b1;
         p_sequencer.d1_vif.spec_rx_drive    = 1'b1;
         #(uart_bit_time());
 
-        $display("  [BREAK] CONDITION: rx_i forced LOW for 13 UART bit times");
+        $display("  [BREAK] CONDITION: rx_i forced LOW for %0d UART bit times", low_bit_times);
         $display("  [FRAME] SEND: START=0 with continuous LOW condition (no valid data/stop frame)");
         p_sequencer.d1_vif.spec_rx_drive = 1'b0;
-        #(13 * uart_bit_time());
+        #(low_bit_times * uart_bit_time());
         p_sequencer.d1_vif.spec_rx_drive = 1'b1;
         #(2 * uart_bit_time());
 
@@ -1299,7 +1312,10 @@ class uart_virtual_sequence extends uvm_sequence;
 
         error_report_sr("BREAK after condition");
         error_drain_pending_data("BREAK received/stale RX data");
-        error_recover_with_valid_frame("break recovery", 9'h096);
+        error_recover_with_valid_frame(
+            saturate_counter ? "break saturation recovery" : "break recovery",
+            9'h096
+        );
     endtask
 
     protected task automatic run_error_clear_recovery_case();
@@ -1393,6 +1409,9 @@ class uart_virtual_sequence extends uvm_sequence;
 
             ERROR_CLEAR_RECOVERY:
                 run_error_clear_recovery_case();
+
+            ERROR_BREAK_SATURATION:
+                run_error_break_case(1'b1);
 
             default:
                 `uvm_fatal(get_type_name(), "Unsupported UART error testcase")
@@ -2389,6 +2408,48 @@ class uart_virtual_sequence extends uvm_sequence;
     // each RTS/CTS transition directly correlate with one RX read and one
     // new TX write, matching the intended waveform/debug process.
     // ------------------------------------------------------------
+    // Verify the programmed RX-side CR and observe RTS/CTS during a normal
+    // sub-capacity transfer with a threshold equal to the FIFO depth.
+    protected task run_rts_full_depth_d1_to_d2();
+        uvm_reg_data_t cr_value;
+        uvm_status_e status;
+        bit monitoring_done;
+        bit saw_not_ready;
+
+        flow_check("full-depth threshold case uses value 16 and flow enabled",
+                   flow_en && (rts_thresh == 5'd16) && (num_bytes <= 16));
+        if (!flow_en || (rts_thresh != 5'd16) || (num_bytes > 16))
+            return;
+
+        ral_lock.get(1);
+        redirect_to_d2();
+        p_sequencer.ral_model.CR.read(status, cr_value, UVM_FRONTDOOR);
+        ral_lock.put(1);
+        flow_check("D2 CR threshold=16 and flow control enabled",
+                   (status == UVM_IS_OK) && (cr_value[13:9] == 5'd16) && cr_value[8]);
+
+        monitoring_done = 1'b0;
+        saw_not_ready = 1'b0;
+        fork
+            begin
+                run_d1_to_d2();
+                monitoring_done = 1'b1;
+            end
+            begin
+                while (!monitoring_done) begin
+                    if ((p_sequencer.d2_vif.rts_n_o !== 1'b0) ||
+                        (p_sequencer.d1_vif.cts_n_i !== 1'b0))
+                        saw_not_ready = 1'b1;
+                    #200;
+                end
+            end
+        join
+        flow_check("RTS/CTS remain asserted for a transfer below FIFO depth at threshold 16",
+                   !saw_not_ready &&
+                   (p_sequencer.d2_vif.rts_n_o === 1'b0) &&
+                   (p_sequencer.d1_vif.cts_n_i === 1'b0));
+    endtask
+
     protected task run_flow_d1_to_d2(input bit [8:0] payload[]);
         bit [8:0] got;
         bit       timed_out;
@@ -3388,7 +3449,9 @@ class uart_virtual_sequence extends uvm_sequence;
             case (mode)
             D1_TO_D2: begin
                 make_payload(num_bytes, 1'b1, payload);
-                if (flow_control_test && rts_hold_test)
+                if (rts_full_depth_test)
+                    run_rts_full_depth_d1_to_d2();
+                else if (flow_control_test && rts_hold_test)
                     run_rts_hold_d1_to_d2(payload);
                 else if (flow_control_test)
                     run_flow_d1_to_d2(payload);
@@ -3438,4 +3501,5 @@ class uart_virtual_sequence extends uvm_sequence;
     endtask
 
 endclass
+
 

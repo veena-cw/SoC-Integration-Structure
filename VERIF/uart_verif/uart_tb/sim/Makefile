@@ -23,7 +23,6 @@ endif
 
 TESTNAME ?= uart_smoke_test
 SEED     ?= 1
-PLUSARGS ?=
 # Large UVM + coverage builds can exhaust RAM when PCH jobs run in parallel.
 BUILD_JOBS ?= 1
 
@@ -47,6 +46,8 @@ OVERALL_CODE_SUMMARY := $(COVERAGE_DIR)/overall_code_summary.txt
 REGRESSION_LIST ?= $(PROJECT_DIR)/regression_tests.f
 REGRESSION_LOG_DIR := $(VERILATOR_LOG_DIR)/regression
 REGRESSION_RESULTS := $(COVERAGE_DIR)/regression_results.txt
+# Select a single gap type with GAP_TYPE=branch, expr, toggle or all.
+GAP_TYPE ?= all
 
 .PHONY: all
 all: vivado
@@ -56,7 +57,7 @@ help:
 	@echo "Targets:"
 	@echo "  vivado / vivado_compile / vivado_elaborate / vivado_run / vivado_clean"
 	@echo "  verilator / verilator_lint / verilator_compile / verilator_run / verilator_clean"
-	@echo "  regression / uart_regression_test / cov_merge / coverage_report / functional_coverage"
+	@echo "  regression / uart_regression_test / cov_merge / coverage_report / coverage_gaps / functional_coverage"
 	@echo "  clean"
 	@echo ""
 	@echo "TESTNAME (default uart_smoke_test) selects the UVM test."
@@ -206,7 +207,6 @@ verilator_run:
 		"+UVM_TESTNAME=$(TESTNAME)" \
 		"+verilator+seed+$(SEED)" \
 		+UVM_VERBOSITY=UVM_MEDIUM +UVM_NO_RELNOTES \
-		$(PLUSARGS) \
 		"+verilator+coverage+file+$(COVERAGE_INDIV_DIR)/$(TESTNAME).dat" \
 		2>&1 | tee "$(VERILATOR_LOG_DIR)/$(TESTNAME).log"
 	@! grep -Eq 'UVM_(ERROR|FATAL)[[:space:]]*:[[:space:]]*[1-9][0-9]*' \
@@ -288,24 +288,173 @@ coverage_report: cov_merge
 	@grep -qE '^SF:.*rtl/.*[.]sv' "$(COVERAGE_RAW_INFO)" || { \
 		echo "ERROR: No RTL coverage records in merged data. Check --coverage and .vlt settings."; exit 1; }
 	@lcov --extract "$(COVERAGE_RAW_INFO)" '*rtl/*.sv' -o "$(COVERAGE_INFO)" --quiet
+	@# Verilator emits RTL line/expr/toggle/branch points as generic LCOV BRDA.
+	@# LCOV extraction omits BRDA by default. Restore ONLY native RTL branch
+	@# points from merged.dat so HTML Branch does not accidentally count toggles.
+	@# Keep FN/FNDA untouched: Verilator did not export SV function-call bins.
+	@set -o pipefail; awk ' \
+		FNR==NR { \
+			if ($$0 !~ /^C /) next; \
+			q=sprintf("%c",39); first=index($$0,q); last=0; \
+			for (z=length($$0); z>first; z--) \
+				if (substr($$0,z,1)==q) {last=z; break} \
+			if (!first || !last) next; \
+			file=type=line=""; \
+			nfields=split(substr($$0,first+1,last-first-1),fields,"\001"); \
+			for (i=1;i<=nfields;i++) { \
+				split(fields[i],entry,"\002"); \
+				if (entry[1]=="f") file=entry[2]; \
+				else if (entry[1]=="t") type=entry[2]; \
+				else if (entry[1]=="l") line=entry[2]; \
+			} \
+			if (type!="branch" || file !~ /(^|\/)rtl\/[^\/]+[.]sv$$/ || \
+				line !~ /^[0-9]+$$/) next; \
+			hits=substr($$0,last+1)+0; \
+			idx=num[file SUBSEP line]++; \
+			data[file]=data[file] sprintf("BRDA:%d,0,%d,%d\n",line,idx,hits); \
+			total[file]++; if (hits>0) covered[file]++; \
+			next; \
+		} \
+		/^SF:/ {file=substr($$0,4); print; next} \
+		/^end_of_record$$/ { \
+			if (total[file]) { \
+				printf "%s",data[file]; \
+				printf "BRF:%d\nBRH:%d\n",total[file],covered[file]; \
+			} \
+			print; file=""; next; \
+		} \
+		{print} \
+	' "$(COVERAGE_MERGED)" "$(COVERAGE_INFO)" > "$(COVERAGE_INFO).tmp" && \
+		mv "$(COVERAGE_INFO).tmp" "$(COVERAGE_INFO)"
 	@printf 'REGRESSION: OVERALL RTL CODE COVERAGE\n' > "$(OVERALL_CODE_SUMMARY)"
-	@# LCOV's overall *source-line* percentage is the same metric used by the RTL HTML report.
+	@# Report executable RTL source lines from LCOV, not Verilator basic-block counts.
 	@set -o pipefail; summary="$$(lcov --summary "$(COVERAGE_INFO)" 2>&1)" || { echo "ERROR: LCOV summary failed"; exit 1; }; \
 		line_info="$$(printf '%s\n' "$$summary" | awk '/^[[:space:]]*lines[.]*:/ {sub(/^[^:]*:[[:space:]]*/, ""); print; exit}')"; \
-		[ -n "$$line_info" ] || { echo "ERROR: No RTL source-line coverage in LCOV report"; exit 1; }; \
-		printf '  Overall RTL source-line coverage (HTML): %s\n' "$$line_info" | tee -a "$(OVERALL_CODE_SUMMARY)"
-	@set -o pipefail; $(VERILATOR_COVERAGE) --report summary "$(COVERAGE_MERGED)" | \
-		awk '/^[[:space:]]*(line|toggle|branch|expr|fsm_state|fsm_arc)[[:space:]]*:/' | \
-		tee -a "$(OVERALL_CODE_SUMMARY)"
+		[ -n "$$line_info" ] || { echo "ERROR: Missing RTL source-line coverage"; exit 1; }; \
+		printf 'RTL code coverage (UVM/testbench excluded):\n' | tee -a "$(OVERALL_CODE_SUMMARY)"; \
+		printf '  %-18s: %s\n' "Line" "$$line_info" | tee -a "$(OVERALL_CODE_SUMMARY)"
+	@# Count only native code points whose source file belongs to ../rtl/*.sv.
+	@# Toggle scope: all internal RTL signals and implemented register bits.
+	@# Exclude constant readback upper bits and APB address bits outside the
+	@# legal 0x00..0x18 aligned register range. This is a legal-access metric:
+	@# raw merged.dat remains unmodified for full RTL/invalid-access auditing.
+	@# Do not print detailed uncovered-point lists in the console/report.
+	@set -o pipefail; awk ' \
+		BEGIN { \
+			width["thr_reg"]=8; width["rhr_reg"]=8; \
+			width["sr_reg"]=6; width["cr_reg"]=13; \
+			width["brdr_reg"]=15; width["ier_reg"]=3; width["isr_reg"]=7; \
+			metric[1]="branch"; metric[2]="expr"; metric[3]="toggle"; \
+			metric[4]="fsm_state"; metric[5]="fsm_arc"; \
+		} \
+		/^C / { \
+			q=sprintf("%c",39); first=index($$0,q); last=0; \
+			for (z=length($$0); z>first; z--) \
+				if (substr($$0,z,1)==q) {last=z; break} \
+			if (!first || !last) next; \
+			file=type=point=""; \
+			nfields=split(substr($$0,first+1,last-first-1),fields,"\001"); \
+			for (i=1;i<=nfields;i++) { \
+				split(fields[i],entry,"\002"); \
+				if (entry[1]=="f") file=entry[2]; \
+				else if (entry[1]=="t") type=entry[2]; \
+				else if (entry[1]=="o") point=entry[2]; \
+			} \
+			if (file !~ /(^|\/)rtl\/[^\/]+[.]sv$$/) next; \
+			if (type!="branch" && type!="expr" && type!="toggle" && \
+				type!="fsm_state" && type!="fsm_arc") next; \
+			if (type=="toggle" && file ~ /(^|\/)rtl\/uart_apb_top[.]sv$$/ && \
+				point ~ /^[A-Za-z_][A-Za-z_0-9]*\[[0-9]+\]:(0->1|1->0)$$/) { \
+				reg=point; sub(/\[.*/, "", reg); \
+				bit=point; sub(/^[^[]*\[/,"",bit); sub(/\].*/,"",bit); \
+				if ((reg in width) && (bit+0)>width[reg]) next; \
+				if ((reg=="PADDR" || reg=="addr") && \
+				    ((bit+0)<2 || (bit+0)>4)) next; \
+				if (reg=="PRDATA" && (bit+0)>=16) next; \
+			} \
+			hits=substr($$0,last+1)+0; \
+			total[type]++; if (hits>0) covered[type]++; \
+		} \
+		END { \
+			if (!total["branch"] || !total["expr"] || !total["toggle"]) { \
+				print "ERROR: Missing RTL code coverage points" > "/dev/stderr"; exit 1; \
+			} \
+			label["branch"]="Branch"; label["expr"]="Expression"; \
+			label["toggle"]="Toggle"; label["fsm_state"]="FSM State"; \
+			label["fsm_arc"]="FSM Arc"; \
+			for(j=1;j<=5;j++) { \
+				t=metric[j]; \
+				if (total[t]) printf "  %-18s: %6.2f%% (%d/%d)\n", \
+					label[t],100*covered[t]/total[t],covered[t],total[t]; \
+				else printf "  %-18s: N/A (0/0)\n",label[t]; \
+			} \
+			print "Toggle scope: all RTL signals, excluding reserved/constant bits and invalid-access-only address bits."; \
+		} \
+	' "$(COVERAGE_MERGED)" | tee -a "$(OVERALL_CODE_SUMMARY)"
 	@genhtml --quiet --branch-coverage "$(COVERAGE_INFO)" \
 		--output-directory "$(COVERAGE_HTML)" \
 		--title "UART Regression RTL Code Coverage"
 	@echo "Overall functional summary: $(OVERALL_FUNCTIONAL_SUMMARY)"
 	@echo "RTL code HTML report: $(COVERAGE_HTML)/index.html"
 
+# Diagnostic report: show missed RTL branch/expr/toggle coverage without changing
+# normal regression summary, RTL source files, or coverage databases.
+# Example: make coverage_gaps GAP_TYPE=toggle
+.PHONY: coverage_gaps
+coverage_gaps:
+	@test -s "$(COVERAGE_MERGED)" || { \
+		echo "ERROR: Missing $(COVERAGE_MERGED). Run make coverage_report first."; exit 1; }
+	@case "$(GAP_TYPE)" in all|branch|expr|toggle) ;; \
+		*) echo "ERROR: GAP_TYPE must be all, branch, expr or toggle"; exit 1 ;; esac
+	@awk -v wanted="$(GAP_TYPE)" ' \
+		BEGIN { \
+			width["thr_reg"]=8; width["rhr_reg"]=8; \
+			width["sr_reg"]=6; width["cr_reg"]=13; \
+			width["brdr_reg"]=15; width["ier_reg"]=3; width["isr_reg"]=7; \
+			kind[1]="branch"; kind[2]="expr"; kind[3]="toggle"; \
+		} \
+		/^C / { \
+			q=sprintf("%c",39); first=index($$0,q); last=0; \
+			for (z=length($$0); z>first; z--) \
+				if (substr($$0,z,1)==q) {last=z; break} \
+			if (!first || !last) next; \
+			file=type=point=line=""; \
+			nfields=split(substr($$0,first+1,last-first-1),fields,"\001"); \
+			for (i=1;i<=nfields;i++) { \
+				split(fields[i],entry,"\002"); \
+				if (entry[1]=="f") file=entry[2]; \
+				else if (entry[1]=="t") type=entry[2]; \
+				else if (entry[1]=="o") point=entry[2]; \
+				else if (entry[1]=="l") line=entry[2]; \
+			} \
+			if (file !~ /(^|\/)rtl\/[^\/]+[.]sv$$/) next; \
+			if (type!="branch" && type!="expr" && type!="toggle") next; \
+			if (wanted!="all" && wanted!=type) next; \
+			if (type=="toggle" && file ~ /(^|\/)rtl\/uart_apb_top[.]sv$$/ && \
+				point ~ /^[A-Za-z_][A-Za-z_0-9]*\[[0-9]+\]:(0->1|1->0)$$/) { \
+				reg=point; sub(/\[.*/, "", reg); \
+				bit=point; sub(/^[^[]*\[/,"",bit); sub(/\].*/,"",bit); \
+				if ((reg in width) && (bit+0)>width[reg]) next; \
+				if ((reg=="PADDR" || reg=="addr") && \
+				    ((bit+0)<2 || (bit+0)>4)) next; \
+				if (reg=="PRDATA" && (bit+0)>=16) next; \
+			} \
+			hits=substr($$0,last+1)+0; \
+			if (hits==0) missing[type,++count[type]]=file ":" line "  " point; \
+		} \
+		END { \
+			for (j=1;j<=3;j++) { \
+				t=kind[j]; if (wanted!="all" && wanted!=t) continue; \
+				printf "\nUNHIT RTL %s COVERAGE POINTS (%d)\n", t, count[t]; \
+				if (!count[t]) print "  None"; \
+				for (i=1;i<=count[t];i++) print "  " missing[t,i]; \
+			} \
+		} \
+	' "$(COVERAGE_MERGED)"
+
 # Read merged SystemC::Coverage-3 bin counts using standard awk only.
-# Each bin with count > 0 is covered; individual UVM get_inst_coverage()
-# and merged bin-hit percentages can differ due to covergroup weighting.
+# Keep UVM covergroups and TB-top FSM covergroups separate from RTL code metrics.
+# FSM names are unique per DUT and direction; cp_state/cp_arc are separate.
 functional_coverage:
 	@test -s "$(COVERAGE_MERGED)" || { echo "ERROR: No merged coverage data; run make regression or make cov_merge"; exit 1; }
 	@awk ' \
@@ -315,22 +464,34 @@ functional_coverage:
 			name[3]="error_cg";     label[3]="Error coverage"; \
 			name[4]="irq_cg";       label[4]="IRQ coverage"; \
 			name[5]="apb_cg";       label[5]="APB coverage"; \
+			name[6]="d1_tx_fsm_cg"; label[6]="D1 TX FSM State"; point[6]="cp_state"; \
+			name[7]="d1_tx_fsm_cg"; label[7]="D1 TX FSM Arc"; point[7]="cp_arc"; \
+			name[8]="d1_rx_fsm_cg"; label[8]="D1 RX FSM State"; point[8]="cp_state"; \
+			name[9]="d1_rx_fsm_cg"; label[9]="D1 RX FSM Arc"; point[9]="cp_arc"; \
+			name[10]="d2_tx_fsm_cg"; label[10]="D2 TX FSM State"; point[10]="cp_state"; \
+			name[11]="d2_tx_fsm_cg"; label[11]="D2 TX FSM Arc"; point[11]="cp_arc"; \
+			name[12]="d2_rx_fsm_cg"; label[12]="D2 RX FSM State"; point[12]="cp_state"; \
+			name[13]="d2_rx_fsm_cg"; label[13]="D2 RX FSM Arc"; point[13]="cp_arc"; \
 		} \
 		/^C / { \
 			if (!index($$0, "\001t\002covergroup") && \
 			    !index($$0, "\001t\002funccov")) next; \
+			# Only individual bin records: ignore metadata/aggregate entries. \
+			if (!index($$0, "\001bin\002")) next; \
 			group=0; matches=0; \
-			for (i=1; i<=5; i++) { \
-				if (index($$0, name[i])) {group=i; matches++} \
+			for (i=1; i<=13; i++) { \
+				if (index($$0, name[i]) && (i<=5 || \
+				    index($$0, "." point[i] "."))) {group=i; matches++} \
 			} \
-			if (matches!=1 || !match($$0, /[0-9]+[[:space:]]*$$/)) {bad++; next} \
+			if (matches != 1 || !match($$0, /[0-9]+[[:space:]]*$$/)) {bad++; next} \
 			count=substr($$0, RSTART, RLENGTH)+0; \
 			total[group]++; if (count>0) covered[group]++; \
 		} \
 		END { \
-			for (i=1; i<=5; i++) { \
+			for (i=1; i<=13; i++) { \
 				if (total[i]==0) { \
-					printf "ERROR: No bins for %s in merged data\n", name[i] > "/dev/stderr"; \
+					printf "ERROR: No bins for %s%s in merged data\n", \
+					       name[i],(i<=5 ? "" : "." point[i]) > "/dev/stderr"; \
 					bad++; \
 				} \
 			} \
@@ -338,7 +499,8 @@ functional_coverage:
 			print "========================================"; \
 			print "REGRESSION: OVERALL FUNCTIONAL COVERAGE"; \
 			print "========================================"; \
-			for (i=1; i<=5; i++) { \
+			for (i=1; i<=13; i++) { \
+				if (i==6) print "---------- FSM state / arc coverage ----------"; \
 				printf "  %-20s : %6.2f %% (%d/%d bins)\n", label[i], \
 				       100*covered[i]/total[i], covered[i], total[i]; \
 				all_covered+=covered[i]; all_total+=total[i]; \
@@ -358,3 +520,4 @@ verilator_clean:
 .PHONY: clean
 clean: vivado_clean verilator_clean
 	@echo "All clean."
+

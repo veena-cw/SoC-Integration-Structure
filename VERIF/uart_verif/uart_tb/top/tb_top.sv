@@ -29,7 +29,7 @@ module tb_top;
     //     uart_if.sv, since nothing ever needs to drive it per-
     //     transaction.
     //   * divisor_load_i / uart_irq_en inputs -- gate BRDR/IER
-    //     writes. uart_irq_en is tied high (it only gates the IER
+    //     writes. uart_irq_en defaults high (it only gates the IER
     //     write). divisor_load_i must NOT be tied high -- see the
     //     strobe generated just below.
     //   * uart_irq output, renamed from the old irq_o (the
@@ -53,6 +53,8 @@ module tb_top;
         d2_brdr_wr_q <= d2_brdr_wr;
     end
 
+    // uart_irq_en is driven through each existing uart_if VIF.
+    // Both default high; the UVM transaction test can exercise gating.
     uart_apb_top u_dut_d1 (
         .PCLK           (clk),
         .PRESETn        (reset_interface.rst_n),
@@ -69,7 +71,7 @@ module tb_top;
         .PSLVERR        (uart_d1_interface.pslverr),
 
         .divisor_load_i (d1_brdr_wr | d1_brdr_wr_q),
-        .uart_irq_en    (1'b1),
+        .uart_irq_en    (uart_d1_interface.uart_irq_en),
 
         .rx_i           (uart_d1_interface.rx_i),
         .tx_o           (uart_d1_interface.tx_o),
@@ -97,7 +99,7 @@ module tb_top;
         .PSLVERR        (uart_d2_interface.pslverr),
 
         .divisor_load_i (d2_brdr_wr | d2_brdr_wr_q),
-        .uart_irq_en    (1'b1),
+        .uart_irq_en    (uart_d2_interface.uart_irq_en),
 
         .rx_i           (uart_d2_interface.rx_i),
         .tx_o           (uart_d2_interface.tx_o),
@@ -105,6 +107,152 @@ module tb_top;
         .rts_n_o        (uart_d2_interface.rts_n_o),
         .uart_irq       (uart_d2_interface.irq_o)
     );
+
+    // ============================================================
+    // FSM functional coverage (distinct from Verilator RTL FSM metrics)
+    // Cover normal TX/RX paths and RX false-START rejection.
+    // Neither reset-induced arcs nor break-abort arcs are in the
+    // normal-operation arc denominator.
+    // Enable only the explicit user covergroups here; tb_top automatic
+    // RTL/code coverage remains excluded by the existing .vlt setup.
+    // ============================================================
+    /*verilator coverage_on*/
+    // D1 TX: six valid states and 8 normal-protocol arcs.
+    covergroup d1_tx_fsm_cg with function sample(logic [2:0] state);
+        option.per_instance = 1;
+        cp_state: coverpoint state {
+            bins idle = {3'd0};
+            bins start = {3'd1};
+            bins data = {3'd2};
+            bins parity = {3'd3};
+            bins stop1 = {3'd4};
+            bins stop2 = {3'd5};
+        }
+        cp_arc: coverpoint state {
+            bins idle_to_start = (3'd0 => 3'd1);
+            bins start_to_data = (3'd1 => 3'd2);
+            bins data_to_parity = (3'd2 => 3'd3);
+            bins data_to_stop1 = (3'd2 => 3'd4);
+            bins parity_to_stop1 = (3'd3 => 3'd4);
+            bins stop1_to_stop2 = (3'd4 => 3'd5);
+            bins stop1_to_idle = (3'd4 => 3'd0);
+            bins stop2_to_idle = (3'd5 => 3'd0);
+        }
+    endgroup
+    d1_tx_fsm_cg d1_tx_fsm_cov;
+
+    // D1 RX: six valid states and 9 normal-protocol arcs.
+    covergroup d1_rx_fsm_cg with function sample(logic [2:0] state);
+        option.per_instance = 1;
+        cp_state: coverpoint state {
+            bins idle = {3'd0};
+            bins start = {3'd1};
+            bins data = {3'd2};
+            bins parity = {3'd3};
+            bins stop1 = {3'd4};
+            bins stop2 = {3'd5};
+        }
+        cp_arc: coverpoint state {
+            bins idle_to_start = (3'd0 => 3'd1);
+            bins start_to_idle_glitch = (3'd1 => 3'd0);
+            bins start_to_data = (3'd1 => 3'd2);
+            bins data_to_parity = (3'd2 => 3'd3);
+            bins data_to_stop = (3'd2 => 3'd4);
+            bins parity_to_stop = (3'd3 => 3'd4);
+            bins stop_to_idle = (3'd4 => 3'd0);
+            bins stop_to_stop2 = (3'd4 => 3'd5);
+            bins stop2_to_idle = (3'd5 => 3'd0);
+        }
+    endgroup
+    d1_rx_fsm_cg d1_rx_fsm_cov;
+
+    // D2 TX: six valid states and 8 normal-protocol arcs.
+    covergroup d2_tx_fsm_cg with function sample(logic [2:0] state);
+        option.per_instance = 1;
+        cp_state: coverpoint state {
+            bins idle = {3'd0};
+            bins start = {3'd1};
+            bins data = {3'd2};
+            bins parity = {3'd3};
+            bins stop1 = {3'd4};
+            bins stop2 = {3'd5};
+        }
+        cp_arc: coverpoint state {
+            bins idle_to_start = (3'd0 => 3'd1);
+            bins start_to_data = (3'd1 => 3'd2);
+            bins data_to_parity = (3'd2 => 3'd3);
+            bins data_to_stop1 = (3'd2 => 3'd4);
+            bins parity_to_stop1 = (3'd3 => 3'd4);
+            bins stop1_to_stop2 = (3'd4 => 3'd5);
+            bins stop1_to_idle = (3'd4 => 3'd0);
+            bins stop2_to_idle = (3'd5 => 3'd0);
+        }
+    endgroup
+    d2_tx_fsm_cg d2_tx_fsm_cov;
+
+    // D2 RX: six valid states and 9 normal-protocol arcs.
+    covergroup d2_rx_fsm_cg with function sample(logic [2:0] state);
+        option.per_instance = 1;
+        cp_state: coverpoint state {
+            bins idle = {3'd0};
+            bins start = {3'd1};
+            bins data = {3'd2};
+            bins parity = {3'd3};
+            bins stop1 = {3'd4};
+            bins stop2 = {3'd5};
+        }
+        cp_arc: coverpoint state {
+            bins idle_to_start = (3'd0 => 3'd1);
+            bins start_to_idle_glitch = (3'd1 => 3'd0);
+            bins start_to_data = (3'd1 => 3'd2);
+            bins data_to_parity = (3'd2 => 3'd3);
+            bins data_to_stop = (3'd2 => 3'd4);
+            bins parity_to_stop = (3'd3 => 3'd4);
+            bins stop_to_idle = (3'd4 => 3'd0);
+            bins stop_to_stop2 = (3'd4 => 3'd5);
+            bins stop2_to_idle = (3'd5 => 3'd0);
+        }
+    endgroup
+    d2_rx_fsm_cg d2_rx_fsm_cov;
+    /*verilator coverage_off*/
+
+    // Sample only on state CHANGES at negedge clk: NBA updates have settled,
+    // and large baud-divisor regressions avoid millions of redundant bins.
+    // Re-arm sampling after each reset rather than accumulating reset arcs.
+    initial begin : sample_uart_fsm_coverage
+        logic [2:0] last_d1_tx, last_d1_rx, last_d2_tx, last_d2_rx;
+        d1_tx_fsm_cov = new();
+        d1_rx_fsm_cov = new();
+        d2_tx_fsm_cov = new();
+        d2_rx_fsm_cov = new();
+        last_d1_tx = 3'b111; last_d1_rx = 3'b111;
+        last_d2_tx = 3'b111; last_d2_rx = 3'b111;
+
+        forever begin
+            @(negedge clk);
+            if (reset_interface.rst_n !== 1'b1) begin
+                last_d1_tx = 3'b111; last_d1_rx = 3'b111;
+                last_d2_tx = 3'b111; last_d2_rx = 3'b111;
+            end else begin
+                if (u_dut_d1.u_uart_top.u_tx.state_q != last_d1_tx) begin
+                    last_d1_tx = u_dut_d1.u_uart_top.u_tx.state_q;
+                    d1_tx_fsm_cov.sample(last_d1_tx);
+                end
+                if (u_dut_d1.u_uart_top.u_rx.state_q != last_d1_rx) begin
+                    last_d1_rx = u_dut_d1.u_uart_top.u_rx.state_q;
+                    d1_rx_fsm_cov.sample(last_d1_rx);
+                end
+                if (u_dut_d2.u_uart_top.u_tx.state_q != last_d2_tx) begin
+                    last_d2_tx = u_dut_d2.u_uart_top.u_tx.state_q;
+                    d2_tx_fsm_cov.sample(last_d2_tx);
+                end
+                if (u_dut_d2.u_uart_top.u_rx.state_q != last_d2_rx) begin
+                    last_d2_rx = u_dut_d2.u_uart_top.u_rx.state_q;
+                    d2_rx_fsm_cov.sample(last_d2_rx);
+                end
+            end
+        end
+    end
 
     // Testbench-only waveform probes.  These aliases make the RX FIFO head
     // visible directly at tb_top in dump.vcd, without modifying the DUT RTL.
@@ -199,3 +347,4 @@ module tb_top;
     end
 
 endmodule
+

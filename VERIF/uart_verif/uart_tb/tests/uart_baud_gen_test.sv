@@ -9,7 +9,7 @@ class uart_baud_gen_test extends uart_base_test;
     // 100 MHz: baud = 100_000_000 / (16 * (divisor + 1)).
     // Baud:     9600  19200  38400  57600  115200  230400  460800  921600
     // Divisor:   650    325    162    108      53      26      13       6
-    localparam int unsigned DEFAULT_DIVISOR = 53;
+    localparam int unsigned DEFAULT_DIVISOR = 325;
     localparam bit [31:0] ADDR_THR  = 32'h00;
     localparam bit [31:0] ADDR_RHR  = 32'h04;
     localparam bit [31:0] ADDR_SR   = 32'h08;
@@ -342,6 +342,40 @@ class uart_baud_gen_test extends uart_base_test;
         end
     endtask
 
+    // Coverage closure for the implemented 16-bit baud counter.
+    // This is an additional check within uart_baud_gen_test, NOT another test.
+    // At divisor 325 the counter stops at 325, so bits [15:9] cannot toggle.
+    task check_baud_counter_full_range();
+        localparam int unsigned HIGH_DIVISOR = 32768;
+        bit [31:0] readback;
+        bit saw_high_bit;
+        bit saw_return_to_zero;
+
+        $display("\nBAUD COUNTER RANGE CHECK: divisor=%0d", HIGH_DIVISOR);
+        apb_write(1'b1, ADDR_BRDR, HIGH_DIVISOR);
+        apb_read(1'b1, ADDR_BRDR, readback);
+        check_value("High divisor BRDR readback", readback, HIGH_DIVISOR);
+        repeat (4) @(negedge d1.pclk);
+        check_value("High divisor loaded", 
+            $root.tb_top.u_dut_d1.u_uart_top.u_baud.div_q, HIGH_DIVISOR);
+
+        saw_high_bit = 0;
+        saw_return_to_zero = 0;
+        // One 16x tick requires HIGH_DIVISOR+1 PCLK cycles; allow margin.
+        repeat (HIGH_DIVISOR + 8) begin
+            @(negedge d1.pclk);
+            if ($root.tb_top.u_dut_d1.u_uart_top.u_baud.cnt_q[15])
+                saw_high_bit = 1;
+            if (saw_high_bit &&
+                ($root.tb_top.u_dut_d1.u_uart_top.u_baud.cnt_q == 0))
+                saw_return_to_zero = 1;
+        end
+        check_value("Baud counter MSB reached", saw_high_bit, 1);
+        check_value("Baud counter returned to zero", saw_return_to_zero, 1);
+        $display("  Counter MSB reached=%0b, rollover=%0b", 
+                 saw_high_bit, saw_return_to_zero);
+    endtask
+
     virtual task run_phase(uvm_phase phase);
         time clock_edge;
         phase.raise_objection(this);
@@ -367,9 +401,13 @@ class uart_baud_gen_test extends uart_base_test;
         run_baud_case(7, "Stress: 18-byte full duplex with RTS/CTS");
         run_baud_case(8, "Register: divisor reload and UART recovery");
 
+        // Cover both transitions of cnt_q[9:15] using a legal 16-bit divisor.
+        check_baud_counter_full_range();
+
         $display("\nBAUD CASES: PASS=%0d FAIL=%0d", case_pass, case_fail);
         $display("BAUD CHECKS: PASS=%0d FAIL=%0d", pass_count, fail_count);
         phase.drop_objection(this);
     endtask
 endclass
+
 

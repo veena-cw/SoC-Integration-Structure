@@ -20,3 +20,16 @@ coverage_off -file "*env/uart_virtual_sequence.sv"
 // Its incidental code points are filtered from the final RTL-only LCOV
 // summary/HTML by the Makefile's '*/rtl/*.sv' extract.
 // All ../rtl/*.sv files remain enabled for code coverage.
+
+
+
+// Instantiated RTL structural coverage exclusions (not executed/"hit"):
+// APB slave is zero-wait-state: PREADY=PSEL&&PENABLE, so the
+// ACCESS-with-PREADY=0 branch cannot occur for this RTL configuration.
+coverage_off -file "*rtl/uart_apb_top.sv" -lines 70
+
+// Current UART TX/RX FIFOs are parameterized with DEPTH=16; the
+// compile-time DEPTH==1 pointer-update branches cannot execute.
+// Their DEPTH>1 paths remain instrumented on the following lines.
+coverage_off -file "*rtl/uart_fifo.sv" -lines 69
+coverage_off -file "*rtl/uart_fifo.sv" -lines 73

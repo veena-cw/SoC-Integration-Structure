@@ -43,4 +43,8 @@ interface uart_if (
 
     wire         irq_o;
 
+    // Testbench-only IER write gate; defaults high to preserve existing
+    // UART tests. Transaction test drives it low/high through the VIF.
+    logic        uart_irq_en = 1'b1;
+
 endinterface

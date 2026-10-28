@@ -30,7 +30,8 @@ class uart_apb_transaction_test extends uart_base_test;
         bit                                 rts_hold_test     = 1'b0,
         bit                                 flow_en            = 1'b0,
         bit [4:0]                           rts_thresh         = 5'd14,
-        bit                                 spec_target_d1    = 1'b1
+        bit                                 spec_target_d1    = 1'b1,
+        bit                                 rts_full_depth_test = 1'b0
     );
         uart_virtual_sequence vseq;
         int unsigned pass_before;
@@ -91,6 +92,7 @@ class uart_apb_transaction_test extends uart_base_test;
         vseq.rts_hold_test     = rts_hold_test;
         vseq.flow_en           = flow_en;
         vseq.rts_thresh        = rts_thresh;
+        vseq.rts_full_depth_test = rts_full_depth_test;
 
         if (mode == uart_virtual_sequence::SPEC_RX) begin
             // The DUT has no APB encoding for 5/6 data bits in the
@@ -135,6 +137,90 @@ class uart_apb_transaction_test extends uart_base_test;
         $display("========================================");
     endtask
 
+    // Cover the IER write gate with irq_en disabled and enabled. This drives
+    // only the testbench control pin; no DUT RTL or RAL definition is changed.
+    protected task check_ier_enable_gate();
+        uvm_status_e st;
+        uvm_reg_data_t original_ier;
+        uvm_reg_data_t readback;
+        uvm_reg_data_t toggled_ier;
+
+        env.virt_seqr.ral_model.default_map.set_sequencer(
+            env.virt_seqr.d1_sequencer, env.virt_seqr.adapter);
+        env.virt_seqr.ral_model.IER.read(st, original_ier, UVM_FRONTDOOR);
+        if (st != UVM_IS_OK)
+            `uvm_error("UART_IRQ_GATE", "Unable to read initial IER")
+        toggled_ier = (original_ier ^ 32'h0000_000F) & 32'hF;
+
+        @(negedge env.virt_seqr.d1_vif.pclk);
+        env.virt_seqr.d1_vif.uart_irq_en = 1'b0;
+        env.virt_seqr.ral_model.IER.write(st, toggled_ier, UVM_FRONTDOOR);
+        env.virt_seqr.ral_model.IER.read(st, readback, UVM_FRONTDOOR);
+        if ((st == UVM_IS_OK) && (readback[3:0] == original_ier[3:0])) begin
+            local_pass_total++;
+            $display("  [IRQ_GATE] PASS: IER write ignored when uart_irq_en=0");
+        end
+        else begin
+            local_fail_total++;
+            `uvm_error("UART_IRQ_GATE", "IER changed while uart_irq_en=0")
+        end
+
+        @(negedge env.virt_seqr.d1_vif.pclk);
+        env.virt_seqr.d1_vif.uart_irq_en = 1'b1;
+        env.virt_seqr.ral_model.IER.write(st, toggled_ier, UVM_FRONTDOOR);
+        env.virt_seqr.ral_model.IER.read(st, readback, UVM_FRONTDOOR);
+        if ((st == UVM_IS_OK) && (readback[3:0] == toggled_ier[3:0])) begin
+            local_pass_total++;
+            $display("  [IRQ_GATE] PASS: IER write accepted when uart_irq_en=1");
+        end
+        else begin
+            local_fail_total++;
+            `uvm_error("UART_IRQ_GATE", "IER write failed while uart_irq_en=1")
+        end
+        // Restore the original register contents for subsequent scenarios.
+        env.virt_seqr.ral_model.IER.write(st, original_ier, UVM_FRONTDOOR);
+    endtask
+
+    // Complete the 16 -> 1 threshold transition following Case 15.
+    // This also validates CR readback and the implemented RTS threshold field.
+    // It is a cleanup/check within the existing transaction test.
+    protected task check_rts_threshold_falling_edge();
+        uvm_status_e st;
+        uvm_reg_data_t cr_val;
+        uvm_reg_data_t readback;
+
+        for (int side = 0; side < 2; side++) begin
+            env.virt_seqr.ral_model.default_map.set_sequencer(
+                side == 0 ? env.virt_seqr.d1_sequencer : env.virt_seqr.d2_sequencer,
+                env.virt_seqr.adapter);
+            env.virt_seqr.ral_model.CR.read(st, cr_val, UVM_FRONTDOOR);
+            if (st != UVM_IS_OK || cr_val[13:9] != 5'd16) begin
+                local_fail_total++;
+                `uvm_error("UART_RTS_THRESHOLD",
+                    $sformatf("D%0d expected threshold 16 before transition (CR=0x%08h)",
+                              side + 1, cr_val))
+            end
+
+            cr_val[13:9] = 5'd1;
+            env.virt_seqr.ral_model.CR.write(st, cr_val, UVM_FRONTDOOR);
+            if (st != UVM_IS_OK) begin
+                local_fail_total++;
+                `uvm_error("UART_RTS_THRESHOLD", "CR threshold 1 write failed")
+            end
+            env.virt_seqr.ral_model.CR.read(st, readback, UVM_FRONTDOOR);
+            if (st == UVM_IS_OK && readback[13:9] == 5'd1) begin
+                local_pass_total++;
+                $display("  [RTS_THRESHOLD] PASS: D%0d changed from 16 to 1", side + 1);
+            end
+            else begin
+                local_fail_total++;
+                `uvm_error("UART_RTS_THRESHOLD",
+                    $sformatf("D%0d threshold did not update to 1 (CR=0x%08h)",
+                              side + 1, readback))
+            end
+        end
+    endtask
+
     virtual task run_phase(uvm_phase phase);
         int unsigned grand_pass;
         int unsigned grand_fail;
@@ -151,7 +237,7 @@ class uart_apb_transaction_test extends uart_base_test;
         $display("  DUT           : uart_apb_top d1 <-serial link-> uart_apb_top d2");
         $display("  Transaction   : continuous streams");
         $display("  Full duplex   : TX and RX run in parallel");
-        $display("  Long transfers: 4/12 cases (>16 bytes)");
+        $display("  Long transfers: 5/15 cases (>16 bytes)");
         $display("========================================");
 
         // 1. Directed D1 -> D2, 8 bytes, 9N1
@@ -332,6 +418,49 @@ class uart_apb_transaction_test extends uart_base_test;
             5'd0
         );
 
+        // 14. Threshold 1: RX occupancy 2 de-asserts RTS; subsequent RX
+        // reads must release it. Reuse the existing flow-cycle checker.
+        run_named_scenario(
+            "D1_TO_D2 RTS threshold 1 cycling",
+            uart_virtual_sequence::D1_TO_D2,
+            8,
+            4'd8,
+            1'b0,
+            2'b00,
+            1'b0,
+            uart_virtual_sequence::DIRECTED_DATA,
+            1'b1,
+            1'b0,
+            1'b1,
+            5'd1
+        );
+
+        // 15. Threshold 16: FIFO occupancy cannot exceed 16, therefore RTS
+        // must never de-assert for a sub-capacity serial transfer.
+        run_named_scenario(
+            "D1_TO_D2 RTS threshold 16, transfer stays ready",
+            uart_virtual_sequence::D1_TO_D2,
+            8,
+            4'd8,
+            1'b0,
+            2'b00,
+            1'b0,
+            uart_virtual_sequence::DIRECTED_DATA,
+            1'b0,
+            1'b0,
+            1'b1,
+            5'd16,
+            1'b1,
+            1'b1
+        );
+
+        // Case 15 leaves CR[13] high; exercise the missing falling edge.
+        check_rts_threshold_falling_edge();
+
+        // Exercise both sides of the uart_irq_en write gate using existing
+        // APB/RAL transactions (no extra test or RTL changes).
+        check_ier_enable_gate();
+
         grand_pass = env.scoreboard.pass_count + local_pass_total;
         grand_fail = env.scoreboard.error_count + local_fail_total;
 
@@ -349,3 +478,4 @@ class uart_apb_transaction_test extends uart_base_test;
     endtask
 
 endclass
+

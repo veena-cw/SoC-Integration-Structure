@@ -78,6 +78,7 @@ class uart_error_test extends uart_base_test;
         $display(" RX Overrun");
         $display(" Break Error");
         $display(" Sticky Error Clear + Recovery");
+        $display(" Long BREAK - RX Counter Saturation");
         $display("========================================");
 
         // --------------------------------------------------------
@@ -131,6 +132,16 @@ class uart_error_test extends uart_base_test;
             uart_virtual_sequence::ERROR_CLEAR_RECOVERY
         );
 
+        // --------------------------------------------------------
+        // 7. BREAK counter saturation (last error testcase).
+        //    Keep RX low for >8191 oversampling ticks to exercise
+        //    uart_rx.sv's saturating counter branch; then recover.
+        // --------------------------------------------------------
+        run_error_case(
+            "Long BREAK - RX counter saturation + recovery",
+            uart_virtual_sequence::ERROR_BREAK_SATURATION
+        );
+
         $display("");
         $display("========================================");
         $display(" UART ERROR TEST -- GRAND TOTAL");
@@ -146,3 +157,4 @@ class uart_error_test extends uart_base_test;
     endtask
 
 endclass
+

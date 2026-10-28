@@ -4,14 +4,13 @@
 # ============================================================
 
 # ---------- RTL ----------
-# ---------- RTL ----------
-../../../../DSN/ip/peripherals/uart/ip/uart/rtl/uart_baudgen.sv
-../../../../DSN/ip/peripherals/uart/ip/uart/rtl/uart_fifo.sv
-../../../../DSN/ip/peripherals/uart/ip/uart/rtl/uart_tx.sv
-../../../../DSN/ip/peripherals/uart/ip/uart/rtl/uart_rx.sv
-../../../../DSN/ip/peripherals/uart/ip/uart/rtl/uart_top.sv
-../../../../DSN/ip/peripherals/uart/dsn/rtl/uart_apb_top.sv
-
+../rtl/uart_baudgen.sv
+../rtl/uart_fifo.sv
+../rtl/uart_tx.sv
+../rtl/uart_rx.sv
+../rtl/uart_top.sv
+../rtl/uart_apb_top.sv
+# ../rtl/apb_uart_top.sv -- superseded by uart_apb_top.sv above;
 # kept in the tree for reference, no longer compiled.
 
 # ---------- Interfaces ----------

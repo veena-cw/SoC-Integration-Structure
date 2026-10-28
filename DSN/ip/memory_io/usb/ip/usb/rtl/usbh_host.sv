@@ -1,5 +1,4 @@
 
-
 `timescale 1ns/1ps
 
 //-----------------------------------------------------------------
@@ -36,7 +35,7 @@
 //                          Generated File
 //-----------------------------------------------------------------
 
-// `include "usbh_host_defs.sv"
+ `include "usbh_host_defs.sv"
 
 //-----------------------------------------------------------------
 // Module:  USB Host IP
@@ -168,6 +167,7 @@ endfunction
 // Retime write data
 //-----------------------------------------------------------------
 logic [31:0] wr_data_q;
+logic [31:0] cfg_wdata_i_buf;
 
 always_ff @(posedge clk_i or negedge rst_i)
 if (!rst_i)
@@ -379,7 +379,7 @@ always_ff @(posedge clk_i or negedge rst_i)
 if (!rst_i)
     usb_irq_ack_done_q <= 1'd`USB_IRQ_ACK_DONE_DEFAULT;
 else if (write_en_w && (wr_addr_w[7:0] == `USB_IRQ_ACK))
-    usb_irq_ack_done_q <= cfg_wdata_i_bug[`USB_IRQ_ACK_DONE_R];
+    usb_irq_ack_done_q <= cfg_wdata_i_buf[`USB_IRQ_ACK_DONE_R];
 else
     usb_irq_ack_done_q <= 1'd`USB_IRQ_ACK_DONE_DEFAULT;
 

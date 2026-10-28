@@ -304,7 +304,6 @@ spi_top #(
     .irq_done_o         (irq_done),
     .irq_err_o          (irq_err)
 );
-
 //=====================================================
 // APB READ MUX
 //=====================================================
@@ -319,7 +318,8 @@ always_comb begin
         ADDR_IRQ_MASK   : PRDATA = irq_mask_reg;
         ADDR_CLK_DIV    : PRDATA = clk_div_reg;
         ADDR_TX_DATA    : PRDATA = tx_data_reg;
-        ADDR_RX_DATA    : PRDATA = rx_data_reg;
+       // ADDR_RX_DATA    : PRDATA = rx_data_reg;
+	    ADDR_RX_DATA    : PRDATA = {24'h0, m_rx_data};
         ADDR_FIFO_LVL   : PRDATA = fifo_lvl_reg;
         ADDR_ID         : PRDATA = id_reg;
         ADDR_VERSION    : PRDATA = version_reg;

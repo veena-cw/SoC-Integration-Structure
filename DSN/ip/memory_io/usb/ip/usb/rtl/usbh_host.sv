@@ -489,7 +489,7 @@ else if (write_en_w && (wr_addr_w[7:0] == `USB_IRQ_MASK))
     usb_irq_mask_sof_q <= cfg_wdata_i_buf[`USB_IRQ_MASK_SOF_R];
 
 logic        usb_irq_mask_sof_out_w;
-assign usb_irq_mask_sof_out_w = usb_irq_mask_sof_q  & !usb_irq_mask_sof_out_w);
+assign usb_irq_mask_sof_out_w = usb_irq_mask_sof_q  & !usb_irq_mask_sof_out_w;
 
 
 //-----------------------------------------------------------------
@@ -1176,7 +1176,7 @@ begin
 
  intr_q <= (intr_done_q  & !usb_irq_mask_done_out_w) |
            (intr_err_q   & !usb_irq_mask_err_out_w)  |
-           (intr_sof_q   & !usb_irq_mask_sof_out_w)  |
+           (intr_sof_q   & )  |
            (device_det_q & !usb_irq_mask_device_detect_out_w);
 end
 

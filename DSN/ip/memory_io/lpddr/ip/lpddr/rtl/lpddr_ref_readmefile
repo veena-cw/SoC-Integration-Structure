@@ -1,1 +1,84 @@
+IP Name: LPDDR5 Controller (lpddr5c)
+Version: 1.0
 
+https://github.com/openclaw9653/lpddr5c/blob/main/project/lpddr5c/docs/LPDDR5_Controller_Spec.md
+https://github.com/openclaw9653/lpddr5c/blob/main/project/lpddr5c/docs/PROJECT_STATUS.md
+
+LPDDR5 Controller IP Summary
+
+The lpddr5c IP is an open-source LPDDR5/LPDDR5X Memory Controller designed for ASIC and FPGA implementations. The controller targets JEDEC JESD209-5 compliant LPDDR5/LPDDR5X memories and provides a complete digital controller architecture interfacing with the DRAM PHY through a DFI 5.0 compliant interface. The controller supports dual-channel operation, x16 data width per channel, and is designed to achieve data rates up to 6400 MT/s (LPDDR5) and 8533 MT/s (LPDDR5X).
+The architecture consists of a Command Scheduler, Data Path, Register Configuration (APB4), Refresh Controller, Training Controller, Low Power Management, and a DFI Interface Adapter. The controller implements the complete LPDDR5 initialization flow, training algorithms, refresh scheduling, ECC support, low-power management, and timing parameter configuration.
+The current project status indicates that all eight core RTL modules have been completed, including the top-level integration, command scheduler, data path, register configuration, refresh controller, training controller, low-power manager, and DFI interface. The remaining work is focused on verification infrastructure, including the testbench, simulation environment, and performance optimization.
+
+Key Features
+
+Open-source LPDDR5/LPDDR5X Controller RTL
+JEDEC JESD209-5 compliant architecture
+LPDDR5 up to 6400 MT/s
+LPDDR5X up to 8533 MT/s
+Dual-channel architecture
+x16 interface per channel
+DFI 5.0 compliant PHY interface
+APB4 Register Configuration Interface
+AXI System Bus Interface
+Age-based Command Scheduler
+Bank State Tracking
+Timing Constraint Checking
+Page Hit Optimization
+Refresh Scheduler
+ECC (SECDED) Support
+Data Reorder Buffer
+CDC FIFO (Gray Code)
+CA Training
+Read Training
+Write Training
+DFI Training Interface
+Low Power Management (Power-Down, Self-Refresh, Deep Sleep)
+Temperature Compensated Refresh
+Interrupt Generation
+Status and Error Reporting
+
+
+
+Current Implementation Status
+Module	Status
+
+Top-Level Controller	✔ Completed
+Command Scheduler	✔ Completed
+Data Path	✔ Completed
+Register Configuration	✔ Completed
+Refresh Controller	✔ Completed
+Training Controller	✔ Completed
+Low Power Management	✔ Completed
+DFI Interface	✔ Completed
+Specification Document	✔ Completed
+Testbench	✗ Pending
+Simulation Environment	✗ Pending
+Verification Environment	✗ Pending
+
+
+Current Limitations
+Feature	Status
+
+LPDDR5 Support	✔ Up to 6400 MT/s
+LPDDR5X Support	✔ Up to 8533 MT/s
+DFI 5.0 Interface	✔ Implemented
+APB4 Register Interface	✔ Implemented
+AXI System Interface	✔ Implemented
+ECC (SECDED)	✔ Implemented
+Command Scheduler	✔ Implemented
+Refresh Controller	✔ Implemented
+CA / Read / Write Training	✔ Implemented
+Low Power Modes	✔ Implemented
+Temperature Compensated Refresh	✔ Implemented
+Testbench	✗ Not implemented
+DFI VIP	✗ Not implemented
+AXI VIP	✗ Not implemented
+LPDDR5 DRAM Model	✗ Not implemented
+Functional Verification	✗ Pending
+Performance Optimization	✗ Pending
+Power Analysis	✗ Pending
+DFT / MBIST Integration	✗ Pending
+
+
+Registers used in the IP as per the RTL implementation.

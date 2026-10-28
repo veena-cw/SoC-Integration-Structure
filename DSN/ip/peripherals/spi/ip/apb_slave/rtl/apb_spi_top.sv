@@ -158,10 +158,19 @@ assign m_tx_we = PSEL && PENABLE && PWRITE && (addr == ADDR_TX_DATA);
 //=====================================================
 // RX DATA Register
 //=====================================================
-always_ff @(posedge clk or negedge rst_n)
+ /*always_ff @(posedge clk or negedge rst_n)
     if(!rst_n)rx_data_reg <= 32'h0;
-    else if(m_done) rx_data_reg <= {24'h0,m_rx_data};
+    else if(m_rx_re) rx_data_reg <= {24'h0,m_rx_data};
 
+assign m_rx_re = PSEL && PENABLE && (!PWRITE) && (addr == ADDR_RX_DATA); */
+logic m_rx_re_d;
+always_ff @(posedge clk or negedge rst_n) 
+    if (!rst_n)  m_rx_re_d <= 1'b0;
+    else m_rx_re_d <= m_rx_re;
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n)  rx_data_reg <= 32'h0;
+    else if (m_rx_re_d) rx_data_reg <= {24'h0, m_rx_data};
+	
 assign m_rx_re = PSEL && PENABLE && (!PWRITE) && (addr == ADDR_RX_DATA);
 
 //=====================================================

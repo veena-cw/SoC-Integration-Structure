@@ -193,6 +193,7 @@ module lpddr5c_reg_cfg #(
             training_done_d1 <= 1'b0;
             training_error_d1 <= 1'b0;
             refresh_pending_d1 <= 1'b0;
+            refresh_urgent_rise <= 1'b0;
             
         end else begin
             // Defaults

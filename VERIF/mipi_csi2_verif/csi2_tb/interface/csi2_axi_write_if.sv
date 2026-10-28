@@ -1,8 +1,8 @@
 `timescale 1ns/1ps
 
 interface csi2_axi_write_if #(
-  parameter int unsigned DATA_WIDTH = 64,
-  parameter int unsigned STRB_WIDTH = 7
+  parameter int unsigned DATA_WIDTH = `wdata,
+  parameter int unsigned STRB_WIDTH = `wstrb
 )(
   input logic aclk
 );

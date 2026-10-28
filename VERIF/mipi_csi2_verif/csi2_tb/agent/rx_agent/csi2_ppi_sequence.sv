@@ -35,7 +35,7 @@ class csi2_raw8_seq extends csi2_ppi_sequence;
     // RAW8 is selected
     req.test_case = "RAW8";
     req.datatype       = DT_RAW8;
-    req.rtl_word_count = 16'h001F;
+    req.rtl_word_count = 16'h003F;
     req.sync_type      = 3'b011;
     req.send_eot       = 1'b1;
     req.payload.delete();
@@ -108,12 +108,12 @@ class csi2_end_early_eot_seq extends csi2_ppi_sequence;
     req = csi2_rx_packet_item::type_id::create("req");
     start_item(req);
     req.test_case      = "END_EARLY_EOT";
-    req.datatype       = DT_RAW7;
-    req.rtl_word_count = 16'h0117;
+    req.datatype       = DT_RAW8;
+    req.rtl_word_count = 16'h001F;
     req.sync_type      = 3'b011;
     req.send_eot       = 1'b1;
     req.payload.delete();
-    for (int index = 0; index < 560; index++)
+    for (int index = 0; index < 64; index++)
     req.payload.push_back(byte'(32'h10 + index));
     finish_item(req);
   endtask

@@ -242,6 +242,7 @@ logic [7:0] awlen_q;
     wire [DATA_WIDTH+7:0]               ecc_encoded_data;
     wire [DATA_WIDTH-1:0]               ecc_decoded_data;
     wire [7:0]                            ecc_syndrome;
+     wire [7:0]                            err_count;
     wire                                  ecc_err_detected;
     wire                                  ecc_err_corrected;
     
@@ -526,13 +527,15 @@ end
         .reg_timing1    (reg_timing1),
         .reg_ecc_cfg    (reg_ecc_cfg),
         .reg_lp_cfg     (reg_lp_cfg),
+        .ecc_err_count  (err_count),
         
         // Status inputs
         .reg_status     (reg_status),
         .training_done  (training_done),
         .training_error (training_error),
         .lp_state       (lp_state[0]),
-        .refresh_pending(refresh_pending)
+        .refresh_pending(refresh_pending),
+         .refresh_counter(refresh_counter)
     );
     
     //========================================================================
@@ -633,6 +636,7 @@ end
     .ecc_cfg          (reg_ecc_cfg),
     .ecc_err_detected (ecc_err_detected),
     .ecc_err_corrected(ecc_err_corrected),
+    .err_count(err_count),
 
     //====================================================================
     // FIFO status -- unchanged

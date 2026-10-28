@@ -97,11 +97,12 @@ logic awvalid_q;
 
 // Data but no data ready
 logic wvalid_q;
-
+logic cfg_wvalid_i_buf;
+ 
 logic wr_cmd_accepted_w;
 assign wr_cmd_accepted_w = (cfg_awvalid_i && cfg_awready_o) || awvalid_q;
 logic wr_data_accepted_w;
-assign wr_data_accepted_w = (cfg_wvalid_i  && cfg_wready_o)  || wvalid_q;
+ assign wr_data_accepted_w = (cfg_wvalid_i_buf)  || wvalid_q;
 
 always_ff @(posedge clk_i or negedge rst_i)
 if (!rst_i)
@@ -168,21 +169,28 @@ endfunction
 //-----------------------------------------------------------------
 logic [31:0] wr_data_q;
 logic [31:0] cfg_wdata_i_buf;
-
+ 
 always_ff @(posedge clk_i or negedge rst_i)
-if (!rst_i)
+ if (!rst_i) 
+  begin
     cfg_wdata_i_buf <= 32'b0;
-else 
+    cfg_wvalid_i_buf <= 1'b0;
+  end
+ else if (cfg_wvalid_i && cfg_wready_o)
      begin
+          cfg_wvalid_i_buf <= 1'b1;
           cfg_wdata_i_buf[7:0] <=  cfg_wstrb_i[0] ? cfg_wdata_i[7:0]  : 8'b0;
           cfg_wdata_i_buf[15:8] <=  cfg_wstrb_i[1] ? cfg_wdata_i[15:8]  : 8'b0;
           cfg_wdata_i_buf[23:16] <=  cfg_wstrb_i[2] ? cfg_wdata_i[23:16]  : 8'b0;
           cfg_wdata_i_buf[31:24] <=  cfg_wstrb_i[3] ? cfg_wdata_i[31:24]  : 8'b0;
      end
+ else
+      cfg_wvalid_i_buf <= 1'b0;
+  
 always_ff @(posedge clk_i or negedge rst_i)
 if (!rst_i)
     wr_data_q <= 32'b0;
-else if (cfg_wvalid_i && cfg_wready_o)
+else if (cfg_wvalid_i_buf)
     wr_data_q <= cfg_wdata_i_buf;
 
 //-----------------------------------------------------------------

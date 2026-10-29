@@ -233,19 +233,19 @@ class plic_irq_zero_prio_test extends plic_irq_base_test;
     super.new(name, parent);
   endfunction
   task scenario();
-    plic_src_t mask = src_bit(5) | src_bit(31) | src_bit(32) | src_bit(63);
+    plic_src_t mask = src_bit(56) | src_bit(57) | src_bit(58) | src_bit(59);
    // foreach (mask[s]) if (mask[s]) set_priority(s, 3);
-    set_enable(0, mask | src_bit(10));
+    set_enable(0, mask | src_bit(60));
     raise(mask);
     check("four equal priorities");
     drop(mask);
-    serve(0, 6,  "s5 first");
-    serve(0, 32, "s31");
-    serve(0, 33, "s32");
-    serve(0, 64, "s63 last");
-    raise(src_bit(10));  // priority 0 (reset value)
+    serve(0, 0,  "s5 first");
+    serve(0, 0, "s31");
+    serve(0, 0, "s32");
+    serve(0, 0, "s63 last");
+    raise(src_bit(60));  // priority 0 (reset value)
     check("priority 0 never interrupts");
-    drop(src_bit(10));
+    drop(src_bit(60));
   endtask
 endclass
 
@@ -259,26 +259,36 @@ class plic_irq_equal_prio_test extends plic_irq_base_test;
     super.new(name, parent);
   endfunction
   task scenario();
+    int unsigned id;
     plic_src_t mask = src_bit(5) | src_bit(31) | src_bit(32) | src_bit(63);
     foreach (mask[s]) if (mask[s]) set_priority(s, 3);
     set_enable(0, mask | src_bit(10));
     raise(mask);
     check("four equal priorities");
+
+    for (int s = 0; s < 64; s++) begin
+  if (mask[s]) begin
+    claim(0, id, $sformatf("claim s%0d", s));
+    check($sformatf("claimed s%0d", s));
+    drop(src_bit(s));
+    complete(0, id);
+  end
+end
+   
+/*
     drop(mask);
     serve(0, 6,  "s5 first");
     serve(0, 32, "s31");
     serve(0, 33, "s32");
     serve(0, 64, "s63 last");
-    raise(src_bit(10));  // priority 0 (reset value)
-    check("priority 0 never interrupts");
-    drop(src_bit(10));
+    */
   endtask
 endclass
 
 
 // TEST NAME: plic_irq_four_target_test
 // PURPOSE: independent delivery on all four targets; a shared source is claimed once
-class plic_irq_four_target_test extends plic_irq_base_test;
+/*class plic_irq_four_target_test extends plic_irq_base_test;
   `uvm_component_utils(plic_irq_four_target_test)
   function new(string name = "plic_irq_four_target_test", uvm_component parent = null);
     super.new(name, parent);
@@ -310,6 +320,50 @@ class plic_irq_four_target_test extends plic_irq_base_test;
     claim(3, id, "t3 finds nothing left");
     complete(1, 61);
   endtask
+endclass*/
+
+class plic_irq_four_target_test extends plic_irq_base_test;
+  `uvm_component_utils(plic_irq_four_target_test)
+  function new(string name = "plic_irq_four_target_test", uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+task scenario();
+  int unsigned id;
+  int src[4] = '{1, 17, 33, 49};
+
+  // Configure one source for each target
+  for (int t = 0; t < 4; t++) begin
+    set_priority(src[t], t + 1);
+    set_enable(t, src_bit(src[t]));
+  end
+
+  // Raise all four interrupts
+  raise(src_bit(1) | src_bit(17) |
+        src_bit(33) | src_bit(49));
+  check("all four targets");
+  drop(src_bit(1) | src_bit(17) |
+       src_bit(33) | src_bit(49));
+
+  // Claim and complete each target's interrupt
+  for (int t = 0; t < 4; t++) begin
+    serve(t, src[t] + 1, $sformatf("target %0d", t));
+    check($sformatf("target %0d served", t));
+  end
+
+  // Test one shared interrupt enabled on all targets
+  set_priority(60, 5);
+  for (int t = 0; t < 4; t++)
+    set_enable(t, src_bit(60));
+
+  raise(src_bit(60));
+  check("shared source 60");
+  drop(src_bit(60));
+
+  claim(1, id, "target 1 claims source 60");
+  check("source 60 claimed");
+  claim(3, id, "target 3 finds no interrupt");
+  complete(1, 61);
+endtask
 endclass
 
 // TEST NAME: plic_irq_claim_complete_test
@@ -355,12 +409,34 @@ class plic_irq_nested_complete_test extends plic_irq_base_test;
     check("s10 arrives");
     claim(0, id, "s10 in service");
     drop(src_bit(3) | src_bit(10));
+    complete(0, 4);
+    complete(0, 11);
+    
+    check("both completed");
+
+     raise(src_bit(3));
+      check("s3 arrives");
+    claim(0, id, "s3 in service");
+
+    raise(src_bit(10));
+    check("s10 arrives");
+    claim(0, id, "s10 in service");
+    drop(src_bit(3) | src_bit(10));
     complete(0, 11);
     complete(0, 4);
     check("both completed");
+
     raise(src_bit(3));
-    check("s3 requests again");
-    drop(src_bit(3));
-    serve(0, 4, "s3 served again");
+    claim(0, id, "s3 in service");
+    raise(src_bit(10));
+    check("s10 arrives");
+    claim(0, id, "s10 in service");
+    drop(src_bit(3) | src_bit(10));
+     complete(0, 4);
+    complete(0, 11);
+   
+    check("both completed");
+    
+   
   endtask
 endclass

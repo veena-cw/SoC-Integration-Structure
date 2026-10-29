@@ -69,7 +69,7 @@ class apb_monitor extends uvm_monitor;
           st = vif.mon_cb.pstrb;
         end else if (vif.mon_cb.pready === 1'b1) begin
           // ACCESS phase completed
-          tr = apb_seq_item::type_id::create("apb_tr");
+         tr = apb_seq_item::type_id::create("apb_tr");
           tr.paddr    = vif.mon_cb.paddr;
           tr.pwdata   = vif.mon_cb.pwdata;
           tr.pwrite   = vif.mon_cb.pwrite;
@@ -80,7 +80,7 @@ class apb_monitor extends uvm_monitor;
           tr.t_sample = $time;
           ap.write(tr);
           inflight = 1'b0;
-        end
+		end
       end else begin
         inflight = 1'b0;
       end

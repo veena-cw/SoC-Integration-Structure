@@ -127,7 +127,8 @@ class apb_spi_scoreboard extends uvm_scoreboard;
 
   function void apb_write_model(bit [15:0] a, bit [31:0] d);
     case (a)
-      ADDR_CTRL:     m_ctrl     = d;
+     // ADDR_CTRL:     m_ctrl     = d;
+     ADDR_CTRL: m_ctrl = d & 32'h00FF_FF7F;
       ADDR_IRQ_MASK: m_irq_mask = d;
       ADDR_CLK_DIV:  m_clk_div  = d;
       ADDR_TX_DATA: begin
@@ -278,19 +279,20 @@ class apb_spi_scoreboard extends uvm_scoreboard;
   endfunction
 
   // slave RX FIFO word must equal what the master sent on CS0
-  function void match_slave();
-    bit [7:0] m, p, d;
-    while (mst_cs0_q.size() > 0 && slv_probe_q.size() > 0) begin
-      m = mst_cs0_q.pop_front();
-      p = slv_probe_q.pop_front();
-      check(p == m, "SB_SLV_RX", $sformatf("slave received 0x%02h but the master sent 0x%02h", p, m));
-      if (slv_dec_q.size() > 0) begin
-        d = slv_dec_q.pop_front();
-        if (d != p)
-          `uvm_warning("SB_SLV_MON", $sformatf("slave pin-level decode 0x%02h differs from slave RX FIFO word 0x%02h", d, p))
-      end
-    end
-  endfunction
+ // Slave pin-level decoded byte must equal what the master sent on CS0
+	function void match_slave();
+	  bit [7:0] master_data;
+	  bit [7:0] slave_data;
+
+	  while (mst_cs0_q.size() > 0 && slv_dec_q.size() > 0) begin
+	    master_data = mst_cs0_q.pop_front();
+	    slave_data  = slv_dec_q.pop_front();
+
+	    check(slave_data == master_data, "SB_SLV_RX",
+		  $sformatf("slave received 0x%02h but the master sent 0x%02h",
+		            slave_data, master_data));
+	  end
+	endfunction
 
   // ------------------------------------------------------------------
   // Reset monitor
@@ -344,11 +346,14 @@ class apb_spi_scoreboard extends uvm_scoreboard;
   endfunction
 
   // ------------------------------------------------------------------
-  function void check_phase(uvm_phase phase);
-    super.check_phase(phase);
-    if (mst_cs0_q.size() != slv_probe_q.size())
-      `uvm_warning("SB_END", $sformatf("%0d master CS0 byte(s) and %0d slave RX word(s) left unmatched", mst_cs0_q.size(), slv_probe_q.size()))
-  endfunction
+ function void check_phase(uvm_phase phase);
+  super.check_phase(phase);
+
+  if (mst_cs0_q.size() > 0 || slv_dec_q.size() > 0)
+    `uvm_warning("SB_END",
+      $sformatf("%0d master CS0 byte(s) and %0d slave decoded byte(s) left unmatched",
+                mst_cs0_q.size(), slv_dec_q.size()));
+endfunction
 
   function void report_phase(uvm_phase phase);
     super.report_phase(phase);

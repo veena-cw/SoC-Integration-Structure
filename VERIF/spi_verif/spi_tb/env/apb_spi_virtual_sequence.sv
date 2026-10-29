@@ -262,7 +262,7 @@ class apb_spi_smoke_vseq extends apb_spi_base_vseq;
     smoke_step("SM-04", "CLK_DIV, IRQ_MASK and CTRL write / read-back");
     apb_wr(ADDR_CLK_DIV, 32'h0000_0005);  apb_rd(ADDR_CLK_DIV, d);  smoke_eq("CLK_DIV", d, 32'h0000_0005);
     apb_wr(ADDR_IRQ_MASK, 32'h0000_000F); apb_rd(ADDR_IRQ_MASK, d); smoke_eq("IRQ_MASK", d, 32'h0000_000F);
-    apb_wr(ADDR_CTRL, 32'h0203_0000);     apb_rd(ADDR_CTRL, d);     smoke_eq("CTRL (START=0)", d, 32'h0203_0000);
+    apb_wr(ADDR_CTRL, 32'h0002_0300);apb_rd(ADDR_CTRL, d);smoke_eq("CTRL (START=0)", d, 32'h0002_0300);
     apb_wr(ADDR_CLK_DIV, 32'h0);
     apb_wr(ADDR_IRQ_MASK, 32'h0);
     apb_wr(ADDR_CTRL, 32'h0);
@@ -311,9 +311,36 @@ class apb_spi_smoke_vseq extends apb_spi_base_vseq;
     wait_clks(10);
     read_levels(txl, rxl);
     smoke_eq("RX level after read", rxl, 32'd0);
+    wait_clks(10);
     apb_rd(ADDR_STATUS, st);
     smoke_chk(st[3] == 1'b1, "STATUS.rx_empty = 1");
+    
+    // ---- SM-09 -------------------------------------------------------
+	/*smoke_step("SM-09", "RX_DATA read");
+//repeat(8) @
+	apb_rd(ADDR_RX_DATA, d);
 
+	smoke_chk(d[31:8] == 24'h0,
+		  "RX_DATA upper bits are zero");
+
+	$display("[%0t] SM-09: Starting first wait_clks(10)", $time);
+	wait_clks(100);
+	$display("[%0t] SM-09: Completed first wait_clks(10)", $time);
+
+
+	read_levels(txl, rxl);
+	smoke_eq("RX level after read", rxl, 32'd0);
+
+	$display("[%0t] SM-09: Starting second wait_clks(10)", $time);
+	wait_clks(100);
+	$display("[%0t] SM-09: Completed second wait_clks(10)", $time);
+
+
+	apb_rd(ADDR_STATUS, st);
+	smoke_chk(st[3] == 1'b1,
+		  "STATUS.rx_empty = 1");*/
+		  
+		  
     // ---- SM-10 -------------------------------------------------------------------
     smoke_step("SM-10", "IRQ_STAT done bit and IRQ_MASK");
     apb_rd(ADDR_IRQ_STAT, d);

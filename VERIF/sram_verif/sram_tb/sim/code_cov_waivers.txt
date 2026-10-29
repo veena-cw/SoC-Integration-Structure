@@ -35,5 +35,29 @@ tc_sram.sv:189     branch  "else"  Latency != 0 is constant true (Latency=1): th
 tc_sram.sv:198     branch  "else"  Latency != 0 is constant true (Latency=1): the else branch is dead
 
 # ---- response path: one read in flight -> response FIFO never fills ----
-axi_sram_cdc.sv:290  expr  @u_axi_sram_cdc  "(resp_fifo_full==1) => 0"  axi4_slave allows one read beat in flight, so the response FIFO holds at most 1 of 8 entries
+axi_sram_cdc.sv:288  expr  @u_axi_sram_cdc  "(resp_fifo_full==1) => 0"  axi4_slave allows one read beat in flight, so the response FIFO holds at most 1 of 8 entries
 fifo_mem.v:11        expr  @u_resp_fifo     "(full==1) => 0"  same: the response FIFO can never be full
+axi_sram_cdc.sv:277  toggle  @u_axi_sram_cdc  "resp_fifo_full"  same: resp_fifo_full stays 0
+async.sv:12          toggle  @u_resp_fifo     "full"  same: the response FIFO full flag stays 0
+fifo_mem.v:5         toggle  @u_resp_fifo     "full"  same: the response FIFO full flag stays 0
+
+# ---- address bits fixed by the SRAM window (0x1070_0000, 1 MB) ----
+# Only in-range requests enter the request FIFO, so the AXI address
+# bits above the 1 MB window are constant (0x107 -> bits 23-27, 29-31
+# always 0). req_offset = addr - base only moves the bits that the
+# idle/reset FIFO output (all 0) and in-range addresses differ in.
+axi_sram_cdc.sv:190  toggle  @u_axi_sram_cdc  "req_axi_addr[23]"  address bit 23 is above the 1 MB SRAM window: constant for an in-range request
+axi_sram_cdc.sv:190  toggle  @u_axi_sram_cdc  "req_axi_addr[24]"  address bit 24 is above the 1 MB SRAM window: constant for an in-range request
+axi_sram_cdc.sv:190  toggle  @u_axi_sram_cdc  "req_axi_addr[25]"  address bit 25 is above the 1 MB SRAM window: constant for an in-range request
+axi_sram_cdc.sv:190  toggle  @u_axi_sram_cdc  "req_axi_addr[26]"  address bit 26 is above the 1 MB SRAM window: constant for an in-range request
+axi_sram_cdc.sv:190  toggle  @u_axi_sram_cdc  "req_axi_addr[27]"  address bit 27 is above the 1 MB SRAM window: constant for an in-range request
+axi_sram_cdc.sv:190  toggle  @u_axi_sram_cdc  "req_axi_addr[29]"  address bit 29 is above the 1 MB SRAM window: constant for an in-range request
+axi_sram_cdc.sv:190  toggle  @u_axi_sram_cdc  "req_axi_addr[30]"  address bit 30 is above the 1 MB SRAM window: constant for an in-range request
+axi_sram_cdc.sv:190  toggle  @u_axi_sram_cdc  "req_axi_addr[31]"  address bit 31 is above the 1 MB SRAM window: constant for an in-range request
+axi_sram_cdc.sv:208  toggle  @u_axi_sram_cdc  "req_offset[21]"  offset bit 21 is constant: only 0 - base (idle FIFO output) and in-range offsets occur
+axi_sram_cdc.sv:208  toggle  @u_axi_sram_cdc  "req_offset[22]"  offset bit 22 is constant: only 0 - base (idle FIFO output) and in-range offsets occur
+axi_sram_cdc.sv:208  toggle  @u_axi_sram_cdc  "req_offset[28]"  offset bit 28 is constant: only 0 - base (idle FIFO output) and in-range offsets occur
+
+# ---- dead wires in the async FIFO RTL ----
+async.sv:21          toggle  "addr["  waddr / raddr are declared but never assigned (fifo_mem uses the pointers directly)
+wptr_handler.v:11    toggle  "wrap_around"  wrap_around is never assigned: its assign is commented out (line 33)

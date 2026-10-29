@@ -19,3 +19,5 @@ sram_wlast_err_test
 sram_4kb_cross_test
 sram_cdc_meta_test
 sram_arb_fairness_test
+sram_req_fifo_full_test +SRAM_CLK_MHZ=25
+sram_exclusive_test

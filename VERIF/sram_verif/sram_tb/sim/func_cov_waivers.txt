@@ -1,0 +1,30 @@
+# ------------------------------------------------------------
+# func_cov_waivers.txt -- functional-coverage waivers (make cov)
+#
+# Bins listed here stay in the coverage database but are reported
+# as WAIVED and left out of the counts. Only bins that sram_top can
+# never produce with legal stimulus belong here -- the covergroups
+# are generic (reusable on other AXI slaves), sram_top is not.
+#
+# Format (one waiver per line):
+#   <bin name pattern>  <reason>
+#     pattern = fnmatch glob (* ?) over the full bin name as printed
+#               in the report, e.g. cg_sram_pipe.cp_inflight.one
+#
+# cov_report.py warns about a waiver that matches no bin and about a
+# waived bin that was hit.
+# ------------------------------------------------------------
+
+# ---- one burst at a time: AWREADY / ARREADY need both FSMs idle ----
+cg_sram_pipe.cp_inflight.one            sram_top accepts an address only when no burst is in flight, so inflight is always 0
+cg_sram_pipe.cp_inflight.two_three      same: sram_top never has a second burst in flight
+cg_sram_pipe.cp_inflight.four_plus      same: sram_top never has a second burst in flight
+cg_sram_pipe.x_dir_inflight.*_x_one        same (cross with cp_inflight.one)
+cg_sram_pipe.x_dir_inflight.*_x_two_three  same (cross with cp_inflight.two_three)
+cg_sram_pipe.x_dir_inflight.*_x_four_plus  same (cross with cp_inflight.four_plus)
+cg_sram_pipe.cp_ooo.out_of_order        one burst at a time, so responses always complete in order
+cg_sram_reset.cp_axi_traffic.both_aborted  a write and a read are never in flight together, so an AXI reset aborts at most one
+
+# ---- no exclusive monitor (sram_exclusive_test) ----
+cg_sram_excl.cp_resp.EXOKAY             sram_top has no exclusive monitor: exclusive accesses get OKAY (checked by the scoreboard)
+cg_sram_excl.x_dir_resp.*_x_EXOKAY      same (cross with cp_resp.EXOKAY)

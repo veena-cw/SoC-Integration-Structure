@@ -108,11 +108,13 @@ Targets
                          coverage -> verilator_cov/<TESTNAME>.dat
   make regress         compile once, run every test in test_names/testcase,
                        print PASS/FAIL per test, then 'make cov'
+                       (a testcase line may add plusargs: '<test> +ARG ...')
   make cov             merge verilator_cov/*.dat -> verilator_cov/merged.dat
                        and print the functional-coverage report (per test,
                        per covergroup, per coverpoint, uncovered bins)
                          report   -> verilator_cov/coverage_report.txt
-  make code_cov        RTL code coverage (needs CODE_COV=1 build): merge,
+                         waivers  <- func_cov_waivers.txt (unreachable bins)
+  make code_cov       RTL code coverage (needs CODE_COV=1 build): merge,
                        per-type / per-instance report, uncovered lines,
                        untoggled signals, annotated RTL
                          report   -> verilator_cov/code_coverage_report.txt
@@ -265,13 +267,14 @@ verilator: compile run
 .PHONY: regress
 regress: compile
 	@rm -f "$(COV_DIR)"/*.dat
-	@for t in $$(grep -v '^\s*#' "$(TESTLIST)" | grep -v '^\s*$$'); do \
-		echo "Running $$t ..."; \
-		$(MAKE) --no-print-directory run TESTNAME=$$t SEED=$(SEED) PLUSARGS="$(PLUSARGS)" > /dev/null 2>&1; \
+	@grep -v '^\s*#' "$(TESTLIST)" | grep -v '^\s*$$' | while read -r t args; do \
+		echo "Running $$t $$args ..."; \
+		$(MAKE) --no-print-directory run TESTNAME=$$t SEED=$(SEED) PLUSARGS="$(PLUSARGS) $$args" \
+			> /dev/null 2>&1 < /dev/null; \
 	done
 	@echo ""
 	@echo "================ REGRESSION SUMMARY ================"
-	@for t in $$(grep -v '^\s*#' "$(TESTLIST)" | grep -v '^\s*$$'); do \
+	@for t in $$(grep -v '^\s*#' "$(TESTLIST)" | grep -v '^\s*$$' | awk '{print $$1}'); do \
 		log="$(LOG_DIR)/$$t.log"; \
 		if grep -q "\*\*\* .* PASSED \*\*\*" "$$log" 2>/dev/null; then r=PASS; else r=FAIL; fi; \
 		printf "  %-28s %s\n" "$$t" "$$r"; \
@@ -289,16 +292,27 @@ cov:
 	echo ""; \
 	echo "============ FUNCTIONAL COVERAGE (merged) ============"; \
 	$(COV_REPORT) --per-test $$dats --merged "$(COV_DIR)/merged.dat" \
+		--waivers "$(PROJECT_DIR)/func_cov_waivers.txt" \
 		| tee "$(COV_DIR)/coverage_report.txt"
 
+# verilator_coverage --filter-type takes one wildcard pattern (* ?), not
+# a regex, so the annotated sources are built from a per-type filtered
+# merge (line, branch, expr, toggle, fsm*) -- functional bins excluded.
 .PHONY: code_cov
 code_cov:
 	@dats=$$(ls "$(COV_DIR)"/*.dat 2>/dev/null | grep -v '/merged.dat$$'); \
 	if [ -z "$$dats" ]; then echo "No coverage files in $(COV_DIR)"; exit 1; fi; \
 	"$(VERILATOR_COV)" --write "$(COV_DIR)/merged.dat" $$dats; \
-	rm -rf "$(COV_DIR)/annotated"; \
+	rm -rf "$(COV_DIR)/annotated" "$(COV_DIR)/code_types"; \
+	mkdir -p "$(COV_DIR)/code_types"; \
+	for t in line branch expr toggle fsm; do \
+		"$(VERILATOR_COV)" --filter-type "$$t*" \
+			--write "$(COV_DIR)/code_types/$$t.dat" "$(COV_DIR)/merged.dat"; \
+	done; \
+	"$(VERILATOR_COV)" --write "$(COV_DIR)/code_types/code.cdat" "$(COV_DIR)"/code_types/*.dat; \
 	"$(VERILATOR_COV)" --annotate "$(COV_DIR)/annotated" --annotate-min 1 \
-		--filter-type 'line|branch|expr|toggle|fsm.*' "$(COV_DIR)/merged.dat" > /dev/null; \
+		"$(COV_DIR)/code_types/code.cdat" > /dev/null; \
+	rm -rf "$(COV_DIR)/code_types"; \
 	echo ""; \
 	echo "============ RTL CODE COVERAGE (merged) ============"; \
 	$(CODE_REPORT) --per-test $$dats --merged "$(COV_DIR)/merged.dat" \

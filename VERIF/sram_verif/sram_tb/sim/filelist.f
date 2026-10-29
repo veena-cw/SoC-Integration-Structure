@@ -88,6 +88,8 @@
 ../tests/sram_4kb_cross_test.sv
 ../tests/sram_cdc_meta_test.sv
 ../tests/sram_arb_fairness_test.sv
+../tests/sram_req_fifo_full_test.sv
+../tests/sram_exclusive_test.sv
 
 # ---------- Assertions ----------
 ../assertions/axi_assertions.sv

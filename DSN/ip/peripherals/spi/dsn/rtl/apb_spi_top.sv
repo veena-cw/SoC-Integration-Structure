@@ -1,18 +1,10 @@
-
-
-//=============================================================================
-// spi_apb_top.sv
-// opensource registers
-// APB3/AP-B4 Wrapper for SPI Controller
-//=============================================================================
-//`include "spi_top.sv"
 //=============================================================================
 // spi_apb_top.sv
 // opensource registers
 // APB3/AP-B4 Wrapper for SPI Controller
 //=============================================================================
 module apb_spi_top(
-  // APB Slave Interface
+    // APB Slave Interface
     input  logic         PCLK,
     input  logic         PRESETn,
     input  logic         PSEL,
@@ -21,7 +13,7 @@ module apb_spi_top(
     input  logic [31:0]  PADDR,
     input  logic [31:0]  PWDATA,
     input  logic [3:0]   PSTRB,
-    //input  logic [2:0]   PPROT,
+    input  logic [2:0]   PPROT,
     output logic [31:0]  PRDATA,
     output logic         PREADY,
     output logic         PSLVERR,
@@ -56,7 +48,7 @@ module apb_spi_top(
     localparam ADDR_SCRATCH4   = 32'h38;
     localparam ADDR_SCRATCH5   = 32'h3C;
     // Register Storage
-
+ 
     logic [31:0] ctrl_reg;
     logic [31:0] status_reg;
     logic [31:0] irq_stat_reg;
@@ -73,8 +65,7 @@ module apb_spi_top(
     logic [31:0] scratch3_reg;
     logic [31:0] scratch4_reg;
     logic [31:0] scratch5_reg;
-    
- //=====================================================
+//=====================================================
 // Constant Registers
 //=====================================================
 assign id_reg      = 32'h5910_017E;  //They are included as identification registers so that software (driver/CPU/OS) can recognize which peripheral it is communicating with.
@@ -82,7 +73,6 @@ assign version_reg = 32'h0001_0000;
     // SPI Internal Signals
     logic         m_start;
     logic         m_busy;
-	logic         s_busy; 
     logic         m_done;
     logic         m_tx_we;
     logic         m_rx_re;
@@ -98,7 +88,7 @@ assign version_reg = 32'h0001_0000;
     logic         s_rx_empty;
     logic [7:0]   m_rx_data;
     logic [7:0]   s_rx_data;
-  //  logic         irq_tx_empty;
+    logic         irq_tx_empty;
     logic         irq_rx_full;
     logic         irq_done;
     logic         irq_err;
@@ -106,84 +96,67 @@ assign version_reg = 32'h0001_0000;
     logic [4:0]   m_rx_count;
     logic [4:0]   s_tx_count;
     logic [4:0]   s_rx_count;
-	logic        m_lsb_first_i;
-	logic        m_cpol_i;
-	logic        m_cpha_i;
-	logic        m_cs_inter_byte_i;
-	logic [1:0] m_cs_sel_i;
-	logic [7:0] m_cs_setup_i;
-	logic [7:0] m_cs_hold_i;
-	logic        xfer_done_o;
-	
-
+;
     // Control Register Mapping
-
+ 
     assign m_start           = ctrl_reg[0];
     assign m_lsb_first_i     = ctrl_reg[1];
     assign m_cpol_i          = ctrl_reg[2];
     assign m_cpha_i          = ctrl_reg[3];
     assign m_cs_inter_byte_i = ctrl_reg[4];
-    assign m_cs_sel_i        = ctrl_reg[6:5];
-    assign m_cs_setup_i      = ctrl_reg[15:8];
-    assign m_cs_hold_i       = ctrl_reg[23:16];
-	
+    assign m_cs_sel_i        = ctrl_reg[15:8];
+    assign m_cs_setup_i      = ctrl_reg[23:16];
+    assign m_cs_hold_i       = ctrl_reg[31:24];
 //=====================================================
 // CTRL Register
-	always_ff @(posedge clk or negedge rst_n)
+//=====================================================
+always_ff @(posedge clk or negedge rst_n)
     if(!rst_n) ctrl_reg <= 32'h0;
-    else if(PSEL && PENABLE && PWRITE && (addr == ADDR_CTRL)) ctrl_reg <= {8'h00, PWDATA[23:8], 1'b0, PWDATA[6:0]};
+    else if(PSEL && PENABLE && PWRITE && (addr == ADDR_CTRL)) ctrl_reg <= PWDATA;
 //=====================================================
 // IRQ MASK Register
 //=====================================================
 always_ff @(posedge clk or negedge rst_n)
     if(!rst_n) irq_mask_reg <= 32'h0;
     else if(PSEL && PENABLE && PWRITE && (addr == ADDR_IRQ_MASK))irq_mask_reg <= PWDATA;
-
+ 
 //=====================================================
 // CLK DIV Register
 //=====================================================
-
+ 
 always_ff @(posedge clk or negedge rst_n)
     if(!rst_n) clk_div_reg <= 32'h0;
     else if(PSEL && PENABLE && PWRITE && (addr == ADDR_CLK_DIV)) clk_div_reg <= PWDATA;
-
+ 
 //=====================================================
 // TX DATA Register
 //=====================================================
+ 
 always_ff @(posedge clk or negedge rst_n)
     if(!rst_n) tx_data_reg <= 32'h0;
     else if(PSEL && PENABLE && PWRITE &&(addr == ADDR_TX_DATA)) tx_data_reg <= PWDATA;
-
+ 
 assign m_tx_we = PSEL && PENABLE && PWRITE && (addr == ADDR_TX_DATA);
 //=====================================================
 // RX DATA Register
 //=====================================================
- /*always_ff @(posedge clk or negedge rst_n)
+always_ff @(posedge clk or negedge rst_n)
     if(!rst_n)rx_data_reg <= 32'h0;
-    else if(m_rx_re) rx_data_reg <= {24'h0,m_rx_data};
-
-assign m_rx_re = PSEL && PENABLE && (!PWRITE) && (addr == ADDR_RX_DATA); */
-/*logic m_rx_re_d;
-always_ff @(posedge clk or negedge rst_n) 
-    if (!rst_n)  m_rx_re_d <= 1'b0;
-    else m_rx_re_d <= m_rx_re;
-always_ff @(posedge clk or negedge rst_n) 
-    if (!rst_n)  rx_data_reg <= 32'h0;
-    else if (m_rx_re_d) rx_data_reg <= {24'h0, m_rx_data}; */
-	
+    else if(m_done) rx_data_reg <= {24'h0,m_rx_data};
+ 
 assign m_rx_re = PSEL && PENABLE && (!PWRITE) && (addr == ADDR_RX_DATA);
-
+ 
 //=====================================================
 // STATUS Register
 //=====================================================
-
+ 
 always_ff @(posedge clk or negedge rst_n)
     if(!rst_n) status_reg <= 32'h0;
     else  status_reg <= { 27'h0, m_rx_full, m_rx_empty, m_tx_full, m_tx_empty, m_busy };
 //=====================================================
 // FIFO LEVEL Register
 //=====================================================
-
+ 
 always_ff @(posedge clk or negedge rst_n)
     if(!rst_n) fifo_lvl_reg <= 32'h0;
     else fifo_lvl_reg <= {11'h0, m_rx_count,11'h0, m_tx_count };
@@ -194,47 +167,36 @@ always_ff @(posedge clk or negedge rst_n)
 begin
     if(!rst_n)  irq_stat_reg <= 32'h0;
     else begin
-      //  if(irq_tx_empty) irq_stat_reg[0] <= 1'b1;
+        if(irq_tx_empty) irq_stat_reg[0] <= 1'b1;
         if(irq_rx_full) irq_stat_reg[1] <= 1'b1;
         if(irq_done) irq_stat_reg[2] <= 1'b1;
         if(irq_err) irq_stat_reg[3] <= 1'b1;
-        if(PSEL && PENABLE && PWRITE &&(addr == ADDR_IRQ_STAT)) irq_stat_reg <= irq_stat_reg & (~PWDATA);
+        if(PSEL && PENABLE && PWRITE &&(addr == ADDR_IRQ_STAT)) irq_stat_reg <= irq_stat_reg & (!PWDATA);
         end
 end
-
-/*always_ff @(posedge clk or negedge rst_n) begin
-    if(!rst_n) irq_stat_reg <= 32'h0;
-    else if(PSEL && PENABLE && PWRITE && (addr == ADDR_IRQ_STAT)) irq_stat_reg <= irq_stat_reg & (~PWDATA);   // Clear has priority
-    else begin
-        if(irq_tx_empty) irq_stat_reg[0] <= 1'b1;
-        if(irq_rx_full)  irq_stat_reg[1] <= 1'b1;
-        if(irq_done)     irq_stat_reg[2] <= 1'b1;
-        if(irq_err)      irq_stat_reg[3] <= 1'b1;
-    end
-end*/
+ 
 //=====================================================
 // Scratch Registers
 //=====================================================
 always_ff @(posedge clk or negedge rst_n)
     if(!rst_n) scratch0_reg <= 32'h0;
     else if(PSEL && PENABLE && PWRITE &&(addr==ADDR_SCRATCH0)) scratch0_reg <= PWDATA;
-	
 always_ff @(posedge clk or negedge rst_n)
     if(!rst_n) scratch1_reg <= 32'h0;
     else if(PSEL && PENABLE && PWRITE &&(addr==ADDR_SCRATCH1)) scratch1_reg <= PWDATA;
-
+ 
 always_ff @(posedge clk or negedge rst_n)
     if(!rst_n) scratch2_reg <= 32'h0;
     else if(PSEL && PENABLE && PWRITE && (addr==ADDR_SCRATCH2)) scratch2_reg <= PWDATA;
-
+ 
 always_ff @(posedge clk or negedge rst_n)
     if(!rst_n) scratch3_reg <= 32'h0;
     else if(PSEL && PENABLE && PWRITE && (addr==ADDR_SCRATCH3)) scratch3_reg <= PWDATA;
-
+ 
 always_ff @(posedge clk or negedge rst_n)
     if(!rst_n) scratch4_reg <= 32'h0;
     else if(PSEL && PENABLE && PWRITE && (addr==ADDR_SCRATCH4)) scratch4_reg <= PWDATA;
-
+ 
 always_ff @(posedge clk or negedge rst_n)
     if(!rst_n) scratch5_reg <= 32'h0;
     else if(PSEL && PENABLE && PWRITE && (addr==ADDR_SCRATCH5)) scratch5_reg <= PWDATA;
@@ -251,20 +213,20 @@ spi_top #(
     .clk_i              (PCLK),
     .rst_ni             (PRESETn),
     //---------------- Master Control ----------------
-	.m_cpol_i          (m_cpol_i),
-	.m_cpha_i          (m_cpha_i),
-	.m_lsb_first_i     (m_lsb_first_i),
+    .m_cpol_i           (ctrl_reg[2]),
+    .m_cpha_i           (ctrl_reg[3]),
+    .m_lsb_first_i      (ctrl_reg[1]),
     .m_clk_div_i        (clk_div_reg[15:0]),
-    .m_cs_sel_i         (m_cs_sel_i),
-	.m_cs_setup_i      (m_cs_setup_i),
-	.m_cs_hold_i       (m_cs_hold_i),
-    .m_cs_inter_byte_i (m_cs_inter_byte_i),
-	.m_start_i         (m_start),
+    .m_cs_sel_i         (ctrl_reg[15:8]),
+    .m_cs_setup_i       (ctrl_reg[23:16]),
+    .m_cs_hold_i        (ctrl_reg[31:24]),
+    .m_cs_inter_byte_i  (ctrl_reg[4]),
+    .m_start_i          (ctrl_reg[0]),
     //---------------- Master TX ----------------
     //.m_tx_we_i    (PSEL && PENABLE && PWRITE && (addr == ADDR_TX_DATA)),
-    //.m_tx_wdata_i (PWDATA[7:0]),
-	.m_tx_we_i          (m_tx_we),
-	.m_tx_wdata_i       (PWDATA[7:0]),
+    .m_tx_wdata_i (PWDATA[7:0]),
+    .m_tx_we_i          (m_tx_we),
+    //.m_tx_wdata_i       (tx_data_reg[7:0]),
     .m_tx_full_o        (m_tx_full),
     .m_tx_empty_o       (m_tx_empty),
     .m_tx_count_o       (m_tx_count),
@@ -281,17 +243,17 @@ spi_top #(
     .s_cpol_i           (ctrl_reg[2]),
     .s_cpha_i           (ctrl_reg[3]),
     .s_lsb_first_i      (ctrl_reg[1]),
-    .s_tx_we_i 			(m_tx_we),
-    .s_tx_wdata_i       (PWDATA[7:0]),
+    .s_tx_we_i          (1'b1),
+    .s_tx_wdata_i       (8'h0c),
     .s_tx_full_o        (s_tx_full),
     .s_tx_empty_o       (s_tx_empty),
     .s_tx_count_o       (s_tx_count),
-    .s_rx_re_i          (m_rx_re),
+    .s_rx_re_i          (1'b1),
     .s_rx_rdata_o       (s_rx_data),
     .s_rx_full_o        (s_rx_full),
     .s_rx_empty_o       (s_rx_empty),
     .s_rx_count_o       (s_rx_count),
-    .s_busy_o           (s_busy),
+    .s_busy_o           (),
     .s_xfer_done_o      (xfer_done_o),
     //---------------- SPI Pins ----------------
     .sck_o              (sck_o),
@@ -299,11 +261,12 @@ spi_top #(
     .miso_o             (miso_o),
     .cs_n_o             (cs_n_o),
     //---------------- Interrupts ----------------
-   // .irq_tx_empty_o     (irq_tx_empty),
+    .irq_tx_empty_o     (irq_tx_empty),
     .irq_rx_full_o      (irq_rx_full),
     .irq_done_o         (irq_done),
     .irq_err_o          (irq_err)
 );
+ 
 //=====================================================
 // APB READ MUX
 //=====================================================
@@ -318,8 +281,7 @@ always_comb begin
         ADDR_IRQ_MASK   : PRDATA = irq_mask_reg;
         ADDR_CLK_DIV    : PRDATA = clk_div_reg;
         ADDR_TX_DATA    : PRDATA = tx_data_reg;
-       // ADDR_RX_DATA    : PRDATA = rx_data_reg;
-	    ADDR_RX_DATA    : PRDATA = {24'h0, m_rx_data};
+        ADDR_RX_DATA    : PRDATA = rx_data_reg;
         ADDR_FIFO_LVL   : PRDATA = fifo_lvl_reg;
         ADDR_ID         : PRDATA = id_reg;
         ADDR_VERSION    : PRDATA = version_reg;
@@ -335,17 +297,15 @@ always_comb begin
         end
     endcase
 end
-
+ 
 //=====================================================
 // Interrupt Generation
 //=====================================================
-assign spi_irq =  (irq_mask_reg[1] & irq_rx_full ) |
+assign spi_irq = (irq_mask_reg[0] & irq_tx_empty) | (irq_mask_reg[1] & irq_rx_full ) |
                  (irq_mask_reg[2] & irq_done    ) | (irq_mask_reg[3] & irq_err     );
-				 
 //APB Response
 assign PREADY  = PSEL & PENABLE;
 // Invalid address generates slave error
 assign PSLVERR = PSEL & PENABLE & (~addr_hit);
-
+ 
 endmodule
-//(irq_mask_reg[0] & irq_tx_empty) |

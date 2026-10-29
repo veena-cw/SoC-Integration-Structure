@@ -130,6 +130,11 @@ module sram_top #(
     //==========================================================================
     // AXI4 SLAVE
     //==========================================================================
+    
+    logic slv_wvalid;
+    logic slv_wready;
+    assign slv_wvalid   = s_axi_wvalid && mem_ready; 
+    assign s_axi_wready = slv_wready && mem_ready;
 
     axi4_slave #(
         .ADDR_WIDTH     (ADDR_WIDTH),
@@ -156,8 +161,8 @@ module sram_top #(
         .s_axi_wdata    (s_axi_wdata),
         .s_axi_wstrb    (s_axi_wstrb),
         .s_axi_wlast    (s_axi_wlast),
-        .s_axi_wvalid   (s_axi_wvalid),
-        .s_axi_wready   (s_axi_wready),
+        .s_axi_wvalid   (slv_wvalid),
+        .s_axi_wready   (slv_wready),
 
         .s_axi_bid      (s_axi_bid),
         .s_axi_bresp    (s_axi_bresp),

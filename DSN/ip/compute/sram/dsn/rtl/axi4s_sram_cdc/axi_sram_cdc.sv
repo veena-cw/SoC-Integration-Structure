@@ -141,9 +141,7 @@ module axi_sram_cdc #(
         !req_fifo_full;
 
     // Backpressure to AXI memory interface.
-    assign mem_ready =
-        !req_fifo_full &&
-        addr_in_range;
+    assign mem_ready = !req_fifo_full;
 
     // Existing async FIFO -- DO NOT MODIFY.
     asynchronous_fifo #(
@@ -343,8 +341,6 @@ module axi_sram_cdc #(
     //
     // Because axi4_slave serializes requests, there is only one outstanding
     // read at a time.
-    assign resp_fifo_r_en =
-        !resp_fifo_empty &&
-        mem_ready;
+    assign resp_fifo_r_en = !resp_fifo_empty;
 
 endmodule

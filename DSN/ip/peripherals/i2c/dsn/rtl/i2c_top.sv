@@ -3,11 +3,11 @@ module i2c_top #(
     parameter AW = 32,
     localparam SW = int'($ceil(DW/8))
 )(
-    // APB / FIFO WRITE CLOCK DOMAIN
+    // APB CLOCK DOMAIN
     input  logic pclk,          // 100 MHz
     input  logic presetn,       // ACTIVE LOW
 
-    // I2C / FIFO READ CLOCK DOMAIN
+    // I2C CLOCK DOMAIN
     input  logic i2c_clk,       // 50 MHz
     input  logic i2c_rst_n,     // ACTIVE LOW
 
@@ -21,7 +21,7 @@ module i2c_top #(
     output logic [DW-1:0] t_o_prdata,
     output logic          t_o_pslverr,
     output logic          t_o_pready,
-    output logic          i2c_irq,      // interrupt enable is now CTRL[16]
+    output logic          i2c_irq,      // interrupt enable is CTRL[16]
 
     output logic       i2c_scl,
     inout  logic       i2c_sda
@@ -43,22 +43,21 @@ module i2c_top #(
     logic [7:0] data_out;
     //---------------------------------------------------
 
-    logic [31:0] fifo_wr_data_apb;
-    logic [7:0]  fifo_rd_data_apb;
+    // TX path (APB -> I2C)
+    logic [31:0] tx_data_apb;      // command bus from apb_slave
+    logic        tx_req_apb;       // push event (pclk)
+    logic        tx_busy;          // command in flight (pclk)
+    logic        tx_pending;       // command waiting (i2c_clk)
+    logic        tx_ack_i2c;       // pop event (i2c_clk)
+    logic [31:0] tx_data_i2c;      // command bus seen by I2C side
 
-    logic        fifo_wr_en_apb;
-    logic        fifo_rd_en_apb;
-
-    logic        fifo_full_tx;
-    logic        fifo_empty_tx;
-    //----------------------------------
-    logic        fifo_wr_en_i2c;
-    logic        fifo_rd_en_i2c;
-    logic [7:0]  fifo_wr_data_i2c;
-    logic [31:0] fifo_rd_data_i2c;
-
-    logic fifo_full_Rx;
-    logic fifo_empty_Rx;
+    // RX path (I2C -> APB)
+    logic [7:0]  rx_data_i2c;      // byte from i2c_master
+    logic        rx_req_i2c;       // push event (i2c_clk)
+    logic        rx_busy;          // byte in flight (i2c_clk)
+    logic        rx_pending;       // byte waiting (pclk)
+    logic        rx_ack_apb;       // pop event (pclk)
+    logic [7:0]  rx_data_apb;      // byte seen by APB side
     //---------------------------------------
 
     logic [31:0] i2c_cmd_reg;
@@ -76,7 +75,7 @@ module i2c_top #(
 
     logic slverr_sync;
 
-    logic [7:0] fifo_rd_data_apb_reg;
+    logic [7:0] rx_data_apb_reg;
     logic       i_rd_data_valid;
 
     // Interrupt enable (CTRL[16])
@@ -102,11 +101,6 @@ module i2c_top #(
 
     //==========================================================
     // APB SLAVE
-    //
-    // Receives the RAW APB signals. Address decode, PSLVERR for
-    // invalid-address accesses, the STATUS register error bit and
-    // the CTRL interrupt-enable bit are all handled inside.
-    // Outputs go straight to the top-level ports.
     //==========================================================
     apb_slave #(
         .DW(DW),
@@ -133,64 +127,127 @@ module i2c_top #(
         .i2c_nack    (slverr_sync),
         .i_rd_data_valid (i_rd_data_valid),
 
-        .fifo_wr_en  (fifo_wr_en_apb),
-        .fifo_wr_data(fifo_wr_data_apb),
-        .fifo_full   (fifo_full_tx),
-        .i_rd_data   (fifo_rd_data_apb_reg)
+        .tx_req      (tx_req_apb),
+        .tx_data     (tx_data_apb),
+        .tx_busy     (tx_busy),
+        .i_rd_data   (rx_data_apb_reg)
     );
 
 
-    asynchronous_fifo #(
-        .DEPTH(2),
-        .DATA_WIDTH(32)
-    ) fifo_inst_write (
+    //==========================================================
+    // TX PATH : APB (pclk) -> I2C (i2c_clk)
+    //
+    // Toggle handshake over 2-FF synchronizers; the 32-bit command
+    // bus is NOT synchronized, it is held stable by the sender
+    // (apb_slave txdata_reg does not change while tx_busy = 1)
+    // and sampled by the receiver only after the request toggle
+    // has arrived.
+    //
+    //   tx_req_t  (pclk)    : toggles on every command push
+    //   tx_ack_t  (i2c_clk) : toggles on every command pop
+    //
+    //   tx_busy    (pclk)    = tx_req_t ^ tx_ack_t_sync
+    //   tx_pending (i2c_clk) = tx_req_t_sync ^ tx_ack_t
+    //==========================================================
+    logic tx_req_t;         // pclk domain
+    logic tx_req_t_sync;    // i2c_clk domain
+    logic tx_ack_t;         // i2c_clk domain
+    logic tx_ack_t_sync;    // pclk domain
 
-        //======================================================
-        // TX FIFO : written by APB (pclk), read by I2C (i2c_clk)
-        //======================================================
+    always_ff @(posedge pclk or negedge presetn) begin
+        if (!presetn)
+            tx_req_t <= 1'b0;
+        else if (tx_req_apb)
+            tx_req_t <= ~tx_req_t;
+    end
 
-        .wclk      (pclk),
-        .wrst_n    (presetn),
-        .rclk      (i2c_clk),
-        .rrst_n    (i2c_rst_n_sync),   // synchronized, active low
-        .w_en      (fifo_wr_en_apb),
-        .r_en      (fifo_rd_en_i2c),
-        .data_in   (fifo_wr_data_apb),
-        .data_out  (fifo_rd_data_i2c),
+    always_ff @(posedge i2c_clk or negedge i2c_rst_n_sync) begin
+        if (!i2c_rst_n_sync)
+            tx_ack_t <= 1'b0;
+        else if (tx_ack_i2c)
+            tx_ack_t <= ~tx_ack_t;
+    end
 
-        .full      (fifo_full_tx),
-        .empty     (fifo_empty_tx)
+    synchronizer #(.WIDTH(1)) ff5 (
+        .clk   (i2c_clk),
+        .rst_n (i2c_rst_n_sync),
+        .d_in  (tx_req_t),
+        .d_out (tx_req_t_sync)
     );
 
-
-    asynchronous_fifo #(
-        .DEPTH(1),
-        .DATA_WIDTH(8)
-    ) fifo_inst_read (
-
-        //======================================================
-        // RX FIFO : written by I2C (i2c_clk), read by APB (pclk)
-        //======================================================
-
-        .wclk      (i2c_clk),
-        .wrst_n    (i2c_rst_n_sync),   // synchronized, active low
-        .rclk      (pclk),
-        .rrst_n    (presetn),
-        .w_en      (fifo_wr_en_i2c),
-        .r_en      (fifo_rd_en_apb),
-        .data_in   (fifo_wr_data_i2c),
-        .data_out  (fifo_rd_data_apb),
-        .full      (fifo_full_Rx),
-        .empty     (fifo_empty_Rx)
+    synchronizer #(.WIDTH(1)) ff6 (
+        .clk   (pclk),
+        .rst_n (presetn),
+        .d_in  (tx_ack_t),
+        .d_out (tx_ack_t_sync)
     );
+
+    assign tx_busy     = tx_req_t ^ tx_ack_t_sync;
+    assign tx_pending  = tx_req_t_sync ^ tx_ack_t;
+    assign tx_data_i2c = tx_data_apb;        // stable while pending
+
+
+    //==========================================================
+    // RX PATH : I2C (i2c_clk) -> APB (pclk)
+    //
+    // Same toggle handshake. The byte is captured into
+    // rx_data_hold in the i2c_clk domain and is only overwritten
+    // when the previous byte has been acknowledged (rx_busy = 0),
+    // so it is stable while pclk samples it.
+    //
+    //   rx_req_t  (i2c_clk) : toggles on every byte push
+    //   rx_ack_t  (pclk)    : toggles on every byte pop
+    //==========================================================
+    logic       rx_req_t;        // i2c_clk domain
+    logic       rx_req_t_sync;   // pclk domain
+    logic       rx_ack_t;        // pclk domain
+    logic       rx_ack_t_sync;   // i2c_clk domain
+    logic [7:0] rx_data_hold;    // i2c_clk domain, held until acked
+
+    always_ff @(posedge i2c_clk or negedge i2c_rst_n_sync) begin
+        if (!i2c_rst_n_sync) begin
+            rx_req_t     <= 1'b0;
+            rx_data_hold <= 8'h00;
+        end
+        else if (rx_req_i2c && !rx_busy) begin
+            rx_data_hold <= rx_data_i2c;
+            rx_req_t     <= ~rx_req_t;
+        end
+    end
+
+    always_ff @(posedge pclk or negedge presetn) begin
+        if (!presetn)
+            rx_ack_t <= 1'b0;
+        else if (rx_ack_apb)
+            rx_ack_t <= ~rx_ack_t;
+    end
+
+    synchronizer #(.WIDTH(1)) ff7 (
+        .clk   (pclk),
+        .rst_n (presetn),
+        .d_in  (rx_req_t),
+        .d_out (rx_req_t_sync)
+    );
+
+    synchronizer #(.WIDTH(1)) ff8 (
+        .clk   (i2c_clk),
+        .rst_n (i2c_rst_n_sync),
+        .d_in  (rx_ack_t),
+        .d_out (rx_ack_t_sync)
+    );
+
+    assign rx_busy     = rx_req_t ^ rx_ack_t_sync;
+    assign rx_pending  = rx_req_t_sync ^ rx_ack_t;
+    assign rx_data_apb = rx_data_hold;       // stable while pending
+
 
     //======================================================
-    // READ CLOCK DOMAIN
+    // HANDSHAKE CONTROL
     //=====================================================
-    // tx fifo - i2c reads command from apb
-    assign fifo_rd_en_i2c = !fifo_empty_tx && !i2c_cmd_valid && !busy;
-    // rx fifo - apb reads received byte from i2c
-    assign fifo_rd_en_apb = !fifo_empty_Rx;
+    // i2c side takes the pending command from apb
+    assign tx_ack_i2c = tx_pending && !i2c_cmd_valid && !busy;
+    // apb side takes the pending received byte from i2c
+    assign rx_ack_apb = rx_pending;
 
     always_ff @(posedge i2c_clk or negedge i2c_rst_n_sync) begin
         if (!i2c_rst_n_sync) begin           // ACTIVE LOW
@@ -198,8 +255,8 @@ module i2c_top #(
             i2c_cmd_valid <= 1'b0;
         end
         else begin
-            if (fifo_rd_en_i2c) begin
-                i2c_cmd_reg   <= fifo_rd_data_i2c;
+            if (tx_ack_i2c) begin
+                i2c_cmd_reg   <= tx_data_i2c;
                 i2c_cmd_valid <= 1'b1;
             end
             else if (i2c_cmd_valid && !busy) begin
@@ -218,7 +275,7 @@ module i2c_top #(
     logic i2c_start;
 
     assign i2c_start =
-        (i2c_cmd_valid && !busy) || (fifo_wr_en_i2c && !busy);
+        (i2c_cmd_valid && !busy) || (rx_req_i2c && !busy);
 
 
     //==========================================================
@@ -249,21 +306,21 @@ module i2c_top #(
         .busy        (busy),
         .done        (done),
 
-        .fifo_wr_en  (fifo_wr_en_i2c),    // RX fifo
-        .fifo_wr_data(fifo_wr_data_i2c),
-        .fifo_full   (fifo_full_Rx)
+        .rx_req      (rx_req_i2c),
+        .rx_data     (rx_data_i2c),
+        .rx_busy     (rx_busy)
     );
 
 
     always_ff @(posedge pclk or negedge presetn) begin
         if (!presetn) begin
-            fifo_rd_data_apb_reg <= 8'h00;
-            i_rd_data_valid      <= 1'b0;
+            rx_data_apb_reg <= 8'h00;
+            i_rd_data_valid <= 1'b0;
         end
         else begin
-            if (fifo_rd_en_apb) begin
-                fifo_rd_data_apb_reg <= fifo_rd_data_apb;
-                i_rd_data_valid      <= 1'b1;
+            if (rx_ack_apb) begin
+                rx_data_apb_reg <= rx_data_apb;
+                i_rd_data_valid <= 1'b1;
             end
         end
     end
@@ -297,7 +354,6 @@ module i2c_top #(
     //==========================================================
     // APB -> I2C control crossing
     // CTRL[16] interrupt enable (pclk) -> i2c_clk domain.
-    // Quasi-static configuration bit, single-bit 2-FF sync.
     //==========================================================
     synchronizer #(.WIDTH(1)) ff4 (
         .clk   (i2c_clk),

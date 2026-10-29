@@ -20,9 +20,9 @@ module i2c_master (
     //==========================================================
     output logic       busy,
     output logic       done,
-    output logic       fifo_wr_en,
-    output logic [7:0] fifo_wr_data,
-    input  logic       fifo_full
+    output logic       rx_req,     // push event: received byte available
+    output logic [7:0] rx_data,    // received byte
+    input  logic       rx_busy     // previous byte still in flight
 );
 
     //==========================================================
@@ -109,22 +109,22 @@ module i2c_master (
             (clk_div == 8'd249);
 
     //==========================================================
-    // RX FIFO WRITE PULSE
+    // RX PUSH PULSE
     //
     // Single-cycle pulse on the same edge where busy/done/ready
     // are updated at the end of a READ transaction.
     //==========================================================
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            fifo_wr_en   <= 1'b0;
-            fifo_wr_data <= 8'b0;
+            rx_req  <= 1'b0;
+            rx_data <= 8'b0;
         end
         else begin
-            fifo_wr_en <= 1'b0; // default: single-cycle pulse
+            rx_req <= 1'b0; // default: single-cycle pulse
             if ((state == STOP) && i2c_tick && !i2c_scl &&
                 (rw_reg == 1'b1) && !ack_error) begin
-                fifo_wr_en   <= !fifo_full;
-                fifo_wr_data <= data_out;
+                rx_req  <= !rx_busy;
+                rx_data <= data_out;
             end
         end
     end

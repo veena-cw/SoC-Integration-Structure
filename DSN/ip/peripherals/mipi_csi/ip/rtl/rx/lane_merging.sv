@@ -408,13 +408,18 @@ always_ff @(posedge cphy_rxwordclkhs or negedge rst_n)
   logic [6:0] lm_empty_vld;
 always_ff @(posedge cphy_rxwordclkhs or negedge rst_n)
  if(~rst_n) rx_lm_dstop <= 1'b0;
- else rx_lm_dstop <= ((lm_empty_vld == 7'h3f) & (byte_ctr_rx == 3'h0));
+ else rx_lm_dstop <=  ((!lm_empty && (byte_ctr_rx != 3'h0)) ? 1'b0 :
+            ((lm_empty && (byte_ctr_rx != 3'h0)) ? 1'b0 :
+            ((lm_empty && (byte_ctr_rx == 3'h0)) ? 1'b1 : 1'b0)));
+//((lm_empty_vld == 7'h3f) & (byte_ctr_rx == 3'h0));
  //(lm_empty & (byte_ctr_rx == 3'h0));
  
  always_ff @(posedge cphy_rxwordclkhs or negedge rst_n)
  if(~rst_n) lm_empty_vld <= 7'h0;
- else lm_empty_vld <= {lm_empty_vld[6],lm_empty_vld[5],lm_empty_vld[4],
- lm_empty_vld[3],lm_empty_vld[2],lm_empty_vld[1],lm_empty_vld[0],lm_empty};
+ else lm_empty_vld <= {
+    lm_empty_vld[5:0],
+    lm_empty
+};
   
 always_ff @(posedge cphy_rxwordclkhs or negedge rst_n)
   if(~rst_n)   rx_lm_out_vld <= 1'b0;

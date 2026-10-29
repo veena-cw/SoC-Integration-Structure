@@ -367,7 +367,7 @@ always_ff @(posedge cphy_rxwordclkhs or negedge rst_n)
   else rx_lm_byte_data_r <= rx_lm_byte_data;
  
 //validation of short packet and long packet using combinational logic  
-assign long_pkt_vld_r = data_end_vld ? 1'b0 : (glp_dtype_vld | yuv_dtype_vld | rgb_dtype_vld | raw_dtype_vld) ? 1'b1 : 1'b0;
+assign long_pkt_vld_r = data_end_vld /*& (!rx_lm_byte_vld))*/ ? 1'b0 : (glp_dtype_vld | yuv_dtype_vld | rgb_dtype_vld | raw_dtype_vld) ? 1'b1 : 1'b0;
 assign shrt_pkt_vld_r = (llp_dec_ctr == 5'h17) /*data_end_vld*/ ? 1'b0 : (ssp_dtype_vld | gsp_dtype_vld) ? 1'b1 : 1'b0; //shrt_pkt_vld;
 
 //validation of short synchronization packet datatype
@@ -543,8 +543,11 @@ always_ff @(posedge cphy_rxwordclkhs or negedge rst_n)
 //validation of RAW datatype
 assign raw_dtype_vld = (raw28_vld | raw24_vld | raw6_vld | raw7_vld | raw8_vld | raw10_vld | raw12_vld | raw14_vld | raw16_vld | raw20_vld);
 
-assign dtype_vld_chk = ((!data_strt_r) & rx_lm_byte_vld & ((llp_dec_ctr == 5'h1) | (llp_dec_ctr == 5'h11)));
-
+//assign dtype_vld_chk = ((!data_strt_r) & rx_lm_byte_vld & ((llp_dec_ctr == 5'h1) | (llp_dec_ctr == 5'h17)));
+assign dtype_vld_chk = (!data_strt_r) & (!data_strt) & (!data_end_valid) & (!data_end_valid_r)
+                       & rx_lm_byte_vld
+                       & ((llp_dec_ctr == 5'h1) | (llp_dec_ctr == 5'h17));
+                       
 always_ff @(posedge cphy_rxwordclkhs or negedge rst_n)
   if(~rst_n)   raw28_vld <= 1'b0;
   else if(data_end_valid)  raw28_vld <= 1'b0;
@@ -657,7 +660,7 @@ assign raw20_reg = 6'h2f;
   else if((llp_dec_ctr == 5'h1) | (llp_dec_ctr == 5'h11)) wc_lsb_reg <= (rgb888_vld | raw24_vld) ? 8'hbf :
                                                                                       rgb666_vld ? 8'hcf :
                                               (rgb565_vld | rgb555_vld | rgb444_vld | raw16_vld) ? 8'h7f :
-                                                                                        raw6_vld ? 8'hef :
+                                                                                        raw6_vld ? 8'hdf :
                                                                                         raw7_vld ? 8'h17 :
                                                                           (raw8_vld | raw20_vld) ? 8'h1f :
                                                                                        raw10_vld ? 8'h8f :
@@ -669,12 +672,12 @@ assign raw20_reg = 6'h2f;
 assign  wc_lsb_reg = (rgb888_vld | raw24_vld) ? 8'hbf :
                      ((llp_dec_ctr == 5'h2) | (llp_dec_ctr == 5'h12)) & rgb666_vld ? 8'hcf :
                      ((llp_dec_ctr == 5'h2) | (llp_dec_ctr == 5'h12)) & (rgb565_vld | rgb555_vld | rgb444_vld | raw16_vld) ? 8'h7f :
-                     ((llp_dec_ctr == 5'h2) | (llp_dec_ctr == 5'h12)) & raw6_vld ? 8'hef :
-                     ((llp_dec_ctr == 5'h2) | (llp_dec_ctr == 5'h12)) & raw7_vld ? 8'h17 :
-                     ((llp_dec_ctr == 5'h2) | (llp_dec_ctr == 5'h12)) & (raw8_vld | raw20_vld) ? 8'h1f :
-                     ((llp_dec_ctr == 5'h2) | (llp_dec_ctr == 5'h12)) & raw10_vld ? 8'h8f :
-                     ((llp_dec_ctr == 5'h2) | (llp_dec_ctr == 5'h12)) & raw12_vld ? 8'hdf :
-                     ((llp_dec_ctr == 5'h2) | (llp_dec_ctr == 5'h12)) & raw14_vld ? 8'h2f :
+                     ((llp_dec_ctr == 5'h2) | (llp_dec_ctr == 5'h12)) & raw6_vld ? 8'hdf :
+                     ((llp_dec_ctr == 5'h2) | (llp_dec_ctr == 5'h12)) & raw7_vld ? 8'h2f :
+                     ((llp_dec_ctr == 5'h2) | (llp_dec_ctr == 5'h12)) & (raw8_vld | raw20_vld) ? 8'h3f :
+                     ((llp_dec_ctr == 5'h2) | (llp_dec_ctr == 5'h12)) & raw10_vld ? 8'h1f :
+                     ((llp_dec_ctr == 5'h2) | (llp_dec_ctr == 5'h12)) & raw12_vld ? 8'hbf :
+                     ((llp_dec_ctr == 5'h2) | (llp_dec_ctr == 5'h12)) & raw14_vld ? 8'h5f :
                      ((llp_dec_ctr == 5'h2) | (llp_dec_ctr == 5'h12)) & raw28_vld ? 8'h5f : 8'h0;
 
 
@@ -682,11 +685,13 @@ assign  wc_lsb_reg = (rgb888_vld | raw24_vld) ? 8'hbf :
 //Note: Refer to the word count calculation in the CSI2 Rx MicroArchitecture Document      
 always_ff @(posedge cphy_rxwordclkhs or negedge rst_n)
   if(~rst_n) wc_msb_reg <= 8'h0; 
-  else if((llp_dec_ctr == 5'h2)  | (llp_dec_ctr == 5'h12)) wc_msb_reg <=     (rgb888_vld | raw24_vld | raw20_vld) ? 8'h3 :
-                                      (rgb666_vld | rgb565_vld | rgb555_vld | rgb444_vld | raw16_vld | raw14_vld) ? 8'h2 :
-                                                                                            (raw6_vld | raw8_vld) ? 8'h0 :
-                                                                               (raw7_vld | raw10_vld | raw12_vld) ? 8'h1 :
-                                                                                                        raw28_vld ? 8'h4 : 8'hf;
+  else if((llp_dec_ctr == 5'h2)  | (llp_dec_ctr == 5'h12)) wc_msb_reg <=     (rgb888_vld | raw24_vld | raw20_vld) ? 8'h06 :
+                                      (rgb666_vld | rgb565_vld | rgb555_vld | rgb444_vld | raw16_vld | raw14_vld) ? 8'h04:
+                                                                                            ( raw8_vld) ? 8'h00 :
+											(raw10_vld | raw12_vld)? 8'h03:
+                                                                               (raw7_vld ) ? 8'h02 :
+										(raw6_vld )?8'h01:
+                                                                                 raw28_vld ? 8'h4 : 8'h0;
  
 //validation of the received data type 
 assign rx_datatype_reg_vld = ssp_dtype_vld | gsp_dtype_vld | glp_dtype_vld | yuv_dtype_vld | rgb_dtype_vld | raw_dtype_vld;  

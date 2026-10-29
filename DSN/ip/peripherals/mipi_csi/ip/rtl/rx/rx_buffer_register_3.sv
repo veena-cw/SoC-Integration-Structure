@@ -62,7 +62,7 @@ module rx_buffer_register(
   assign datatype_reg6 = ((data_type_rx == 6'h23) | (data_type_rx == 6'h29) | (data_type_rx == 6'h2d) |
                           (data_type_rx == 6'h26));
   assign datatype_reg7 = datatype_reg6;                  // 7-byte types (RAW7 0x29, RAW14 0x2d, 0x26) stop here
-  assign datatype_reg8 = (data_type_rx == 6'h23);        // FIX: only the 9-byte type goes past stage 7
+  assign datatype_reg8 = (data_type_rx == 6'h23) ;        // FIX: only the 9-byte type goes past stage 7
   assign datatype_reg9 = datatype_reg8;
   assign datatype_reg10 = (data_type_rx == 6'h1d);
 

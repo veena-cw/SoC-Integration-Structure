@@ -72,10 +72,7 @@ parameter POLY = 16'h8408;               // CRC-16-CCITT polynomial (bit-reverse
    end
     
          
-  end
-  
-  
-   
+  end  
   
  /* always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n)  reg_crc <= crc; 

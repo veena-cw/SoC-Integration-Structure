@@ -75,7 +75,7 @@ output logic [7:0]  awlen;                      //transaction length from AXI ma
 output logic [31:0] awaddr;                     //transaction address from AXI master in write address channel
 output logic [31:0] awid;
   output logic [`wstrb-1:0] wstrb;
-  output logic [`wdata-1:0] wdata;
+  output logic [`axi_data_width-1:0] wdata;
 
 //logic               rd_rst_n;
 logic               axi_pixel_dvld;             //storing of incoming valid from byte to pixel converter 

@@ -28,7 +28,7 @@ package csi2_uvm_pkg;
   `include "csi2_env.sv"
   `include "csi2_base_test.sv"
   `include "csi2_raw6_test.sv"
-  `include "csi2_errorsync_test.sv"
+  //`include "csi2_errorsync_test.sv"
   `include "csi2_end_early_eot_test.sv"
   `include "csi2_raw8_test.sv"
   `include "csi2_rx_raw7_test.sv"

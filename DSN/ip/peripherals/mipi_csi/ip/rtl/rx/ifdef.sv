@@ -1,12 +1,11 @@
 
-
 //`define RGB888           6'h24
 //`define RGB666           6'h23 
 //`define RGB565           6'h22
 //`define RGB555           6'h21
 //`define RGB444           6'h20
-//`define RAW6             6'h28
-`define RAW7             6'h29
+`define RAW6             6'h28
+//`define RAW7             6'h29
 //`define RAW8             6'h2a
 //`define RAW10            6'h2b
 //`define RAW12            6'h2c
@@ -72,6 +71,22 @@
 `define axi_data_width 56
 `define axi_depth      12   //9
 
+
+/*`elsif  RAW8
+`define wstrb  1       //write data strobes from AXI master via the write data channel
+`define wdata  8       //write data (pixel data) from AXI master via the write data channel
+`define rx_pixel_data  8
+`define axi_data_width 8
+`define axi_depth      12  //9//512*/
+
+`elsif RAW8
+    `define wstrb          8
+    `define wdata          64
+    `define rx_pixel_data  8
+    `define axi_data_width 8
+    `define axi_depth      12
+    
+    
 `elsif RAW10 
 `define wstrb  5                 //write data strobes from AXI master via the write data channel
 `define wdata  64                 //write data (pixel data) from AXI master via the write data channel
@@ -121,44 +136,39 @@
 `define wdata  128            //write data (pixel data) from AXI master via the write data channel
 `define rx_pixel_data  56
 `define axi_data_width 56
-`define axi_depth      12   //9
+`define axi_depth      12   //
 
-`elseif  RAW8
-`define wstrb  1       //write data strobes from AXI master via the write data channel
-`define wdata  8       //write data (pixel data) from AXI master via the write data channel
-`define rx_pixel_data  8
-`define axi_data_width 8
-`define axi_depth      12  //9//512
 
-`elseif LEGACY_YUV420_8b
+
+`elsif LEGACY_YUV420_8b
 `define wstrb        6 //write data strobes from AXI master via the write data channel
 `define wdata         64//write data (pixel data) from AXI master via the write data channel
 `define rx_pixel_data  48
 `define axi_data_width 48
 `define axi_depth      12 //9 //512
 
-`elseif YUV420_8b
+`elsif YUV420_8b
 `define wstrb          8    //write data strobes from AXI master via the write data channel
 `define wdata          64   //write data (pixel data) from AXI master via the write data channel
 `define rx_pixel_data  64
 `define axi_data_width 64
 `define axi_depth      12 //9 //512
 
-`elseif YUV420_10b
+`elsif YUV420_10b
 `define wstrb         10 //write data strobes from AXI master via the write data channel
 `define wdata         128   //write data (pixel data) from AXI master via the write data channel
 `define rx_pixel_data  80
 `define axi_data_width 80
 `define axi_depth      12   //9 //512
 
-`elseif YUV422_8b
+`elsif YUV422_8b
 `define wstrb         8 //write data strobes from AXI master via the write data channel
 `define wdata         64   //write data (pixel data) from AXI master via the write data channel
 `define rx_pixel_data  64
 `define axi_data_width 64
 `define axi_depth      12  //9//512
 
-`elseif YUV422_10b
+`elsif YUV422_10b
 `define wstrb         10 //write data strobes from AXI master via the write data channel
 `define wdata         128 //write data (pixel data) from AXI master via the write data channel
 `define rx_pixel_data  80
@@ -166,7 +176,7 @@
 `define axi_depth      12 //9//512
 
 
-`elseif RxALP_LP_SELECT // ALP Mode
+`elsif RxALP_LP_SELECT // ALP Mode
 `define wstrb  2       //write data strobes from AXI master via the write data channel
 `define wdata  16       //write data from AXI master via the write data channel
 //`define rx_pixel_data  8

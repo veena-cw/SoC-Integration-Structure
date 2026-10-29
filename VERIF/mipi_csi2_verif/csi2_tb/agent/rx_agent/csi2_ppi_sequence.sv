@@ -59,7 +59,7 @@ class csi2_raw6_seq extends csi2_ppi_sequence;
     // RAW6 is selected
     req.test_case      = "RAW6";
     req.datatype       = DT_RAW6;
-    req.rtl_word_count = 16'h00EF;
+    req.rtl_word_count = 16'h01DF;
     req.sync_type      = 3'b011;
     req.send_eot       = 1'b1;
     req.payload.delete();

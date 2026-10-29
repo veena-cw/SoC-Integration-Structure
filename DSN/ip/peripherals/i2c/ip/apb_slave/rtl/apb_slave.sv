@@ -24,9 +24,9 @@ module apb_slave #(
 
    input  logic i2c_busy,
    input  logic i2c_done,
-   output logic          fifo_wr_en,
-   output logic [DW-1:0] fifo_wr_data,
-   input  logic          fifo_full,
+   output logic          tx_req,        // push event: new command available
+   output logic [DW-1:0] tx_data,       // command bus
+   input  logic          tx_busy,       // previous command still in flight
 
    input  logic [7:0]    i_rd_data,
    input  logic          i_rd_data_valid,
@@ -178,16 +178,16 @@ module apb_slave #(
    //==========================================================
    // RXDATA : byte received from the I2C slave
    //
-   // Comes straight from the RX FIFO output register (i_rd_data),
-   // which is updated when the received byte is popped from the
-   // RX FIFO. It no longer depends on the i2c_done pulse and is
-   // not touched by I2C write transactions.
+   // Comes straight from the RX handshake register (i_rd_data),
+   // which is updated when the received byte is acknowledged on
+   // the RX path. It no longer depends on the i2c_done pulse and
+   // is not touched by I2C write transactions.
    //==========================================================
    assign rxdata_reg = {{(DW-8){1'b0}}, i_rd_data};
 
    logic ctrl_valid;
    logic tx_valid;
-   logic both_valid, both_valid_d, fifo_wr_pulse;   // declared before first use
+   logic both_valid, both_valid_d, tx_req_pulse;   // declared before first use
 
    logic ctrl_write_blocked;
    logic tx_write_blocked;
@@ -200,7 +200,7 @@ module apb_slave #(
       case (state_ff)
          IDLE: begin
             if (req_wr && i_penable && psel_in &&
-                !fifo_full && !i2c_busy &&
+                !tx_busy && !i2c_busy &&
                 !both_valid)
                in_pready = 1'b1;
 
@@ -214,7 +214,7 @@ module apb_slave #(
 
          W_ACCESS: begin
             if (req_wr && i_penable &&
-                !fifo_full && !i2c_busy &&
+                !tx_busy && !i2c_busy &&
                 !both_valid)
                in_pready = 1'b1;
 
@@ -267,8 +267,8 @@ module apb_slave #(
             endcase
          end
 
-         // Clear old transaction once I2C consumes it
-         if (fifo_wr_en) begin
+         // Clear old transaction once it has been pushed to the I2C side
+         if (tx_req) begin
             ctrl_valid <= 1'b0;
             tx_valid   <= 1'b0;
          end
@@ -282,9 +282,9 @@ module apb_slave #(
       else          both_valid_d <= both_valid;
    end
 
-   assign fifo_wr_pulse = both_valid & ~both_valid_d;
-   assign fifo_wr_data  = txdata_reg;
-   assign fifo_wr_en    = fifo_wr_pulse & ~fifo_full;
+   assign tx_req_pulse = both_valid & ~both_valid_d;
+   assign tx_data      = txdata_reg;
+   assign tx_req       = tx_req_pulse & ~tx_busy;
 
    // PSLVERR: NACK (valid address) or invalid-address decode error
    assign o_pslverr = err_resp ||

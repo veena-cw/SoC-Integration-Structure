@@ -62,14 +62,10 @@ module spi_fifo #(
       count_q  <= '0;
     end else begin
       if (do_wr) begin
-      $display("%0t FIFO WRITE ptr=%0d data=%02h",
-         $time, wr_ptr_q, wr_data_i);
         mem_q[wr_ptr_q] <= wr_data_i;
         wr_ptr_q        <= wr_ptr_q + 1'b1;
       end
       if (do_rd) begin
-      $display("%0t FIFO READ ptr=%0d data=%02h",
-         $time, rd_ptr_q, mem_q[rd_ptr_q]);
         rd_ptr_q <= rd_ptr_q + 1'b1;
       end
       // Count update: handle simultaneous wr+rd correctly (count
@@ -85,10 +81,11 @@ module spi_fifo #(
   // Registered read data — sampled the cycle of rd_en_i, available next
   // cycle. We expose the head of the queue combinationally so that
   // single-cycle peeks work; a registered read keeps timing clean.
-  always_ff @(posedge clk_i) begin
+  /*always_ff @(posedge clk_i) begin
     if (!rst_ni) rd_data_o <= '0;
-    else if (!empty_o) rd_data_o <= mem_q[rd_ptr_q];
-  end
+    else if (do_rd) rd_data_o <= mem_q[rd_ptr_q];
+  end */
+  assign rd_data_o = (empty_o) ? '0 : mem_q[rd_ptr_q];
 
   assign empty_o = (count_q == 0);
   assign full_o  = (count_q == DEPTH);

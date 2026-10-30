@@ -176,7 +176,7 @@ always_ff @(posedge clk or negedge rst_n) begin
     rx_read_pending    <= 1'b0;
     rx_capture_pending <= 1'b0;
     rx_data_reg        <= 32'h0;
-    pready_reg         <= 1'b1;
+    pready_reg         <= 1'b0;
 end
 else begin
 
@@ -209,13 +209,13 @@ else begin
     // Capture FIFO data
     //-----------------------------
     else if (rx_capture_pending) begin
+    rx_data_reg <= {24'h0,m_rx_data};
 
-        rx_data_reg <= {24'h0,m_rx_data};
-
-        rx_capture_pending <= 1'b0;
-
+    if (PSEL && PENABLE) begin
         pready_reg <= 1'b1;
+        rx_capture_pending <= 1'b0;
     end
+end
 
     else begin
         pready_reg <= 1'b1;
@@ -375,11 +375,7 @@ always_comb begin
         ADDR_IRQ_MASK   : PRDATA = irq_mask_reg;
         ADDR_CLK_DIV    : PRDATA = clk_div_reg;
         ADDR_TX_DATA    : PRDATA = tx_data_reg;
-       // ADDR_RX_DATA    : PRDATA = rx_data_reg;
-	   ADDR_RX_DATA: begin
-    if (PSEL && PENABLE && PREADY)
-        PRDATA = rx_data_reg;
-end
+        ADDR_RX_DATA    : PRDATA = rx_data_reg;
         ADDR_FIFO_LVL   : PRDATA = fifo_lvl_reg;
         ADDR_ID         : PRDATA = id_reg;
         ADDR_VERSION    : PRDATA = version_reg;

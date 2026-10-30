@@ -221,6 +221,7 @@ else begin
         pready_reg <= 1'b1;
     end
 end
+end
 	assign m_rx_re =  PSEL && PENABLE && !PWRITE && (addr == ADDR_RX_DATA) && !rx_read_pending && !rx_capture_pending;
 //=====================================================
 // STATUS Register

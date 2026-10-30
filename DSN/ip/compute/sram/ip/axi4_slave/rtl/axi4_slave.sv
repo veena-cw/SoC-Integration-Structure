@@ -192,8 +192,7 @@ endfunction
     logic [1:0]            bresp_q;
 
     // Single-port SRAM: do not accept a write address while a read is active.
-    assign s_axi_awready = (sw_state == SW_IDLE) &&
-                           (sr_state == SR_IDLE);
+    assign s_axi_awready = (sw_state == SW_IDLE) && s_axi_awvalid;
 
     assign s_axi_wready  = (sw_state == SW_DATA);
     assign s_axi_bvalid  = (sw_state == SW_RESP);
@@ -294,8 +293,7 @@ assign mem_wr_req =
     logic                  ar_err_q;
 
     // Single-port SRAM: do not accept a read address while a write is active.
-    assign s_axi_arready = (sr_state == SR_IDLE) &&
-                           (sw_state == SW_IDLE);
+    assign s_axi_arready = (sr_state == SR_IDLE) && (!s_axi_awvalid);
 
     assign s_axi_rvalid =
         (sr_state == SR_DATA);

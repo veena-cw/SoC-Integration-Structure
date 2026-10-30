@@ -7,6 +7,12 @@ SHELL := /bin/bash
 
 PROJECT_DIR := $(CURDIR)
 
+# Git SoC workspace: <SOC_ROOT>/VERIF/.../uart_tb/sim
+# Compile the UART RTL directly from DSN (see sim/filelist.f).
+SOC_ROOT     := $(abspath $(PROJECT_DIR)/../../../..)
+RTL_CORE_DIR := $(SOC_ROOT)/DSN/ip/peripherals/uart/ip/uart/rtl
+RTL_APB_DIR  := $(SOC_ROOT)/DSN/ip/peripherals/uart/dsn/rtl
+
 VIVADO_LOG_DIR     := $(PROJECT_DIR)/vivado_logs
 VIVADO_WORK_DIR    := $(PROJECT_DIR)/vivado_files
 VERILATOR_LOG_DIR  := $(PROJECT_DIR)/verilator_logs
@@ -16,7 +22,8 @@ FILELIST := $(PROJECT_DIR)/filelist.f
 TOP      := tb_top
 
 # ---- UVM_HOME (only used by Verilator) ----
-UVM_HOME_DEFAULT := /home/cw032_kiran/Documents/UVM/uvm-1.2/src
+# Git workspace UVM library. Override with: make ... UVM_HOME=/path/to/uvm/src
+UVM_HOME_DEFAULT := $(SOC_ROOT)/VERIF/uvm-1.1d/src
 ifeq ($(UVM_HOME),)
   UVM_HOME := $(UVM_HOME_DEFAULT)
 endif
@@ -61,6 +68,9 @@ help:
 	@echo "  clean"
 	@echo ""
 	@echo "TESTNAME (default uart_smoke_test) selects the UVM test."
+	@echo "SOC_ROOT = $(SOC_ROOT)"
+	@echo "RTL_CORE_DIR = $(RTL_CORE_DIR)"
+	@echo "RTL_APB_DIR  = $(RTL_APB_DIR)"
 	@echo "UVM_HOME (for Verilator) = $(UVM_HOME)"
 
 # UVM check -- needed ONLY for Verilator
@@ -84,7 +94,8 @@ vivado_compile:
 	@mkdir -p "$(VIVADO_LOG_DIR)" "$(VIVADO_WORK_DIR)"
 	$(XVLOG) -sv \
 		-L uvm \
-		-i "$(PROJECT_DIR)/../rtl" \
+		-i "$(RTL_CORE_DIR)" \
+		-i "$(RTL_APB_DIR)" \
 		-i "$(PROJECT_DIR)/../interface" \
 		-i "$(PROJECT_DIR)/../agent" \
 		-i "$(PROJECT_DIR)/../agent/sequences" \
@@ -156,6 +167,8 @@ verilator_lint: check_uvm_home
 		-Wno-UNDRIVEN -Wno-UNSIGNED \
 		"$(UVM_HOME)/uvm_pkg.sv" \
 		-f "$(FILELIST)" \
+		+incdir+"$(RTL_CORE_DIR)" \
+		+incdir+"$(RTL_APB_DIR)" \
 		+incdir+"$(UVM_HOME)" \
 		+define+UVM_NO_DPI \
 		2>&1 | tee "$(VERILATOR_LOG_DIR)/verilator_lint.log"
@@ -180,7 +193,7 @@ verilator_compile: check_uvm_home
 		--build-jobs $(BUILD_JOBS) \
 		-CFLAGS "-O0" \
 		--trace --trace-depth 2 \
-		--coverage \
+		--coverage --assert \
 		"$(COVERAGE_CFG)" \
 		-Wall -Wno-fatal \
 		-Wno-UNOPTFLAT -Wno-UNUSEDSIGNAL -Wno-DECLFILENAME \
@@ -190,6 +203,8 @@ verilator_compile: check_uvm_home
 		-Wno-BLKANDNBLK \
 		"$(UVM_HOME)/uvm_pkg.sv" \
 		-f "$(FILELIST)" \
+		+incdir+"$(RTL_CORE_DIR)" \
+		+incdir+"$(RTL_APB_DIR)" \
 		+incdir+"$(UVM_HOME)" \
 		+define+UVM_NO_DPI \
 		2>&1 | tee "$(VERILATOR_LOG_DIR)/verilator_compile.log"
@@ -331,9 +346,9 @@ coverage_report: cov_merge
 	@set -o pipefail; summary="$$(lcov --summary "$(COVERAGE_INFO)" 2>&1)" || { echo "ERROR: LCOV summary failed"; exit 1; }; \
 		line_info="$$(printf '%s\n' "$$summary" | awk '/^[[:space:]]*lines[.]*:/ {sub(/^[^:]*:[[:space:]]*/, ""); print; exit}')"; \
 		[ -n "$$line_info" ] || { echo "ERROR: Missing RTL source-line coverage"; exit 1; }; \
-		printf 'RTL code coverage (UVM/testbench excluded):\n' | tee -a "$(OVERALL_CODE_SUMMARY)"; \
+		printf 'RTL code coverage :\n' | tee -a "$(OVERALL_CODE_SUMMARY)"; \
 		printf '  %-18s: %s\n' "Line" "$$line_info" | tee -a "$(OVERALL_CODE_SUMMARY)"
-	@# Count only native code points whose source file belongs to ../rtl/*.sv.
+	@# Count only native RTL code points in DSN/*/rtl/*.sv (not UVM/TB files).
 	@# Toggle scope: all internal RTL signals and implemented register bits.
 	@# Exclude constant readback upper bits and APB address bits outside the
 	@# legal 0x00..0x18 aligned register range. This is a legal-access metric:

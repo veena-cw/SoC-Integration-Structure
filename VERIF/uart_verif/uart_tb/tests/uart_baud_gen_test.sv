@@ -9,7 +9,7 @@ class uart_baud_gen_test extends uart_base_test;
     // 100 MHz: baud = 100_000_000 / (16 * (divisor + 1)).
     // Baud:     9600  19200  38400  57600  115200  230400  460800  921600
     // Divisor:   650    325    162    108      53      26      13       6
-    localparam int unsigned DEFAULT_DIVISOR = 325;
+    localparam int unsigned DEFAULT_DIVISOR = 6;
     localparam bit [31:0] ADDR_THR  = 32'h00;
     localparam bit [31:0] ADDR_RHR  = 32'h04;
     localparam bit [31:0] ADDR_SR   = 32'h08;

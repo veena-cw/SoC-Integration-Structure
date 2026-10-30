@@ -84,7 +84,7 @@ module spi_fifo #(
   always_ff @(posedge clk_i) begin
     if (!rst_ni) rd_data_o <= '0;
     else if (do_rd) rd_data_o <= mem_q[rd_ptr_q];
-  
+  end
  // assign rd_data_o = (empty_o) ? '0 : mem_q[rd_ptr_q];
 
   assign empty_o = (count_q == 0);

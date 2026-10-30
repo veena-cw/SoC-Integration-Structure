@@ -101,10 +101,25 @@ always_ff @(posedge sys_clk or posedge sys_rst) begin
     end
 end
 
+logic [WIDTH-1:0] in_rb;
+/*Output mode
+1
+DIR=1, OUT=1
+
+IN read-back = 1
+
+
+Input mode
+0
+DIR=0, external input=0
+
+IN read-back = 0*/
+assign in_rb = (rgpio_dir & rgpio_out) |
+               (~rgpio_dir & rgpio_in);
 // ---------------- Read mux (SET/CLR are write-only) ----------------
 always_comb begin
     case (gpio_adr)
-        GPIO_RGPIO_IN:   data_reg = rgpio_in;
+        GPIO_RGPIO_IN:   data_reg = in_rb;
         GPIO_RGPIO_OUT:  data_reg = rgpio_out;
         GPIO_RGPIO_DIR:  data_reg = rgpio_dir;
         GPIO_RGPIO_IEN:  data_reg = rgpio_ien;

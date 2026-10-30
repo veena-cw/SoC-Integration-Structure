@@ -15,7 +15,11 @@
 //     "WLAST after 5 W beats"), correct 0x. A report catcher counts
 //     them and demotes them to info; the count must be exactly 3
 //     (check_phase)
-//   * every write gets a B response with BRESP=OKAY
+//   * BRESP (SOC-86, design behaviour agreed with the designer):
+//     early SLVERR, correct OKAY, late SLVERR
+//   * each burst is read back (5 beats, one past the burst): the
+//     scoreboard expects only the received beats up to AWLEN+1 to be
+//     written -- early: beats 0-1, late: beats 0-3, beat 4 untouched
 // Any other error fails the test.
 // ------------------------------------------------------------
 `include "uvm_macros.svh"
@@ -125,8 +129,11 @@ class sram_wlast_err_test extends sram_base_test;
     endfunction
 
     // Send one 4-beat write with n W beats and WLAST on beat wlast_beat,
-    // then check it was answered with B=OKAY.
-    task wlast_write(string what, bit [`AXI_ADDR_WIDTH-1:0] a, int unsigned n, int wlast_beat);
+    // check its BRESP against exp_resp, then read 5 beats back from 'a'
+    // (the scoreboard checks which beats were written).
+    task wlast_write(string what, bit [`AXI_ADDR_WIDTH-1:0] a, int unsigned n, int wlast_beat,
+                     axi_resp_e exp_resp);
+        axi_seq_item       rd;
         sram_wlast_err_seq s = sram_wlast_err_seq::type_id::create("wlast_wr");
         `uvm_info(get_type_name(), $sformatf("%s WLAST: AWLEN=3, %0d W beats, WLAST on beat %0d @0x%08h",
                                              what, n, (wlast_beat < 0) ? n - 1 : wlast_beat, a), UVM_LOW)
@@ -134,15 +141,17 @@ class sram_wlast_err_test extends sram_base_test;
         s.start(env.axi_agt.sequencer);
         if (s.tr.aborted)
             `uvm_error(get_type_name(), {what, " WLAST: no B response (write aborted / timed out)"})
-        else if (s.tr.bresp != AXI_OKAY)
-            `uvm_error(get_type_name(), $sformatf("%s WLAST: BRESP=%0d, expected OKAY", what, s.tr.bresp))
+        else if (s.tr.bresp != exp_resp)
+            `uvm_error(get_type_name(), $sformatf("%s WLAST: BRESP=%0d, expected %s",
+                                                  what, s.tr.bresp, exp_resp.name()))
+        read_burst(a, 4, 4, AXI_INCR, rd);
     endtask
 
     // The three transactions: early, correct, late.
     virtual task run_main();
-        wlast_write("early",   `SRAM_BASE_ADDR + 32'h3_0000, 2,  1);  exp_wlast += 1;
-        wlast_write("correct", `SRAM_BASE_ADDR + 32'h3_1000, 4, -1);
-        wlast_write("late",    `SRAM_BASE_ADDR + 32'h3_2000, 5,  4);  exp_wlast += 2;
+        wlast_write("early",   `SRAM_BASE_ADDR + 32'h3_0000, 2,  1, AXI_SLVERR);  exp_wlast += 1;
+        wlast_write("correct", `SRAM_BASE_ADDR + 32'h3_1000, 4, -1, AXI_OKAY);
+        wlast_write("late",    `SRAM_BASE_ADDR + 32'h3_2000, 5,  4, AXI_SLVERR);  exp_wlast += 2;
     endtask
 
     // Exactly the injected WLAST errors must have been reported.

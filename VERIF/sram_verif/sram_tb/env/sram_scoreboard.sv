@@ -12,8 +12,13 @@
 //   * A write updates only lanes with WSTRB=1, only for beats
 //     inside [SRAM_BASE_ADDR : SRAM_END_ADDR].
 //   * Expected BRESP = DECERR if any beat is outside the window,
-//     else OKAY. Expected RRESP per beat = DECERR outside the
-//     window, else OKAY.
+//     else SLVERR if the master's W burst did not have exactly
+//     AWLEN+1 beats (early or late WLAST), else OKAY. Expected RRESP
+//     per beat = DECERR outside the window, else OKAY.
+//   * Early / late WLAST (SOC-86, design behaviour agreed with the
+//     designer): the slave writes the beats it received up to AWLEN+1
+//     -- an early WLAST writes only the beats sent, beats after
+//     AWLEN+1 are discarded, never written past the burst.
 //   * Read data is compared on the valid lanes of each beat.
 //   * tc_sram is built with SimInit="zeros": its array is
 //     reloaded with zeros on every sram_resetn assertion, so the
@@ -160,6 +165,7 @@ class sram_scoreboard extends uvm_scoreboard;
     function void check_write(axi_seq_item tr);
         bit [1:0]                 exp_resp;
         bit [`AXI_ADDR_WIDTH-1:0] a, base;
+        int unsigned              n_beats;   // W beats written: received, at most AWLEN+1
 
         bit                       update;
 
@@ -181,9 +187,10 @@ class sram_scoreboard extends uvm_scoreboard;
 
         // One entry per W beat the slave actually accepted (normally
         // AWLEN+1; fewer / more when WLAST was early / late, which the
-        // monitor reports as AXI_WLAST). The model writes exactly those
-        // beats, at the burst's beat addresses.
-        for (int unsigned i = 0; i < tr.data.size(); i++) begin
+        // monitor reports as AXI_WLAST). The model writes those beats at
+        // the burst's beat addresses, but never more than AWLEN+1.
+        n_beats = (tr.data.size() < 32'(tr.len) + 1) ? tr.data.size() : 32'(tr.len) + 1;
+        for (int unsigned i = 0; i < n_beats; i++) begin
             a = tr.beat_addr(i);
             if (!in_range(a)) begin
                 exp_resp = AXI_DECERR;
@@ -203,6 +210,10 @@ class sram_scoreboard extends uvm_scoreboard;
                 end
             end
         end
+
+        // Wrong WLAST position -> SLVERR (an address error, DECERR, wins).
+        if (exp_resp != AXI_DECERR && tr.data.size() != 32'(tr.len) + 1)
+            exp_resp = AXI_SLVERR;
 
         if (exp_resp == AXI_DECERR) decerr_count++;
         if (tr.bresp != exp_resp)

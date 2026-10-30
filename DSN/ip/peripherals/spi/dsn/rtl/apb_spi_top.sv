@@ -222,7 +222,13 @@ else begin
     end
 end
 end
-	assign m_rx_re =  PSEL && PENABLE && !PWRITE && (addr == ADDR_RX_DATA) && !rx_read_pending && !rx_capture_pending;
+assign m_rx_re =
+        PSEL &&
+        PENABLE &&
+        !PWRITE &&
+        (addr == ADDR_RX_DATA) &&
+        !rx_read_pending &&
+        !rx_capture_pending;
 //=====================================================
 // STATUS Register
 //=====================================================
@@ -362,7 +368,6 @@ logic addr_hit;
 always_comb begin
    PRDATA   = 32'h0000_0000; 
     addr_hit = 1'b1;
-	 if (PSEL && PENABLE) begin
     unique case(addr)
         ADDR_CTRL       : PRDATA = ctrl_reg;
         ADDR_STATUS     : PRDATA = status_reg;
@@ -370,7 +375,11 @@ always_comb begin
         ADDR_IRQ_MASK   : PRDATA = irq_mask_reg;
         ADDR_CLK_DIV    : PRDATA = clk_div_reg;
         ADDR_TX_DATA    : PRDATA = tx_data_reg;
-        ADDR_RX_DATA    : PRDATA = rx_data_reg;
+       // ADDR_RX_DATA    : PRDATA = rx_data_reg;
+	   ADDR_RX_DATA: begin
+    if (PSEL && PENABLE && PREADY)
+        PRDATA = rx_data_reg;
+end
         ADDR_FIFO_LVL   : PRDATA = fifo_lvl_reg;
         ADDR_ID         : PRDATA = id_reg;
         ADDR_VERSION    : PRDATA = version_reg;
@@ -385,7 +394,6 @@ always_comb begin
             addr_hit = 1'b0;
         end
     endcase
-	end
 end
 
 //=====================================================

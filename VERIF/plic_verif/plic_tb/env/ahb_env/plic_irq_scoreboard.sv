@@ -13,8 +13,11 @@
 //  Source [SystemVerilog|Verilog|VHDL|Other]   : SystemVerilog
 //=================================================================================
 //  Description: PLIC interrupt checker with a reference model.
-//    Each source is IDLE, PENDING or CLAIMED (level-triggered gateway):
-//      IDLE    -> PENDING  when src[s] is high       (monitor sample)
+//    Each source is IDLE, PENDING or CLAIMED:
+//      IDLE    -> PENDING  level (EL=0): when src[s] is high (monitor sample)
+//                          edge  (EL=1): when its rising-edge count is non-zero;
+//                          every rising edge is counted (saturating at
+//                          PLIC_MAX_PENDING), each IDLE->PENDING uses one
 //      PENDING -> CLAIMED  when a target claims it   (claim)
 //      CLAIMED -> IDLE     when its ID is completed  (complete)
 //    For each target the winner is the pending, enabled source with the
@@ -147,6 +150,10 @@ class plic_irq_scoreboard extends uvm_component;
   // Define the possible states of each interrupt source.
   typedef enum {IDLE, PENDING, CLAIMED} state_e;
 
+  // Gateway pending-event limit = DUT parameter MAX_PENDING_COUNT
+  // (ahb3lite_plic_top default, not overridden in plic_test_top).
+  localparam int unsigned PLIC_MAX_PENDING = 8;
+
   // Receive IRQ transactions from the monitor through an analysis port.
   // Each transaction contains information such as source IRQs and target IRQs.
   uvm_analysis_imp #(plic_irq_item, plic_irq_scoreboard) irq_in;
@@ -158,6 +165,12 @@ class plic_irq_scoreboard extends uvm_component;
   // Store the current state of every interrupt source.
   // If PLIC_SOURCES = 64, this array has 64 entries.
   state_e state[PLIC_SOURCES];
+
+  // Edge-triggered sources: rising edges not yet turned into a PENDING.
+  int unsigned pending_cnt[PLIC_SOURCES];
+
+  // src[] of the previous sample, for rising-edge detection.
+  plic_src_t prev_src;
 
   // Store the actual IRQ output values sampled from the DUT.
   plic_irq_t act_irq;
@@ -221,6 +234,18 @@ class plic_irq_scoreboard extends uvm_component;
 
 
   // ---------------------------------------------------------
+  // Edge/level mode of every source (EL_0 = sources 0-31,
+  // EL_1 = sources 32-63; 1 = edge-triggered).
+  // ---------------------------------------------------------
+  function plic_src_t edge_levels();
+    // get_mirrored_value() is 64 bits wide: cast before concatenating
+    bit [31:0] el_hi = ral_model.get_reg_by_name("EL_1").get_field_by_name("EL").get_mirrored_value();
+    bit [31:0] el_lo = ral_model.get_reg_by_name("EL_0").get_field_by_name("EL").get_mirrored_value();
+    return {el_hi, el_lo};
+  endfunction
+
+
+  // ---------------------------------------------------------
   // Read the interrupt threshold for target t.
   // ---------------------------------------------------------
   function int unsigned threshold(int t);
@@ -247,16 +272,35 @@ class plic_irq_scoreboard extends uvm_component;
 
     // If reset is active, reset every source state to IDLE.
     if (!tr.rst_n)
-      foreach (state[s])
-        state[s] = IDLE;
+      foreach (state[s]) begin
+        state[s]       = IDLE;
+        pending_cnt[s] = 0;
+      end
 
     // Otherwise, check each source input.
-    else
-      foreach (state[s])
+    else begin
+      plic_src_t el = edge_levels();
 
-        // An IDLE source becomes PENDING when its input is high.
-        if (state[s] == IDLE && tr.src[s])
+      foreach (state[s]) begin
+
+        // Count rising edges of edge-triggered sources; the DUT clears
+        // the count while a source is level-triggered.
+        if (!el[s])
+          pending_cnt[s] = 0;
+        else if (tr.src[s] && !prev_src[s] &&
+                 pending_cnt[s] < PLIC_MAX_PENDING)
+          pending_cnt[s]++;
+
+        // An IDLE source becomes PENDING when its input is high (level)
+        // or when it has a counted edge left (edge, uses one).
+        if (state[s] == IDLE && (el[s] ? pending_cnt[s] > 0 : tr.src[s])) begin
           state[s] = PENDING;
+          if (el[s]) pending_cnt[s]--;
+        end
+      end
+    end
+
+    prev_src = tr.src;
 
     // Save the actual IRQ outputs sampled by the monitor.
     act_irq = tr.irq;

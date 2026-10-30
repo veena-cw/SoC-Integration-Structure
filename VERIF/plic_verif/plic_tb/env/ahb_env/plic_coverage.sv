@@ -61,6 +61,9 @@ class plic_coverage extends uvm_component;
   plic_src_t         prev_src;
   plic_irq_t         prev_irq;
   bit                prev_rst_n;
+  // Gateway state of the previous sample: irq_sb gets each sample first and
+  // has already cleared its states when the reset sample reaches us
+  bit                prev_pending, prev_claimed;
 
   // ======================================================================
   // Register access: every register read and written
@@ -248,8 +251,9 @@ class plic_coverage extends uvm_component;
     return 0;
   endfunction
 
+  // Priorities reset to the SoC defaults, taken from the RAL reset values
   function void clear_shadow();
-    foreach (prio[s]) prio[s] = 0;
+    foreach (prio[s]) prio[s] = irq_sb.ral_model.get_field_by_name($sformatf("P%0d", s)).get_reset();
     foreach (ie[t]) begin ie[t] = '0; th[t] = 0; in_service[t].delete(); end
     el = '0;
   endfunction
@@ -327,14 +331,7 @@ class plic_coverage extends uvm_component;
   function void write_irq(plic_irq_item tr);
     plic_src_t rise = tr.src & ~prev_src;
     if (!tr.rst_n) begin
-      if (prev_rst_n) begin
-        bit pending = 0, claimed = 0;
-        foreach (irq_sb.state[s]) begin
-          pending |= irq_sb.state[s] == plic_irq_scoreboard::PENDING;
-          claimed |= irq_sb.state[s] == plic_irq_scoreboard::CLAIMED;
-        end
-        cg_reset.sample(pending, prev_irq != 0, claimed);
-      end
+      if (prev_rst_n) cg_reset.sample(prev_pending, prev_irq != 0, prev_claimed);
       clear_shadow();
     end else begin
       if (rise != 0) begin
@@ -344,6 +341,12 @@ class plic_coverage extends uvm_component;
       end
       foreach (tr.irq[t])
         if (tr.irq[t] !== prev_irq[t]) cg_irq.sample(t, tr.irq[t], $countones(tr.irq));
+    end
+    prev_pending = 0;
+    prev_claimed = 0;
+    foreach (irq_sb.state[s]) begin
+      prev_pending |= irq_sb.state[s] == plic_irq_scoreboard::PENDING;
+      prev_claimed |= irq_sb.state[s] == plic_irq_scoreboard::CLAIMED;
     end
     prev_src   = tr.src;
     prev_irq   = tr.irq;
@@ -361,7 +364,7 @@ class plic_coverage extends uvm_component;
       cg_src_raise.get_coverage(), cg_src_burst.get_coverage(), cg_irq.get_coverage(),
       cg_claim.get_coverage(), cg_complete.get_coverage(), cg_reset.get_coverage()), UVM_NONE)
 `else
-    `uvm_info("PLIC_COV", "Functional coverage written to the Verilator coverage file; run 'make coverage-report'", UVM_NONE)
+    `uvm_info("PLIC_COV", "Functional coverage written to the Verilator coverage file; run 'make cov-report'", UVM_NONE)
 `endif
   endfunction
 endclass

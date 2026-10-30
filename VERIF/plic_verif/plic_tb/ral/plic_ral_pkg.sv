@@ -195,6 +195,8 @@ package plic_ral_pkg;
 
   endclass
 
+  // PRIORITY_n field reset values = SoC default priorities from
+  // DSN/ip/compute/plic/dsn/include/plic_priority_config.svh (keep in sync)
   // Declare the UVM RAL class for PRIORITY_0.
   // "extends uvm_reg" means this class inherits the standard UVM register
   // functionality such as read(), write(), mirror(), predict(), etc.
@@ -263,7 +265,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P7.configure(this, 3, 28, "RW", 0, 0, 1, 1, 1);
+      P7.configure(this, 3, 28, "RW", 0, 2, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P6_RESERVED = uvm_reg_field::type_id::create("P6_RESERVED");
       // Configure the field:
@@ -281,7 +283,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P6.configure(this, 3, 24, "RW", 0, 0, 1, 1, 1);
+      P6.configure(this, 3, 24, "RW", 0, 1, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P5_RESERVED = uvm_reg_field::type_id::create("P5_RESERVED");
       // Configure the field:
@@ -299,7 +301,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P5.configure(this, 3, 20, "RW", 0, 0, 1, 1, 1);
+      P5.configure(this, 3, 20, "RW", 0, 2, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P4_RESERVED = uvm_reg_field::type_id::create("P4_RESERVED");
       // Configure the field:
@@ -317,7 +319,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P4.configure(this, 3, 16, "RW", 0, 0, 1, 1, 1);
+      P4.configure(this, 3, 16, "RW", 0, 1, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P3_RESERVED = uvm_reg_field::type_id::create("P3_RESERVED");
       // Configure the field:
@@ -335,7 +337,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P3.configure(this, 3, 12, "RW", 0, 0, 1, 1, 1);
+      P3.configure(this, 3, 12, "RW", 0, 1, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P2_RESERVED = uvm_reg_field::type_id::create("P2_RESERVED");
       // Configure the field:
@@ -353,7 +355,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P2.configure(this, 3, 8, "RW", 0, 0, 1, 1, 1);
+      P2.configure(this, 3, 8, "RW", 0, 1, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P1_RESERVED = uvm_reg_field::type_id::create("P1_RESERVED");
       // Configure the field:
@@ -371,7 +373,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P1.configure(this, 3, 4, "RW", 0, 0, 1, 1, 1);
+      P1.configure(this, 3, 4, "RW", 0, 1, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P0_RESERVED = uvm_reg_field::type_id::create("P0_RESERVED");
       // Configure the field:
@@ -389,7 +391,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P0.configure(this, 3, 0, "RW", 0, 0, 1, 1, 1);
+      P0.configure(this, 3, 0, "RW", 0, 1, 1, 1, 1);
     endfunction
 
   endclass
@@ -462,7 +464,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P15.configure(this, 3, 28, "RW", 0, 0, 1, 1, 1);
+      P15.configure(this, 3, 28, "RW", 0, 4, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P14_RESERVED = uvm_reg_field::type_id::create("P14_RESERVED");
       // Configure the field:
@@ -480,7 +482,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P14.configure(this, 3, 24, "RW", 0, 0, 1, 1, 1);
+      P14.configure(this, 3, 24, "RW", 0, 3, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P13_RESERVED = uvm_reg_field::type_id::create("P13_RESERVED");
       // Configure the field:
@@ -498,7 +500,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P13.configure(this, 3, 20, "RW", 0, 0, 1, 1, 1);
+      P13.configure(this, 3, 20, "RW", 0, 2, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P12_RESERVED = uvm_reg_field::type_id::create("P12_RESERVED");
       // Configure the field:
@@ -516,7 +518,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P12.configure(this, 3, 16, "RW", 0, 0, 1, 1, 1);
+      P12.configure(this, 3, 16, "RW", 0, 3, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P11_RESERVED = uvm_reg_field::type_id::create("P11_RESERVED");
       // Configure the field:
@@ -534,7 +536,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P11.configure(this, 3, 12, "RW", 0, 0, 1, 1, 1);
+      P11.configure(this, 3, 12, "RW", 0, 2, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P10_RESERVED = uvm_reg_field::type_id::create("P10_RESERVED");
       // Configure the field:
@@ -552,7 +554,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P10.configure(this, 3, 8, "RW", 0, 0, 1, 1, 1);
+      P10.configure(this, 3, 8, "RW", 0, 1, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P9_RESERVED = uvm_reg_field::type_id::create("P9_RESERVED");
       // Configure the field:
@@ -570,7 +572,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P9.configure(this, 3, 4, "RW", 0, 0, 1, 1, 1);
+      P9.configure(this, 3, 4, "RW", 0, 2, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P8_RESERVED = uvm_reg_field::type_id::create("P8_RESERVED");
       // Configure the field:
@@ -588,7 +590,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P8.configure(this, 3, 0, "RW", 0, 0, 1, 1, 1);
+      P8.configure(this, 3, 0, "RW", 0, 1, 1, 1, 1);
     endfunction
 
   endclass
@@ -661,7 +663,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P23.configure(this, 3, 28, "RW", 0, 0, 1, 1, 1);
+      P23.configure(this, 3, 28, "RW", 0, 4, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P22_RESERVED = uvm_reg_field::type_id::create("P22_RESERVED");
       // Configure the field:
@@ -679,7 +681,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P22.configure(this, 3, 24, "RW", 0, 0, 1, 1, 1);
+      P22.configure(this, 3, 24, "RW", 0, 3, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P21_RESERVED = uvm_reg_field::type_id::create("P21_RESERVED");
       // Configure the field:
@@ -697,7 +699,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P21.configure(this, 3, 20, "RW", 0, 0, 1, 1, 1);
+      P21.configure(this, 3, 20, "RW", 0, 4, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P20_RESERVED = uvm_reg_field::type_id::create("P20_RESERVED");
       // Configure the field:
@@ -715,7 +717,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P20.configure(this, 3, 16, "RW", 0, 0, 1, 1, 1);
+      P20.configure(this, 3, 16, "RW", 0, 3, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P19_RESERVED = uvm_reg_field::type_id::create("P19_RESERVED");
       // Configure the field:
@@ -733,7 +735,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P19.configure(this, 3, 12, "RW", 0, 0, 1, 1, 1);
+      P19.configure(this, 3, 12, "RW", 0, 4, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P18_RESERVED = uvm_reg_field::type_id::create("P18_RESERVED");
       // Configure the field:
@@ -751,7 +753,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P18.configure(this, 3, 8, "RW", 0, 0, 1, 1, 1);
+      P18.configure(this, 3, 8, "RW", 0, 1, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P17_RESERVED = uvm_reg_field::type_id::create("P17_RESERVED");
       // Configure the field:
@@ -769,7 +771,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P17.configure(this, 3, 4, "RW", 0, 0, 1, 1, 1);
+      P17.configure(this, 3, 4, "RW", 0, 3, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P16_RESERVED = uvm_reg_field::type_id::create("P16_RESERVED");
       // Configure the field:
@@ -787,7 +789,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P16.configure(this, 3, 0, "RW", 0, 0, 1, 1, 1);
+      P16.configure(this, 3, 0, "RW", 0, 3, 1, 1, 1);
     endfunction
 
   endclass
@@ -860,7 +862,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P31.configure(this, 3, 28, "RW", 0, 0, 1, 1, 1);
+      P31.configure(this, 3, 28, "RW", 0, 5, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P30_RESERVED = uvm_reg_field::type_id::create("P30_RESERVED");
       // Configure the field:
@@ -878,7 +880,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P30.configure(this, 3, 24, "RW", 0, 0, 1, 1, 1);
+      P30.configure(this, 3, 24, "RW", 0, 5, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P29_RESERVED = uvm_reg_field::type_id::create("P29_RESERVED");
       // Configure the field:
@@ -896,7 +898,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P29.configure(this, 3, 20, "RW", 0, 0, 1, 1, 1);
+      P29.configure(this, 3, 20, "RW", 0, 5, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P28_RESERVED = uvm_reg_field::type_id::create("P28_RESERVED");
       // Configure the field:
@@ -914,7 +916,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P28.configure(this, 3, 16, "RW", 0, 0, 1, 1, 1);
+      P28.configure(this, 3, 16, "RW", 0, 2, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P27_RESERVED = uvm_reg_field::type_id::create("P27_RESERVED");
       // Configure the field:
@@ -932,7 +934,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P27.configure(this, 3, 12, "RW", 0, 0, 1, 1, 1);
+      P27.configure(this, 3, 12, "RW", 0, 1, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P26_RESERVED = uvm_reg_field::type_id::create("P26_RESERVED");
       // Configure the field:
@@ -950,7 +952,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P26.configure(this, 3, 8, "RW", 0, 0, 1, 1, 1);
+      P26.configure(this, 3, 8, "RW", 0, 6, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P25_RESERVED = uvm_reg_field::type_id::create("P25_RESERVED");
       // Configure the field:
@@ -968,7 +970,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P25.configure(this, 3, 4, "RW", 0, 0, 1, 1, 1);
+      P25.configure(this, 3, 4, "RW", 0, 6, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P24_RESERVED = uvm_reg_field::type_id::create("P24_RESERVED");
       // Configure the field:
@@ -986,7 +988,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P24.configure(this, 3, 0, "RW", 0, 0, 1, 1, 1);
+      P24.configure(this, 3, 0, "RW", 0, 2, 1, 1, 1);
     endfunction
 
   endclass
@@ -1059,7 +1061,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P39.configure(this, 3, 28, "RW", 0, 0, 1, 1, 1);
+      P39.configure(this, 3, 28, "RW", 0, 7, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P38_RESERVED = uvm_reg_field::type_id::create("P38_RESERVED");
       // Configure the field:
@@ -1077,7 +1079,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P38.configure(this, 3, 24, "RW", 0, 0, 1, 1, 1);
+      P38.configure(this, 3, 24, "RW", 0, 7, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P37_RESERVED = uvm_reg_field::type_id::create("P37_RESERVED");
       // Configure the field:
@@ -1095,7 +1097,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P37.configure(this, 3, 20, "RW", 0, 0, 1, 1, 1);
+      P37.configure(this, 3, 20, "RW", 0, 7, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P36_RESERVED = uvm_reg_field::type_id::create("P36_RESERVED");
       // Configure the field:
@@ -1113,7 +1115,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P36.configure(this, 3, 16, "RW", 0, 0, 1, 1, 1);
+      P36.configure(this, 3, 16, "RW", 0, 1, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P35_RESERVED = uvm_reg_field::type_id::create("P35_RESERVED");
       // Configure the field:
@@ -1131,7 +1133,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P35.configure(this, 3, 12, "RW", 0, 0, 1, 1, 1);
+      P35.configure(this, 3, 12, "RW", 0, 7, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P34_RESERVED = uvm_reg_field::type_id::create("P34_RESERVED");
       // Configure the field:
@@ -1149,7 +1151,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P34.configure(this, 3, 8, "RW", 0, 0, 1, 1, 1);
+      P34.configure(this, 3, 8, "RW", 0, 4, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P33_RESERVED = uvm_reg_field::type_id::create("P33_RESERVED");
       // Configure the field:
@@ -1167,7 +1169,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P33.configure(this, 3, 4, "RW", 0, 0, 1, 1, 1);
+      P33.configure(this, 3, 4, "RW", 0, 1, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P32_RESERVED = uvm_reg_field::type_id::create("P32_RESERVED");
       // Configure the field:
@@ -1185,7 +1187,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P32.configure(this, 3, 0, "RW", 0, 0, 1, 1, 1);
+      P32.configure(this, 3, 0, "RW", 0, 5, 1, 1, 1);
     endfunction
 
   endclass
@@ -1258,7 +1260,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P47.configure(this, 3, 28, "RW", 0, 0, 1, 1, 1);
+      P47.configure(this, 3, 28, "RW", 0, 5, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P46_RESERVED = uvm_reg_field::type_id::create("P46_RESERVED");
       // Configure the field:
@@ -1276,7 +1278,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P46.configure(this, 3, 24, "RW", 0, 0, 1, 1, 1);
+      P46.configure(this, 3, 24, "RW", 0, 5, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P45_RESERVED = uvm_reg_field::type_id::create("P45_RESERVED");
       // Configure the field:
@@ -1294,7 +1296,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P45.configure(this, 3, 20, "RW", 0, 0, 1, 1, 1);
+      P45.configure(this, 3, 20, "RW", 0, 5, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P44_RESERVED = uvm_reg_field::type_id::create("P44_RESERVED");
       // Configure the field:
@@ -1312,7 +1314,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P44.configure(this, 3, 16, "RW", 0, 0, 1, 1, 1);
+      P44.configure(this, 3, 16, "RW", 0, 5, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P43_RESERVED = uvm_reg_field::type_id::create("P43_RESERVED");
       // Configure the field:
@@ -1330,7 +1332,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P43.configure(this, 3, 12, "RW", 0, 0, 1, 1, 1);
+      P43.configure(this, 3, 12, "RW", 0, 3, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P42_RESERVED = uvm_reg_field::type_id::create("P42_RESERVED");
       // Configure the field:
@@ -1348,7 +1350,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P42.configure(this, 3, 8, "RW", 0, 0, 1, 1, 1);
+      P42.configure(this, 3, 8, "RW", 0, 3, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P41_RESERVED = uvm_reg_field::type_id::create("P41_RESERVED");
       // Configure the field:
@@ -1457,7 +1459,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P55.configure(this, 3, 28, "RW", 0, 0, 1, 1, 1);
+      P55.configure(this, 3, 28, "RW", 0, 1, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P54_RESERVED = uvm_reg_field::type_id::create("P54_RESERVED");
       // Configure the field:
@@ -1475,7 +1477,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P54.configure(this, 3, 24, "RW", 0, 0, 1, 1, 1);
+      P54.configure(this, 3, 24, "RW", 0, 1, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P53_RESERVED = uvm_reg_field::type_id::create("P53_RESERVED");
       // Configure the field:
@@ -1493,7 +1495,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P53.configure(this, 3, 20, "RW", 0, 0, 1, 1, 1);
+      P53.configure(this, 3, 20, "RW", 0, 3, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P52_RESERVED = uvm_reg_field::type_id::create("P52_RESERVED");
       // Configure the field:
@@ -1511,7 +1513,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P52.configure(this, 3, 16, "RW", 0, 0, 1, 1, 1);
+      P52.configure(this, 3, 16, "RW", 0, 3, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P51_RESERVED = uvm_reg_field::type_id::create("P51_RESERVED");
       // Configure the field:
@@ -1529,7 +1531,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P51.configure(this, 3, 12, "RW", 0, 0, 1, 1, 1);
+      P51.configure(this, 3, 12, "RW", 0, 3, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P50_RESERVED = uvm_reg_field::type_id::create("P50_RESERVED");
       // Configure the field:
@@ -1547,7 +1549,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P50.configure(this, 3, 8, "RW", 0, 0, 1, 1, 1);
+      P50.configure(this, 3, 8, "RW", 0, 3, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P49_RESERVED = uvm_reg_field::type_id::create("P49_RESERVED");
       // Configure the field:
@@ -1565,7 +1567,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P49.configure(this, 3, 4, "RW", 0, 0, 1, 1, 1);
+      P49.configure(this, 3, 4, "RW", 0, 6, 1, 1, 1);
       // Create the UVM RAL field object through the UVM factory.
       P48_RESERVED = uvm_reg_field::type_id::create("P48_RESERVED");
       // Configure the field:
@@ -1583,7 +1585,7 @@ package plic_ral_pkg;
       //   access      = field access type "RW"
       //   reset       = reset value 0
       //   volatile    = whether the field value can change independently
-      P48.configure(this, 3, 0, "RW", 0, 0, 1, 1, 1);
+      P48.configure(this, 3, 0, "RW", 0, 2, 1, 1, 1);
     endfunction
 
   endclass

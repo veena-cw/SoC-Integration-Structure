@@ -97,7 +97,9 @@ module axi4_slave #(
     localparam int BYTE_OFF = $clog2(DATA_WIDTH/8);
 
     localparam logic [1:0] RESP_OKAY   = 2'b00;
+    localparam logic [1:0] RESP_SLVERR = 2'b10;
     localparam logic [1:0] RESP_DECERR = 2'b11;
+
 /*
     function automatic logic addr_in_range(
         input logic [ADDR_WIDTH-1:0] a
@@ -190,6 +192,14 @@ endfunction
     logic [ID_WIDTH-1:0]   aw_id_q;
     logic                  aw_err_q;
     logic [1:0]            bresp_q;
+    
+    //-------------------------------------
+    //Adding beat counter
+    //-------------------------------------
+    logic [7:0] wbeat_cnt;
+    logic 	wdrain_q;
+    
+    wire w_last_expected = (wbeat_cnt == aw_len_q);
 
     // Single-port SRAM: do not accept a write address while a read is active.
     assign s_axi_awready = (sw_state == SW_IDLE) && s_axi_awvalid;
@@ -201,18 +211,8 @@ endfunction
 
     logic mem_wr_req;
 
-    /*
-    assign mem_wr_req =
-        (sw_state == SW_DATA) &&
-        s_axi_wvalid &&
-        s_axi_wready &&
-        mem_ready;
-*/
-assign mem_wr_req =
-    (sw_state == SW_DATA) &&
-    s_axi_wvalid &&
-    s_axi_wready &&
-    addr_in_range(aw_addr_q);
+
+    assign mem_wr_req = (sw_state == SW_DATA) && s_axi_wvalid && s_axi_wready && (!wdrain_q) && addr_in_range(aw_addr_q);
     
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
@@ -224,6 +224,8 @@ assign mem_wr_req =
             aw_id_q    <= '0;
             aw_err_q   <= 1'b0;
             bresp_q    <= RESP_OKAY;
+            wbeat_cnt  <= 8'b0;
+	    wdrain_q   <= 1'b0;
         end
         else begin
             case (sw_state)
@@ -236,6 +238,8 @@ assign mem_wr_req =
                         aw_id_q    <= s_axi_awid;
                         aw_err_q   <= !addr_in_range(s_axi_awaddr);
                         sw_state   <= SW_DATA;
+                        wbeat_cnt  <= 8'b0;
+                        wdrain_q   <= 1'b0;
                     end
                 end
 
@@ -244,23 +248,47 @@ assign mem_wr_req =
                         if (!addr_in_range(aw_addr_q))
                             aw_err_q <= 1'b1;
 
-                        if (s_axi_wlast) begin
-                            bresp_q <=
-                                (aw_err_q || !addr_in_range(aw_addr_q)) ?
-                                RESP_DECERR : RESP_OKAY;
-                            sw_state <= SW_RESP;
-                        end
+                        if (wdrain_q) begin
+                            // Discard extra beats (WLAST mismatch with expected number of beats) after AWLEN + 1.
+                            if (s_axi_wlast) begin
+                                bresp_q  <= (aw_err_q || !addr_in_range(aw_addr_q)) ? RESP_DECERR : RESP_SLVERR;
+                                sw_state <= SW_RESP;
+                            end
+                        end 	
                         else begin
-                            aw_addr_q <= next_axi_addr(
-                                aw_addr_q,
-                                aw_len_q,
-                                aw_size_q,
-                                aw_burst_q
-                            );
+                            if (w_last_expected) begin
+                                if (s_axi_wlast) begin
+                                    // Expected final beat and WLAST asserted.
+                                    bresp_q <=
+                                        (aw_err_q || !addr_in_range(aw_addr_q)) ?
+                                        RESP_DECERR : RESP_OKAY;
+
+                                    sw_state <= SW_RESP;
+                                end
+                                else begin
+                                    // Expected final beat but WLAST is missing.
+                                    // Enter drain mode; do not write extra beats.
+                                    wdrain_q <= 1'b1;
+                                end
+                            end
+                            else if (s_axi_wlast) begin
+                                // Early WLAST.
+                                bresp_q <= (aw_err_q || !addr_in_range(aw_addr_q)) ? RESP_DECERR : RESP_SLVERR;
+                                sw_state <= SW_RESP;
+                            end	
+                            else begin
+                                // Continue normal burst.
+                                wbeat_cnt <= wbeat_cnt + 8'd1;
+                                aw_addr_q <= next_axi_addr(
+                                    aw_addr_q,
+                                    aw_len_q,
+                                    aw_size_q,
+                                    aw_burst_q
+                                );
+                            end
                         end
                     end
                 end
-
                 SW_RESP: begin
                     if (s_axi_bvalid && s_axi_bready)
                         sw_state <= SW_IDLE;

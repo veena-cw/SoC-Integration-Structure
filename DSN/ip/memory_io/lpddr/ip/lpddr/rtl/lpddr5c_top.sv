@@ -1,4 +1,3 @@
-
 //============================================================================
 // Module: lpddr5c_top
 // Description: LPDDR5 Controller Top Level
@@ -10,9 +9,9 @@
 //   - ECC and Parity Support
 //   - Training Support (CA/Read/Write)
 //============================================================================
-
+ 
 `timescale 1ns/1ps
-
+ 
 module lpddr5c_top #(
     parameter ADDR_WIDTH        = 32,
     parameter DATA_WIDTH        = 128,
@@ -40,11 +39,11 @@ module lpddr5c_top #(
     //========================================================================
     input wire sys_clk,
     input wire sys_rst_n,
-
+ 
     //========================================================================
     // AXI4 Slave Interface - SoC / NoC
     //========================================================================
-
+ 
     //------------------------------------------------------------------------
     // AXI4 Write Address Channel
     //------------------------------------------------------------------------
@@ -59,7 +58,7 @@ module lpddr5c_top #(
     input  wire [3:0]                   s_axi_awqos,
     input  wire                         s_axi_awvalid,
     output wire                         s_axi_awready,
-
+ 
     //------------------------------------------------------------------------
     // AXI4 Write Data Channel
     //------------------------------------------------------------------------
@@ -68,7 +67,7 @@ module lpddr5c_top #(
     input  wire                         s_axi_wlast,
     input  wire                         s_axi_wvalid,
     output wire                         s_axi_wready,
-
+ 
     //------------------------------------------------------------------------
     // AXI4 Write Response Channel
     //------------------------------------------------------------------------
@@ -76,7 +75,7 @@ module lpddr5c_top #(
     output wire [1:0]                   s_axi_bresp,
     output wire                         s_axi_bvalid,
     input  wire                         s_axi_bready,
-
+ 
     //------------------------------------------------------------------------
     // AXI4 Read Address Channel
     //------------------------------------------------------------------------
@@ -91,7 +90,7 @@ module lpddr5c_top #(
     input  wire [3:0]                   s_axi_arqos,
     input  wire                         s_axi_arvalid,
     output wire                         s_axi_arready,
-
+ 
     //------------------------------------------------------------------------
     // AXI4 Read Data Channel
     //------------------------------------------------------------------------
@@ -106,25 +105,21 @@ module lpddr5c_top #(
     //========================================================================
      //    output wire                         dfi_clk,
     //    output wire                         dfi_rst_n,
-    
       input wire                         dfi_clk,
       input wire                         dfi_rst_n,
-    
-    
+
     // Command Interface
     output wire [CS_WIDTH*NUM_CHANNELS-1:0]    dfi_cs_n,
     output wire [CKE_WIDTH*NUM_CHANNELS-1:0]   dfi_cke,
     output wire [CA_WIDTH*NUM_CHANNELS-1:0]    dfi_ca,
     output wire                                  dfi_rw,
     output wire [ADDR_WIDTH-1:0]        dfi_addr,
-    
     // Data Interface
     input  wire [DFI_DATA_WIDTH*NUM_CHANNELS-1:0]   dfi_rddata,
     input  wire                                     dfi_rddata_valid,
     output wire [DFI_DATA_WIDTH*NUM_CHANNELS-1:0]   dfi_wrdata,
     output wire [DFI_DATA_WIDTH/8*NUM_CHANNELS-1:0] dfi_wrdata_mask,
     output wire                                     dfi_wrdata_en,
-    
     // Training Interface
     input  wire                         dfi_phymstr_req,
     output wire                         dfi_phymstr_ack,
@@ -133,7 +128,6 @@ module lpddr5c_top #(
     output wire                         dfi_rdlvl_en,
     input  wire                         dfi_wrlvl_req,
     output wire                         dfi_wrlvl_en,
-    
     //========================================================================
     // Register Configuration Interface (APB)
     //========================================================================
@@ -147,7 +141,6 @@ module lpddr5c_top #(
     output wire [31:0]                    prdata,
     output wire                         pready,
     output wire                         pslverr,
-    
     //========================================================================
     // Interrupts
     //========================================================================
@@ -156,32 +149,26 @@ module lpddr5c_top #(
     output wire                         intr_ecc_err,
     output wire                         intr_training_err,
     output wire                         intr_parity_err,
-    
     //========================================================================
     // Debug
     //========================================================================
     output wire [31:0]                  debug_bus,
-    
     //========================================================================
     // LOW POWER SIDEBAND SIGNALS
     //========================================================================	
-	
     input  wire                         lp_req_pd,
     input  wire                         wakeup_req,
     output logic lp_ack,
     output logic wakeup_ack
-	
 );
-
+ 
     //========================================================================
     // Internal Signals
     //========================================================================
-    
     // Clock domains
     wire                                clk;
     wire                                rst_n;
     wire                                phy_clk;
-    
     // Command scheduler signals
 logic [ADDR_WIDTH-1:0] cmd_addr;
 logic [3:0]            cmd_type;
@@ -189,23 +176,22 @@ logic                  cmd_valid;
 wire                   cmd_ready;
 logic [7:0]             cmd_id;
 wire lp_idle;
-
-
-
+ 
+ 
 // AXI4 command capture
 logic                  aw_pending;
 logic [ADDR_WIDTH-1:0] awaddr_q;
 logic [ID_WIDTH-1:0]   awid_q;
-
+ 
 logic                  ar_pending;
 logic [ADDR_WIDTH-1:0] araddr_q;
 logic [ID_WIDTH-1:0]   arid_q;
-
-
+ 
+ 
 logic [ID_WIDTH-1:0]   bid_q;
 logic [1:0]            bresp_q;
 logic                  bvalid_q;
-
+ 
 //========================================================================
 // AXI4 Write Response FSM
 //========================================================================
@@ -215,21 +201,19 @@ typedef enum logic [1:0] {
     WR_WRITE_CMD = 2'b10,
     WR_BRESP     = 2'b11
 } wr_state_t;
-
+ 
 wr_state_t wr_state;
-
+ 
 logic [7:0] awlen_q;
-
+ 
     
     // Bank state tracking
     wire [NUM_CHANNELS-1:0]             bank_active [0:NUM_BANKS-1];
     wire [NUM_CHANNELS-1:0]             row_open;
     wire [ROW_WIDTH-1:0]                open_row [0:NUM_CHANNELS-1];
-    
     // Timing tracking
     wire [15:0]                         timing_counter [0:15];
     wire                                timing_met [0:15];
-    
     // Data path signals
     wire [DATA_WIDTH-1:0]               rd_data_fifo [0:7];
     wire [DATA_WIDTH-1:0]               wr_data_fifo [0:7];
@@ -237,7 +221,6 @@ logic [7:0] awlen_q;
     wire [2:0]                          wr_fifo_wptr, wr_fifo_rptr;
     wire                                rd_fifo_empty, rd_fifo_full;
     wire                                wr_fifo_empty, wr_fifo_full;
-    
     // ECC signals
     wire [DATA_WIDTH+7:0]               ecc_encoded_data;
     wire [DATA_WIDTH-1:0]               ecc_decoded_data;
@@ -245,7 +228,6 @@ logic [7:0] awlen_q;
      wire [7:0]                            err_count;
     wire                                  ecc_err_detected;
     wire                                  ecc_err_corrected;
-    
     // Training signals
     wire [7:0]                            ca_training_result [0:NUM_CHANNELS-1];
     wire [7:0]                            rd_gate_training_result [0:NUM_CHANNELS-1];
@@ -253,20 +235,17 @@ logic [7:0] awlen_q;
     wire [7:0]                            wr_dq_training_result [0:NUM_CHANNELS-1][0:15];
     wire                                  training_done;
     wire                                  training_error;
-    
     // Low power signals
    // wire                                  lp_req_pd;
     wire                                  lp_req_sr;
     wire                                  lp_req_ds;
- //   wire                                  lp_ack;
+//   wire                                  lp_ack;
     wire [3:0]                                lp_state ;
-    
     // Refresh signals
     wire [15:0]                           refresh_counter;
     wire                                  refresh_pending;
     wire                                  refresh_urgent;
     wire [7:0]                            refresh_row_addr;
-    
     // Configuration registers
     wire [31:0]                           reg_ctrl0;
     wire [31:0]                           reg_ctrl1;
@@ -277,235 +256,225 @@ logic [7:0] awlen_q;
     wire [31:0]                           reg_status;
     wire [31:0]                           reg_ecc_cfg;
     wire [31:0]                           reg_lp_cfg;
-    
     // Interrupt aggregation
     wire                                  intr_status [0:7];
     wire                                  intr_mask [0:7];
     wire                                  intr_raw;
     wire                                  intr_final;
-    
     // Debug signals
     wire [31:0]                           debug_cmd_cnt;
     wire [31:0]                           debug_rd_cnt;
     wire [31:0]                           debug_wr_cnt;
     wire [31:0]                           debug_err_cnt;
-    
     //========================================================================
     // Clock and Reset Generation
     //========================================================================
-    
     assign clk = sys_clk;
     assign rst_n = sys_rst_n;
     assign phy_clk = dfi_clk;
-    
-    
 
+/*
 assign s_axi_awlen   = 8'b00000000; 
 assign s_axi_awsize  = 3'b000;
 assign s_axi_awburst = 2'b00;
 assign s_axi_arlen   = 8'b00000000; 
 assign s_axi_arsize  = 3'b000; 
 assign s_axi_arburst = 2'b00;
-    
 //assign s_axi_awid    = '0;
 assign s_axi_awlock  = 1'b0;
 assign s_axi_awcache = 4'b0000;
 assign s_axi_awprot  = 3'b000;
 assign s_axi_awqos   = 4'b0000;
-
+ 
 //assign s_axi_arid    = '0;
 assign s_axi_arlock  = 1'b0;
 assign s_axi_arcache = 4'b0000;
 assign s_axi_arprot  = 3'b000;
 assign s_axi_arqos   = 4'b0000;
-    
+*/
 wire rd_cmd_accept = ar_pending && (wr_state != WR_WRITE_CMD) && cmd_ready;
-    
-    
+
 //========================================================================
 // AXI4 -> Command Scheduler Interface
 //========================================================================
-
+ 
 //// Accept one AXI command at a time.
 //// Give WRITE address channel priority over READ address channel.
 //assign s_axi_awready = !aw_pending && !ar_pending;
 //assign s_axi_arready = !aw_pending && !ar_pending && !s_axi_awvalid;
-
+ 
 assign s_axi_awready = (wr_state == WR_IDLE) &&
                        !ar_pending &&
                        !bvalid_q &&
                        (lp_state != 4'b0010);
-
+ 
 assign s_axi_arready = (wr_state == WR_IDLE) &&
                        !aw_pending &&
                        !bvalid_q &&
                        !s_axi_awvalid &&
                        !ar_pending;
-
-
-
+ 
+ 
 //========================================================================
 // AXI4 Write Transaction FSM
 //========================================================================
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
         wr_state   <= WR_IDLE;
-
+ 
         aw_pending <= 1'b0;
         awaddr_q   <= '0;
         awid_q     <= '0;
-
+ 
         ar_pending <= 1'b0;
         araddr_q   <= '0;
         arid_q     <= '0;
-
+ 
         bid_q      <= '0;
         bresp_q    <= 2'b00;
         bvalid_q   <= 1'b0;
     end
     else begin
-
+ 
         case (wr_state)
-
+ 
             //============================================================
             // IDLE
             //============================================================
             WR_IDLE: begin
-
+ 
                 if (s_axi_awvalid && s_axi_awready) begin
                     aw_pending <= 1'b1;
                     awaddr_q   <= s_axi_awaddr;
                     awid_q     <= s_axi_awid;
-
+ 
                     wr_state   <= WR_WAIT_WDATA;
-
+ 
                     $display("[%0t] TOP: AW CAPTURED addr=%h id=%h",
                              $time, s_axi_awaddr, s_axi_awid);
                 end
-
+ 
                 else if (s_axi_arvalid && s_axi_arready) begin
                     ar_pending <= 1'b1;
                     araddr_q   <= s_axi_araddr;
                     arid_q     <= s_axi_arid;
                 end
             end
-
-
+ 
+ 
             //============================================================
             // WAIT FOR COMPLETE WRITE DATA
             //============================================================
             WR_WAIT_WDATA: begin
-
+ 
                 if (s_axi_wvalid && s_axi_wready && s_axi_wlast) begin
-
+ 
                     $display("[%0t] TOP: WDATA COMPLETE",
                              $time);
-
+ 
                     wr_state <= WR_WRITE_CMD;
                 end
             end
-
-
+ 
+ 
             //============================================================
             // ISSUE LPDDR WRITE COMMAND
             //============================================================
             WR_WRITE_CMD: begin
-
+ 
                 if (cmd_valid && cmd_ready) begin
-
+ 
                     aw_pending <= 1'b0;
-
+ 
                     $display("[%0t] TOP: LPDDR WRITE CMD ACCEPTED",
                              $time);
-
+ 
                     bid_q      <= awid_q;
                     bresp_q    <= 2'b00;       // OKAY
                     bvalid_q   <= 1'b1;
-
+ 
                     wr_state   <= WR_BRESP;
                 end
             end
-
-
+ 
+ 
             //============================================================
             // AXI WRITE RESPONSE
             //============================================================
             WR_BRESP: begin
-
+ 
                 if (bvalid_q && s_axi_bready) begin
-
+ 
                     bvalid_q <= 1'b0;
                     wr_state <= WR_IDLE;
-
+ 
                     $display("[%0t] TOP: AXI B RESPONSE ACCEPTED BID=%h BRESP=%h",
                              $time, bid_q, bresp_q);
                 end
             end
-
-
+ 
+ 
             default: begin
                 wr_state <= WR_IDLE;
             end
-
+ 
         endcase
 if(rd_cmd_accept) ar_pending <= 1'b0;
     end
 end
-
-
+ 
+ 
 // AXI Write Response outputs
 assign s_axi_bid    = bid_q;
 assign s_axi_bresp  = bresp_q;
 assign s_axi_bvalid = bvalid_q;
-
-
+ 
+ 
 //========================================================================
 // Generate command for command scheduler
 //========================================================================
 always_comb begin
-
+ 
     // Defaults
     cmd_addr  = '0;
     cmd_type  = 4'b0000;
     cmd_valid = 1'b0;
     cmd_id    = 8'h00;
-
+ 
     //============================================================
     // WRITE command
     // Only issue after complete WDATA burst is received
     //============================================================
     if (wr_state == WR_WRITE_CMD) begin
-
+ 
         cmd_addr  = awaddr_q;
         cmd_type  = 4'b0010;
         cmd_valid = 1'b1;
-
+ 
         // AXI ID = 4 bits
         // Scheduler ID = 8 bits
         cmd_id    = {{(8-ID_WIDTH){1'b0}}, awid_q};
     end
-
+ 
     //============================================================
     // READ command
     //============================================================
     else if (ar_pending) begin
-
+ 
         cmd_addr  = araddr_q;
         cmd_type  = 4'b0001;
         cmd_valid = 1'b1;
-
+ 
         cmd_id    = {{(8-ID_WIDTH){1'b0}}, arid_q};
     end
-
+ 
 end
-
+ 
     
     // Clock domain crossing synchronizers will be instantiated per module
-    
     //========================================================================
     // Register Configuration Block (APB Interface)
     //========================================================================
-    
     lpddr5c_reg_cfg u_reg_cfg (
         .pclk           (pclk),
         .preset_n       (preset_n),
@@ -517,7 +486,6 @@ end
         .prdata         (prdata),
         .pready         (pready),
         .pslverr        (pslverr),
-        
         // Register outputs
         .reg_ctrl0      (reg_ctrl0),
         .reg_ctrl1      (reg_ctrl1),
@@ -528,20 +496,18 @@ end
         .reg_ecc_cfg    (reg_ecc_cfg),
         .reg_lp_cfg     (reg_lp_cfg),
         .ecc_err_count  (err_count),
-        
         // Status inputs
         .reg_status     (reg_status),
         .training_done  (training_done),
         .training_error (training_error),
         .lp_state       (lp_state[0]),
         .refresh_pending(refresh_pending),
-         .refresh_counter(refresh_counter)
+        .refresh_counter(refresh_counter)
+ 
     );
-    
     //========================================================================
     // Command Scheduler
     //========================================================================
-    
     lpddr5c_cmd_scheduler #(
         .ADDR_WIDTH     (ADDR_WIDTH),
         .NUM_CHANNELS   (NUM_CHANNELS),
@@ -552,27 +518,22 @@ end
     ) u_cmd_scheduler (
         .clk            (clk),
         .rst_n          (rst_n),
-        
         // Configuration
         .timing_params  (reg_timing0),
         .sched_policy   (reg_ctrl0[3:0]),
-        
         // Command input
         .cmd_addr       (cmd_addr),
         .cmd_type       (cmd_type),
         .cmd_valid      (cmd_valid),
         .cmd_ready      (cmd_ready),
         .cmd_id         (cmd_id),
-        
         // Refresh interface
         .refresh_req    (refresh_pending),
         .refresh_ack    (),
-        
         // Bank state
         .bank_active    (bank_active),
         .row_open       (row_open),
         .open_row       (open_row),
-        
         // DFI command output
         .dfi_cs_n       (dfi_cs_n),
         .dfi_cke        (dfi_cke),
@@ -584,11 +545,9 @@ end
         .wr_activity(wr_activity),
         .lp_idle(lp_idle)
     );
-    
     //========================================================================
     // Read/Write Data Path
     //========================================================================
-    
     lpddr5c_data_path #(
     .DATA_WIDTH      (DATA_WIDTH),
     .DFI_DATA_WIDTH  (DFI_DATA_WIDTH),
@@ -600,7 +559,7 @@ end
     .sys_rst_n        (rst_n),
     .phy_clk          (phy_clk),
     .phy_rst_n        (rst_n),
-
+ 
     //====================================================================
     // AXI Read interface
     // Existing internal port names remain axi_*
@@ -611,7 +570,7 @@ end
     .axi_rdata        (s_axi_rdata),
     .axi_rresp        (s_axi_rresp),
     .axi_rlast        (s_axi_rlast),
-
+ 
     //====================================================================
     // AXI Write interface
     //====================================================================
@@ -620,7 +579,7 @@ end
     .axi_wdata        (s_axi_wdata),
     .axi_wstrb        (s_axi_wstrb),
     .axi_wlast        (s_axi_wlast),
-
+ 
     //====================================================================
     // DFI interface
     //====================================================================
@@ -629,7 +588,7 @@ end
     .dfi_wrdata       (dfi_wrdata),
     .dfi_wrdata_mask  (dfi_wrdata_mask),
     .dfi_wrdata_en    (dfi_wrdata_en),
-
+ 
     //====================================================================
     // ECC signals -- unchanged
     //====================================================================
@@ -637,7 +596,7 @@ end
     .ecc_err_detected (ecc_err_detected),
     .ecc_err_corrected(ecc_err_corrected),
     .err_count(err_count),
-
+ 
     //====================================================================
     // FIFO status -- unchanged
     //====================================================================
@@ -646,11 +605,9 @@ end
     .wr_fifo_empty    (wr_fifo_empty),
     .wr_fifo_full     ()
 );
-    
     //========================================================================
     // Training Control
     //========================================================================
-    
     lpddr5c_training_ctrl #(
         .NUM_CHANNELS   (NUM_CHANNELS),
         .DQ_WIDTH       (DQ_WIDTH),
@@ -658,13 +615,11 @@ end
     ) u_training_ctrl (
         .clk            (clk),
         .rst_n          (rst_n),
-        
         // Control
         .train_start    (reg_ctrl0[4]),
         .train_mode     (reg_ctrl0[7:5]),
         .train_done     (training_done),
         .train_error    (training_error),
-        
         // DFI training interface
         .dfi_phymstr_req(dfi_phymstr_req),
         .dfi_phymstr_ack(dfi_phymstr_ack),
@@ -673,30 +628,25 @@ end
         .dfi_rdlvl_en   (dfi_rdlvl_en),
         .dfi_wrlvl_req  (dfi_wrlvl_req),
         .dfi_wrlvl_en   (dfi_wrlvl_en),
-        
         // Training results
         .ca_training_result(ca_training_result),
         .rd_gate_training_result(rd_gate_training_result),
         .rd_dq_training_result(rd_dq_training_result),
         .wr_dq_training_result(wr_dq_training_result)
     );
-    
     //========================================================================
     // Low Power Management
     //========================================================================
-    
     lpddr5c_lp_mgmt #(
         .NUM_CHANNELS   (NUM_CHANNELS)
     ) u_lp_mgmt (
         .clk            (clk),
         .rst_n          (rst_n),
-        
             .cmd_activity(cmd_activity),
             .rd_activity(rd_activity),
             .wr_activity(wr_activity),
         // Configuration
         //.lp_cfg         (reg_lp_cfg),
-        
         // Control
         .lp_req_pd      (lp_req_pd),
         .lp_req_sr      (lp_req_sr),
@@ -706,7 +656,6 @@ end
         .wakeup_req     (wakeup_req),
         .lp_idle(lp_idle),
         .wakeup_ack(wakeup_ack),
-       
                  .rd_fifo_empty    (rd_fifo_empty),
     .wr_fifo_empty    (wr_fifo_empty),
         // Status
@@ -714,56 +663,45 @@ end
         .sr_entry_count (),
         .pd_entry_count ()
     );
-    
     //========================================================================
     // Refresh Control
     //========================================================================
-    
     lpddr5c_refresh_ctrl u_refresh_ctrl (
         .clk            (clk),
         .rst_n          (rst_n),
-        
         // Configuration
         .trefi          (reg_timing0[15:0]),
         .trfc           (reg_timing0[31:16]),
-        
         // Control
         .refresh_en     (reg_ctrl0[8]),
         .refresh_pending(refresh_pending),
         .refresh_urgent (refresh_urgent),
-        
         // Status
         .refresh_counter(refresh_counter),
         .refresh_row_addr(refresh_row_addr)
     );
-    
     //========================================================================
     // ECC & Parity Generation/Check
     //========================================================================
-    
     generate
         if (ECC_ENABLE) begin : gen_ecc
             lpddr5c_ecc u_ecc (
                 .clk            (clk),
                 .rst_n          (rst_n),
-                
                 .ecc_en         (reg_ecc_cfg[0]),
                 .data_in        (),
                 .data_out       (),
                 .ecc_in         (),
                 .ecc_out        (),
-                
                 .err_detected   (ecc_err_detected),
                 .err_corrected  (ecc_err_corrected),
                 .err_location   ()
             );
         end
     endgenerate
-    
     //========================================================================
     // Interrupt Aggregation
     //========================================================================
-    
     assign intr_status[0] = training_done;
     assign intr_status[1] = training_error;
     assign intr_status[2] = refresh_urgent;
@@ -772,17 +710,14 @@ end
     assign intr_status[5] = 1'b0;  // Reserved
     assign intr_status[6] = 1'b0;  // Reserved
     assign intr_status[7] = 1'b0;  // Reserved
-    
     assign intr_init_done   = training_done;
     assign intr_refresh_err = refresh_urgent;
     assign intr_ecc_err     = ecc_err_detected;
     assign intr_training_err= training_error;
     assign intr_parity_err  = 1'b0;  // TODO: Connect parity error
-    
     //========================================================================
     // Debug Bus
     //========================================================================
-    
     assign debug_bus = {
         training_done,
         training_error,
@@ -792,5 +727,5 @@ end
         3'b0,
         refresh_counter[7:0]
     };
-
+ 
 endmodule // lpddr5c_top

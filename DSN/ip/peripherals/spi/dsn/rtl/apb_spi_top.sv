@@ -75,6 +75,7 @@ module apb_spi_top(
     logic [31:0] scratch5_reg;
 	logic pready_reg;
 logic rx_read_pending;
+logic rx_capture_pending;
 
 typedef enum logic [0:0] {
     APB_IDLE,
@@ -172,38 +173,61 @@ assign m_tx_we = PSEL && PENABLE && PWRITE && (addr == ADDR_TX_DATA);
     else if(m_done) rx_data_reg <= {24'h0,m_rx_data}; */
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-        rx_read_pending <= 1'b0;
-        pready_reg      <= 1'b1;
-        rx_data_reg     <= 32'h0;
+    rx_read_pending    <= 1'b0;
+    rx_capture_pending <= 1'b0;
+    rx_data_reg        <= 32'h0;
+    pready_reg         <= 1'b1;
+end
+else begin
+
+    //-----------------------------
+    // First APB read
+    //-----------------------------
+    if (PSEL &&
+        PENABLE &&
+        !PWRITE &&
+        (addr == ADDR_RX_DATA) &&
+        !rx_read_pending &&
+        !rx_capture_pending) begin
+
+        rx_read_pending <= 1'b1;
+        pready_reg      <= 1'b0;
     end
+
+    //-----------------------------
+    // Wait for FIFO output
+    //-----------------------------
+    else if (rx_read_pending) begin
+
+        rx_read_pending    <= 1'b0;
+        rx_capture_pending <= 1'b1;
+
+        pready_reg <= 1'b0;
+    end
+
+    //-----------------------------
+    // Capture FIFO data
+    //-----------------------------
+    else if (rx_capture_pending) begin
+
+        rx_data_reg <= {24'h0,m_rx_data};
+
+        rx_capture_pending <= 1'b0;
+
+        pready_reg <= 1'b1;
+    end
+
     else begin
-
-        // Start RX read
-        if (PSEL && PENABLE && !PWRITE &&
-            (addr == ADDR_RX_DATA) &&
-            !rx_read_pending) begin
-
-            rx_read_pending <= 1'b1;
-            pready_reg      <= 1'b0;      // Hold APB
-        end
-
-        // Wait until FIFO data is available
-        else if (rx_read_pending) begin
-
-            // First capture FIFO data
-            rx_data_reg <= {24'h0, m_rx_data};
-
-            // Then complete APB transfer
-            rx_read_pending <= 1'b0;
-            pready_reg      <= 1'b1;
-        end
+        pready_reg <= 1'b1;
     end
 end
-
-assign m_rx_re = PSEL && PENABLE &&
-                 !PWRITE &&
-                 (addr == ADDR_RX_DATA) &&
-                 !rx_read_pending;
+assign m_rx_re =
+        PSEL &&
+        PENABLE &&
+        !PWRITE &&
+        (addr == ADDR_RX_DATA) &&
+        !rx_read_pending &&
+        !rx_capture_pending;
 //=====================================================
 // STATUS Register
 //=====================================================
@@ -343,6 +367,7 @@ logic addr_hit;
 always_comb begin
    PRDATA   = 32'h0000_0000; 
     addr_hit = 1'b1;
+	 if (PSEL && PENABLE) begin
     unique case(addr)
         ADDR_CTRL       : PRDATA = ctrl_reg;
         ADDR_STATUS     : PRDATA = status_reg;
@@ -365,6 +390,7 @@ always_comb begin
             addr_hit = 1'b0;
         end
     endcase
+	end
 end
 
 //=====================================================
@@ -380,4 +406,3 @@ assign PREADY = pready_reg;
 assign PSLVERR = PSEL & PENABLE & (~addr_hit);
 
 endmodule
-

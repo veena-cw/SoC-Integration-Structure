@@ -73,6 +73,15 @@ module apb_spi_top(
     logic [31:0] scratch3_reg;
     logic [31:0] scratch4_reg;
     logic [31:0] scratch5_reg;
+	logic pready_reg;
+logic rx_read_pending;
+
+typedef enum logic [0:0] {
+    APB_IDLE,
+    APB_RX_WAIT
+} apb_state_t;
+
+apb_state_t apb_state;
     
  //=====================================================
 // Constant Registers
@@ -158,12 +167,40 @@ assign m_tx_we = PSEL && PENABLE && PWRITE && (addr == ADDR_TX_DATA);
 //=====================================================
 // RX DATA Register
 //=====================================================
-always_ff @(posedge clk or negedge rst_n)
+/*always_ff @(posedge clk or negedge rst_n)
     if(!rst_n)rx_data_reg <= 32'h0;
-    else if(m_done) rx_data_reg <= {24'h0,m_rx_data};
+    else if(m_done) rx_data_reg <= {24'h0,m_rx_data}; */
+	always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        rx_data_reg     <= 32'h0;
+        rx_read_pending <= 1'b0;
+        pready_reg      <= 1'b1;
+    end
+    else begin
+        // Detect RX_DATA read
+        if (PSEL && PENABLE && !PWRITE &&
+            (addr == ADDR_RX_DATA) &&
+            !rx_read_pending) begin
 
-assign m_rx_re = PSEL && PENABLE && (!PWRITE) && (addr == ADDR_RX_DATA);
+            rx_read_pending <= 1'b1;
+            pready_reg      <= 1'b0;
+        end
 
+        // Next cycle FIFO data is available
+        else if (rx_read_pending) begin
+
+            rx_data_reg     <= {24'h0, m_rx_data};
+            rx_read_pending <= 1'b0;
+            pready_reg      <= 1'b1;
+        end
+    end
+end
+
+//assign m_rx_re = PSEL && PENABLE && (!PWRITE) && (addr == ADDR_RX_DATA);
+assign m_rx_re = PSEL && PENABLE &&
+                 !PWRITE &&
+                 (addr == ADDR_RX_DATA) &&
+                 !rx_read_pending;
 //=====================================================
 // STATUS Register
 //=====================================================
@@ -267,7 +304,7 @@ spi_top #(
     .m_rx_count_o       (m_rx_count),
     //---------------- Status ----------------
     .m_busy_o           (m_busy),
-    .m_xfer_done_o      (m_done),
+    .m_xfer_done_o      (xfer_done_o),
     //---------------- Slave ----------------
     .s_cpol_i           (ctrl_reg[2]),
     .s_cpha_i           (ctrl_reg[3]),
@@ -334,9 +371,9 @@ assign spi_irq =  (irq_mask_reg[1] & irq_rx_full ) |
                  (irq_mask_reg[2] & irq_done    ) | (irq_mask_reg[3] & irq_err     );
 				 
 //APB Response
-assign PREADY  = PSEL & PENABLE;
+assign PREADY = pready_reg;
+//assign PREADY  = PSEL & PENABLE;
 // Invalid address generates slave error
 assign PSLVERR = PSEL & PENABLE & (~addr_hit);
 
 endmodule
-//(irq_mask_reg[0] & irq_tx_empty) |

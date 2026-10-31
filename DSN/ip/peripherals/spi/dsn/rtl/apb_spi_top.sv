@@ -73,17 +73,18 @@ module apb_spi_top(
     logic [31:0] scratch3_reg;
     logic [31:0] scratch4_reg;
     logic [31:0] scratch5_reg;
-	logic pready_reg;
-logic rx_read_pending;
-logic rx_capture_pending;
+	
+	logic rx_read;
 
-typedef enum logic [0:0] {
-    APB_IDLE,
-    APB_RX_WAIT
-} apb_state_t;
+typedef enum logic [1:0] {
+    RX_IDLE,
+    RX_WAIT,
+    RX_READY
+} rx_state_t;
 
-apb_state_t apb_state;
-    
+rx_state_t rx_state;
+
+
  //=====================================================
 // Constant Registers
 //=====================================================
@@ -171,64 +172,50 @@ assign m_tx_we = PSEL && PENABLE && PWRITE && (addr == ADDR_TX_DATA);
 /*always_ff @(posedge clk or negedge rst_n)
     if(!rst_n)rx_data_reg <= 32'h0;
     else if(m_done) rx_data_reg <= {24'h0,m_rx_data}; */
+
+assign rx_read = PSEL && PENABLE &&
+                 !PWRITE &&
+                 (addr == ADDR_RX_DATA);
+
+assign m_rx_re = rx_read &&
+                 (rx_state == RX_IDLE) &&
+                 !m_rx_empty;
+
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-    rx_read_pending    <= 1'b0;
-    rx_capture_pending <= 1'b0;
-    rx_data_reg        <= 32'h0;
-    pready_reg         <= 1'b0;
-end
-else begin
+        rx_state    <= RX_IDLE;
+        rx_data_reg <= 32'h0;
+    end else begin
+        unique case (rx_state)
 
-    //-----------------------------
-    // First APB read
-    //-----------------------------
-    if (PSEL &&
-        PENABLE &&
-        !PWRITE &&
-        (addr == ADDR_RX_DATA) &&
-        !rx_read_pending &&
-        !rx_capture_pending) begin
+            RX_IDLE: begin
+                if (rx_read) begin
+                    if (m_rx_empty) begin
+                        rx_data_reg <= 32'h0;
+                        rx_state    <= RX_READY;
+                    end else begin
+                        rx_state <= RX_WAIT;
+                    end
+                end
+            end
 
-        rx_read_pending <= 1'b1;
-        pready_reg      <= 1'b0;
-    end
+            // FIFO output is valid one clock after m_rx_re
+            RX_WAIT: begin
+                rx_data_reg <= {24'h0, m_rx_data};
+                rx_state    <= RX_READY;
+            end
 
-    //-----------------------------
-    // Wait for FIFO output
-    //-----------------------------
-    else if (rx_read_pending) begin
+            RX_READY: begin
+                if (!rx_read)
+                    rx_state <= RX_IDLE;
+            end
 
-        rx_read_pending    <= 1'b0;
-        rx_capture_pending <= 1'b1;
-
-        pready_reg <= 1'b0;
-    end
-
-    //-----------------------------
-    // Capture FIFO data
-    //-----------------------------
-    else if (rx_capture_pending) begin
-    rx_data_reg <= {24'h0,m_rx_data};
-
-    if (PSEL && PENABLE) begin
-        pready_reg <= 1'b1;
-        rx_capture_pending <= 1'b0;
+            default: rx_state <= RX_IDLE;
+        endcase
     end
 end
 
-    else begin
-        pready_reg <= 1'b1;
-    end
-end
-end
-assign m_rx_re =
-        PSEL &&
-        PENABLE &&
-        !PWRITE &&
-        (addr == ADDR_RX_DATA) &&
-        !rx_read_pending &&
-        !rx_capture_pending;
+
 //=====================================================
 // STATUS Register
 //=====================================================
@@ -376,6 +363,10 @@ always_comb begin
         ADDR_CLK_DIV    : PRDATA = clk_div_reg;
         ADDR_TX_DATA    : PRDATA = tx_data_reg;
         ADDR_RX_DATA    : PRDATA = rx_data_reg;
+	//   ADDR_RX_DATA: begin
+    //if (PSEL && PENABLE && PREADY)
+     //   PRDATA = rx_data_reg;
+//end
         ADDR_FIFO_LVL   : PRDATA = fifo_lvl_reg;
         ADDR_ID         : PRDATA = id_reg;
         ADDR_VERSION    : PRDATA = version_reg;
@@ -399,7 +390,7 @@ assign spi_irq =  (irq_mask_reg[1] & irq_rx_full ) |
                  (irq_mask_reg[2] & irq_done    ) | (irq_mask_reg[3] & irq_err     );
 				 
 //APB Response
-assign PREADY = pready_reg;
+assign PREADY = PSEL && PENABLE &&(!rx_read || (rx_state == RX_READY));
 //assign PREADY  = PSEL & PENABLE;
 // Invalid address generates slave error
 assign PSLVERR = PSEL & PENABLE & (~addr_hit);

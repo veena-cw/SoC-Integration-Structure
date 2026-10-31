@@ -178,6 +178,9 @@ TEST_ID      ?= 60
 else ifeq ($(TEST),bp_dv_061_plic_irq_single_test)
 TCNAME       ?= plic_irq_single
 TEST_ID      ?= 61
+else ifeq ($(TEST),bp_dv_062_plic_isr_service_test)
+TCNAME       ?= plic_isr_service
+TEST_ID      ?= 62
 else ifeq ($(TEST),bp_dv_056_cbo_zero_test)
 TCNAME       ?= cbo_zero
 TEST_ID      ?= 56

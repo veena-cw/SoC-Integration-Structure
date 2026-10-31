@@ -189,6 +189,14 @@ bp_dv_059_plic_reg_full_test 59 plic_reg_full.nbf
 bp_dv_060_plic_irq_scenarios_test 60 plic_irq_scenarios.nbf
 bp_dv_061_plic_irq_single_test 61 plic_irq_single.nbf
 
+# BP-DV-062 - ISR service order on hart 0 (c/plic_isr_service.c): M-external
+# interrupt, handler claims, reads the device status, clears the device, then
+# completes; MEIP low while claimed, no re-entry after complete, priority
+# order with two devices, and complete-before-service gives a spurious
+# second entry. Nonzero tohost (hart 0): (fail_count << 16) | 0x6200 | first
+# failing check. Progress at 0x0010_8F00.
+bp_dv_062_plic_isr_service_test 62 plic_isr_service.nbf
+
 # BP-DV-043 - AXI SLVERR (0x3003_xxxx) / DECERR (0x3004_xxxx) on uncached
 # sd/ld from both harts; expects store/load access faults (mcause 7/5,
 # mtval = address) and a working bus afterwards. Nonzero tohost per hart:

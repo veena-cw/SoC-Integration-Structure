@@ -956,6 +956,15 @@ class bp_dv_061_plic_irq_single_test extends bp_dv_058_plic_irq_test;
   endfunction
 endclass
 
+// Test ID: BP-DV-062 | ISR order: claim -> service the device -> complete
+// (c/plic_isr_service.c)
+class bp_dv_062_plic_isr_service_test extends bp_dv_058_plic_irq_test;
+  `uvm_component_utils(bp_dv_062_plic_isr_service_test)
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+endclass
+
 // Test ID: BP-DV-043 | Feature: AXI SLVERR/DECERR on uncached MMIO accesses
 // (both harts). The AXI agent answers 0x3003_0000-0x3003_1FFF with SLVERR
 // and 0x3004_0000-0x3004_1FFF with DECERR; the CPU is expected to raise a

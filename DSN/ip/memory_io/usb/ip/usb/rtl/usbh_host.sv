@@ -1184,8 +1184,8 @@ begin
            (device_det_q & !usb_irq_mask_device_detect_out_w);
 end
 
-assign usb_irq_sts_device_detect_in_w = device_det_q & !usb_irq_mask_device_detect_out_w;
-
+//assign usb_irq_sts_device_detect_in_w = device_det_q & !usb_irq_mask_device_detect_out_w;
+assign usb_irq_sts_device_detect_in_w = device_det_q;
 assign intr_o = intr_q;
 
 

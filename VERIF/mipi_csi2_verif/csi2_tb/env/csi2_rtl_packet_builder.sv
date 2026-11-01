@@ -15,8 +15,16 @@ class csi2_rtl_packet_builder;
 
     header_bytes[0] = {item.reserved, item.vcx};
     header_bytes[1] = {item.vc, item.datatype};
-    header_bytes[2] = item.rtl_word_count[7:0];
-    header_bytes[3] = item.rtl_word_count[15:8];
+    if (item.is_short_packet)
+    begin
+      header_bytes[2] = item.short_data[7:0];
+      header_bytes[3] = item.short_data[15:8];
+    end
+    else
+    begin
+      header_bytes[2] = item.rtl_word_count[7:0];
+      header_bytes[3] = item.rtl_word_count[15:8];
+    end
 
     header_crc = CSI2_CRC16_INIT;
     for (int index = 0; index < 4; index++)
@@ -50,7 +58,7 @@ class csi2_rtl_packet_builder;
 
     while ((payload_and_crc.size() % 8) != 0)
      payload_and_crc.push_back(8'h00);
-     
+
     for (int base = 0; base < payload_and_crc.size(); base += 8) begin
       logic [63:0] word_value;
       word_value = 64'h0;

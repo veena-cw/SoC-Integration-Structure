@@ -30,8 +30,9 @@ module csi2_tb_top;
   ) axi_vif(.aclk(aclk));
 
   csi2_rx_status_if status_vif(
-    .bfm_clk(bfm_clk),
-    .aclk   (aclk)
+  .bfm_clk(bfm_clk),
+  .aclk   (aclk),
+  .llp_clk(phy_bfm.cphy_rxwordclkhs)
   );
 
   logic rd_rst_n;
@@ -56,17 +57,30 @@ module csi2_tb_top;
 
   // Keep all DUT hierarchy references in the integration top.  Reusable UVM
   // components consume only this virtual status interface.
-  assign status_vif.rst_n           = rst_vif.rst_n;
-  assign status_vif.dtype           = dut.dtype_sts_reg;
-  assign status_vif.lane_err        = dut.lane_err;
-  assign status_vif.llp_err_vld     = dut.llp_err_vld;
-  assign status_vif.llp_err         = dut.llp_err;
-  assign status_vif.rx_pixel_dvalid = dut.rx_pixel_dvalid;
-  assign status_vif.axi_wr_en       = dut.axim_inst.axi_wr_en;
-  assign status_vif.axi_full        = dut.axim_inst.axi_full;
-  assign status_vif.data_length_vld = dut.axim_inst.data_length_vld;
-  assign status_vif.axi_fifo_empty  = dut.axim_inst.axi_empty;
-  assign status_vif.axi_fifo_rd_vld = dut.axim_inst.axi_rd_vld;
+  assign status_vif.rst_n             = rst_vif.rst_n;
+  assign status_vif.dtype             = dut.dtype_sts_reg;
+  assign status_vif.lane_err          = dut.lane_err;
+  assign status_vif.llp_err_vld       = dut.llp_err_vld;
+  assign status_vif.llp_err           = dut.llp_err;
+  assign status_vif.short_pkt_vld     = dut.llp_rx_inst.shrt_pkt_vld;
+  assign status_vif.llp_dec_ctr       = dut.llp_rx_inst.llp_dec_ctr;
+  assign status_vif.rx_lm_byte_vld_r  = dut.llp_rx_inst.rx_lm_byte_vld_r;
+  assign status_vif.decoded_vc        = dut.llp_rx_inst.vc_rx;
+  assign status_vif.decoded_vcx       = dut.llp_rx_inst.vcx_rx;
+  assign status_vif.short_data_lsb    = dut.llp_rx_inst.data_field_lsb_rx;
+  assign status_vif.short_data_msb    = dut.llp_rx_inst.data_field_msb_rx;
+  assign status_vif.frame_start_vld   = dut.llp_rx_inst.ssp_frame_strt_vld;
+  assign status_vif.frame_end_vld     = dut.llp_rx_inst.ssp_frame_end_vld;
+  assign status_vif.line_start_vld    = dut.llp_rx_inst.ssp_line_strt_vld;
+  assign status_vif.line_end_vld      = dut.llp_rx_inst.ssp_line_end_vld;
+  assign status_vif.generic_short_vld = dut.llp_rx_inst.gsp_dtype_vld;
+  assign status_vif.rx_pixel_dvalid   = dut.rx_pixel_dvalid;
+  assign status_vif.axi_wr_en         = dut.axim_inst.axi_wr_en;
+  assign status_vif.axi_full          = dut.axim_inst.axi_full;
+  assign status_vif.data_length_vld   = dut.axim_inst.data_length_vld;
+  assign status_vif.axi_fifo_empty    = dut.axim_inst.axi_empty;
+  assign status_vif.axi_fifo_rd_vld   = dut.axim_inst.axi_rd_vld;
+  assign status_vif.long_pkt_vld      = dut.llp_rx_inst.long_pkt_vld;
 
   // Minimal memory-side response model.  The passive AXI monitor will decide
   // whether a transfer is effective from WVALID/WREADY/WSTRB.
@@ -222,7 +236,7 @@ always @(posedge aclk) begin
   if (!axi_vif.areset_n) begin
     dbg_w_count = 0;
   end
-  else if (axi_vif.wvalid && axi_vif.wready) 
+  else if (axi_vif.wvalid && axi_vif.wready)
   begin
     dbg_w_count++;
 

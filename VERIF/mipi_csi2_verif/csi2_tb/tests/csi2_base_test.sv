@@ -58,4 +58,12 @@ class csi2_base_test extends uvm_test;
     disable fork;
     phase.drop_objection(this);
   endtask
+  task shutdown_phase (uvm_phase phase);
+	uvm_objection objection;
+	super.shutdown_phase(phase);
+	objection=phase.get_objection();
+	objection.set_drain_time(this,100ns);
+	$display("shut down phase : extended time period :%0t",$time);
+  endtask
+
 endclass : csi2_base_test

@@ -31,5 +31,6 @@ class csi2_env extends uvm_env;
     super.connect_phase(phase);
     ppi_agent.driver.expected_ap.connect(scoreboard.expected_fifo.analysis_export);
     axi_monitor.ap.connect(scoreboard.actual_fifo.analysis_export);
+    internal_monitor.short_ap.connect(scoreboard.short_actual_fifo.analysis_export);
   endfunction
 endclass : csi2_env

@@ -1,150 +1,663 @@
 class csi2_scoreboard extends uvm_scoreboard;
   `uvm_component_utils(csi2_scoreboard)
-  int dt_type_scoreboard ;
-  int dt_type_exp;
+
   csi2_env_config cfg;
-  uvm_tlm_analysis_fifo #(csi2_rx_packet_item) expected_fifo;
-  uvm_tlm_analysis_fifo #(csi2_axi_write_item) actual_fifo;
+
+  uvm_tlm_analysis_fifo #(csi2_rx_packet_item)
+    expected_fifo;
+
+  uvm_tlm_analysis_fifo #(csi2_axi_write_item)
+    actual_fifo;
+
+  uvm_tlm_analysis_fifo #(csi2_rx_packet_item) short_actual_fifo;
+
+  // Existing CSI-2 transport-payload unpacker.
+  csi2_pixel_unpacker pixel_unpacker;
 
   byte unsigned expected_bytes[$];
   byte unsigned actual_bytes[$];
+
+  bit [23:0] expected_pixels[$];
+
+  bit [5:0] expected_datatype;
+  bit       expected_datatype_valid;
+
+  int unsigned actual_short_count;
+  bit       llp_err_seen;
+  bit [2:0] llp_err_code;
+  time      llp_err_time;
+
+  bit       lane_err_seen;
+  time      lane_err_time;
+
+  bit [5:0]  actual_short_dtype_q[$];
+  bit [15:0] actual_short_data_q[$];
+  bit [1:0]  actual_short_vc_q[$];
+
   int unsigned expected_transaction_count;
+  int unsigned expected_long_count;
+  int unsigned expected_short_count;
   int unsigned effective_write_count;
   int unsigned mismatch_count;
-  bit bfm_completed;
-  int unsigned bfm_status;
 
-  function new(string name = "csi2_scoreboard", uvm_component parent);
+  bit          all_bfm_completed = 1'b1;
+  int unsigned last_bfm_status;
+
+  bit expected_error_injection;
+
+  //bit       llp_err_seen;
+  //bit [2:0] llp_err_code;
+  //bit       lane_err_seen;
+
+
+  function new(
+    string name = "csi2_scoreboard",
+    uvm_component parent = null
+  );
     super.new(name, parent);
   endfunction
 
+
   function void build_phase(uvm_phase phase);
     super.build_phase(phase);
+
     expected_fifo = new("expected_fifo", this);
     actual_fifo   = new("actual_fifo", this);
-    if (!uvm_config_db#(csi2_env_config)::get(this, "", "env_cfg", cfg))
-      `uvm_fatal("SB", "Missing environment configuration")
+    short_actual_fifo = new("short_actual_fifo", this);
+    pixel_unpacker = new();
+
+    if (!uvm_config_db#(csi2_env_config)::get(
+          this, "", "env_cfg", cfg)) begin
+      `uvm_fatal(
+        "SB",
+        "Missing environment configuration"
+      )
+    end
   endfunction
+
+
+  function bit is_supported_raw(
+    input bit [5:0] datatype
+  );
+    return datatype inside {
+      DT_RAW6,
+      DT_RAW7,
+      DT_RAW8,
+      DT_RAW10,
+      DT_RAW12,
+      DT_RAW14
+    };
+  endfunction
+
+
+  function int unsigned get_raw_sample_width(
+    input bit [5:0] datatype
+  );
+    case (datatype)
+      DT_RAW6:
+        return 6;
+
+      DT_RAW7:
+        return 7;
+
+      DT_RAW8:
+        return 8;
+
+      DT_RAW10:
+        return 10;
+
+      DT_RAW12:
+        return 12;
+
+      DT_RAW14:
+        return 14;
+
+      default:
+        return 0;
+    endcase
+  endfunction
+
+
+  // AXI contains a contiguous little-endian pixel bitstream.
+  //
+  // This function must not apply the CSI-2 RAW10 transport rule again.
+  // It simply divides the accepted AXI byte stream into samples based on
+  // the active RAW sample width.
+  function bit unpack_axi_raw(
+    input bit [5:0] datatype,
+    input byte unsigned axi_bytes[$],
+    ref bit [23:0] pixels[],
+    output string error_msg
+  );
+    int unsigned sample_width;
+    int unsigned total_bits;
+    int unsigned bit_index;
+
+    pixels    = new[0];
+    error_msg = "";
+
+    sample_width = get_raw_sample_width(datatype);
+
+    if (sample_width == 0) begin
+      error_msg = $sformatf(
+        "Unsupported AXI RAW datatype 0x%02h",
+        datatype
+      );
+
+      return 0;
+    end
+
+    if (axi_bytes.size() == 0) begin
+      error_msg = "AXI byte stream is empty";
+      return 0;
+    end
+
+    total_bits = axi_bytes.size() * 8;
+
+    if ((total_bits % sample_width) != 0) begin
+      error_msg = $sformatf(
+        "AXI byte count %0d is not aligned to %0d-bit pixels",
+        axi_bytes.size(),
+        sample_width
+      );
+
+      return 0;
+    end
+
+    pixels = new[total_bits / sample_width];
+
+    bit_index = 0;
+
+    foreach (pixels[pixel_index]) begin
+      pixels[pixel_index] = '0;
+
+      for (int sample_bit = 0;
+           sample_bit < sample_width;
+           sample_bit++) begin
+
+        pixels[pixel_index][sample_bit] =
+          axi_bytes[bit_index / 8][bit_index % 8];
+
+        bit_index++;
+      end
+    end
+
+    return 1;
+  endfunction
+
 
   task collect_expected();
     csi2_rx_packet_item item;
+
     forever begin
       expected_fifo.get(item);
-      dt_type_exp = int'(item.datatype);
+
       expected_transaction_count++;
-      bfm_completed = item.bfm_completed;
-      bfm_status    = item.bfm_status;
-      foreach (item.payload[index])
-      expected_bytes.push_back(item.payload[index]);
+
+      all_bfm_completed &=
+        item.bfm_completed;
+
+      last_bfm_status =
+        item.bfm_status;
+
+      if (item.errsoths ||
+          item.errsotsynchs) begin
+        expected_error_injection = 1'b1;
+      end
+
+      // Short packets do not contain payload.
+      if (item.is_short_packet) begin
+        expected_short_count++;
+
+        `uvm_info(
+          "SB_EXPECTED_SHORT",
+          $sformatf(
+            "Expected short packet: %s",
+            item.convert2string()
+          ),
+          UVM_MEDIUM
+        )
+
+        continue;
+      end
+
+      expected_long_count++;
+
+      if (!is_supported_raw(item.datatype)) begin
+        mismatch_count++;
+
+        `uvm_error(
+          "SB_FORMAT",
+          $sformatf(
+            "Scoreboard supports RAW6/7/8/10/12/14; received datatype 0x%02h",
+            item.datatype
+          )
+        )
+
+        continue;
+      end
+
+      // All long packets in one test must currently use the same format.
+      if (expected_datatype_valid &&
+          (expected_datatype != item.datatype)) begin
+
+        mismatch_count++;
+
+        `uvm_error(
+          "SB_FORMAT",
+          "Multiple long-packet datatypes in one test are not supported"
+        )
+
+        continue;
+      end
+
+      expected_datatype       = item.datatype;
+      expected_datatype_valid = 1'b1;
+
+      foreach (item.payload[index]) begin
+        expected_bytes.push_back(
+          item.payload[index]
+        );
+      end
+
+      begin
+        int unsigned line_width;
+        string error_msg;
+
+        bit [23:0] unpacked_pixels[];
+        bit [9:0]  y_samples[];
+        bit [9:0]  u_samples[];
+        bit [9:0]  v_samples[];
+
+        // Determine the pixel count from the CSI-2 transport payload.
+        if (!pixel_unpacker.infer_line_width(
+              item.datatype,
+              item.payload.size(),
+              ODD_LINE,
+              line_width,
+              error_msg)) begin
+
+          mismatch_count++;
+
+          `uvm_error(
+            "SB_CSI_UNPACK",
+            $sformatf(
+              "Cannot infer line width: %s",
+              error_msg
+            )
+          )
+
+          continue;
+        end
+
+        // Decode CSI-2 transport packing into individual expected pixels.
+        if (!pixel_unpacker.unpack(
+              item.datatype,
+              item.payload,
+              line_width,
+              ODD_LINE,
+              unpacked_pixels,
+              y_samples,
+              u_samples,
+              v_samples,
+              error_msg)) begin
+
+          mismatch_count++;
+
+          `uvm_error(
+            "SB_CSI_UNPACK",
+            $sformatf(
+              "CSI-2 payload unpack failed: %s",
+              error_msg
+            )
+          )
+
+          continue;
+        end
+
+        foreach (unpacked_pixels[index]) begin
+          expected_pixels.push_back(
+            unpacked_pixels[index]
+          );
+        end
+
+        `uvm_info(
+          "SB_EXPECTED",
+          $sformatf(
+            "Expected dtype=0x%02h transport_bytes=%0d pixels=%0d",
+            item.datatype,
+            item.payload.size(),
+            unpacked_pixels.size()
+          ),
+          UVM_MEDIUM
+        )
+      end
     end
   endtask
+
 
   task collect_actual();
     csi2_axi_write_item item;
+
     forever begin
       actual_fifo.get(item);
-      //dt_type_scoreboard = int'(item.datatype) ;
-      effective_write_count++;
-      foreach (item.accepted_bytes[index])
-        actual_bytes.push_back(item.accepted_bytes[index]);
-    end
-  endtask
-  
-  
-  bit llp_err_seen = 0;
-  bit [2:0] llp_err_code = 0;
 
-  task collect_errors();
-    forever begin
-      @(cfg.status_vif.rx_cb);
-      if (cfg.status_vif.rst_n !== 1'b1) continue;
-      
-      // Latch the 1-cycle pulse!
-      if (cfg.status_vif.llp_err_vld) 
-       begin
-        llp_err_seen = 1'b1;
-        llp_err_code = cfg.status_vif.llp_err;
+      effective_write_count++;
+
+      foreach (item.accepted_bytes[index]) begin
+        actual_bytes.push_back(
+          item.accepted_bytes[index]
+        );
       end
-      if (cfg.status_vif.lane_err) llp_err_seen = 1'b1;
     end
   endtask
+
+
+ task collect_errors();
+  forever begin
+    @(cfg.status_vif.rx_cb);
+
+    if (cfg.status_vif.rx_cb.rst_n !== 1'b1) begin
+      continue;
+    end
+
+    if (cfg.status_vif.rx_cb.llp_err_vld === 1'b1) begin
+      llp_err_seen = 1'b1;
+      llp_err_code = cfg.status_vif.rx_cb.llp_err;
+      llp_err_time = $time;
+
+      `uvm_info(
+        "SB_LLP_CAPTURE",
+        $sformatf(
+          "LLP error captured: time=%0t code=%0d",
+          llp_err_time,
+          llp_err_code
+        ),
+        UVM_NONE
+      )
+    end
+
+    if (cfg.status_vif.rx_cb.lane_err === 1'b1) begin
+      lane_err_seen = 1'b1;
+      lane_err_time = $time;
+
+      `uvm_info(
+        "SB_LANE_CAPTURE",
+        $sformatf(
+          "Lane error captured: time=%0t",
+          lane_err_time
+        ),
+        UVM_NONE
+      )
+    end
+  end
+endtask
+
+  task collect_actual_short();
+  csi2_rx_packet_item item;
+
+  forever begin
+    short_actual_fifo.get(item);
+
+    actual_short_count++;
+
+    actual_short_dtype_q.push_back(item.datatype);
+    actual_short_data_q.push_back(item.short_data);
+    actual_short_vc_q.push_back(item.vc);
+
+    `uvm_info(
+      "SB_ACTUAL_SHORT",
+      $sformatf(
+        "Observed short packet #%0d dtype=0x%02h data=0x%04h vc=%0d",
+        actual_short_count,
+        item.datatype,
+        item.short_data,
+        item.vc
+      ),
+      UVM_MEDIUM
+    )
+  end
+endtask
+
+
   task run_phase(uvm_phase phase);
     fork
       collect_errors();
       collect_expected();
       collect_actual();
+      collect_actual_short();
     join
   endtask
 
+
   function void check_phase(uvm_phase phase);
+    bit [23:0] actual_pixels[];
+
+    string error_msg;
+
     int unsigned compare_count;
+
     super.check_phase(phase);
-    if(llp_err_seen)
-    `uvm_warning("SCORE_BOARD","LOW LEVEL PROTOCAL ERROR IS ASSERTED")
-    if (expected_transaction_count != 1) 
-    begin
+
+    if (expected_transaction_count == 0) begin
       mismatch_count++;
-      `uvm_error("SB_CHECK",
-                 $sformatf("Expected one completed BFM transaction, observed %0d",
-                           expected_transaction_count))
-    end
-    if (!bfm_completed) begin
-      mismatch_count++;
-      `uvm_error("SB_CHECK", $sformatf("BFM did not complete; status=%0d",
-                                        bfm_status))
-    end
-    if (cfg.status_vif.dtype !== dt_type_exp) 
-    begin
-      mismatch_count++;
-      `uvm_error("SB_DTYPE",
-                 $sformatf("Expected datatype :%0d, observed 0x%02h",dt_type_exp ,
-                           cfg.status_vif.dtype))
-    end
-    if (cfg.status_vif.lane_err || cfg.status_vif.llp_err_vld) begin
-      mismatch_count++;
-      `uvm_error("SB_DUT_ERROR",
-                 $sformatf("lane_err=%0b llp_err_vld=%0b llp_err=%0d",
-                           cfg.status_vif.lane_err,
-                           cfg.status_vif.llp_err_vld,
-                           cfg.status_vif.llp_err))
-    end
-    if (effective_write_count == 0) begin
-      mismatch_count++;
-      `uvm_error("SB_AXI", "No effective AXI write was observed")
-    end
-    if (actual_bytes.size() != expected_bytes.size()) begin
-      mismatch_count++;
-      `uvm_error("SB_SIZE",
-                 $sformatf("AXI byte count differs: expected=%0d actual=%0d",
-                           expected_bytes.size(), actual_bytes.size()))
+
+      `uvm_error(
+        "SB_CHECK",
+        "No completed BFM transaction was observed"
+      )
     end
 
-    compare_count = (actual_bytes.size() < expected_bytes.size()) ?
-                    actual_bytes.size() : expected_bytes.size();
-    for (int index = 0; index < compare_count; index++) 
-    begin
-      if (actual_bytes[index] != expected_bytes[index]) 
-      begin
+    if (!all_bfm_completed) begin
+      mismatch_count++;
+
+      `uvm_error(
+        "SB_CHECK",
+        $sformatf(
+          "A BFM transaction did not complete; last status=%0d",
+          last_bfm_status
+        )
+      )
+    end
+
+  if (llp_err_seen) begin
+  mismatch_count++;
+
+  `uvm_error(
+    "SB_DUT_ERROR",
+    $sformatf(
+      "Unexpected LLP error captured at time=%0t code=%0d",
+      llp_err_time,
+      llp_err_code
+    )
+  )
+end
+
+if (lane_err_seen) begin
+  mismatch_count++;
+
+  `uvm_error(
+    "SB_DUT_ERROR",
+    $sformatf(
+      "Unexpected lane error captured at time=%0t",
+      lane_err_time
+    )
+  )
+end
+    // Short packets must not produce AXI payload data.
+    if ((expected_long_count == 0) &&
+        (expected_short_count != 0)) begin
+
+      if ((effective_write_count != 0) ||
+          (actual_bytes.size() != 0)) begin
+
         mismatch_count++;
-        `uvm_error("SB_DATA",
-                   $sformatf("Byte[%0d] expected=0x%02h actual=0x%02h",
-                             index, expected_bytes[index], actual_bytes[index]))
+
+        `uvm_error(
+          "SB_SHORT_AXI",
+          $sformatf(
+            "Short-only test generated AXI payload data: writes=%0d bytes=%0d",
+            effective_write_count,
+            actual_bytes.size()
+          )
+        )
+      end
+
+      return;
+    end
+
+    if (expected_long_count == 0)
+      return;
+
+    if (!expected_datatype_valid) begin
+      mismatch_count++;
+
+      `uvm_error(
+        "SB_FORMAT",
+        "Expected long-packet datatype is unavailable"
+      )
+
+      return;
+    end
+
+    if (cfg.status_vif.dtype !==
+        expected_datatype) begin
+
+      mismatch_count++;
+
+      `uvm_error(
+        "SB_DTYPE",
+        $sformatf(
+          "Expected datatype 0x%02h, observed 0x%02h",
+          expected_datatype,
+          cfg.status_vif.dtype
+        )
+      )
+    end
+
+    if (effective_write_count == 0) begin
+      mismatch_count++;
+
+      `uvm_error(
+        "SB_AXI",
+        "No effective AXI write was observed"
+      )
+
+      return;
+    end
+
+    // Decode the DUT AXI output into individual RAW pixels.
+    if (!unpack_axi_raw(
+          expected_datatype,
+          actual_bytes,
+          actual_pixels,
+          error_msg)) begin
+
+      mismatch_count++;
+
+      `uvm_error(
+        "SB_AXI_UNPACK",
+        $sformatf(
+          "AXI pixel unpack failed: %s",
+          error_msg
+        )
+      )
+
+      return;
+    end
+
+    if (actual_pixels.size() !=
+        expected_pixels.size()) begin
+
+      mismatch_count++;
+
+      `uvm_error(
+        "SB_PIXEL_COUNT",
+        $sformatf(
+          "Pixel count differs: expected=%0d actual=%0d",
+          expected_pixels.size(),
+          actual_pixels.size()
+        )
+      )
+    end
+
+    compare_count =
+      (actual_pixels.size() < expected_pixels.size()) ?
+      actual_pixels.size() :
+      expected_pixels.size();
+
+    for (int index = 0;
+         index < compare_count;
+         index++) begin
+
+      if (actual_pixels[index] !=
+          expected_pixels[index]) begin
+
+        mismatch_count++;
+
+        `uvm_error(
+          "SB_PIXEL_DATA",
+          $sformatf(
+            "Pixel[%0d] expected=0x%06h actual=0x%06h dtype=0x%02h",
+            index,
+            expected_pixels[index],
+            actual_pixels[index],
+            expected_datatype
+          )
+        )
+
         break;
       end
     end
+
+    `uvm_info(
+      "SB_PIXEL_CHECK",
+      $sformatf(
+        "Compared dtype=0x%02h expected_pixels=%0d actual_pixels=%0d expected_transport_bytes=%0d actual_axi_bytes=%0d",
+        expected_datatype,
+        expected_pixels.size(),
+        actual_pixels.size(),
+        expected_bytes.size(),
+        actual_bytes.size()
+      ),
+      UVM_NONE
+    )
   endfunction
+
 
   function void report_phase(uvm_phase phase);
     super.report_phase(phase);
-    if (mismatch_count == 0 && effective_write_count != 0)
-      `uvm_info("SB_SUMMARY",
-                $sformatf("PASS expected_bytes=%0d actual_bytes=%0d writes=%0d",
-                          expected_bytes.size(), actual_bytes.size(),
-                          effective_write_count), UVM_NONE)
-    else
-      `uvm_error("SB_SUMMARY",
-                 $sformatf("FAIL expected_bytes=%0d actual_bytes=%0d writes=%0d mismatches=%0d",
-                           expected_bytes.size(), actual_bytes.size(),
-                           effective_write_count, mismatch_count))
+
+    if (mismatch_count == 0) begin
+      `uvm_info(
+        "SB_SUMMARY",
+        $sformatf(
+          "PASS packets=%0d long=%0d short=%0d expected_pixels=%0d axi_bytes=%0d writes=%0d",
+          expected_transaction_count,
+          expected_long_count,
+          expected_short_count,
+          expected_pixels.size(),
+          actual_bytes.size(),
+          effective_write_count
+        ),
+        UVM_NONE
+      )
+    end
+    else begin
+      `uvm_error(
+        "SB_SUMMARY",
+        $sformatf(
+          "FAIL packets=%0d long=%0d short=%0d expected_pixels=%0d axi_bytes=%0d writes=%0d mismatches=%0d",
+          expected_transaction_count,
+          expected_long_count,
+          expected_short_count,
+          expected_pixels.size(),
+          actual_bytes.size(),
+          effective_write_count,
+          mismatch_count
+        )
+      )
+    end
   endfunction
+
 endclass : csi2_scoreboard

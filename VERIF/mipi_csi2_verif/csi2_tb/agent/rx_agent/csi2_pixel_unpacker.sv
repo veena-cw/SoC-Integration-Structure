@@ -12,6 +12,141 @@ class csi2_pixel_unpacker;
     v_samples = new[0];
   endfunction
 
+function bit unpack_axi_raw(
+  input bit [5:0] datatype,
+  input byte unsigned axi_bytes[$],
+  ref bit [23:0] pixels[],
+  output string error_msg
+);
+  int unsigned sample_width;
+  int unsigned total_bits;
+  int unsigned bit_index;
+  int unsigned output_pixel;
+  bit [39:0] raw10_group;
+
+  pixels    = new[0];
+  error_msg = "";
+
+  case (datatype)
+    DT_RAW6:  sample_width = 6;
+    DT_RAW7:  sample_width = 7;
+    DT_RAW8:  sample_width = 8;
+    DT_RAW10: sample_width = 10;
+    DT_RAW12: sample_width = 12;
+    DT_RAW14: sample_width = 14;
+
+    default: begin
+      error_msg = $sformatf(
+        "AXI RAW unpacking does not support datatype 0x%02h",
+        datatype
+      );
+      return 0;
+    end
+  endcase
+
+  if (axi_bytes.size() == 0) begin
+    error_msg = "AXI byte stream is empty";
+    return 0;
+  end
+
+  /*
+   * RAW10 AXI output handling.
+   *
+   * The DUT places four RAW10 pixels in one 40-bit AXI group:
+   *
+   * [39:30] = first pixel
+   * [29:20] = second pixel
+   * [19:10] = third pixel
+   * [9:0]   = fourth pixel
+   */
+  if (datatype == DT_RAW10) begin
+    if ((axi_bytes.size() % 5) != 0) begin
+      error_msg = $sformatf(
+        "RAW10 AXI byte count %0d is not divisible by 5",
+        axi_bytes.size()
+      );
+      return 0;
+    end
+
+    pixels = new[(axi_bytes.size() / 5) * 4];
+    output_pixel = 0;
+
+    for (int base = 0;
+         base < axi_bytes.size();
+         base += 5) begin
+
+      raw10_group = 40'h0;
+
+      /*
+       * Reconstruct WDATA[39:0] from accepted AXI bytes.
+       * axi_bytes[base] is WDATA[7:0].
+       */
+      for (int byte_index = 0;
+           byte_index < 5;
+           byte_index++) begin
+
+        raw10_group[byte_index*8 +: 8] =
+            axi_bytes[base + byte_index];
+      end
+
+      pixels[output_pixel] = '0;
+      pixels[output_pixel][9:0] =
+          raw10_group[39:30];
+      output_pixel++;
+
+      pixels[output_pixel] = '0;
+      pixels[output_pixel][9:0] =
+          raw10_group[29:20];
+      output_pixel++;
+
+      pixels[output_pixel] = '0;
+      pixels[output_pixel][9:0] =
+          raw10_group[19:10];
+      output_pixel++;
+
+      pixels[output_pixel] = '0;
+      pixels[output_pixel][9:0] =
+          raw10_group[9:0];
+      output_pixel++;
+    end
+
+    return 1;
+  end
+
+  /*
+   * Generic contiguous-bit AXI unpacking for RAW6, RAW7,
+   * RAW8, RAW12 and RAW14.
+   */
+  total_bits = axi_bytes.size() * 8;
+
+  if ((total_bits % sample_width) != 0) begin
+    error_msg = $sformatf(
+      "AXI byte count %0d is not aligned to %0d-bit pixels",
+      axi_bytes.size(),
+      sample_width
+    );
+    return 0;
+  end
+
+  pixels = new[total_bits / sample_width];
+  bit_index = 0;
+
+  foreach (pixels[pixel_index]) begin
+    pixels[pixel_index] = '0;
+
+    for (int sample_bit = 0;
+         sample_bit < sample_width;
+         sample_bit++) begin
+
+      pixels[pixel_index][sample_bit] =
+          axi_bytes[bit_index / 8][bit_index % 8];
+
+      bit_index++;
+    end
+  end
+
+  return 1;
+endfunction
 
   function void unpack_4x10bit(
     input byte unsigned b0,

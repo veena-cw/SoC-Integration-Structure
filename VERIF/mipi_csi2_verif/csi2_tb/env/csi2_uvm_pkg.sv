@@ -1,10 +1,25 @@
 package csi2_uvm_pkg;
+
   import uvm_pkg::*;
   import csi2_pkg::*;
+
   `include "uvm_macros.svh"
 
   `include "csi2_env_config.sv"
   `include "csi2_rx_packet_item.sv"
+
+  // Pixel packer must be defined before csi2_ppi_sequence.
+  `ifndef CSI2_PIXEL_PACKER_INCLUDED
+    `define CSI2_PIXEL_PACKER_INCLUDED
+    `include "csi2_pixel_packer.sv"
+  `endif
+
+  // Pixel unpacker must be defined before csi2_scoreboard.
+  `ifndef CSI2_PIXEL_UNPACKER_INCLUDED
+    `define CSI2_PIXEL_UNPACKER_INCLUDED
+    `include "csi2_pixel_unpacker.sv"
+  `endif
+
   `include "csi2_rtl_packet_builder.sv"
 
   `include "csi2_reset_config.sv"
@@ -24,12 +39,17 @@ package csi2_uvm_pkg;
   `include "csi2_axi_write_item.sv"
   `include "csi2_axi_write_monitor.sv"
   `include "csi2_rx_internal_monitor.sv"
+
   `include "csi2_scoreboard.sv"
   `include "csi2_env.sv"
+
   `include "csi2_base_test.sv"
+  `include "csi2_b2b_short_packet_test.sv"
   `include "csi2_raw6_test.sv"
-  //`include "csi2_errorsync_test.sv"
+  `include "csi2_raw10_test.sv"
+  `include "csi2_errorsync_test.sv"
   `include "csi2_end_early_eot_test.sv"
   `include "csi2_raw8_test.sv"
   `include "csi2_rx_raw7_test.sv"
+
 endpackage : csi2_uvm_pkg

@@ -1,5 +1,4 @@
 
-
 `timescale 1ns/1ps
  
 // -----------------------------------------------------------------------------
@@ -287,11 +286,25 @@ module axi4_usb_slave #(
  
     // One FIFO write port is shared by read and write commands.
     // Write command has priority if both become ready in the same AXI cycle.
-    wire wr_cmd_request = (wr_state == WR_FIFO) && wr_supported;
-    wire rd_cmd_request = (rd_state == RD_FIFO) && rd_supported;
+    
+    //wire wr_cmd_request = (wr_state == WR_FIFO) && wr_supported;
+    
+    wire wr_cmd_request = (wr_state == WR_FIFO) && wr_supported && aw_addr_in_range && !aw_unsupported_q;
+    
+    //wire rd_cmd_request = (rd_state == RD_FIFO) && rd_supported;
+    
+    wire rd_cmd_request = (rd_state == RD_FIFO) && rd_supported && ar_addr_in_range && !rd_unsupported_q;
  
     wire cmd_push_write = wr_cmd_request && !cmd_fifo_full;
     wire cmd_push_read  = !cmd_push_write && rd_cmd_request && !cmd_fifo_full;
+    
+    
+
+
+    
+
+
+
  
     assign cmd_fifo_wr_en = cmd_push_write || cmd_push_read;
  

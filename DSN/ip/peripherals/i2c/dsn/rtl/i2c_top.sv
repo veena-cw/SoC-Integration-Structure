@@ -1,35 +1,7 @@
-//==============================================================
-// i2c_top : APB (pclk, 100 MHz) <-> I2C master (i2c_clk, 50 MHz)
-//
-// One transfer at a time -> ONE request/response toggle handshake:
-//
-//   pclk  : tx_req pulse      -> req_t toggles
-//   i2c   : req_t synced      -> req_evt -> cmd_q captured, i2c_start
-//   i2c   : master done pulse -> rsp_t toggles
-//   pclk  : rsp_t synced      -> i2c_done pulse
-//
-//   i2c_busy (pclk) = req_t ^ rsp_t_sd  : high from the cycle after
-//   tx_req until the same edge i2c_done is seen -> no gap, no
-//   stretching logic needed.
-//
-// Bundled-data buses (tx_data -> cmd_q, data_out/ack_error ->
-// apb_slave) are NOT synchronized bit by bit: the source holds them
-// stable while the toggle is in flight and the destination only
-// samples them after the synchronized toggle arrives.
-// Constrain with set_max_delay -datapath_only (or set_bus_skew):
-//   tx_data[*]            -> cmd_q[*]
-//   m_data_out / m_ack_err -> apb_slave rx / status flops
-//==============================================================
 module i2c_top #(
-<<<<<<< HEAD
     parameter DW = 32,
     parameter AW = 32,
     localparam SW = int'($ceil(DW/8))
-=======
-    parameter DW = 32,
-    parameter AW = 32,
-    localparam SW = DW/8
->>>>>>> 297f5f0 (Added MIPI DSI TX RTL modules and updated I2C and CSI interfaces)
 )(
     // APB CLOCK DOMAIN
     input  logic pclk,          // 100 MHz
@@ -37,7 +9,6 @@ module i2c_top #(
 
 
 
-<<<<<<< HEAD
     // I2C CLOCK DOMAIN
     input  logic i2c_clk,       // 50 MHz
     input  logic i2c_rst_n,     // ACTIVE LOW
@@ -67,51 +38,8 @@ module i2c_top #(
 
 
     pullup(i2c_sda);
-=======
-    output logic [DW-1:0] t_o_prdata,
-    output logic          t_o_pslverr,
-    output logic          t_o_pready,
-    output logic          i2c_irq,      // pclk domain; enable is CTRL[16]
 
-    output logic          i2c_scl,
-    inout  logic          i2c_sda
-);
 
-    pullup(i2c_sda);    // simulation pull-up; use the board pull-up in hardware
-
-    //==========================================================
-    // RESETS
-    // A reset on EITHER pin resets BOTH domains so the two toggles
-    // (req_t / rsp_t) can never disagree. Async assert, sync release.
-    //==========================================================
-    logic link_rst_n, pclk_rst_n, i2c_rst_n_sync;
-
-    assign link_rst_n = presetn & i2c_rst_n;
-
-    reset_synchronizer u_pclk_rst_sync (
-        .clk           (pclk),
-        .async_reset_n (link_rst_n),
-        .sync_reset_n  (pclk_rst_n)
-    );
-
-    reset_synchronizer u_i2c_rst_sync (
-        .clk           (i2c_clk),
-        .async_reset_n (link_rst_n),
-        .sync_reset_n  (i2c_rst_n_sync)
-    );
->>>>>>> 297f5f0 (Added MIPI DSI TX RTL modules and updated I2C and CSI interfaces)
-
-    //==========================================================
-    // APB SLAVE (pclk)
-    //==========================================================
-    logic        tx_req;
-    logic [15:0] tx_data;       // [15]=R/W [14:8]=slave addr [7:0]=data
-    logic        i2c_busy;
-    logic        i2c_done;
-    logic        i2c_nack;
-    logic [7:0]  rd_data;
-
-<<<<<<< HEAD
 
     //-----------------------------------------------------
     // NOTE: Address decode / out-of-range error handling lives
@@ -164,96 +92,8 @@ module i2c_top #(
 
 
     logic [6:0]  i2c_slave_address;
-=======
-    apb_slave #(
-        .DW(DW),
-        .AW(AW)
-    ) apbs (
-        .pclk       (pclk),
-        .presetn    (pclk_rst_n),
-        .i_paddr    (t_paddr),
-        .i_pwrite   (t_pwrite),
-        .i_psel     (t_psel),
-        .i_penable  (t_penable),
-        .i_pwdata   (t_pwdata),
-        .i_pstrb    (t_pstrb),
-        .o_prdata   (t_o_prdata),
-        .o_pslverr  (t_o_pslverr),
-        .o_pready   (t_o_pready),
-        .o_irq      (i2c_irq),
-        .tx_req     (tx_req),
-        .tx_data    (tx_data),
-        .i2c_busy   (i2c_busy),
-        .i2c_done   (i2c_done),
-        .i2c_nack   (i2c_nack),
-        .i_rd_data  (rd_data)
-    );
 
-    //==========================================================
-    // REQUEST : pclk -> i2c_clk
-    //==========================================================
-    logic req_t;                 // pclk
-    logic req_t_s, req_t_sd;     // i2c_clk (synchronized, delayed)
-    logic req_evt;               // i2c_clk, 1-cycle
-    logic [15:0] cmd_q;          // i2c_clk, command held for the whole transfer
-    logic i2c_start;
 
-    always_ff @(posedge pclk or negedge pclk_rst_n) begin
-        if (!pclk_rst_n)   req_t <= 1'b0;
-        else if (tx_req)   req_t <= ~req_t;
-    end
-
-    synchronizer #(.WIDTH(1)) u_req_sync (
-        .clk   (i2c_clk),
-        .rst_n (i2c_rst_n_sync),
-        .d_in  (req_t),
-        .d_out (req_t_s)
-    );
-
-    always_ff @(posedge i2c_clk or negedge i2c_rst_n_sync) begin
-        if (!i2c_rst_n_sync) begin
-            req_t_sd  <= 1'b0;
-            cmd_q     <= '0;
-            i2c_start <= 1'b0;
-        end
-        else begin
-            req_t_sd  <= req_t_s;
-            i2c_start <= req_evt;                 // one cycle after cmd_q is loaded
-            if (req_evt) cmd_q <= tx_data;        // bundled data, stable while busy
-        end
-    end
-
-    assign req_evt = req_t_s ^ req_t_sd;
-
-    //==========================================================
-    // I2C MASTER (i2c_clk)
-    //==========================================================
-    logic [7:0] m_data_out;
-    logic       m_ack_error;
-    logic       m_done;
-
-    i2c_master i2cm (
-        .clk       (i2c_clk),
-        .rst_n     (i2c_rst_n_sync),
-        .start     (i2c_start),
-        .rw        (cmd_q[15]),
-        .addr      (cmd_q[14:8]),
-        .data_in   (cmd_q[7:0]),
-        .data_out  (m_data_out),
-        .ack_error (m_ack_error),
-        .done      (m_done),
-        .i2c_scl   (i2c_scl),
-        .i2c_sda   (i2c_sda)
-    );
->>>>>>> 297f5f0 (Added MIPI DSI TX RTL modules and updated I2C and CSI interfaces)
-
-    //==========================================================
-    // RESPONSE : i2c_clk -> pclk
-    //==========================================================
-    logic rsp_t;                 // i2c_clk
-    logic rsp_t_s, rsp_t_sd;     // pclk (synchronized, delayed)
-
-<<<<<<< HEAD
 
     logic i2c_apb_busy;
     logic i2c_apb_done;
@@ -636,28 +476,5 @@ module i2c_top #(
     );
 
 
-=======
-    always_ff @(posedge i2c_clk or negedge i2c_rst_n_sync) begin
-        if (!i2c_rst_n_sync)  rsp_t <= 1'b0;
-        else if (m_done)      rsp_t <= ~rsp_t;
-    end
-
-    synchronizer #(.WIDTH(1)) u_rsp_sync (
-        .clk   (pclk),
-        .rst_n (pclk_rst_n),
-        .d_in  (rsp_t),
-        .d_out (rsp_t_s)
-    );
-
-    always_ff @(posedge pclk or negedge pclk_rst_n) begin
-        if (!pclk_rst_n) rsp_t_sd <= 1'b0;
-        else             rsp_t_sd <= rsp_t_s;
-    end
-
-    assign i2c_done = rsp_t_s ^ rsp_t_sd;     // 1-cycle pulse
-    assign i2c_busy = req_t   ^ rsp_t_sd;     // falls on the same edge done is consumed
-    assign i2c_nack = m_ack_error;            // bundled data, qualified by i2c_done
-    assign rd_data  = m_data_out;             // bundled data, qualified by i2c_done
->>>>>>> 297f5f0 (Added MIPI DSI TX RTL modules and updated I2C and CSI interfaces)
 
 endmodule

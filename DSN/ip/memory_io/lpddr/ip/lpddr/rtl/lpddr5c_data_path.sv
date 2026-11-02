@@ -59,7 +59,7 @@ module lpddr5c_data_path #(
     output wire [DFI_DATA_WIDTH*NUM_CHANNELS-1:0]   dfi_wrdata,
     output wire [DFI_BYTES*NUM_CHANNELS-1:0]        dfi_wrdata_mask,
     output wire                                        dfi_wrdata_en,
-    
+    input wire dfi_rw,
     //========================================================================
     // ECC Configuration
     //========================================================================
@@ -201,7 +201,7 @@ module lpddr5c_data_path #(
             dfi_wrdata_en_reg <= 1'b0;
             wr_beat_counter <= '0;
         end else begin
-            if (!wr_fifo_rd_empty && wr_beat_counter == 0) begin
+            if (!wr_fifo_rd_empty && wr_beat_counter == 0 & dfi_rw) begin
                 // Start of burst
                 dfi_wrdata_reg <= wr_data_fifo_out[DFI_DATA_WIDTH-1:0];
                 dfi_wrdata_mask_reg <= ~wr_strb_fifo_out[DFI_BYTES-1:0];
@@ -223,6 +223,7 @@ module lpddr5c_data_path #(
     
     assign wr_fifo_rd_en = (wr_beat_counter == 2'd2);
     
+ //   logic dfi_rw;
     // DFI Outputs
     assign dfi_wrdata = {dfi_wrdata_reg, dfi_wrdata_reg};  // Dual channel copy
     assign dfi_wrdata_mask = {dfi_wrdata_mask_reg, dfi_wrdata_mask_reg};
@@ -344,8 +345,8 @@ module lpddr5c_data_path #(
     
     // AXI Read Output
     assign axi_rvalid = !rd_fifo_rd_empty;
-    assign axi_rdata = axi_rvalid ? rd_data_fifo_out : 1'b0;
-     
+    //assign axi_rdata = rd_data_fifo_out;
+    assign axi_rdata = axi_rvalid ? rd_data_fifo_out : '0;
     assign axi_rresp = 2'b00;  // OKAY
     assign axi_rlast = 1'b1;    // Simplified: single beat
     assign rd_fifo_rd_en = axi_rvalid && axi_rready;

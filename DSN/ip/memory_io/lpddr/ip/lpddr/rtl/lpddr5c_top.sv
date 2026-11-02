@@ -588,6 +588,7 @@ end
     .dfi_wrdata       (dfi_wrdata),
     .dfi_wrdata_mask  (dfi_wrdata_mask),
     .dfi_wrdata_en    (dfi_wrdata_en),
+    .dfi_rw (dfi_rw),
  
     //====================================================================
     // ECC signals -- unchanged

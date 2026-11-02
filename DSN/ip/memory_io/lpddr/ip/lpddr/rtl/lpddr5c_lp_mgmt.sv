@@ -141,7 +141,7 @@ end
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             state <= LP_NORMAL;
-            current_state_reg <= 4'b0000;
+            current_state_reg <= 4'b0001;
             cke_reg <= {NUM_CHANNELS{1'b1}};
             cke_override <= 1'b0;
             state_timer <= '0;

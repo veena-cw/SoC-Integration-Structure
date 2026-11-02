@@ -29,11 +29,19 @@ interface spi_slave_if (input logic pclk, input logic presetn);
   logic        lsb_first;
   logic        xfer_done;   // slave xfer_done pulse (receive-complete)
   logic [7:0]  rx_data;     // slave RX FIFO read data
+  // slave FIFO probes (read-only)
+  logic [4:0]  tx_count;
+  logic [4:0]  rx_count;
+  logic        tx_full;
+  logic        tx_empty;
+  logic        rx_full;
+  logic        rx_empty;
 
   clocking slave_cb @(posedge pclk);
     default input #1step;
     input presetn, sck, mosi, miso, cs_n;
     input cpol, cpha, lsb_first, xfer_done, rx_data;
+    input tx_count, rx_count, tx_full, tx_empty, rx_full, rx_empty;
   endclocking
 
 endinterface

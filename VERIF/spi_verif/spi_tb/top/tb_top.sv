@@ -115,14 +115,13 @@ package apb_spi_tb_pkg;
   // tests/
   `include "apb_spi_base_test.sv"
   `include "apb_spi_smoke_test.sv"
-  `include "spi_fifo_test.sv"
   //`include "apb_spi_reg_access_test.sv"
   //`include "apb_spi_ral_test.sv"
   //`include "apb_spi_mode_test.sv"
   //`include "apb_spi_clk_div_test.sv"
   //`include "apb_spi_cs_test.sv"
   //`include "apb_spi_burst_test.sv"
-  //`include "apb_spi_fifo_test.sv"
+  `include "apb_spi_fifo_test.sv"
   //`include "apb_spi_irq_test.sv"
   //`include "apb_spi_reset_test.sv"
   //`include "apb_spi_stress_test.sv"
@@ -197,6 +196,12 @@ module tb_top;
   assign slave_if_i.lsb_first   = dut.ctrl_reg[1];
   assign slave_if_i.xfer_done   = dut.xfer_done_o;
   assign slave_if_i.rx_data     = dut.s_rx_data;
+  assign slave_if_i.tx_count    = dut.s_tx_count;
+  assign slave_if_i.rx_count    = dut.s_rx_count;
+  assign slave_if_i.tx_full     = dut.s_tx_full;
+  assign slave_if_i.tx_empty    = dut.s_tx_empty;
+  assign slave_if_i.rx_full     = dut.s_rx_full;
+  assign slave_if_i.rx_empty    = dut.s_rx_empty;
 
   // ---------------- assertions ----------------
   /*apb_spi_assertions u_assertions (

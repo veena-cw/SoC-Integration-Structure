@@ -1,234 +1,532 @@
 
+//==============================================================================
+// File: csi2_reg.sv
+// Description: Complete CSI-2 RX AXI4-Lite slave + register block
+//
+// AXI4-Lite:
+//   32-bit data bus, independent read/write channels
+//   Single-beat transactions
+//
+// Register map:
+//   0x00 : LANE_CONFIGURATION  R/W
+//   0x04 : MODE_SELECTION      R/W
+//   0x08 : AXI_MASTER_STATUS   R
+//   0x0C : CSI2_RX_ERROR       R
+//   0x10 : DATA_TYPE_STATUS    R
+//   0x14 : RX_ALP_CODE         R
+//   0x18 : RX_ALP_NIBBLE       R
+//   0x1C : RX_CALIBRATION_FMT  R
+//   0x20 : RX_ERROR_CAL_HS     R
+//
+// Configuration encoding:
+//   lane_configuration: 0=1 lane, 1=2 lanes, 2=4 lanes
+//   mode_selection:     0=C-PHY, 1=D-PHY
+//==============================================================================
 
+module csi2_reg #(
+  parameter ADDR_W = 32
+)(
+  input  logic                 aclk,
+  input  logic                 areset_n,
 
-//`define CXS_ADDR 32'h3000_0000
+  //--------------------------------------------------------------------------
+  // AXI4-Lite Write Address Channel
+  //--------------------------------------------------------------------------
+  input  logic [ADDR_W-1:0]    s_axi_awaddr,
+  input  logic                 s_axi_awvalid,
+  output logic                 s_axi_awready,
 
-`define CSI2_ADDR 32'h0000_0000 //32'h0/4/8
+  //--------------------------------------------------------------------------
+  // AXI4-Lite Write Data Channel
+  //--------------------------------------------------------------------------
+  input  logic [31:0]          s_axi_wdata,
+  input  logic [3:0]           s_axi_wstrb,
+  input  logic                 s_axi_wvalid,
+  output logic                 s_axi_wready,
 
-module csi2_rx_reg (
-//input rd_clk2,                              //read clock 2 (2 GHz clock)
-input rst_n,                                //reset signal
-input pclk,                                 //apb clock
-input prst_n,                               //apb reset
-input axim_err,                             //error from axi master of CSI2 Rx Controller
-input rx_lane_sts_reg7,                     //start of transmission detection indication from PPI Interface
-input rx_lane_sts_reg4,                     //end of transmission detection indication from PPI Interface
-input lane_err,                             //lane error indication from lane merging of CSI2 Rx Controller
-input llp_err_vld,                          //error valid from low level protocol of CSI2 Rx Controller
-//input [31:0] lane_configuration,            //32'h0 ---> 1 lane, 32'h1 ----> 2 lanes, 32'h2 ---> 4 lanes update from APB Master
-//input [31:0] mode_selection,                //32'h0 ---> c-phy, 32'h1 ---> d-phy update from APB Master
-input [1:0] axim_sts,                       //status from axi master of CSI2 Rx Controller
-input [2:0] llp_err,                        //error from low level protocol layer of CSI2 Rx Controller
-input [5:0] dtype_sts_reg,                  //data type status register from low level protocol layer of CSI2 Rx Controller
-//input lp_linkerror,                         //linkerror from protocol layer (cxs)
-//input cxs_state_mach_sts,                   //cxs state machine status (downstream)
-input pwrite,                               //apb write
-input psel,                                 //apb select signal
-input penable,                              //apb enable signal
+  //--------------------------------------------------------------------------
+  // AXI4-Lite Write Response Channel
+  //--------------------------------------------------------------------------
+  output logic [1:0]           s_axi_bresp,
+  output logic                 s_axi_bvalid,
+  input  logic                 s_axi_bready,
 
-input [2:0] pprot,                          //Indicates the normal, privileged, or secure protection level of the transaction. 
-input [3:0]	pstrb,                          //apb strobe
-//input [3:0] fdi_pl_state_sts,               //state status from Adapter to CXS (protocol layer) via FDI
-input [31:0] paddr,                         //apb address
-input [31:0] pwdata,                        //apb write data
-input [15:0] rxalpnibble_reg,
-input [15:0] rxalpcode_reg,
-input      rxerrcalhs_reg,
-input [1:0] rxcalibrationformat_reg,
+  //--------------------------------------------------------------------------
+  // AXI4-Lite Read Address Channel
+  //--------------------------------------------------------------------------
+  input  logic [ADDR_W-1:0]    s_axi_araddr,
+  input  logic                 s_axi_arvalid,
+  output logic                 s_axi_arready,
 
-output logic 		pready,                 //apb ready signal
-output logic		pslverr,                //apb slave error
-//output logic [3:0]  req_reg,                //request register
-output logic [31:0] prdata                 //apb read data
+  //--------------------------------------------------------------------------
+  // AXI4-Lite Read Data Channel
+  //--------------------------------------------------------------------------
+  output logic [31:0]          s_axi_rdata,
+  output logic [1:0]           s_axi_rresp,
+  output logic                 s_axi_rvalid,
+  input  logic                 s_axi_rready,
+
+  //--------------------------------------------------------------------------
+  // CSI-2 RX Status Inputs
+  //--------------------------------------------------------------------------
+  input  logic                 axim_err,
+  input  logic                 rx_lane_sts_reg7,
+  input  logic                 rx_lane_sts_reg4,
+  input  logic                 lane_err,
+  input  logic                 llp_err_vld,
+  input  logic [1:0]           axim_sts,
+  input  logic [2:0]           llp_err,
+  input  logic [5:0]           dtype_sts_reg,
+
+  //--------------------------------------------------------------------------
+  // Calibration Inputs
+  //--------------------------------------------------------------------------
+  input  logic [15:0]          rxalpnibble_reg,
+  input  logic [15:0]          rxalpcode_reg,
+  input  logic                 rxerrcalhs_reg,
+  input  logic [1:0]           rxcalibrationformat_reg,
+
+  //--------------------------------------------------------------------------
+  // Configuration Outputs to CSI-2 RX Controller
+  //--------------------------------------------------------------------------
+  output logic [31:0]          lane_configuration,
+  output logic [31:0]          mode_selection
 );
 
-//Instatntiation of APB Slave
-/*apb_slave apb_slave_inst(.pclk(pclk),.prst_n(prst_n),.paddr(paddr),.pwrite(pwrite),.psel(psel),.penable(penable),.pwdata(pwdata),.pstrb(pstrb),.pprot(pprot),
-.slave_err(cxs_slve_err),.reg_rdata_vld(csi2_reg_rdata_vld),.reg_rdata(cxs_reg_rdata),.reg_addr(reg_addr),.reg_data(reg_data),.reg_req_vld(reg_req_vld),
-.prdata(prdata),.pready(pready),.pslverr(pslverr));*/
+  //==========================================================================
+  // AXI4-Lite <-> Register Bus Internal Signals
+  //==========================================================================
 
-apb_slave apb_slave_inst(.pclk(pclk),.prst_n(prst_n),.paddr(paddr),.pwrite(pwrite),.psel(psel),.penable(penable),.pwdata(pwdata),.pstrb(pstrb),.pprot(pprot),
-.slave_err(csi2_slve_err),.reg_rdata_vld(csi2_reg_rdata_vld),.reg_rdata(csi2_reg_rdata),.reg_addr(reg_addr),.prdata(prdata),.pready(pready),.pslverr(pslverr), .reg_req_vld(reg_req_vld), .reg_data(reg_data));
-/*
-`ifdef RGB888
-apb_slave apb_slave_inst(.pclk(pclk),.prst_n(prst_n),.paddr(paddr),.pwrite(pwrite),.psel(psel),.penable(penable),.pwdata(pwdata),.pstrb(pstrb),.pprot(pprot),
-.slave_err(csi2_slve_err),.reg_rdata_vld(csi2_reg_rdata_vld),.reg_rdata(csi2_reg_rdata),.reg_addr(reg_addr),.reg_data(reg_data),.reg_req_vld(reg_req_vld),
-.prdata(prdata),.pready(pready),.pslverr(pslverr));
-`elsif RGB666
-apb_slave apb_slave_inst(.pclk(pclk),.prst_n(prst_n),.paddr(paddr),.pwrite(pwrite),.psel(psel),.penable(penable),.pwdata(pwdata),.pstrb(pstrb),.pprot(pprot),
-.slave_err(csi2_slve_err),.reg_rdata_vld(csi2_reg_rdata_vld),.reg_rdata(csi2_reg_rdata),.reg_addr(reg_addr),.reg_data(reg_data),.reg_req_vld(reg_req_vld),
-.prdata(prdata),.pready(pready),.pslverr(pslverr));*/
+  logic                 reg_wr_en;
+  logic [ADDR_W-1:0]    reg_waddr;
+  logic [31:0]          reg_wdata;
+  logic [3:0]           reg_wstrb;
+  logic                 reg_wr_ok;
 
-//Declaration of Internal Signals
-logic reg_req_vld;                          //register request valid
-//logic cxs_reg_rdata_vld;                    //cxs register read data valid
-logic csi2_slve_err;                         //cxs slave error
-//logic csi2_reg_wdata_vld;                    //cxs register write data valid
-logic csi2_addr_vld;                         //cxs address valid
-logic pwrite_vld;                           //apb write valid
-logic csi2_reg_rdata_vld1;
-logic [31:0] csi2_reg_rdata1;
+  logic [ADDR_W-1:0]    reg_raddr;
+  logic [31:0]          reg_rdata;
+  logic                 reg_rd_ok;
 
-logic [1:0]  reg_req_vld_r;                 //register request valid delay
-logic [3:0]  cxs_fdi_bridge_cfg_reg;        //cxs fdi bridge configuration register
-logic [11:0] cxs_fdi_bridge_reg;            //cxs fdi bridge register
-logic [31:0] csi2_addr_range;               //cxs address range
-logic [31:0] csi2_reg_rdata;                 //cxs register read data
-logic [31:0] csi2_reg_wdata;                 //cxs register write data
-logic [31:0] paddr_vld;                     //apb address valid
-logic [31:0] pwdata_vld;                    //apb write data valid
-//logic [31:0] lane_cfg_reg;
-//logic [31:0] mode_sel_reg;
-logic [31:0] pwdata_reg;
-logic [31:0] reg_addr;
-logic [31:0] reg_data;
+  //==========================================================================
+  // AXI4-Lite Slave
+  //==========================================================================
 
-//cxs address range
-//assign csi2_addr_range[31:0] = ((paddr == 32'h0) | () (paddr < 32'h9)); // `CXS_ADDR; //>32'h0 & <=32'h8;
-//assign csi2_addr = `CSI2_ADDR;
+  axi_slave #(
+    .ADDR_W (ADDR_W)
+  ) u_axi_slave (
+    .aclk       (aclk),
+    .areset_n   (areset_n),
 
-//assign cxs_addr_range[15:0] = `CXS_ADDR; //>32'h0 & <=32'h8;
+    // Write address
+    .awaddr     (s_axi_awaddr),
+    .awvalid    (s_axi_awvalid),
+    .awready    (s_axi_awready),
 
-//apb address valid
-always_ff @(posedge  pclk or negedge rst_n)
-  if(~rst_n) paddr_vld <= 32'h0;
-  else paddr_vld <= paddr;
+    // Write data
+    .wdata      (s_axi_wdata),
+    .wstrb      (s_axi_wstrb),
+    .wvalid     (s_axi_wvalid),
+    .wready     (s_axi_wready),
 
-//apb write valid
-always_ff @(posedge  pclk or negedge rst_n)
-  if(~rst_n) pwrite_vld <= 1'b0;
-  else pwrite_vld <= pwrite;
+    // Write response
+    .bresp      (s_axi_bresp),
+    .bvalid     (s_axi_bvalid),
+    .bready     (s_axi_bready),
 
-//apb write data valid
-always_ff @(posedge  pclk or negedge rst_n)
-  if(~rst_n) pwdata_reg <= 32'h0;
-  else       pwdata_reg <= pwdata;
-  //reg1 -0th
+    // Read address
+    .araddr     (s_axi_araddr),
+    .arvalid    (s_axi_arvalid),
+    .arready    (s_axi_arready),
 
-//reg request valid delay
-always_ff @(posedge  pclk or negedge rst_n)
-  if(~rst_n) reg_req_vld_r <= 2'b00;
-  else reg_req_vld_r <= {reg_req_vld_r[0],reg_req_vld};
+    // Read data
+    .rdata      (s_axi_rdata),
+    .rresp      (s_axi_rresp),
+    .rvalid     (s_axi_rvalid),
+    .rready     (s_axi_rready),
 
-  
-logic csi2_rx_err_reg;
-logic [5:0] dtype_reg;
-logic [1:0] axim_rsp_sts_reg;
+    // Register bus
+    .reg_wr_en  (reg_wr_en),
+    .reg_waddr  (reg_waddr),
+    .reg_wdata  (reg_wdata),
+    .reg_wstrb  (reg_wstrb),
+    .reg_wr_ok  (reg_wr_ok),
 
-//csi2 rx error register
-//addr = 32'hc
-always_ff @(posedge  pclk or negedge rst_n)
-  if(~rst_n) csi2_rx_err_reg <= 1'b0;
-  else if(rx_lane_sts_reg7) csi2_rx_err_reg <= 1'b0;
-  else if(axim_err | lane_err | llp_err_vld | (|(llp_err[2:0])))  csi2_rx_err_reg <= 1'b1;
-  //addr = 32'h10
-always_ff @(posedge  pclk or negedge rst_n)
-  if(~rst_n) dtype_reg <= 6'hf;
-  else if(rx_lane_sts_reg7)  dtype_reg <= 6'hf; 
-  else dtype_reg <= dtype_sts_reg[5:0];  
- 
-//addr = 32'h8 
-always_ff @(posedge  pclk or negedge rst_n)
-  if(~rst_n) axim_rsp_sts_reg <= 2'h0;
-  else       axim_rsp_sts_reg <= axim_sts[1:0];
- 
-logic csi2_reg_rdata_vld;
-//logic [31:0] csi2_reg_rdata;
-//csi2 register read data valid and read data
+    .reg_raddr  (reg_raddr),
+    .reg_rdata  (reg_rdata),
+    .reg_rd_ok  (reg_rd_ok)
+  );
 
-logic csi2_reg_wdata_vld1;
-logic csi2_reg_wdata_vld;
-//logic [31:0] csi2_reg_wdata;
-logic [31:0] csi2_reg_wdata1;
-always_ff @(posedge  pclk or negedge rst_n)
-  if(~rst_n) {csi2_reg_wdata_vld1, csi2_reg_wdata1} <= {1'b0,32'h0};
-  else {csi2_reg_wdata_vld1, csi2_reg_wdata1} <= ((pwrite) & reg_req_vld & (paddr[31:0] == 32'h0)) ? 
-                                             {1'b1,{pwdata[31:0]}} :      //7 - start of transmission
-											 ((pwrite) & reg_req_vld & (paddr[31:0] == 32'h4)) ? 
-                                             {1'b1,{pwdata[31:0]}} :      //4 - end of transmission
-											 33'h0;
-											 
-always_ff @(posedge  pclk or negedge rst_n)
-  if(~rst_n) {csi2_reg_wdata_vld, csi2_reg_wdata} <=	{1'b0,32'h0};
-  else {csi2_reg_wdata_vld, csi2_reg_wdata} <= 	{csi2_reg_wdata_vld1, csi2_reg_wdata1};											 
+  //==========================================================================
+  // Register Address Definitions
+  //==========================================================================
 
-always_ff @(posedge  pclk or negedge rst_n)
-  if(~rst_n) {csi2_reg_rdata_vld1, csi2_reg_rdata1} <= {1'b0,32'h0};
-  else {csi2_reg_rdata_vld1, csi2_reg_rdata1} <= /*((!pwrite) & (paddr[31:0] == 32'h0)) ? 
-                                             {1'b1,{lane_cfg_reg[31:0]}} :      //lane configuration
-											 ((!pwrite)  & (paddr[31:0] == 32'h4)) ? 
-                                             {1'b1,{mode_sel_reg[31:0]}} :      //mode selection */
-											 ((!pwrite)  & (paddr[31:0] == 32'h8)) ? 
-                                             {1'b1,{30'h0,axim_rsp_sts_reg[1:0]}} : 
-                                             ((!pwrite) & (paddr[31:0] == 32'hc)) ? 
-											 {1'b1,{31'h0,csi2_rx_err_reg}} : 
-											 ((!pwrite)  & (paddr[31:0] == 32'h10)) ?
-											 {1'b1,{26'h0, dtype_reg[5:0]}} :
-											 
-											 ((!pwrite) & (paddr[31:0] == 32'h14)) ?
-											 {1'b1,{16'h0, rxalpcode_reg[15:0]}} :    //alpcode
-											 ((!pwrite)  & (paddr[31:0] == 32'h18)) ?
-											 {1'b1,{16'h0, rxalpnibble_reg[15:0]}} :  //alpnibble
-											 ((!pwrite)  & (paddr[31:0] == 32'h1c)) ?
-											 {1'b1,{30'h0, rxcalibrationformat_reg[1:0]}} : //rxcalibration format
-											 ((!pwrite)  & (paddr[31:0] == 32'h20)) ?
-											 {1'b1,{31'h0, rxerrcalhs_reg}} :       //rxerror calibration
-											 33'h0;
-always_ff @(posedge  pclk or negedge rst_n)
-  if(~rst_n) {csi2_reg_rdata_vld, csi2_reg_rdata} <=	{1'b0,32'h0};
-  else {csi2_reg_rdata_vld, csi2_reg_rdata} <= 	{csi2_reg_rdata_vld1, csi2_reg_rdata1};
-	
-//always_ff @(posedge  pclk or negedge rst_n)
-  //if(~rst_n) lane_cfg_reg <= 32'h0;
-  //else   lane_cfg_reg <= ((pwrite) & reg_req_vld_r[0] & ((paddr[31:0] == 32'h0))) ? pwdata[31:0] : 32'h0;
-  
-//always_ff @(posedge  pclk or negedge rst_n)
-  //if(~rst_n) mode_sel_reg <= 32'h0;
-  //else   mode_sel_reg <= ((pwrite) & reg_req_vld_r[0] & ((paddr[31:0] == 32'h4))) ? pwdata[31:0] : 32'h0;  
-										 
-/*
-always_ff @(posedge  pclk or negedge rst_n)
-  if(~rst_n) {cxs_reg_rdata_vld, cxs_reg_rdata} <= {1'b0,32'h0};
-  else {cxs_reg_rdata_vld, cxs_reg_rdata} <= ((!pwrite) & reg_req_vld & (paddr[15:0] == 16'h0) &  (paddr[31:28] == 4'h3)) ? 
-                                             {1'b1,{30'h0,cxs_fdi_bridge_reg[1:0]}} : 
-                                             ((!pwrite) & reg_req_vld & (paddr[15:0] == 16'h18) &  (paddr[31:28] == 4'h3)) ? 
-											 {1'b1,{30'h0,cxs_fdi_bridge_reg[1:0]}} : 33'h0;*/
-/*
-//cxs register write data valid and write data
-always_ff @(posedge  pclk or negedge rst_n)
-  if(~rst_n) {cxs_reg_wdata_vld, cxs_reg_wdata} <= {1'b0,32'h0};
-  else {cxs_reg_wdata_vld, cxs_reg_wdata} <= ((pwrite) & reg_req_vld_r[0] & (paddr[15:0] == 16'h4) &  
-                                             (paddr[31:28] == 4'h3)) ? {1'b1,{28'h0, cxs_fdi_bridge_cfg_reg}} : 33'h0;*/
+  localparam logic [ADDR_W-1:0] ADDR_LANE_CFG = 'h00;
+  localparam logic [ADDR_W-1:0] ADDR_MODE_SEL = 'h04;
+  localparam logic [ADDR_W-1:0] ADDR_AXIM_STS = 'h08;
+  localparam logic [ADDR_W-1:0] ADDR_RX_ERROR = 'h0C;
+  localparam logic [ADDR_W-1:0] ADDR_DTYPE    = 'h10;
+  localparam logic [ADDR_W-1:0] ADDR_ALP_CODE = 'h14;
+  localparam logic [ADDR_W-1:0] ADDR_ALP_NIB  = 'h18;
+  localparam logic [ADDR_W-1:0] ADDR_CAL_FMT  = 'h1C;
+  localparam logic [ADDR_W-1:0] ADDR_CAL_ERR  = 'h20;
 
-/*//request register
-always_ff @(posedge  pclk or negedge rst_n)
-  if(~rst_n) req_reg <= 4'hf;
-  else req_reg <= cxs_fdi_bridge_cfg_reg[3:0]; //((pwrite) & reg_req_vld_r[1] & ((paddr[15:0] == 16'h4) ) &  (paddr[31:28] == 4'h3)) ? cxs_reg_wdata[3:0] : 
-                                                                   //  (cxs_fdi_bridge_cfg_reg == 4'h0) ? 4'h0 :
-                                                                    // (cxs_fdi_bridge_cfg_reg == 4'hf) ? 4'hf : req_reg;*/
+  //==========================================================================
+  // Status Register Storage
+  //==========================================================================
 
-//cxs slave error
-always_ff @(posedge pclk or negedge prst_n)
-  if(~prst_n) csi2_slve_err <= 1'b0;
-  else        csi2_slve_err <= 
-  (/*(!reg_req_vld_r[0]) &*/ (psel & penable) & 
-  ((paddr[31:0] != 32'h0) & (paddr[31:0] != 32'h4) &
-             (paddr[31:0] != 32'h8) & (paddr[31:0] != 32'hc)));
+  logic       csi2_rx_err_reg;
+  logic [5:0] dtype_reg;
+  logic [1:0] axim_rsp_sts_reg;
 
-//cxs address valid
-/*always_ff @(posedge pclk or negedge prst_n)
-  if(~prst_n) cxs_addr_vld <= 1'b0;
-  else        cxs_addr_vld <= ((cxs_addr_range[31:28] == 4'h3) & (!(&(cxs_addr_range[15:0])))) ; //cxs_addr_range < 16'hffff*/
+  //==========================================================================
+  // Write Address Validation
+  // Only configuration registers are writable.
+  //==========================================================================
 
-always_ff @(posedge pclk or negedge prst_n)
-  if(~prst_n) csi2_addr_vld <= 1'b0;
-  else        csi2_addr_vld <= ((paddr[31:0] == 32'h0) | (paddr[31:0] == 32'h4) | (paddr[31:0] == 32'h8) | (paddr[31:0] == 32'hc)); 
+  always_comb begin
+    reg_wr_ok = 1'b0;
 
-//always_ff @(posedge pclk or negedge prst_n)
-  //if(~prst_n) csi2_addr_vld <= 1'b0;
-  //else        csi2_addr_vld <= (|(csi2_addr_range[31:0]));
-  
-  //(!(&(cxs_addr_range[7:0])))) ; //cxs_addr_rang
+    case (reg_waddr)
+      ADDR_LANE_CFG,
+      ADDR_MODE_SEL: reg_wr_ok = 1'b1;
+
+      default:       reg_wr_ok = 1'b0;
+    endcase
+  end
+
+  //==========================================================================
+  // Read Address Validation
+  //==========================================================================
+
+  always_comb begin
+    reg_rd_ok = 1'b1;
+
+    case (reg_raddr)
+      ADDR_LANE_CFG,
+      ADDR_MODE_SEL,
+      ADDR_AXIM_STS,
+      ADDR_RX_ERROR,
+      ADDR_DTYPE,
+      ADDR_ALP_CODE,
+      ADDR_ALP_NIB,
+      ADDR_CAL_FMT,
+      ADDR_CAL_ERR: reg_rd_ok = 1'b1;
+
+      default:      reg_rd_ok = 1'b0;
+    endcase
+  end
+
+  //==========================================================================
+  // Writable Configuration Registers
+  //==========================================================================
+  // Writes occur only when the AXI4-Lite slave asserts reg_wr_en.
+  // WSTRB enables individual bytes.
+  //==========================================================================
+
+  integer i;
+
+  always_ff @(posedge aclk or negedge areset_n) begin
+    if (!areset_n) begin
+      lane_configuration <= 32'h0000_0000;
+      mode_selection     <= 32'h0000_0000;
+    end
+    else if (reg_wr_en && reg_wr_ok) begin
+
+      case (reg_waddr)
+
+        ADDR_LANE_CFG: begin
+          for (i = 0; i < 4; i = i + 1) begin
+            if (reg_wstrb[i])
+              lane_configuration[i*8 +: 8]
+                <= reg_wdata[i*8 +: 8];
+          end
+        end
+
+        ADDR_MODE_SEL: begin
+          for (i = 0; i < 4; i = i + 1) begin
+            if (reg_wstrb[i])
+              mode_selection[i*8 +: 8]
+                <= reg_wdata[i*8 +: 8];
+          end
+        end
+
+        default: begin
+        end
+
+      endcase
+    end
+  end
+
+  //==========================================================================
+  // AXI Master Response Status Register: 0x08
+  //==========================================================================
+
+  always_ff @(posedge aclk or negedge areset_n) begin
+    if (!areset_n)
+      axim_rsp_sts_reg <= 2'b00;
+    else
+      axim_rsp_sts_reg <= axim_sts;
+  end
+
+  //==========================================================================
+  // CSI-2 RX Error Register: 0x0C
+  // Sticky error; cleared when a new transmission starts.
+  //==========================================================================
+
+  always_ff @(posedge aclk or negedge areset_n) begin
+    if (!areset_n)
+      csi2_rx_err_reg <= 1'b0;
+    else if (rx_lane_sts_reg7)
+      csi2_rx_err_reg <= 1'b0;
+    else if (axim_err || lane_err ||
+             llp_err_vld || (|llp_err))
+      csi2_rx_err_reg <= 1'b1;
+  end
+
+  //==========================================================================
+  // Data Type Status Register: 0x10
+  //==========================================================================
+
+  always_ff @(posedge aclk or negedge areset_n) begin
+    if (!areset_n)
+      dtype_reg <= 6'h0F;
+    else if (rx_lane_sts_reg7)
+      dtype_reg <= 6'h0F;
+    else
+      dtype_reg <= dtype_sts_reg;
+  end
+
+  //==========================================================================
+  // Read Data Multiplexer
+  // Combinational read path to the AXI4-Lite slave.
+  //==========================================================================
+
+  always_comb begin
+    reg_rdata = 32'h0000_0000;
+
+    case (reg_raddr)
+
+      ADDR_LANE_CFG:
+        reg_rdata = lane_configuration;
+
+      ADDR_MODE_SEL:
+        reg_rdata = mode_selection;
+
+      ADDR_AXIM_STS:
+        reg_rdata = {30'b0, axim_rsp_sts_reg};
+
+      ADDR_RX_ERROR:
+        reg_rdata = {31'b0, csi2_rx_err_reg};
+
+      ADDR_DTYPE:
+        reg_rdata = {26'b0, dtype_reg};
+
+      ADDR_ALP_CODE:
+        reg_rdata = {16'b0, rxalpcode_reg};
+
+      ADDR_ALP_NIB:
+        reg_rdata = {16'b0, rxalpnibble_reg};
+
+      ADDR_CAL_FMT:
+        reg_rdata = {30'b0, rxcalibrationformat_reg};
+
+      ADDR_CAL_ERR:
+        reg_rdata = {31'b0, rxerrcalhs_reg};
+
+      default:
+        reg_rdata = 32'h0000_0000;
+
+    endcase
+  end
+
+  // rx_lane_sts_reg4 is retained as an input for compatibility with
+  // the CSI-2 RX status interface. It is not used by the original
+  // register behavior shown here.
+
+endmodule
+
+
+//==============================================================================
+// AXI4-Lite Slave
+//==============================================================================
+
+module axi_slave #(
+  parameter ADDR_W = 32
+)(
+  input  logic                 aclk,
+  input  logic                 areset_n,
+
+  // Write address channel
+  input  logic [ADDR_W-1:0]    awaddr,
+  input  logic                 awvalid,
+  output logic                 awready,
+
+  // Write data channel
+  input  logic [31:0]          wdata,
+  input  logic [3:0]           wstrb,
+  input  logic                 wvalid,
+  output logic                 wready,
+
+  // Write response channel
+  output logic [1:0]           bresp,
+  output logic                 bvalid,
+  input  logic                 bready,
+
+  // Read address channel
+  input  logic [ADDR_W-1:0]    araddr,
+  input  logic                 arvalid,
+  output logic                 arready,
+
+  // Read data channel
+  output logic [31:0]          rdata,
+  output logic [1:0]           rresp,
+  output logic                 rvalid,
+  input  logic                 rready,
+
+  // Register bus
+  output logic                 reg_wr_en,
+  output logic [ADDR_W-1:0]    reg_waddr,
+  output logic [31:0]          reg_wdata,
+  output logic [3:0]           reg_wstrb,
+  input  logic                 reg_wr_ok,
+
+  output logic [ADDR_W-1:0]    reg_raddr,
+  input  logic [31:0]          reg_rdata,
+  input  logic                 reg_rd_ok
+);
+
+  localparam logic [1:0] RESP_OKAY   = 2'b00;
+  localparam logic [1:0] RESP_SLVERR = 2'b10;
+
+  //==========================================================================
+  // Write controller
+  //==========================================================================
+
+  localparam logic [1:0] W_COLLECT = 2'd0,
+                         W_EXEC    = 2'd1,
+                         W_RESP    = 2'd2;
+
+  logic [1:0]        wstate;
+  logic [ADDR_W-1:0] awaddr_q;
+  logic [31:0]       wdata_q;
+  logic [3:0]        wstrb_q;
+  logic              aw_pending;
+  logic              w_pending;
+
+  assign awready = (wstate == W_COLLECT) && !aw_pending;
+  assign wready  = (wstate == W_COLLECT) && !w_pending;
+
+  assign reg_waddr = awaddr_q;
+  assign reg_wdata = wdata_q;
+  assign reg_wstrb = wstrb_q;
+  assign reg_wr_en = (wstate == W_EXEC);
+
+  always_ff @(posedge aclk or negedge areset_n) begin
+    if (!areset_n) begin
+      wstate     <= W_COLLECT;
+      awaddr_q   <= '0;
+      wdata_q    <= '0;
+      wstrb_q    <= '0;
+      aw_pending <= 1'b0;
+      w_pending  <= 1'b0;
+      bvalid     <= 1'b0;
+      bresp      <= RESP_OKAY;
+    end
+    else begin
+      case (wstate)
+
+        W_COLLECT: begin
+          if (awvalid && awready) begin
+            awaddr_q   <= awaddr;
+            aw_pending <= 1'b1;
+          end
+
+          if (wvalid && wready) begin
+            wdata_q   <= wdata;
+            wstrb_q   <= wstrb;
+            w_pending <= 1'b1;
+          end
+
+          // Pending flags include transactions captured on earlier cycles.
+          if ((aw_pending || (awvalid && awready)) &&
+              (w_pending  || (wvalid  && wready)))
+            wstate <= W_EXEC;
+        end
+
+        W_EXEC: begin
+          // Register block samples reg_wr_en on this clock edge.
+          bresp  <= reg_wr_ok ? RESP_OKAY : RESP_SLVERR;
+          bvalid <= 1'b1;
+          wstate <= W_RESP;
+        end
+
+        W_RESP: begin
+          if (bvalid && bready) begin
+            bvalid     <= 1'b0;
+            aw_pending <= 1'b0;
+            w_pending  <= 1'b0;
+            wstate     <= W_COLLECT;
+          end
+        end
+
+        default: wstate <= W_COLLECT;
+
+      endcase
+    end
+  end
+
+  //==========================================================================
+  // Read controller
+  //==========================================================================
+
+  localparam logic [1:0] R_IDLE  = 2'd0,
+                         R_FETCH = 2'd1,
+                         R_DATA  = 2'd2;
+
+  logic [1:0]        rstate;
+  logic [ADDR_W-1:0] araddr_q;
+
+  assign arready   = (rstate == R_IDLE);
+  assign reg_raddr = araddr_q;
+
+  always_ff @(posedge aclk or negedge areset_n) begin
+    if (!areset_n) begin
+      rstate   <= R_IDLE;
+      araddr_q <= '0;
+      rdata    <= '0;
+      rresp    <= RESP_OKAY;
+      rvalid   <= 1'b0;
+    end
+    else begin
+      case (rstate)
+
+        R_IDLE: begin
+          if (arvalid && arready) begin
+            araddr_q <= araddr;
+            rstate   <= R_FETCH;
+          end
+        end
+
+        R_FETCH: begin
+          rdata  <= reg_rd_ok ? reg_rdata : 32'h0000_0000;
+          rresp  <= reg_rd_ok ? RESP_OKAY : RESP_SLVERR;
+          rvalid <= 1'b1;
+          rstate <= R_DATA;
+        end
+
+        R_DATA: begin
+          // Hold response signals until the master accepts the data.
+          if (rvalid && rready) begin
+            rvalid <= 1'b0;
+            rstate <= R_IDLE;
+          end
+        end
+
+        default: rstate <= R_IDLE;
+
+      endcase
+    end
+  end
 
 endmodule
 

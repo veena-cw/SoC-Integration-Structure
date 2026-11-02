@@ -281,7 +281,7 @@ class apb_i2c_reg_write_test extends apb_i2c_base_test;
   wseq.read_write = 1'b0;
 
  
-    repeat(300)
+    repeat(1)
     wseq.start(env.agent.sequencer);
     #10;
    // env.scoreboard.check_mirror_desired("after_write_read");

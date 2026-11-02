@@ -28,7 +28,7 @@ c_phy_bfm_if.sv
 ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/rx_byte_counter_2.sv
 ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/bpuf_2.sv
 ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/axim.sv
-../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/apb_slave.sv
+../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/axi_slave.sv
 ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_reg.sv
 ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv
 

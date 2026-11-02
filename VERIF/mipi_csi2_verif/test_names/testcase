@@ -5,3 +5,6 @@ csi2_errorsync_test
 csi2_end_early_eot_test
 csi2_back_to_back_short_test
 csi2_raw10_test
+csi2_raw14_test
+csi2_raw12_test
+csi2_raw16_test

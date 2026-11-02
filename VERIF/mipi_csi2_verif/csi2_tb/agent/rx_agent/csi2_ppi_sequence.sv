@@ -494,3 +494,146 @@ class csi2_back_to_back_short_seq extends csi2_ppi_sequence;
   endtask
 
 endclass : csi2_back_to_back_short_seq
+
+
+class csi2_raw14_seq extends csi2_ppi_sequence;
+  `uvm_object_utils(csi2_raw14_seq)
+
+  function new(string name = "csi2_raw14_seq");
+    super.new(name);
+  endfunction
+
+  task body();
+    csi2_rx_packet_item req;
+    req = csi2_rx_packet_item::type_id::create("req");
+    start_item(req);
+    req.test_case       = "RAW14";
+    req.is_short_packet = 1'b0;
+    req.datatype        = DT_RAW14;
+    req.sync_type       = 3'b011;
+    req.send_eot        = 1'b1;
+    req.errsoths        = 1'b0;
+    req.errsotsynchs    = 1'b0;
+    build_raw_payload(DT_RAW14, 640, req.payload);
+    req.rtl_word_count = 16'h045F;
+    `uvm_info("RAW14_SEQ",$sformatf("pixels=640 payload_bytes=%0d rtl_wc=0x%04h",req.payload.size(),req.rtl_word_count),UVM_NONE)
+    finish_item(req);
+  endtask
+
+endclass
+
+
+class csi2_raw12_seq extends csi2_ppi_sequence;
+  `uvm_object_utils(csi2_raw12_seq)
+
+  function new(string name = "csi2_raw12_seq");
+    super.new(name);
+  endfunction
+
+  task body();
+    csi2_rx_packet_item req;
+
+    req = csi2_rx_packet_item::type_id::create("req");
+    start_item(req);
+
+    req.test_case       = "RAW12";
+    req.is_short_packet = 1'b0;
+    req.datatype        = DT_RAW12;
+    req.rtl_word_count  = 16'h03BF;
+    req.sync_type       = 3'b011;
+    req.send_eot        = 1'b1;
+    req.errsoths        = 1'b0;
+    req.errsotsynchs    = 1'b0;
+
+    build_raw_payload(
+      DT_RAW12,
+      640,
+      req.payload
+    );
+
+    `uvm_info(
+      "RAW12_SEQ",
+      $sformatf(
+        "pixels=640 payload_bytes=%0d rtl_wc=0x%04h",
+        req.payload.size(),
+        req.rtl_word_count
+      ),
+      UVM_NONE
+    )
+
+    finish_item(req);
+  endtask
+endclass : csi2_raw12_seq
+
+class csi2_raw16_seq extends csi2_ppi_sequence;
+  `uvm_object_utils(csi2_raw16_seq)
+
+  function new(string name = "csi2_raw16_seq");
+    super.new(name);
+  endfunction
+
+  task body();
+    csi2_rx_packet_item req;
+    bit [15:0] pixel_value;
+
+    req = csi2_rx_packet_item::type_id::create(
+      "raw16_req"
+    );
+
+    start_item(req);
+
+    req.test_case       = "RAW16";
+    req.is_short_packet = 1'b0;
+    req.short_data      = 16'h0000;
+
+    req.datatype        = DT_RAW16;
+    req.vc              = 2'd0;
+    req.vcx             = 3'd0;
+
+    req.sync_type       = 3'b011;
+    req.send_eot        = 1'b1;
+
+    req.errsoths        = 1'b0;
+    req.errsotsynchs    = 1'b0;
+
+    req.payload.delete();
+
+    /*
+     * RAW16 carries one 16-bit pixel in two payload bytes.
+     * The current RTL reconstructs:
+     *
+     * pixel[15:8] = first received byte
+     * pixel[7:0]  = second received byte
+     */
+    for (int unsigned index = 0;
+         index < 640;
+         index++) begin
+
+      pixel_value = 16'h0010 + index;
+
+      req.payload.push_back(pixel_value[15:8]);
+      req.payload.push_back(pixel_value[7:0]);
+    end
+
+    /*
+     * 640 pixels × 2 bytes = 1280 bytes.
+     * Current RTL uses N-1 word count:
+     * 1280 - 1 = 1279 = 16'h04FF.
+     */
+    req.rtl_word_count =
+        16'(req.payload.size() - 1);
+
+    `uvm_info(
+      "RAW16_SEQ",
+      $sformatf(
+        "Generated RAW16 packet: pixels=640 payload=%0d WC=0x%04h",
+        req.payload.size(),
+        req.rtl_word_count
+      ),
+      UVM_NONE
+    )
+
+    finish_item(req);
+  endtask
+
+endclass : csi2_raw16_seq

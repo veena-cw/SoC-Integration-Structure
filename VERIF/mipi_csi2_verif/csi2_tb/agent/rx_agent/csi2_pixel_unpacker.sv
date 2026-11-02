@@ -22,7 +22,9 @@ function bit unpack_axi_raw(
   int unsigned total_bits;
   int unsigned bit_index;
   int unsigned output_pixel;
+
   bit [39:0] raw10_group;
+  bit [55:0] raw14_group;
 
   pixels    = new[0];
   error_msg = "";
@@ -50,14 +52,14 @@ function bit unpack_axi_raw(
   end
 
   /*
-   * RAW10 AXI output handling.
+   * RAW10 AXI output
    *
-   * The DUT places four RAW10 pixels in one 40-bit AXI group:
+   * One AXI group contains four 10-bit pixels:
    *
-   * [39:30] = first pixel
-   * [29:20] = second pixel
-   * [19:10] = third pixel
-   * [9:0]   = fourth pixel
+   * WDATA[39:30] = pixel 0
+   * WDATA[29:20] = pixel 1
+   * WDATA[19:10] = pixel 2
+   * WDATA[9:0]   = pixel 3
    */
   if (datatype == DT_RAW10) begin
     if ((axi_bytes.size() % 5) != 0) begin
@@ -78,8 +80,7 @@ function bit unpack_axi_raw(
       raw10_group = 40'h0;
 
       /*
-       * Reconstruct WDATA[39:0] from accepted AXI bytes.
-       * axi_bytes[base] is WDATA[7:0].
+       * axi_bytes[base] corresponds to WDATA[7:0].
        */
       for (int byte_index = 0;
            byte_index < 5;
@@ -114,8 +115,78 @@ function bit unpack_axi_raw(
   end
 
   /*
-   * Generic contiguous-bit AXI unpacking for RAW6, RAW7,
-   * RAW8, RAW12 and RAW14.
+   * RAW14 AXI output
+   *
+   * One AXI group contains four 14-bit pixels:
+   *
+   * WDATA[55:42] = pixel 0
+   * WDATA[41:28] = pixel 1
+   * WDATA[27:14] = pixel 2
+   * WDATA[13:0]  = pixel 3
+   */
+  if (datatype == DT_RAW14) begin
+    if ((axi_bytes.size() % 7) != 0) begin
+      error_msg = $sformatf(
+        "RAW14 AXI byte count %0d is not divisible by 7",
+        axi_bytes.size()
+      );
+      return 0;
+    end
+
+    pixels = new[(axi_bytes.size() / 7) * 4];
+    output_pixel = 0;
+
+    for (int base = 0;
+         base < axi_bytes.size();
+         base += 7) begin
+
+      raw14_group = 56'h0;
+
+      /*
+       * Reconstruct WDATA[55:0].
+       * axi_bytes[base] corresponds to WDATA[7:0].
+       */
+      for (int byte_index = 0;
+           byte_index < 7;
+           byte_index++) begin
+
+        raw14_group[byte_index*8 +: 8] =
+            axi_bytes[base + byte_index];
+      end
+
+      pixels[output_pixel] = '0;
+      pixels[output_pixel][13:0] =
+          raw14_group[55:42];
+      output_pixel++;
+
+      pixels[output_pixel] = '0;
+      pixels[output_pixel][13:0] =
+          raw14_group[41:28];
+      output_pixel++;
+
+      pixels[output_pixel] = '0;
+      pixels[output_pixel][13:0] =
+          raw14_group[27:14];
+      output_pixel++;
+
+      pixels[output_pixel] = '0;
+      pixels[output_pixel][13:0] =
+          raw14_group[13:0];
+      output_pixel++;
+    end
+
+    return 1;
+  end
+
+  /*
+   * Generic contiguous-bit AXI decoding for:
+   *
+   * RAW6
+   * RAW7
+   * RAW8
+   * RAW12
+   *
+   * RAW10 and RAW14 were handled separately above.
    */
   total_bits = axi_bytes.size() * 8;
 

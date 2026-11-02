@@ -9,9 +9,9 @@ class csi2_scoreboard extends uvm_scoreboard;
   uvm_tlm_analysis_fifo #(csi2_axi_write_item)
     actual_fifo;
 
-  uvm_tlm_analysis_fifo #(csi2_rx_packet_item) short_actual_fifo;
+  uvm_tlm_analysis_fifo #(csi2_rx_packet_item)
+    short_actual_fifo;
 
-  // Existing CSI-2 transport-payload unpacker.
   csi2_pixel_unpacker pixel_unpacker;
 
   byte unsigned expected_bytes[$];
@@ -22,14 +22,16 @@ class csi2_scoreboard extends uvm_scoreboard;
   bit [5:0] expected_datatype;
   bit       expected_datatype_valid;
 
-  int unsigned actual_short_count;
-  bit       llp_err_seen;
-  bit [2:0] llp_err_code;
-  time      llp_err_time;
+  /*
+   * Expected short-packet information.
+   */
+  bit [5:0]  expected_short_dtype_q[$];
+  bit [15:0] expected_short_data_q[$];
+  bit [1:0]  expected_short_vc_q[$];
 
-  bit       lane_err_seen;
-  time      lane_err_time;
-
+  /*
+   * Actual short-packet information.
+   */
   bit [5:0]  actual_short_dtype_q[$];
   bit [15:0] actual_short_data_q[$];
   bit [1:0]  actual_short_vc_q[$];
@@ -37,17 +39,28 @@ class csi2_scoreboard extends uvm_scoreboard;
   int unsigned expected_transaction_count;
   int unsigned expected_long_count;
   int unsigned expected_short_count;
+  int unsigned actual_short_count;
+
   int unsigned effective_write_count;
   int unsigned mismatch_count;
 
   bit          all_bfm_completed = 1'b1;
   int unsigned last_bfm_status;
 
-  bit expected_error_injection;
+  /*
+   * Error observation.
+   */
+  bit       llp_err_seen;
+  bit [2:0] llp_err_code;
+  time      llp_err_time;
 
-  //bit       llp_err_seen;
-  //bit [2:0] llp_err_code;
-  //bit       lane_err_seen;
+  bit       lane_err_seen;
+  time      lane_err_time;
+
+  /*
+   * Set when the sequence intentionally injects an error.
+   */
+  bit expected_error_injection;
 
 
   function new(
@@ -61,13 +74,18 @@ class csi2_scoreboard extends uvm_scoreboard;
   function void build_phase(uvm_phase phase);
     super.build_phase(phase);
 
-    expected_fifo = new("expected_fifo", this);
-    actual_fifo   = new("actual_fifo", this);
+    expected_fifo     = new("expected_fifo", this);
+    actual_fifo       = new("actual_fifo", this);
     short_actual_fifo = new("short_actual_fifo", this);
+
     pixel_unpacker = new();
 
     if (!uvm_config_db#(csi2_env_config)::get(
-          this, "", "env_cfg", cfg)) begin
+          this,
+          "",
+          "env_cfg",
+          cfg
+        )) begin
       `uvm_fatal(
         "SB",
         "Missing environment configuration"
@@ -90,102 +108,9 @@ class csi2_scoreboard extends uvm_scoreboard;
   endfunction
 
 
-  function int unsigned get_raw_sample_width(
-    input bit [5:0] datatype
-  );
-    case (datatype)
-      DT_RAW6:
-        return 6;
-
-      DT_RAW7:
-        return 7;
-
-      DT_RAW8:
-        return 8;
-
-      DT_RAW10:
-        return 10;
-
-      DT_RAW12:
-        return 12;
-
-      DT_RAW14:
-        return 14;
-
-      default:
-        return 0;
-    endcase
-  endfunction
-
-
-  // AXI contains a contiguous little-endian pixel bitstream.
-  //
-  // This function must not apply the CSI-2 RAW10 transport rule again.
-  // It simply divides the accepted AXI byte stream into samples based on
-  // the active RAW sample width.
-  function bit unpack_axi_raw(
-    input bit [5:0] datatype,
-    input byte unsigned axi_bytes[$],
-    ref bit [23:0] pixels[],
-    output string error_msg
-  );
-    int unsigned sample_width;
-    int unsigned total_bits;
-    int unsigned bit_index;
-
-    pixels    = new[0];
-    error_msg = "";
-
-    sample_width = get_raw_sample_width(datatype);
-
-    if (sample_width == 0) begin
-      error_msg = $sformatf(
-        "Unsupported AXI RAW datatype 0x%02h",
-        datatype
-      );
-
-      return 0;
-    end
-
-    if (axi_bytes.size() == 0) begin
-      error_msg = "AXI byte stream is empty";
-      return 0;
-    end
-
-    total_bits = axi_bytes.size() * 8;
-
-    if ((total_bits % sample_width) != 0) begin
-      error_msg = $sformatf(
-        "AXI byte count %0d is not aligned to %0d-bit pixels",
-        axi_bytes.size(),
-        sample_width
-      );
-
-      return 0;
-    end
-
-    pixels = new[total_bits / sample_width];
-
-    bit_index = 0;
-
-    foreach (pixels[pixel_index]) begin
-      pixels[pixel_index] = '0;
-
-      for (int sample_bit = 0;
-           sample_bit < sample_width;
-           sample_bit++) begin
-
-        pixels[pixel_index][sample_bit] =
-          axi_bytes[bit_index / 8][bit_index % 8];
-
-        bit_index++;
-      end
-    end
-
-    return 1;
-  endfunction
-
-
+  /*
+   * Collect packets sent by the driver.
+   */
   task collect_expected();
     csi2_rx_packet_item item;
 
@@ -200,20 +125,40 @@ class csi2_scoreboard extends uvm_scoreboard;
       last_bfm_status =
         item.bfm_status;
 
+      /*
+       * Remember that this test intentionally injected an error.
+       */
       if (item.errsoths ||
           item.errsotsynchs) begin
         expected_error_injection = 1'b1;
       end
 
-      // Short packets do not contain payload.
+      /*
+       * SHORT PACKET
+       */
       if (item.is_short_packet) begin
         expected_short_count++;
+
+        expected_short_dtype_q.push_back(
+          item.datatype
+        );
+
+        expected_short_data_q.push_back(
+          item.short_data
+        );
+
+        expected_short_vc_q.push_back(
+          item.vc
+        );
 
         `uvm_info(
           "SB_EXPECTED_SHORT",
           $sformatf(
-            "Expected short packet: %s",
-            item.convert2string()
+            "Expected short packet #%0d dtype=0x%02h data=0x%04h vc=%0d",
+            expected_short_count,
+            item.datatype,
+            item.short_data,
+            item.vc
           ),
           UVM_MEDIUM
         )
@@ -221,6 +166,9 @@ class csi2_scoreboard extends uvm_scoreboard;
         continue;
       end
 
+      /*
+       * LONG PACKET
+       */
       expected_long_count++;
 
       if (!is_supported_raw(item.datatype)) begin
@@ -229,7 +177,7 @@ class csi2_scoreboard extends uvm_scoreboard;
         `uvm_error(
           "SB_FORMAT",
           $sformatf(
-            "Scoreboard supports RAW6/7/8/10/12/14; received datatype 0x%02h",
+            "Unsupported long-packet datatype 0x%02h",
             item.datatype
           )
         )
@@ -237,7 +185,9 @@ class csi2_scoreboard extends uvm_scoreboard;
         continue;
       end
 
-      // All long packets in one test must currently use the same format.
+      /*
+       * Current scoreboard supports one RAW format per test.
+       */
       if (expected_datatype_valid &&
           (expected_datatype != item.datatype)) begin
 
@@ -245,7 +195,11 @@ class csi2_scoreboard extends uvm_scoreboard;
 
         `uvm_error(
           "SB_FORMAT",
-          "Multiple long-packet datatypes in one test are not supported"
+          $sformatf(
+            "Multiple long-packet datatypes detected: previous=0x%02h current=0x%02h",
+            expected_datatype,
+            item.datatype
+          )
         )
 
         continue;
@@ -260,6 +214,9 @@ class csi2_scoreboard extends uvm_scoreboard;
         );
       end
 
+      /*
+       * Convert expected CSI-2 transport bytes into pixels.
+       */
       begin
         int unsigned line_width;
         string error_msg;
@@ -269,13 +226,13 @@ class csi2_scoreboard extends uvm_scoreboard;
         bit [9:0]  u_samples[];
         bit [9:0]  v_samples[];
 
-        // Determine the pixel count from the CSI-2 transport payload.
         if (!pixel_unpacker.infer_line_width(
               item.datatype,
               item.payload.size(),
               ODD_LINE,
               line_width,
-              error_msg)) begin
+              error_msg
+            )) begin
 
           mismatch_count++;
 
@@ -290,7 +247,6 @@ class csi2_scoreboard extends uvm_scoreboard;
           continue;
         end
 
-        // Decode CSI-2 transport packing into individual expected pixels.
         if (!pixel_unpacker.unpack(
               item.datatype,
               item.payload,
@@ -300,7 +256,8 @@ class csi2_scoreboard extends uvm_scoreboard;
               y_samples,
               u_samples,
               v_samples,
-              error_msg)) begin
+              error_msg
+            )) begin
 
           mismatch_count++;
 
@@ -336,6 +293,9 @@ class csi2_scoreboard extends uvm_scoreboard;
   endtask
 
 
+  /*
+   * Collect accepted AXI output bytes.
+   */
   task collect_actual();
     csi2_axi_write_item item;
 
@@ -353,79 +313,94 @@ class csi2_scoreboard extends uvm_scoreboard;
   endtask
 
 
- task collect_errors();
-  forever begin
-    @(cfg.status_vif.rx_cb);
-
-    if (cfg.status_vif.rx_cb.rst_n !== 1'b1) begin
-      continue;
-    end
-
-    if (cfg.status_vif.rx_cb.llp_err_vld === 1'b1) begin
-      llp_err_seen = 1'b1;
-      llp_err_code = cfg.status_vif.rx_cb.llp_err;
-      llp_err_time = $time;
-
-      `uvm_info(
-        "SB_LLP_CAPTURE",
-        $sformatf(
-          "LLP error captured: time=%0t code=%0d",
-          llp_err_time,
-          llp_err_code
-        ),
-        UVM_NONE
-      )
-    end
-
-    if (cfg.status_vif.rx_cb.lane_err === 1'b1) begin
-      lane_err_seen = 1'b1;
-      lane_err_time = $time;
-
-      `uvm_info(
-        "SB_LANE_CAPTURE",
-        $sformatf(
-          "Lane error captured: time=%0t",
-          lane_err_time
-        ),
-        UVM_NONE
-      )
-    end
-  end
-endtask
-
+  /*
+   * Collect decoded short packets from the internal monitor.
+   */
   task collect_actual_short();
-  csi2_rx_packet_item item;
+    csi2_rx_packet_item item;
 
-  forever begin
-    short_actual_fifo.get(item);
+    forever begin
+      short_actual_fifo.get(item);
 
-    actual_short_count++;
+      actual_short_count++;
 
-    actual_short_dtype_q.push_back(item.datatype);
-    actual_short_data_q.push_back(item.short_data);
-    actual_short_vc_q.push_back(item.vc);
+      actual_short_dtype_q.push_back(
+        item.datatype
+      );
 
-    `uvm_info(
-      "SB_ACTUAL_SHORT",
-      $sformatf(
-        "Observed short packet #%0d dtype=0x%02h data=0x%04h vc=%0d",
-        actual_short_count,
-        item.datatype,
-        item.short_data,
+      actual_short_data_q.push_back(
+        item.short_data
+      );
+
+      actual_short_vc_q.push_back(
         item.vc
-      ),
-      UVM_MEDIUM
-    )
-  end
-endtask
+      );
+
+      `uvm_info(
+        "SB_ACTUAL_SHORT",
+        $sformatf(
+          "Observed short packet #%0d dtype=0x%02h data=0x%04h vc=%0d",
+          actual_short_count,
+          item.datatype,
+          item.short_data,
+          item.vc
+        ),
+        UVM_MEDIUM
+      )
+    end
+  endtask
+
+
+  /*
+   * Capture DUT error pulses.
+   */
+  task collect_errors();
+    forever begin
+      @(cfg.status_vif.rx_cb);
+
+      if (cfg.status_vif.rx_cb.rst_n !== 1'b1) begin
+        continue;
+      end
+
+      if (cfg.status_vif.rx_cb.llp_err_vld === 1'b1) begin
+        llp_err_seen = 1'b1;
+        llp_err_code = cfg.status_vif.rx_cb.llp_err;
+        llp_err_time = $time;
+
+        `uvm_info(
+          "SB_LLP_CAPTURE",
+          $sformatf(
+            "LLP error captured: time=%0t code=%0d",
+            llp_err_time,
+            llp_err_code
+          ),
+          UVM_NONE
+        )
+      end
+
+      if (cfg.status_vif.rx_cb.lane_err === 1'b1) begin
+        lane_err_seen = 1'b1;
+        lane_err_time = $time;
+
+        `uvm_info(
+          "SB_LANE_CAPTURE",
+          $sformatf(
+            "Lane error captured: time=%0t",
+            lane_err_time
+          ),
+          UVM_NONE
+        )
+      end
+    end
+  endtask
 
 
   task run_phase(uvm_phase phase);
     fork
-      collect_errors();
       collect_expected();
       collect_actual();
       collect_actual_short();
+      collect_errors();
     join
   endtask
 
@@ -435,10 +410,14 @@ endtask
 
     string error_msg;
 
-    int unsigned compare_count;
+    int unsigned short_compare_count;
+    int unsigned pixel_compare_count;
 
     super.check_phase(phase);
 
+    /*
+     * Basic BFM transaction checks.
+     */
     if (expected_transaction_count == 0) begin
       mismatch_count++;
 
@@ -460,31 +439,145 @@ endtask
       )
     end
 
-  if (llp_err_seen) begin
-  mismatch_count++;
+    /*
+     * ERROR-INJECTION CHECK
+     *
+     * For normal tests, any DUT error is a failure.
+     *
+     * For an error-injection test, at least one error indication
+     * is expected and must not be reported as an unexpected failure.
+     */
+    if (expected_error_injection) begin
+      if (!llp_err_seen &&
+          !lane_err_seen) begin
 
-  `uvm_error(
-    "SB_DUT_ERROR",
-    $sformatf(
-      "Unexpected LLP error captured at time=%0t code=%0d",
-      llp_err_time,
-      llp_err_code
-    )
-  )
-end
+        mismatch_count++;
 
-if (lane_err_seen) begin
-  mismatch_count++;
+        `uvm_error(
+          "SB_EXPECTED_ERROR",
+          "Error injection was requested, but no LLP or lane error was observed"
+        )
+      end
+      else begin
+        `uvm_info(
+          "SB_EXPECTED_ERROR",
+          $sformatf(
+            "Expected DUT error observed: llp_seen=%0b llp_code=%0d llp_time=%0t lane_seen=%0b lane_time=%0t",
+            llp_err_seen,
+            llp_err_code,
+            llp_err_time,
+            lane_err_seen,
+            lane_err_time
+          ),
+          UVM_NONE
+        )
+      end
+    end
+    else begin
+      if (llp_err_seen) begin
+        mismatch_count++;
 
-  `uvm_error(
-    "SB_DUT_ERROR",
-    $sformatf(
-      "Unexpected lane error captured at time=%0t",
-      lane_err_time
-    )
-  )
-end
-    // Short packets must not produce AXI payload data.
+        `uvm_error(
+          "SB_DUT_ERROR",
+          $sformatf(
+            "Unexpected LLP error captured at time=%0t code=%0d",
+            llp_err_time,
+            llp_err_code
+          )
+        )
+      end
+
+      if (lane_err_seen) begin
+        mismatch_count++;
+
+        `uvm_error(
+          "SB_DUT_ERROR",
+          $sformatf(
+            "Unexpected lane error captured at time=%0t",
+            lane_err_time
+          )
+        )
+      end
+    end
+
+    /*
+     * SHORT-PACKET CHECK
+     */
+    if (expected_short_count != actual_short_count) begin
+      mismatch_count++;
+
+      `uvm_error(
+        "SB_SHORT_COUNT",
+        $sformatf(
+          "Short-packet count differs: expected=%0d actual=%0d",
+          expected_short_count,
+          actual_short_count
+        )
+      )
+    end
+
+    short_compare_count =
+      (expected_short_count < actual_short_count) ?
+      expected_short_count :
+      actual_short_count;
+
+    for (int index = 0;
+         index < short_compare_count;
+         index++) begin
+
+      if (expected_short_dtype_q[index] !=
+          actual_short_dtype_q[index]) begin
+
+        mismatch_count++;
+
+        `uvm_error(
+          "SB_SHORT_DTYPE",
+          $sformatf(
+            "Short packet[%0d] datatype differs: expected=0x%02h actual=0x%02h",
+            index,
+            expected_short_dtype_q[index],
+            actual_short_dtype_q[index]
+          )
+        )
+      end
+
+      if (expected_short_data_q[index] !=
+          actual_short_data_q[index]) begin
+
+        mismatch_count++;
+
+        `uvm_error(
+          "SB_SHORT_DATA",
+          $sformatf(
+            "Short packet[%0d] data differs: expected=0x%04h actual=0x%04h",
+            index,
+            expected_short_data_q[index],
+            actual_short_data_q[index]
+          )
+        )
+      end
+
+      if (expected_short_vc_q[index] !=
+          actual_short_vc_q[index]) begin
+
+        mismatch_count++;
+
+        `uvm_error(
+          "SB_SHORT_VC",
+          $sformatf(
+            "Short packet[%0d] VC differs: expected=%0d actual=%0d",
+            index,
+            expected_short_vc_q[index],
+            actual_short_vc_q[index]
+          )
+        )
+      end
+    end
+
+    /*
+     * A test containing only short packets must not produce
+     * payload writes on AXI.
+     */
     if ((expected_long_count == 0) &&
         (expected_short_count != 0)) begin
 
@@ -506,8 +599,12 @@ end
       return;
     end
 
-    if (expected_long_count == 0)
+    /*
+     * No long packet means no RAW pixel comparison is required.
+     */
+    if (expected_long_count == 0) begin
       return;
+    end
 
     if (!expected_datatype_valid) begin
       mismatch_count++;
@@ -546,12 +643,21 @@ end
       return;
     end
 
-    // Decode the DUT AXI output into individual RAW pixels.
-    if (!unpack_axi_raw(
+    /*
+     * IMPORTANT:
+     *
+     * Use the RAW-format-aware AXI unpacker from
+     * csi2_pixel_unpacker.
+     *
+     * RAW10 requires 40-bit group decoding and cannot use the
+     * previous generic LSB-first scoreboard function.
+     */
+    if (!pixel_unpacker.unpack_axi_raw(
           expected_datatype,
           actual_bytes,
           actual_pixels,
-          error_msg)) begin
+          error_msg
+        )) begin
 
       mismatch_count++;
 
@@ -581,13 +687,13 @@ end
       )
     end
 
-    compare_count =
+    pixel_compare_count =
       (actual_pixels.size() < expected_pixels.size()) ?
       actual_pixels.size() :
       expected_pixels.size();
 
     for (int index = 0;
-         index < compare_count;
+         index < pixel_compare_count;
          index++) begin
 
       if (actual_pixels[index] !=
@@ -606,6 +712,9 @@ end
           )
         )
 
+        /*
+         * Report the first pixel mismatch only.
+         */
         break;
       end
     end
@@ -632,10 +741,11 @@ end
       `uvm_info(
         "SB_SUMMARY",
         $sformatf(
-          "PASS packets=%0d long=%0d short=%0d expected_pixels=%0d axi_bytes=%0d writes=%0d",
+          "PASS packets=%0d long=%0d expected_short=%0d actual_short=%0d expected_pixels=%0d axi_bytes=%0d writes=%0d",
           expected_transaction_count,
           expected_long_count,
           expected_short_count,
+          actual_short_count,
           expected_pixels.size(),
           actual_bytes.size(),
           effective_write_count
@@ -647,10 +757,11 @@ end
       `uvm_error(
         "SB_SUMMARY",
         $sformatf(
-          "FAIL packets=%0d long=%0d short=%0d expected_pixels=%0d axi_bytes=%0d writes=%0d mismatches=%0d",
+          "FAIL packets=%0d long=%0d expected_short=%0d actual_short=%0d expected_pixels=%0d axi_bytes=%0d writes=%0d mismatches=%0d",
           expected_transaction_count,
           expected_long_count,
           expected_short_count,
+          actual_short_count,
           expected_pixels.size(),
           actual_bytes.size(),
           effective_write_count,

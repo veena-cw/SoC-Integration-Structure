@@ -202,7 +202,23 @@ endfunction
     wire w_last_expected = (wbeat_cnt == aw_len_q);
 
     // Single-port SRAM: do not accept a write address while a read is active.
-    assign s_axi_awready = (sw_state == SW_IDLE) && s_axi_awvalid;
+    wire sw_idle = (sw_state == SW_IDLE);
+    wire sr_idle = (sr_state == SR_IDLE);
+    
+
+    // Round-robin arbitration between AXI write and read address channels.
+    // 1 = read gets priority when both channels request simultaneously.
+    logic rd_prio_q;
+    wire both_idle = (sw_state == SW_IDLE) && (sr_state == SR_IDLE);
+    assign s_axi_awready = both_idle && !(s_axi_arvalid && rd_prio_q);
+    assign s_axi_arready = both_idle && !(s_axi_awvalid && !rd_prio_q);
+    
+    always_ff @(posedge aclk or negedge aresetn) 
+    	begin
+	     if (!aresetn) rd_prio_q <= 1'b0;
+	     else if (s_axi_awvalid && s_axi_awready) rd_prio_q <= 1'b1;
+	     else if (s_axi_arvalid && s_axi_arready) rd_prio_q <= 1'b0;
+        end
 
     assign s_axi_wready  = (sw_state == SW_DATA);
     assign s_axi_bvalid  = (sw_state == SW_RESP);
@@ -321,18 +337,11 @@ endfunction
     logic                  ar_err_q;
 
     // Single-port SRAM: do not accept a read address while a write is active.
-    assign s_axi_arready = (sr_state == SR_IDLE) && (!s_axi_awvalid);
-
-    assign s_axi_rvalid =
-        (sr_state == SR_DATA);
-
-    assign s_axi_rid   = ar_id_q;
-    assign s_axi_rlast =
-        (sr_state == SR_DATA) &&
-        (rbeat_cnt == ar_len_q);
-
-    assign s_axi_rdata = mem_rdata;
-    assign s_axi_rresp = ar_err_q ? RESP_DECERR : RESP_OKAY;
+    assign s_axi_rvalid = (sr_state == SR_DATA);
+    assign s_axi_rid    = ar_id_q;
+    assign s_axi_rlast  = (sr_state == SR_DATA) && (rbeat_cnt == ar_len_q);
+    assign s_axi_rdata  = mem_rdata;
+    assign s_axi_rresp  = ar_err_q ? RESP_DECERR : RESP_OKAY;
 
     logic mem_rd_req;
 
@@ -341,9 +350,7 @@ endfunction
         (sr_state == SR_REQ) &&
         mem_ready;
 */
-assign mem_rd_req =
-    (sr_state == SR_REQ) &&
-    addr_in_range(ar_addr_q);
+    assign mem_rd_req = (sr_state == SR_REQ) && addr_in_range(ar_addr_q);
     
     //--------------------------------------------------------------------------
     // Single memory interface driver.
@@ -390,7 +397,7 @@ assign mem_rd_req =
                 end
 
                 SR_REQ: begin
-                    if (mem_ready)
+                    if (mem_rd_req && mem_ready)
                         sr_state <= SR_WAIT;
                 end
 

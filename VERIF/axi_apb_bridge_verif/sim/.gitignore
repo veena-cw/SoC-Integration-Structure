@@ -1,0 +1,10 @@
+# Verilator build output and run artifacts (regenerate with make)
+obj_dir/
+obj_rand_*/
+obj_cov_*/
+*.build.log
+logs/
+*.vcd
+# Coverage outputs: keep only the text summary
+coverage/*
+!coverage/summary.txt

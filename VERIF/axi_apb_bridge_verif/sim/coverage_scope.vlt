@@ -1,0 +1,4 @@
+`verilator_config
+// Code coverage is collected on the DUT only; TB and the std package are excluded.
+coverage_off -file "*tb_bridge_rand.sv"
+coverage_off -file "*verilated_std.sv"

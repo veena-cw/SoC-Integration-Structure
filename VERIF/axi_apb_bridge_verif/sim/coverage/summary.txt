@@ -1,0 +1,23 @@
+CODE COVERAGE (DUT only)
+  file                                     line         branch           expr           toggle
+  apb_slave_decoder.sv             10/10 100.0%              -              -     76/80  95.0%
+  async.sv                                    -              -              -   520/540  96.3%
+  axi4_to_apb_bridge_cdc.sv        34/36  94.4%   50/60  83.3% 102/120  85.0% 3124/3158  98.9%
+  fifo_mem.sv                        6/6 100.0%     8/8 100.0%    8/10  80.0%   728/732  99.5%
+  rd_ptr.sv                          2/2 100.0%     4/4 100.0%     4/4 100.0%     40/40 100.0%
+  synchronizer.sv                    1/1 100.0%     2/2 100.0%     2/2 100.0%     22/22 100.0%
+  wr_ptr.sv                          2/2 100.0%     4/4 100.0%     4/4 100.0%     36/42  85.7%
+  TOTAL                            55/57  96.5%   68/78  87.2% 120/140  85.7% 4546/4614  98.5%
+
+FUNCTIONAL COVERAGE (bridge_txn_cg, ignore/illegal bins excluded)
+  bridge_reset_cg.cp_apb_state                4/4    100.0%
+  bridge_reset_cg.cp_axi_state                8/8    100.0%
+  bridge_txn_cg.cp_burst                      3/3    100.0%
+  bridge_txn_cg.cp_dir                        2/2    100.0%
+  bridge_txn_cg.cp_err                        2/2    100.0%
+  bridge_txn_cg.cp_len                        6/6    100.0%
+  bridge_txn_cg.cp_size                       5/5    100.0%
+  bridge_txn_cg.cp_strb                       3/3    100.0%
+  bridge_txn_cg.x_dir_burst_size             30/30   100.0%
+  bridge_txn_cg.x_dir_err                     4/4    100.0%
+  TOTAL                                      67/67   100.0%

@@ -6,8 +6,7 @@ TB_DIR  := $(abspath $(SIM_DIR)/..)
 
 BUILD_ROOT ?= $(SIM_DIR)/.csi2_uvm_build
 OBJ_DIR    := $(BUILD_ROOT)/obj
-LOG_DIR    := $(BUILD_ROOT)/log
-WAVE_FILE  := $(BUILD_ROOT)/csi2_wave.vcd
+LOG_ROOT   := $(SIM_DIR)/log
 
 TEST_LIST := $(TB_DIR)/../test_names/testcase
 
@@ -21,7 +20,16 @@ VERILATOR ?= /opt/verilator-5.052/bin/verilator
 UVM_HOME  ?= $(abspath $(SIM_DIR)/../../../uvm-1.1d)
 
 SIM_BINARY := $(OBJ_DIR)/Vcsi2_tb_top
-LOG_FILE   := $(LOG_DIR)/$(TESTNAME).log
+TEST_LOG_DIR := $(LOG_ROOT)/$(TESTNAME)/seed_$(SEED)
+LOG_FILE     := $(TEST_LOG_DIR)/run.log
+BUILD_LOG    := $(TEST_LOG_DIR)/build.log
+WAVE_FILE    := $(TEST_LOG_DIR)/csi2_wave.vcd
+
+ifeq ($(TESTNAME),csi2_cphy_async_fifo_clock_ratio_test)
+TEST_ARGS := +BFM_HALF_PERIOD=3 +AXI_HALF_PERIOD=7
+else
+TEST_ARGS :=
+endif
 
 INCLUDES := \
 	-I"$(TB_DIR)/agent/tx_agent" \
@@ -48,7 +56,7 @@ TRACE_FLAGS :=
 WAVE_ARGS   :=
 endif
 
-.PHONY: all help check build run wave clean
+.PHONY: all help check build run wave regression clean
 
 all: run
 
@@ -56,6 +64,7 @@ help:
 	@echo "make build TESTNAME=csi2_rx_raw7_test"
 	@echo "make run   TESTNAME=csi2_rx_raw7_test"
 	@echo "make wave  TESTNAME=csi2_rx_raw7_test"
+	@echo "make regression"
 	@echo "make clean"
 
 check:
@@ -105,7 +114,7 @@ check:
 	@echo "Waveform mode:   WAVES=$(WAVES)"
 
 build: check
-	@mkdir -p "$(OBJ_DIR)" "$(LOG_DIR)"
+	@mkdir -p "$(OBJ_DIR)" "$(TEST_LOG_DIR)"
 	@echo "Building $(TESTNAME)..."
 
 	@cd "$(SIM_DIR)" && \
@@ -122,16 +131,17 @@ build: check
 		-f files.f \
 		"$(UVM_HOME)/src/dpi/uvm_dpi.cc" \
 		-CFLAGS "-I$(UVM_HOME)/src/dpi" \
-		2>&1 | tee "$(LOG_DIR)/build.log"
+		2>&1 | tee "$(BUILD_LOG)"
 
 run: build
-	@mkdir -p "$(LOG_DIR)"
+	@mkdir -p "$(TEST_LOG_DIR)"
 	@echo "Running $(TESTNAME)..."
 
 	@timeout "$(TIMEOUT)" \
 		"$(SIM_BINARY)" \
 		+UVM_TESTNAME="$(TESTNAME)" \
 		+verilator+seed+"$(SEED)" \
+		$(TEST_ARGS) \
 		$(WAVE_ARGS) \
 		2>&1 | tee "$(LOG_FILE)"
 
@@ -152,6 +162,12 @@ wave:
 
 	@echo "Waveform generated: $(WAVE_FILE)"
 	@gtkwave "$(WAVE_FILE)" >/dev/null 2>&1 &
+
+regression:
+	@while IFS= read -r test_name; do \
+		[ -z "$$test_name" ] && continue; \
+		$(MAKE) run TESTNAME="$$test_name" SEED="$(SEED)" || exit $$?; \
+	done < "$(TEST_LIST)"
 
 clean:
 	@rm -rf "$(BUILD_ROOT)"

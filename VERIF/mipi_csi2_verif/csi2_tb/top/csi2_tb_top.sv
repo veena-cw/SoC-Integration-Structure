@@ -7,9 +7,18 @@ module csi2_tb_top;
 
   logic bfm_clk = 1'b0;
   logic aclk    = 1'b0;
+  integer bfm_half_period = 5;
+  integer axi_half_period = 5;
 
-  always #5 bfm_clk = ~bfm_clk;
-  always #5 aclk    = ~aclk;
+  initial begin
+    void'($value$plusargs("BFM_HALF_PERIOD=%d", bfm_half_period));
+    forever #(bfm_half_period) bfm_clk = ~bfm_clk;
+  end
+
+  initial begin
+    void'($value$plusargs("AXI_HALF_PERIOD=%d", axi_half_period));
+    forever #(axi_half_period) aclk = ~aclk;
+  end
 
   csi2_reset_if rst_vif(.clk(bfm_clk));
 
@@ -29,6 +38,8 @@ module csi2_tb_top;
     .STRB_WIDTH(`wstrb)
   ) axi_vif(.aclk(aclk));
 
+  csi2_axi4_lite_if axi_lite_vif(.aclk(aclk));
+
   csi2_rx_status_if status_vif(
   .bfm_clk(bfm_clk),
   .aclk   (aclk),
@@ -37,12 +48,8 @@ module csi2_tb_top;
 
   logic rd_rst_n;
 
-  // The current RTL still exposes APB pins, but configuration/status access
-  // is intentionally not verified because the design team plans to replace
-  // this port with an AXI slave.  Keep it inactive until that RTL is supplied.
-  logic        pready;
-  logic        pslverr;
-  logic [31:0] prdata;
+  logic [31:0] lane_configuration;
+  logic [31:0] mode_selection;
 
 
   int phy_word_count;
@@ -53,6 +60,7 @@ module csi2_tb_top;
 
   assign phy_bfm.rst_n = rst_vif.rst_n;
   assign axi_vif.areset_n = rst_vif.rst_n;
+  assign axi_lite_vif.areset_n = rst_vif.rst_n;
   assign rd_rst_n = rst_vif.rst_n;
 
   // Keep all DUT hierarchy references in the integration top.  Reusable UVM
@@ -82,12 +90,6 @@ module csi2_tb_top;
   assign status_vif.axi_fifo_rd_vld   = dut.axim_inst.axi_rd_vld;
   assign status_vif.long_pkt_vld      = dut.llp_rx_inst.long_pkt_vld;
 
-  // Minimal memory-side response model.  The passive AXI monitor will decide
-  // whether a transfer is effective from WVALID/WREADY/WSTRB.
-  assign axi_vif.awready = 1'b1;
-  assign axi_vif.wready  = 1'b1;
-  assign axi_vif.bresp   = 2'b00;
-
 always @(posedge phy_bfm.cphy_rxwordclkhs) begin
   if (!phy_bfm.rst_n) begin
     phy_word_count <= 0;
@@ -113,16 +115,11 @@ always @(posedge axi_vif.aclk) begin
     axi_w_count++;
 end
 
-  always_ff @(posedge aclk or negedge rst_vif.rst_n) begin
-    if (!rst_vif.rst_n)
-      axi_vif.bvalid <= 1'b0;
-    else if (axi_vif.wvalid && axi_vif.wready && axi_vif.wlast)
-      axi_vif.bvalid <= 1'b1;
-    else if (axi_vif.bvalid && axi_vif.bready)
-      axi_vif.bvalid <= 1'b0;
-  end
-
-  csi2_rx_top dut (
+  csi2_rx_top #(
+    .RX_PIXEL_DATA_W (`rx_pixel_data),
+    .AXI_DATA_W      (`wdata),
+    .AXI_STRB_W      (`wstrb)
+  ) dut (
     .rxwordclkhs         (phy_bfm.rxwordclkhs),
     .cphy_rxwordclkhs    (phy_bfm.cphy_rxwordclkhs),
     .rxclkesc            (phy_bfm.rxclkesc),
@@ -172,11 +169,28 @@ end
     .rxalp_lpselect      (phy_bfm.rxalp_lpselect),
     .rxdatawidthhs       (phy_bfm.rxdatawidthhs),
     .alpwakestate        (phy_bfm.alpwakestate),
-    .lane_configuration  (phy_bfm.lane_configuration),
-    .mode_selection      (phy_bfm.mode_selection),
+    .lane_configuration  (lane_configuration),
+    .mode_selection      (mode_selection),
     .aclk                (aclk),
     .areset_n            (axi_vif.areset_n),
     .rd_rst_n            (rd_rst_n),
+    .s_axi_awaddr        (axi_lite_vif.awaddr),
+    .s_axi_awvalid       (axi_lite_vif.awvalid),
+    .s_axi_awready       (axi_lite_vif.awready),
+    .s_axi_wdata         (axi_lite_vif.wdata),
+    .s_axi_wstrb         (axi_lite_vif.wstrb),
+    .s_axi_wvalid        (axi_lite_vif.wvalid),
+    .s_axi_wready        (axi_lite_vif.wready),
+    .s_axi_bresp         (axi_lite_vif.bresp),
+    .s_axi_bvalid        (axi_lite_vif.bvalid),
+    .s_axi_bready        (axi_lite_vif.bready),
+    .s_axi_araddr        (axi_lite_vif.araddr),
+    .s_axi_arvalid       (axi_lite_vif.arvalid),
+    .s_axi_arready       (axi_lite_vif.arready),
+    .s_axi_rdata         (axi_lite_vif.rdata),
+    .s_axi_rresp         (axi_lite_vif.rresp),
+    .s_axi_rvalid        (axi_lite_vif.rvalid),
+    .s_axi_rready        (axi_lite_vif.rready),
     .wvalid              (axi_vif.wvalid),
     .wlast               (axi_vif.wlast),
     .wdata               (axi_vif.wdata),
@@ -195,24 +209,14 @@ end
     .awregion            (axi_vif.awregion),
     .bresp               (axi_vif.bresp),
     .bvalid              (axi_vif.bvalid),
-    .bready              (axi_vif.bready),
-    .pclk                (aclk),
-    .prst_n              (rst_vif.rst_n),
-    .pwrite              (1'b0),
-    .psel                (1'b0),
-    .penable             (1'b0),
-    .pprot               (3'b000),
-    .pstrb               (4'b0000),
-    .paddr               (32'b0),
-    .pwdata              (32'b0),
-    .pready              (pready),
-    .pslverr             (pslverr),
-    .prdata              (prdata)
+    .bready              (axi_vif.bready)
   );
 
   initial begin
     uvm_config_db#(virtual c_phy_bfm_if)::set(null, "*", "phy_vif", phy_bfm);
     uvm_config_db#(virtual csi2_axi_write_if)::set(null, "*", "axi_vif", axi_vif);
+    uvm_config_db#(virtual csi2_axi4_lite_if)::set(
+        null, "*", "axi_lite_vif", axi_lite_vif);
     uvm_config_db#(virtual csi2_reset_if)::set(null, "*", "rst_vif", rst_vif);
     uvm_config_db#(virtual csi2_rx_status_if)::set(
         null, "*", "status_vif", status_vif);

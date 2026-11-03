@@ -26,6 +26,16 @@ class csi2_rx_packet_item extends uvm_sequence_item;
   // PHY error injection.
   logic errsoths     = 1'b0;
   logic errsotsynchs = 1'b0;
+  logic erresc            = 1'b0;
+  logic errsyncesc        = 1'b0;
+  logic errcontrol        = 1'b0;
+  logic errcontentionlp0  = 1'b0;
+  logic errcontentionlp1  = 1'b0;
+
+  bit          corrupt_crc = 1'b0;
+  bit          payload_gap_enable = 1'b0;
+  int unsigned payload_gap_after_words = 1;
+  bit          expect_dut_error = 1'b0;
 
   string test_case = "NORMAL";
 
@@ -53,6 +63,15 @@ class csi2_rx_packet_item extends uvm_sequence_item;
 
     errsoths         = rhs.errsoths;
     errsotsynchs     = rhs.errsotsynchs;
+    erresc           = rhs.erresc;
+    errsyncesc      = rhs.errsyncesc;
+    errcontrol      = rhs.errcontrol;
+    errcontentionlp0 = rhs.errcontentionlp0;
+    errcontentionlp1 = rhs.errcontentionlp1;
+    corrupt_crc      = rhs.corrupt_crc;
+    payload_gap_enable = rhs.payload_gap_enable;
+    payload_gap_after_words = rhs.payload_gap_after_words;
+    expect_dut_error = rhs.expect_dut_error;
 
     test_case        = rhs.test_case;
     bfm_completed    = rhs.bfm_completed;

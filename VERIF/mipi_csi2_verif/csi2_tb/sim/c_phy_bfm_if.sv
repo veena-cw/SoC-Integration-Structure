@@ -572,6 +572,19 @@ endtask
     drive_idle();
   endtask
 
+  task automatic drive_valid_gap();
+    if (bfm_state != BFM_HS_DATA) begin
+      last_status = BFM_STATUS_ILLEGAL_STATE;
+      $error("C-PHY BFM: payload gap called from state %0d", bfm_state);
+      return;
+    end
+    @(negedge bfm_clk);
+    rxactivehs = 1'b1;
+    rxvalidhs  = 4'b0000;
+    rxsynchs   = 4'b0000;
+    rxdatahs   = 64'b0;
+  endtask
+
   task automatic finish_without_eot();
     if (bfm_state != BFM_HS_DATA) begin
       last_status = BFM_STATUS_ILLEGAL_STATE;

@@ -103,7 +103,10 @@ class csi2_scoreboard extends uvm_scoreboard;
       DT_RAW8,
       DT_RAW10,
       DT_RAW12,
-      DT_RAW14
+      DT_RAW14,
+      DT_RAW16,
+      DT_RGB555,
+      DT_RGB666
     };
   endfunction
 
@@ -128,8 +131,10 @@ class csi2_scoreboard extends uvm_scoreboard;
       /*
        * Remember that this test intentionally injected an error.
        */
-      if (item.errsoths ||
-          item.errsotsynchs) begin
+      if (item.errsoths || item.errsotsynchs || item.erresc ||
+          item.errsyncesc || item.errcontrol ||
+          item.errcontentionlp0 || item.errcontentionlp1 ||
+          item.expect_dut_error) begin
         expected_error_injection = 1'b1;
       end
 
@@ -213,6 +218,9 @@ class csi2_scoreboard extends uvm_scoreboard;
           item.payload[index]
         );
       end
+
+      if (item.expect_dut_error)
+        continue;
 
       /*
        * Convert expected CSI-2 transport bytes into pixels.
@@ -418,7 +426,7 @@ class csi2_scoreboard extends uvm_scoreboard;
     /*
      * Basic BFM transaction checks.
      */
-    if (expected_transaction_count == 0) begin
+    if ((expected_transaction_count == 0) && !cfg.control_only_test) begin
       mismatch_count++;
 
       `uvm_error(
@@ -427,7 +435,8 @@ class csi2_scoreboard extends uvm_scoreboard;
       )
     end
 
-    if (!all_bfm_completed) begin
+    if (!all_bfm_completed && !cfg.control_only_test &&
+        !cfg.reset_interruption_test) begin
       mismatch_count++;
 
       `uvm_error(
@@ -447,7 +456,16 @@ class csi2_scoreboard extends uvm_scoreboard;
      * For an error-injection test, at least one error indication
      * is expected and must not be reported as an unexpected failure.
      */
-    if (expected_error_injection) begin
+    if (cfg.control_only_test) begin
+      `uvm_info("SB_CONTROL_ONLY",
+                "Skipping packet-path error checks for control-only test",
+                UVM_NONE)
+    end
+    else if (cfg.reset_interruption_test) begin
+      `uvm_info("SB_RESET_INTERRUPT",
+                "Packet interruption by reset was intentional", UVM_NONE)
+    end
+    else if (expected_error_injection) begin
       if (!llp_err_seen &&
           !lane_err_seen) begin
 
@@ -605,6 +623,12 @@ class csi2_scoreboard extends uvm_scoreboard;
     if (expected_long_count == 0) begin
       return;
     end
+
+    if (cfg.reset_interruption_test)
+      return;
+
+    if (expected_error_injection)
+      return;
 
     if (!expected_datatype_valid) begin
       mismatch_count++;

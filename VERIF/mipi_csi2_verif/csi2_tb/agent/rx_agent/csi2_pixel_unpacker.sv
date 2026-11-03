@@ -25,6 +25,8 @@ function bit unpack_axi_raw(
 
   bit [39:0] raw10_group;
   bit [55:0] raw14_group;
+  bit [63:0] group64;
+  bit [71:0] group72;
 
   pixels    = new[0];
   error_msg = "";
@@ -36,6 +38,9 @@ function bit unpack_axi_raw(
     DT_RAW10: sample_width = 10;
     DT_RAW12: sample_width = 12;
     DT_RAW14: sample_width = 14;
+    DT_RAW16: sample_width = 16;
+    DT_RGB555: sample_width = 15;
+    DT_RGB666: sample_width = 18;
 
     default: begin
       error_msg = $sformatf(
@@ -175,6 +180,46 @@ function bit unpack_axi_raw(
       output_pixel++;
     end
 
+    return 1;
+  end
+
+  if (datatype == DT_RGB555) begin
+    if ((axi_bytes.size() % 8) != 0) begin
+      error_msg = "RGB555 AXI byte count is not divisible by 8";
+      return 0;
+    end
+    pixels = new[(axi_bytes.size()/8)*4];
+    output_pixel = 0;
+    for (int base = 0; base < axi_bytes.size(); base += 8) begin
+      group64 = '0;
+      for (int byte_index = 0; byte_index < 8; byte_index++)
+        group64[byte_index*8 +: 8] = axi_bytes[base+byte_index];
+      for (int pixel = 0; pixel < 4; pixel++) begin
+        pixels[output_pixel] = '0;
+        pixels[output_pixel][14:0] = group64[pixel*15 +: 15];
+        output_pixel++;
+      end
+    end
+    return 1;
+  end
+
+  if (datatype == DT_RGB666) begin
+    if ((axi_bytes.size() % 9) != 0) begin
+      error_msg = "RGB666 AXI byte count is not divisible by 9";
+      return 0;
+    end
+    pixels = new[(axi_bytes.size()/9)*4];
+    output_pixel = 0;
+    for (int base = 0; base < axi_bytes.size(); base += 9) begin
+      group72 = '0;
+      for (int byte_index = 0; byte_index < 9; byte_index++)
+        group72[byte_index*8 +: 8] = axi_bytes[base+byte_index];
+      for (int pixel = 0; pixel < 4; pixel++) begin
+        pixels[output_pixel] = '0;
+        pixels[output_pixel][17:0] = group72[pixel*18 +: 18];
+        output_pixel++;
+      end
+    end
     return 1;
   end
 
@@ -383,6 +428,14 @@ endfunction
         line_width = (payload_size/7)*4;
       end
 
+      DT_RAW16: begin
+        if ((payload_size % 2) != 0) begin
+          error_msg = "RAW16 payload is not a multiple of 2";
+          return 0;
+        end
+        line_width = payload_size/2;
+      end
+
       default: begin
         error_msg = $sformatf("Unsupported data type 0x%02h",dt);
         return 0;
@@ -528,6 +581,9 @@ endfunction
         end
         expected_size = (7*line_width)/4;
       end
+
+      DT_RAW16:
+        expected_size = 2*line_width;
 
       default: begin
         error_msg = $sformatf("Unsupported data type 0x%02h",dt);
@@ -768,6 +824,16 @@ endfunction
                                     payload[payload_index+5][7:4]};
           pixels[pixel+3][13:0] = {payload[payload_index+3],
                                     payload[payload_index+6][7:2]};
+        end
+      end
+
+
+      DT_RAW16: begin
+        pixels = new[line_width];
+        foreach (pixels[index]) begin
+          payload_index = index*2;
+          pixels[index][15:0] = {payload[payload_index],
+                                  payload[payload_index+1]};
         end
       end
     endcase

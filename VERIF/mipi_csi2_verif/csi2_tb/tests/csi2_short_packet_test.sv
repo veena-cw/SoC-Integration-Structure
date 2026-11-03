@@ -6,14 +6,12 @@ class csi2_short_packet_test extends csi2_base_test;
   endfunction
 
   virtual task run_scenario();
-    int unsigned before_count;
-
-    run_initial_baseline();
-
-    for(int i = 0; i < 12; i++) begin
-      before_count = en.sb.compared_count;
-      send_short(i < 4 ? i : i + 4);
-      wait(en.sb.compared_count == before_count + 1);
-    end
+    csi2_generic_short_packet_seq sequence_h;
+    apply_reset();
+    sequence_h = csi2_generic_short_packet_seq::type_id::create(
+        "short_packet_sequence");
+    sequence_h.start(env.ppi_agent.sequencer);
+    drain_pipeline();
+    report_rx_status("RX_SHORT_PACKET_STATUS");
   endtask
 endclass : csi2_short_packet_test

@@ -20,6 +20,9 @@ class csi2_base_test extends uvm_test;
     if (!uvm_config_db#(virtual csi2_axi_write_if)::get(null, "", "axi_vif",
                                                         env_cfg.axi_vif))
       `uvm_fatal("BASE_TEST", "Failed to get AXI write interface")
+    if (!uvm_config_db#(virtual csi2_axi4_lite_if)::get(
+          null, "", "axi_lite_vif", env_cfg.axi_lite_vif))
+      `uvm_fatal("BASE_TEST", "Failed to get AXI4-Lite interface")
     if (!uvm_config_db#(virtual csi2_reset_if)::get(null, "", "rst_vif",
                                                      env_cfg.rst_vif))
       `uvm_fatal("BASE_TEST", "Failed to get reset interface")
@@ -40,6 +43,73 @@ class csi2_base_test extends uvm_test;
     sequence_h.delay_cycles = 0;
     sequence_h.assertion_cycles = 10;
     sequence_h.start(env.reset_agent.rst_sr);
+    configure_receiver();
+  endtask
+
+  task axi4_lite_write(
+    input bit [31:0] address,
+    input bit [31:0] data,
+    input bit [3:0]  strobe,
+    output bit [1:0] response
+  );
+    csi2_axi4_lite_sequence sequence_h;
+    sequence_h = csi2_axi4_lite_sequence::type_id::create(
+        "axi4_lite_write_sequence");
+    sequence_h.operation    = CSI2_AXI4L_WRITE;
+    sequence_h.address      = address;
+    sequence_h.write_data   = data;
+    sequence_h.write_strobe = strobe;
+    sequence_h.start(env.axi_lite_agent.sequencer);
+    response = sequence_h.response;
+  endtask
+
+  task axi4_lite_read(
+    input bit [31:0] address,
+    output bit [31:0] data,
+    output bit [1:0] response
+  );
+    csi2_axi4_lite_sequence sequence_h;
+    sequence_h = csi2_axi4_lite_sequence::type_id::create(
+        "axi4_lite_read_sequence");
+    sequence_h.operation = CSI2_AXI4L_READ;
+    sequence_h.address   = address;
+    sequence_h.start(env.axi_lite_agent.sequencer);
+    data     = sequence_h.read_data;
+    response = sequence_h.response;
+  endtask
+
+  task configure_receiver();
+    bit [1:0] response;
+    // csi2_reg: lane_configuration 2 selects four lanes; mode_selection 0
+    // selects C-PHY.  Every RX data test starts from this legal state.
+    axi4_lite_write(32'h0000_0000, 32'h0000_0002, 4'hf, response);
+    if (response != 2'b00)
+      `uvm_error("AXI4L_CFG", "Lane configuration write failed")
+    axi4_lite_write(32'h0000_0004, 32'h0000_0000, 4'hf, response);
+    if (response != 2'b00)
+      `uvm_error("AXI4L_CFG", "Mode selection write failed")
+  endtask
+
+  task drain_pipeline(int unsigned cycles = 3000);
+    repeat (cycles) @(env_cfg.axi_vif.mon_cb);
+  endtask
+
+  task report_rx_status(string report_id);
+    `uvm_info(report_id,
+      $sformatf("BFM status=%0d state=%0d dtype=0x%02h lane_err=%0b llp_err=%0b pixel_valid=%0d axi_wr_en=%0d AW=%0d W=%0d B=%0d orphan-W=%0d zero-strobe=%0d effective=%0d",
+        env_cfg.phy_vif.last_status,
+        env_cfg.phy_vif.bfm_state,
+        env_cfg.status_vif.dtype,
+        env_cfg.status_vif.lane_err,
+        env_cfg.status_vif.llp_err_vld,
+        env.internal_monitor.pixel_valid_cycles,
+        env.internal_monitor.axi_wr_en_cycles,
+        env.axi_monitor.aw_handshake_count,
+        env.axi_monitor.w_handshake_count,
+        env.axi_monitor.b_handshake_count,
+        env.axi_monitor.orphan_w_count,
+        env.axi_monitor.zero_strobe_count,
+        env.axi_monitor.effective_write_count), UVM_NONE)
   endtask
 
   virtual task run_scenario();
@@ -47,8 +117,16 @@ class csi2_base_test extends uvm_test;
   endtask
 
   task run_phase(uvm_phase phase);
+    csi2_axi_slave_sequence response_sequence;
     phase.raise_objection(this);
+    response_sequence = csi2_axi_slave_sequence::type_id::create(
+        "response_sequence");
+    response_sequence.awready_delay = env_cfg.axi_awready_delay;
+    response_sequence.wready_delay  = env_cfg.axi_wready_delay;
+    response_sequence.bvalid_delay  = env_cfg.axi_bvalid_delay;
+    response_sequence.bresp         = env_cfg.axi_bresp;
     fork
+      response_sequence.start(env.axi_agent.sequencer);
       run_scenario();
       begin
         repeat (10000) @(env_cfg.axi_vif.mon_cb);

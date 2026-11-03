@@ -14,6 +14,7 @@
 ../env/csi2_types_pkg.sv
 ../interface/csi2_reset_if.sv
 ../interface/csi2_axi_write_if.sv
+../interface/csi2_axi4_lite_if.sv
 ../interface/csi2_rx_status_if.sv
 c_phy_bfm_if.sv
 

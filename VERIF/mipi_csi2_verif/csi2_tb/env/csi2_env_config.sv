@@ -11,6 +11,12 @@ class csi2_env_config extends uvm_object;
      rtl_sync_workaround             = 1'b1;
      rtl_ulps_polarity_workaround    = 1'b1;
      rtl_eot_workaround              = 1'b1;
+     axi_awready_delay               = 0;
+     axi_wready_delay                = 0;
+     axi_bvalid_delay                = 0;
+     axi_bresp                       = 2'b00;
+     control_only_test               = 1'b0;
+     reset_interruption_test         = 1'b0;
    endfunction
 
    csi2_verification_mode_e mode;
@@ -27,8 +33,18 @@ class csi2_env_config extends uvm_object;
    bit rtl_ulps_polarity_workaround;
    bit rtl_eot_workaround;
 
+   // Memory-side AXI response policy.  Non-zero delays create controlled
+   // backpressure while the DUT remains the AXI write master.
+   int unsigned axi_awready_delay;
+   int unsigned axi_wready_delay;
+   int unsigned axi_bvalid_delay;
+   bit [1:0]    axi_bresp;
+   bit          control_only_test;
+   bit          reset_interruption_test;
+
    virtual c_phy_bfm_if       phy_vif;
    virtual csi2_axi_write_if  axi_vif;
+   virtual csi2_axi4_lite_if  axi_lite_vif;
    virtual csi2_reset_if      rst_vif;
    virtual csi2_rx_status_if  status_vif;
 

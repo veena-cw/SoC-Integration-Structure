@@ -53,6 +53,9 @@ class csi2_rtl_packet_builder;
     foreach (item.payload[index])
       payload_crc = crc16_byte(item.payload[index], payload_crc);
 
+    if (item.corrupt_crc)
+      payload_crc = payload_crc ^ 16'h0001;
+
     payload_and_crc.push_back(payload_crc[7:0]);
     payload_and_crc.push_back(payload_crc[15:8]);
 

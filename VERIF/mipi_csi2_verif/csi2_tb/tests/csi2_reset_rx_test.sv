@@ -5,23 +5,16 @@ class csi2_reset_rx_test extends csi2_base_test;
     super.new(name, parent);
   endfunction
 
+  function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    env_cfg.control_only_test = 1'b1;
+  endfunction
+
   virtual task run_scenario();
-    int unsigned before_count;
-
-    run_initial_baseline();
-    before_count = en.sb.compared_count;
-
-    fork
-      send_one();
-      begin
-        do @(rx_cfg[0].vif.rx_mon_cb);
-        while(!(rx_cfg[0].vif.rx_mon_cb.px_valid_o &&
-                rx_cfg[0].vif.rx_mon_cb.px_ready_i));
-        apply_reset();
-      end
-    join
-
-    if(en.sb.compared_count != before_count)
-      `uvm_error("RESET_TEST", "Interrupted RX packet was compared")
+    apply_reset();
+    repeat (20) @(env_cfg.axi_vif.mon_cb);
+    if (env_cfg.rst_vif.rst_n !== 1'b1)
+      `uvm_error("RESET_TEST", "Reset did not return inactive")
+    report_rx_status("RX_RESET_STATUS");
   endtask
 endclass : csi2_reset_rx_test

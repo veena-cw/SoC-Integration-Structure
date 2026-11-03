@@ -32,10 +32,12 @@ module lpddr5c_cmd_scheduler #(
     parameter int STARVE_AGE    = 512,    // age at which an entry is promoted
     parameter int DIR_BONUS     = 256     // used only when sched_policy[0] = 1
 ) (
+    // DFI_CLK domain: at 800 MHz for the current integration.
+    // All scheduler timing counters/parameters are expressed in DFI cycles.
     input  logic                         clk,
     input  logic                         rst_n,
 
-    input  logic [31:0]                  timing_params,   // quasi-static
+    input  logic [31:0]                  timing_params,   // synchronized, quasi-static DFI-cycle values
     input  logic [3:0]                   sched_policy,    // [0]: read/write direction batching
     input  logic [1:0]                   qos_en,
 
@@ -443,6 +445,8 @@ module lpddr5c_cmd_scheduler #(
     //========================================================================
     // Sequential logic
     //========================================================================
+    // This block is clocked by DFI_CLK from lpddr5c_top.
+    // Therefore every counter below advances in DFI clock cycles.
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             for (int i = 0; i < CMD_QUEUE_DEPTH; i++) cmd_queue[i] <= '0;

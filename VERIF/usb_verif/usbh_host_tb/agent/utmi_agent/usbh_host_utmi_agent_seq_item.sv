@@ -27,6 +27,58 @@
 //----------------------------------------------------------------------
 
 
+class usbh_host_utmi_agent_seq_item extends uvm_sequence_item;
+
+  // Device/PHY -> USB Host
+  logic [7:0] utmi_data_in_i;
+  logic       utmi_txready_i;
+  logic       utmi_rxvalid_i;
+  logic       utmi_rxactive_i;
+  logic       utmi_rxerror_i;
+  logic [1:0] utmi_linestate_i;
+
+  // USB Host -> Device/PHY
+  logic [7:0] utmi_data_out_o;
+  logic       utmi_txvalid_o;
+
+  // PHY control outputs
+  logic [1:0] utmi_op_mode_o;
+  logic [1:0] utmi_xcvrselect_o;
+  logic       utmi_termselect_o;
+  logic       utmi_dppulldown_o;
+  logic       utmi_dmpulldown_o;
+
+  // Sampled clock/reset state
+  logic       rst_i;
+
+  `uvm_object_utils_begin(usbh_host_utmi_agent_seq_item)
+    `uvm_field_int(utmi_data_in_i,    UVM_ALL_ON)
+    `uvm_field_int(utmi_txready_i,    UVM_ALL_ON)
+    `uvm_field_int(utmi_rxvalid_i,    UVM_ALL_ON)
+    `uvm_field_int(utmi_rxactive_i,   UVM_ALL_ON)
+    `uvm_field_int(utmi_rxerror_i,    UVM_ALL_ON)
+    `uvm_field_int(utmi_linestate_i,  UVM_ALL_ON)
+    `uvm_field_int(utmi_data_out_o,   UVM_ALL_ON)
+    `uvm_field_int(utmi_txvalid_o,    UVM_ALL_ON)
+    `uvm_field_int(utmi_op_mode_o,    UVM_ALL_ON)
+    `uvm_field_int(utmi_xcvrselect_o, UVM_ALL_ON)
+    `uvm_field_int(utmi_termselect_o, UVM_ALL_ON)
+    `uvm_field_int(utmi_dppulldown_o, UVM_ALL_ON)
+    `uvm_field_int(utmi_dmpulldown_o, UVM_ALL_ON)
+    `uvm_field_int(rst_i,             UVM_ALL_ON)
+  `uvm_object_utils_end
+
+  function new(string name =
+               "usbh_host_utmi_agent_seq_item");
+    super.new(name);
+  endfunction
+
+endclass
+
+
+
+
+/*
 // Sequence item for agent "utmi_agent" (bound to interface group "utmi").
 class usbh_host_utmi_agent_seq_item extends uvm_sequence_item;
 
@@ -44,6 +96,8 @@ class usbh_host_utmi_agent_seq_item extends uvm_sequence_item;
     `uvm_field_array(payload, UVM_ALL_ON)
     `uvm_field_int(crc_error, UVM_ALL_ON)
   `uvm_object_utils_end
+
+
 
   function new(string name = "usbh_host_utmi_agent_seq_item");
     super.new(name);
@@ -86,4 +140,5 @@ class usbh_host_utmi_agent_seq_item extends uvm_sequence_item;
         }
     }
 
-endclass : usbh_host_utmi_agent_seq_item
+endclass : usbh_host_utmi_agent_seq_item   
+*/

@@ -44,14 +44,17 @@ class usbh_host_utmi_agent_monitor extends uvm_monitor;
     ap = new("ap", this);
     if (!uvm_resource_db#(virtual usbh_host_utmi_if)::read_by_name(
             get_full_name(), "vif", vif, this))
-      `uvm_fatal("NOVIF", $sformatf("[%s] Virtual interface not found in resource_db", get_full_name()))
+      `uvm_fatal("NOVIF in UTMI MONITOR", $sformatf("[%s] Virtual interface not found in resource_db", get_full_name()))
   endfunction
 
   task run_phase(uvm_phase phase);
     usbh_host_utmi_agent_seq_item item;
     forever begin
       @(vif.mon_cb);
-      item = usbh_host_utmi_agent_seq_item::type_id::create("item");
+      item = usbh_host_utmi_agent_seq_item::type_id::create("item",this);
+      
+      item.rst_i = vif.rst_i;
+      
       item.utmi_data_in_i = vif.mon_cb.utmi_data_in_i;
       item.utmi_txready_i = vif.mon_cb.utmi_txready_i;
       item.utmi_rxvalid_i = vif.mon_cb.utmi_rxvalid_i;

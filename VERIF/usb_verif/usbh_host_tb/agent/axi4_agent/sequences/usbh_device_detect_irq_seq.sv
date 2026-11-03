@@ -1,44 +1,46 @@
-
-class usbh_device_detect_irq_seq
-    extends usbh_host_axi4_agent_base_seq;
+class usbh_device_detect_irq_seq extends usbh_host_axi4_agent_base_seq;
 
   `uvm_object_utils(usbh_device_detect_irq_seq)
 
-  // USB host register offsets
-  localparam logic [31:0] USB_CTRL     = 32'h00;
-  localparam logic [31:0] USB_IRQ_ACK  = 32'h08;
-  localparam logic [31:0] USB_IRQ_STS  = 32'h0C;
-  localparam logic [31:0] USB_IRQ_MASK = 32'h10;
+  // ---------------------------------------------------------
+  // Register offsets
+  // ---------------------------------------------------------
 
-  // USB_CTRL PHY pulldown bits
-  localparam logic [31:0] PHY_DPPULLDOWN = 32'h0000_0040;
-  localparam logic [31:0] PHY_DMPULLDOWN = 32'h0000_0080;
-  localparam logic [31:0] PHY_PULLDOWNS =
-      PHY_DPPULLDOWN | PHY_DMPULLDOWN;
 
-  // Confirm this bit against the RTL interrupt definitions.
+  // ---------------------------------------------------------
+  // Bit definitions
+  // ---------------------------------------------------------
+  localparam logic [31:0] PHY_DMPULLDOWN    = 32'h0000_0080;
+  localparam logic [31:0] PHY_DPPULLDOWN    = 32'h0000_0040;
+  localparam logic [31:0] PHY_PULLDOWNS     = PHY_DMPULLDOWN | PHY_DPPULLDOWN;
   localparam logic [31:0] DEVICE_DETECT_IRQ = 32'h0000_0008;
 
-  // AXI4 single-beat transaction ID
-  localparam bit [ID_WIDTH-1:0] AXI_ID = 4'h1;
+  localparam int MAX_POLL_COUNT = 1000;
 
-  usbh_host_axi4_agent_seq_item pkt;
-
-  logic [31:0] ctrl_value;
+usbh_host_axi4_agent_seq_item pkt;
+  // ---------------------------------------------------------
+  // Variables
+  // ---------------------------------------------------------
+  logic [31:0] saved_ctrl;
   logic [31:0] saved_irq_mask;
-  logic [31:0] irq_status;
+  logic [31:0] test_ctrl;
   logic [31:0] test_irq_mask;
 
-  bit irq_seen;
+  logic [31:0] usb_status;
+  logic [31:0] irq_status;
+  logic [31:0] irq_mask;
+
+  bit          irq_seen;
   int unsigned poll_count;
 
-  localparam int unsigned MAX_POLL_COUNT = 1000;
-
+  // ---------------------------------------------------------
+  // Constructor
+  // ---------------------------------------------------------
   function new(string name = "usbh_device_detect_irq_seq");
     super.new(name);
   endfunction
-
-  // ------------------------------------------------------------
+  
+    // ------------------------------------------------------------
   // Initialize AXI4 transaction attributes
   // ------------------------------------------------------------
   task automatic init_axi_fields(
@@ -58,7 +60,7 @@ class usbh_device_detect_irq_seq
     item.wlast   = is_write;
     item.rlast   = 1'b0;
   endtask
-
+  
   // ------------------------------------------------------------
   // AXI register write
   // ------------------------------------------------------------
@@ -136,44 +138,138 @@ class usbh_device_detect_irq_seq
       UVM_MEDIUM)
   endtask
 
-  // ------------------------------------------------------------
-  // Main test
-  // ------------------------------------------------------------
+  // ---------------------------------------------------------
+  // Sequence body
+  // ---------------------------------------------------------
   virtual task body();
 
     `uvm_info(get_type_name(),
       "Starting USB device-detect interrupt test",
       UVM_MEDIUM)
 
-    // 1. Read USB_CTRL and enable both PHY pulldowns.
-    axi_read(USB_CTRL, ctrl_value);
-    ctrl_value |= PHY_PULLDOWNS;
-    axi_write(USB_CTRL, ctrl_value);
-
-    `uvm_info(get_type_name(),
-      $sformatf("USB_CTRL programmed to 0x%08h", ctrl_value),
-      UVM_MEDIUM)
-
-    // 2. Save the original interrupt mask.
+    // =======================================================
+    // 1. Save original register settings
+    // =======================================================
+    axi_read(USB_CTRL, saved_ctrl);
     axi_read(USB_IRQ_MASK, saved_irq_mask);
 
-    // 3. Clear stale device-detect interrupt status.
-    // Assumes IRQ_ACK is write-one-to-clear.
+    `uvm_info(get_type_name(),
+      $sformatf(
+        "Saved USB_CTRL=0x%08h USB_IRQ_MASK=0x%08h",
+        saved_ctrl, saved_irq_mask
+      ),
+      UVM_MEDIUM)
+
+    // =======================================================
+    // 2. Disable device-detect interrupt during setup
+    // =======================================================
+    test_irq_mask = saved_irq_mask & ~DEVICE_DETECT_IRQ;
+    axi_write(USB_IRQ_MASK, test_irq_mask);
+
+    // =======================================================
+    // 3. Assert both PHY pull-down controls
+    // =======================================================
+    test_ctrl = saved_ctrl | PHY_PULLDOWNS;
+    axi_write(USB_CTRL, test_ctrl);
+
+    `uvm_info(get_type_name(),
+      "Pull-down controls asserted; expecting SE0 (00)",
+      UVM_MEDIUM)
+
+    // Hold SE0 for 10 ms.
+    #1ms;
+
+    // =======================================================
+    // 4. Check line state before releasing pull-downs
+    // =======================================================
+    axi_read(USB_STATUS, usb_status);
+
+    `uvm_info(get_type_name(),
+      $sformatf(
+        "Before release: USB_STATUS=0x%08h LINESTATE=%02b",
+        usb_status, usb_status[1:0]
+      ),
+      UVM_MEDIUM)
+
+    // =======================================================
+    // 5. Clear stale device-detect status
+    // =======================================================
     axi_write(USB_IRQ_ACK, DEVICE_DETECT_IRQ);
 
-    // 4. Enable device-detect interrupt without changing other masks.
+    // Verify stale status is cleared.
+    axi_read(USB_IRQ_STS, irq_status);
+
+    if ((irq_status & DEVICE_DETECT_IRQ) != 0) begin
+      `uvm_warning(get_type_name(),
+        $sformatf(
+          "Device-detect status remains set after ACK: IRQ_STS=0x%08h",
+          irq_status
+        ))
+    end
+
+    // =======================================================
+    // 6. Enable device-detect interrupt
+    // =======================================================
     test_irq_mask = saved_irq_mask | DEVICE_DETECT_IRQ;
     axi_write(USB_IRQ_MASK, test_irq_mask);
 
-    // 5. Allow the host to sample the attached-device LineState.
-    #1us;
+    // =======================================================
+    // 7. Release pull-downs to allow device idle J-state
+    // =======================================================
+    test_ctrl = saved_ctrl & ~PHY_PULLDOWNS;
+    axi_write(USB_CTRL, test_ctrl);
 
-    // 6. Poll the interrupt status.
+    `uvm_info(get_type_name(),
+      "Pull-downs released; expecting Full-Speed J-state (01)",
+      UVM_MEDIUM)
+
+    // Allow DUT to sample the new line state.
+    #100us;
+
+    // =======================================================
+    // 8. Read line state and interrupt registers
+    // =======================================================
+    axi_read(USB_STATUS, usb_status);
+    axi_read(USB_IRQ_STS, irq_status);
+    axi_read(USB_IRQ_MASK, irq_mask);
+
+    `uvm_info(get_type_name(),
+      $sformatf(
+        {"After release: USB_STATUS=0x%08h LINESTATE=%02b ",
+         "IRQ_STS=0x%08h IRQ_MASK=0x%08h"},
+        usb_status,
+        usb_status[1:0],
+        irq_status,
+        irq_mask
+      ),
+      UVM_MEDIUM)
+
+    // Verify the DUT sees the expected idle line state.
+    if (usb_status[1:0] != 2'b01) begin
+      `uvm_error(get_type_name(),
+        $sformatf(
+          "Expected Full-Speed J-state 01, got LINESTATE=%02b",
+          usb_status[1:0]
+        ))
+    end
+
+    // Verify device-detect interrupt is enabled.
+    if ((irq_mask & DEVICE_DETECT_IRQ) == 0) begin
+      `uvm_error(get_type_name(),
+        $sformatf(
+          "Device-detect interrupt mask is disabled: IRQ_MASK=0x%08h",
+          irq_mask
+        ))
+    end
+
+    // =======================================================
+    // 9. Poll device-detect status
+    // =======================================================
     irq_seen   = 1'b0;
     poll_count = 0;
-    irq_status = '0;
 
     while ((poll_count < MAX_POLL_COUNT) && !irq_seen) begin
+
       axi_read(USB_IRQ_STS, irq_status);
 
       if ((irq_status & DEVICE_DETECT_IRQ) != 0) begin
@@ -183,49 +279,73 @@ class usbh_device_detect_irq_seq
         poll_count++;
         #1us;
       end
+
     end
 
+    // =======================================================
+    // 10. Report interrupt detection result
+    // =======================================================
     if (!irq_seen) begin
+
       `uvm_error(get_type_name(),
         $sformatf(
-          "DEVICE_DETECT timeout after %0d polls; USB_CTRL=%08h IRQ_STS=%08h",
-          poll_count, ctrl_value, irq_status
+          {"DEVICE_DETECT timeout after %0d polls. ",
+           "USB_STATUS=0x%08h LINESTATE=%02b ",
+           "IRQ_STS=0x%08h IRQ_MASK=0x%08h"},
+          poll_count,
+          usb_status,
+          usb_status[1:0],
+          irq_status,
+          irq_mask
         ))
+
     end
     else begin
+
       `uvm_info(get_type_name(),
         $sformatf(
-          "DEVICE_DETECT observed: IRQ_STS=%08h",
+          "PASS: Device-detect status observed. IRQ_STS=0x%08h",
           irq_status
         ),
         UVM_MEDIUM)
 
-      // 7. Acknowledge the interrupt and verify it clears.
+      // =====================================================
+      // 11. Acknowledge interrupt and verify it clears
+      // =====================================================
       axi_write(USB_IRQ_ACK, DEVICE_DETECT_IRQ);
+
+      // Allow register update to propagate.
+      #1us;
+
       axi_read(USB_IRQ_STS, irq_status);
 
       if ((irq_status & DEVICE_DETECT_IRQ) != 0) begin
         `uvm_error(get_type_name(),
           $sformatf(
-            "DEVICE_DETECT did not clear after ACK; IRQ_STS=%08h",
+            "Device-detect status did not clear after ACK: IRQ_STS=0x%08h",
             irq_status
           ))
       end
       else begin
         `uvm_info(get_type_name(),
-          "DEVICE_DETECT cleared after ACK",
+          "PASS: Device-detect status cleared after ACK",
           UVM_MEDIUM)
       end
+
     end
 
-    // 8. Restore the previous IRQ mask.
+    // =======================================================
+    // 12. Restore original interrupt mask and control register
+    // =======================================================
     axi_write(USB_IRQ_MASK, saved_irq_mask);
+    axi_write(USB_CTRL, saved_ctrl);
 
     `uvm_info(get_type_name(),
-      "USB device-detect interrupt test completed",
+      "USB device-detect interrupt test completed; registers restored",
       UVM_MEDIUM)
 
   endtask
 
 endclass : usbh_device_detect_irq_seq
+
 

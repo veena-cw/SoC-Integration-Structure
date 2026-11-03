@@ -28,7 +28,7 @@
 
 
 // Monitor for agent "axi4_agent" -- observes interface group "axi4".
-class usbh_host_axi4_agent_monitor extends uvm_monitor;
+/*class usbh_host_axi4_agent_monitor extends uvm_monitor;
 
   `uvm_component_utils(usbh_host_axi4_agent_monitor)
 
@@ -54,6 +54,7 @@ class usbh_host_axi4_agent_monitor extends uvm_monitor;
       item = usbh_host_axi4_agent_seq_item::type_id::create("item");
       item.cfg_awvalid_i = vif.mon_cb.cfg_awvalid_i;
       item.cfg_awaddr_i = vif.mon_cb.cfg_awaddr_i;
+      `uvm_info("MONITOR", $sformatf("cfg_awaddr_i = %0b", vif.mon_cb.cfg_awaddr_i), UVM_MEDIUM)
       item.cfg_wvalid_i = vif.mon_cb.cfg_wvalid_i;
       item.cfg_wdata_i = vif.mon_cb.cfg_wdata_i;
       item.cfg_wstrb_i = vif.mon_cb.cfg_wstrb_i;
@@ -75,5 +76,148 @@ class usbh_host_axi4_agent_monitor extends uvm_monitor;
     end
   endtask
   
+
+endclass : usbh_host_axi4_agent_monitor */
+
+
+
+
+
+
+
+
+// Monitor for agent "axi4_agent" -- observes interface group "axi4".
+class usbh_host_axi4_agent_monitor extends uvm_monitor;
+
+  `uvm_component_utils(usbh_host_axi4_agent_monitor)
+
+  virtual usbh_host_axi4_if vif;
+  uvm_analysis_port #(usbh_host_axi4_agent_seq_item) ap;
+
+  // Pending address / data phases waiting for their response phase
+  usbh_host_axi4_agent_seq_item aw_q[$];
+  usbh_host_axi4_agent_seq_item w_q[$];
+  usbh_host_axi4_agent_seq_item ar_q[$];
+
+  function new(string name = "usbh_host_axi4_agent_monitor", uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+
+  function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    ap = new("ap", this);
+    if (!uvm_resource_db#(virtual usbh_host_axi4_if)::read_by_name(
+            get_full_name(), "vif", vif, this))
+      `uvm_fatal("NOVIF", $sformatf("[%s] Virtual interface not found in resource_db", get_full_name()))
+  endfunction
+
+  task run_phase(uvm_phase phase);
+    usbh_host_axi4_agent_seq_item t, aw, w, ar, item;
+     `uvm_info("Entered AXI4 MONITOR", $sformatf("IN AXI Monitor"), UVM_LOW)
+    forever begin
+      @(vif.mon_cb);
+
+      // Ignore everything while reset is asserted
+      if (!vif.rst_i) begin
+       `uvm_info("AXI4 MONITOR entered RESET", $sformatf("IN AXI Monitor"), UVM_LOW)
+        aw_q.delete();
+        w_q.delete();
+        ar_q.delete();
+      end
+
+      // ---------------- AW handshake ----------------
+      if (vif.mon_cb.cfg_awvalid_i && vif.mon_cb.cfg_awready_o) begin
+        t = usbh_host_axi4_agent_seq_item::type_id::create("aw_item");
+        t.write = 1'b1;
+        t.addr  = vif.mon_cb.cfg_awaddr_i;
+        `uvm_info("AXI4 MONITOR", $sformatf("cfg_awaddr_i = %0b", vif.mon_cb.cfg_awaddr_i), UVM_MEDIUM)
+        t.id    = vif.mon_cb.cfg_awid_i;
+        t.len   = vif.mon_cb.cfg_awlen_i;
+        t.size  = vif.mon_cb.cfg_awsize_i;
+        t.burst = vif.mon_cb.cfg_awburst_i;
+        aw_q.push_back(t);
+      end
+
+      // ---------------- W handshake -----------------
+      if (vif.mon_cb.cfg_wvalid_i && vif.mon_cb.cfg_wready_o) begin
+        t = usbh_host_axi4_agent_seq_item::type_id::create("w_item");
+        t.data  = vif.mon_cb.cfg_wdata_i;
+        t.strb  = vif.mon_cb.cfg_wstrb_i;
+        t.wlast = vif.mon_cb.cfg_wlast_i;
+        w_q.push_back(t);
+      end
+
+      // ---------------- B handshake -> complete write ----------------
+      if (vif.mon_cb.cfg_bvalid_o && vif.mon_cb.cfg_bready_i) begin
+        if (aw_q.size() > 0 && w_q.size() > 0) begin
+          aw = aw_q.pop_front();
+          w  = w_q.pop_front();
+          item = usbh_host_axi4_agent_seq_item::type_id::create("wr_item");
+          item.write   = 1'b1;
+          item.addr    = aw.addr;
+          item.id      = aw.id;
+          item.len     = aw.len;
+          item.size    = aw.size;
+          item.burst   = aw.burst;
+          item.data    = w.data;
+          item.strb    = w.strb;
+          item.wlast   = w.wlast;
+          item.resp    = vif.mon_cb.cfg_bresp_o;
+          item.resp_id = vif.mon_cb.cfg_bid_o;
+          `uvm_info("AXI4 MONITOR", $sformatf("WRITE observed:\n%s", item.sprint()), UVM_HIGH)
+           `uvm_info("AXI4 MON_AP",
+                    $sformatf("WRITE -> analysis port: addr=0x%08h data=0x%08h resp=%0d id=%0d",
+                      item.addr, item.data, item.resp, item.id), UVM_NONE)
+          ap.write(item);
+        end
+        else
+          `uvm_warning("AXI4 MONITOR", "B response seen without matching AW/W")
+      end
+
+      // ---------------- AR handshake ----------------
+      if (vif.mon_cb.cfg_arvalid_i && vif.mon_cb.cfg_arready_o) begin
+        t = usbh_host_axi4_agent_seq_item::type_id::create("ar_item");
+        t.write = 1'b0;
+        t.addr  = vif.mon_cb.cfg_araddr_i;
+        t.id    = vif.mon_cb.cfg_arid_i;
+        t.len   = vif.mon_cb.cfg_arlen_i;
+        t.size  = vif.mon_cb.cfg_arsize_i;
+        t.burst = vif.mon_cb.cfg_arburst_i;
+        ar_q.push_back(t);
+      end
+
+      // ---------------- R handshake -> complete read ----------------
+      if (vif.mon_cb.cfg_rvalid_o && vif.mon_cb.cfg_rready_i) begin
+        if (ar_q.size() > 0) begin
+          // Keep AR info until the last beat of the burst
+          ar = ar_q[0];
+
+          item = usbh_host_axi4_agent_seq_item::type_id::create("rd_item");
+          item.write   = 1'b0;
+          item.addr    = ar.addr;
+          item.id      = ar.id;
+          item.len     = ar.len;
+          item.size    = ar.size;
+          item.burst   = ar.burst;
+          item.rdata   = vif.mon_cb.cfg_rdata_o;
+          item.resp    = vif.mon_cb.cfg_rresp_o;
+          item.resp_id = vif.mon_cb.cfg_rid_o;
+          item.rlast   = vif.mon_cb.cfg_rlast_o;
+
+          if (vif.mon_cb.cfg_rlast_o) void'(ar_q.pop_front());
+          `uvm_info("AXI4 MONITOR", $sformatf("READ observed:\n%s", item.sprint()), UVM_HIGH)
+          // Debug: publish completed read transaction
+          `uvm_info("MON_AP",
+                    $sformatf("READ -> analysis port: addr=0x%08h rdata=0x%08h resp=%0d id=%0d",
+                      item.addr, item.rdata, item.resp, item.id), UVM_NONE)
+
+          ap.write(item);
+        end
+        else begin
+          `uvm_warning("AXI4 MONITOR", "R response seen without matching AR")
+        end
+      end
+    end
+  endtask
 
 endclass : usbh_host_axi4_agent_monitor

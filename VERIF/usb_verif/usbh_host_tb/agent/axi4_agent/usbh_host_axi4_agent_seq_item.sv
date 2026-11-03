@@ -35,7 +35,7 @@ class usbh_host_axi4_agent_seq_item extends uvm_sequence_item;
 	rand bit [CFG_WDATA_I_W-1:0] data; // Write data
 	rand bit [CFG_WSTRB_I_W-1:0] strb; // Write strobe
 
-	bit [CFG_RDATA_O_W-1:0] rdata; // Response / Read data 
+	logic [CFG_RDATA_O_W-1:0] rdata; // Response / Read data 
 	bit [ 1:0] resp; // These are filled by the driver/monitor
 	
 	//New signals fron AXI4 interface.

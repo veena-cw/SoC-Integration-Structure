@@ -1,4 +1,3 @@
-
 class usbh_device_detect_irq_test extends base_test;
 
     `uvm_component_utils(usbh_device_detect_irq_test)

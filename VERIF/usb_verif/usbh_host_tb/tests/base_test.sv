@@ -35,7 +35,8 @@
 class base_test extends uvm_test;
 
   `uvm_component_utils(base_test)
-
+  
+  virtual usbh_host_utmi_if vif;
   usbh_host_env env;
 
   function new(string name = "base_test", uvm_component parent = null);
@@ -47,9 +48,13 @@ class base_test extends uvm_test;
 
     // --- Agent active/passive configuration ------------------------
     uvm_resource_db#(uvm_active_passive_enum)::set({"*.", "axi4_agent"}, "is_active", UVM_ACTIVE, this);  // "axi4_agent" (axi4): flip to UVM_PASSIVE to toggle
-    uvm_resource_db#(uvm_active_passive_enum)::set({"*.", "utmi_agent"}, "is_active", UVM_ACTIVE, this);  // "utmi_agent" (utmi): flip to UVM_PASSIVE to toggle
+    uvm_resource_db#(uvm_active_passive_enum)::set({"*.", "utmi_agent"}, "is_active", UVM_PASSIVE, this);  // "utmi_agent" (utmi): flip to UVM_PASSIVE to toggle
     uvm_resource_db#(uvm_active_passive_enum)::set({"*.", "reset_agent_rst_i"}, "is_active", UVM_ACTIVE, this);  // reset_agent_rst_i (rst_i)
     // -----------------------------------------------------------------
+    if (!uvm_resource_db#(virtual usbh_host_utmi_if)::read_by_name(
+          get_full_name(), "vif", vif, this)) begin
+      `uvm_fatal("NOVIF", $sformatf("[%s] Virtual interface not found in resource_db", get_full_name()))
+    end
 
     env = usbh_host_env::type_id::create("env", this);
   endfunction

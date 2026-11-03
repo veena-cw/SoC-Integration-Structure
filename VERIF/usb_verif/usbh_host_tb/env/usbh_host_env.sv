@@ -38,11 +38,11 @@ class usbh_host_env extends uvm_env;
   `uvm_component_utils(usbh_host_env)
 
   usbh_host_axi4_agent axi4_agent;
-  //usbh_host_utmi_agent utmi_agent;
+  usbh_host_utmi_agent utmi_agent;
   //usbh_host_axi4_agent_coverage axi4_agent_cov;
   //usbh_host_utmi_agent_coverage utmi_agent_cov;
   //reset_agent reset_agent_rst_i;
-  //usbh_host_scoreboard scoreboard;
+  usbh_host_scoreboard scoreboard;
 
   function new(string name = "usbh_host_env", uvm_component parent = null);
     super.new(name, parent);
@@ -51,19 +51,19 @@ class usbh_host_env extends uvm_env;
   function void build_phase(uvm_phase phase);
     super.build_phase(phase);
     axi4_agent = usbh_host_axi4_agent::type_id::create("axi4_agent", this);
-    //utmi_agent = usbh_host_utmi_agent::type_id::create("utmi_agent", this);
+    utmi_agent = usbh_host_utmi_agent::type_id::create("utmi_agent", this);
     //axi4_agent_cov = usbh_host_axi4_agent_coverage::type_id::create("axi4_agent_cov", this);
     //utmi_agent_cov = usbh_host_utmi_agent_coverage::type_id::create("utmi_agent_cov", this);
     //reset_agent_rst_i = reset_agent::type_id::create("reset_agent_rst_i", this);
-    //scoreboard = usbh_host_scoreboard::type_id::create("scoreboard", this);
+    scoreboard = usbh_host_scoreboard::type_id::create("scoreboard", this);
   endfunction
 
-  /*function void connect_phase(uvm_phase phase);
+  function void connect_phase(uvm_phase phase);
     super.connect_phase(phase);
     axi4_agent.monitor.ap.connect(scoreboard.axi4_agent_export);
     utmi_agent.monitor.ap.connect(scoreboard.utmi_agent_export);
-    axi4_agent.monitor.ap.connect(axi4_agent_cov.analysis_export);
-    utmi_agent.monitor.ap.connect(utmi_agent_cov.analysis_export);
-  endfunction*/
+    //axi4_agent.monitor.ap.connect(axi4_agent_cov.analysis_export);
+    //utmi_agent.monitor.ap.connect(utmi_agent_cov.analysis_export);
+  endfunction
 
 endclass : usbh_host_env

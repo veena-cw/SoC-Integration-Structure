@@ -1,3 +1,5 @@
+//Initial Sequence before wrapper update.
+
 //==================================================================================
 //  USB Host Controller - AXI4 Agent
 //  USB IN Transfer Configuration Sequence

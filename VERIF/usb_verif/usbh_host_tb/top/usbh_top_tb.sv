@@ -2,7 +2,6 @@
 //Commands to RUN
 xvlog -sv -L uvm -f filelist.f
 xelab usbh_top_tb -s usb_host_sim -L uvm --timescale 1ns/1ps
- (or)   xelab usbh_top_tb -s usb_host_sim
 xsim usb_host_sim -runall
 gtkwave usbh_top_tb.vcd 
 */
@@ -57,22 +56,20 @@ gtkwave usbh_top_tb.vcd
    //reset_if rst_i_vif();
 
    usbh_host_axi4_if axi4_vif (.clk_i(aclk_i));
-   assign axi4_vif.rst_i = ~areset_i;
+   assign axi4_vif.rst_i = areset_i;
 
    usbh_host_utmi_if utmi_vif (.clk_i(usb_clk_i));
-   assign utmi_vif.rst_i = ~usb_reset_i;
+   assign utmi_vif.rst_i = usb_reset_i;
 
    //assign rst_i = rst_i_vif.rst_i;
    
-   axi4_usb_slave #(
-   .USB_CLK_FREQ(60000000)) dut
-    (
+   axi4_usb_slave dut (
    	//AXI4 clk and rst
         .aclk(aclk_i),
-        .aresetn(~areset_i),
+        .aresetn(areset_i),
         //USB clk and rst
         .usb_clk(usb_clk_i),
-        .usb_resetn(~usb_reset_i),
+        .usb_resetn(usb_reset_i),
         //Write Address Channel
         .s_axi_awid(axi4_vif.cfg_awid_i),
         .s_axi_awaddr(axi4_vif.cfg_awaddr_i),
@@ -136,10 +133,8 @@ gtkwave usbh_top_tb.vcd
    
    //Device BFM Instance
    usb_device_bfm #(
-   .UTMI_CLK_HZ(60000000),
       .DEVICE_IFS_CLKS(7),
-      .MAX_IN_DATA(64),
-      .EP0_MAX_PACKET_SIZE(8)
+      .MAX_IN_DATA(64)
    ) device_bfm (
             .clk_i(usb_clk_i),
 	    .rst_i(usb_reset_i),
@@ -164,44 +159,43 @@ gtkwave usbh_top_tb.vcd
    
    //CLOCK GENERATION
    // AXI4 clock domain : aclk       (400 MHz in the SoC)
+/*   initial aclk_i = 0;
+   always #1.25 aclk_i = ~aclk_i;   // 400MHz; TODO: adjust to target frequency (2.5ns)
+   // USB clock domain  : usb_clk    (250 MHz in the SoC)
+   initial usb_clk_i = 0;
+   always #2 usb_clk_i = ~usb_clk_i;   // 250MHz; TODO: adjust to target frequency (4ns)
+*/   
    initial aclk_i = 0;
    always #1.25 aclk_i = ~aclk_i;   // 400MHz; TODO: adjust to target frequency (2.5ns)
    // USB clock domain  : usb_clk    (250 MHz in the SoC)
-/*   initial usb_clk_i = 0;
-   always #2 usb_clk_i = ~usb_clk_i;   // 250MHz; TODO: adjust to target frequency (4ns)*/
+   initial usb_clk_i = 0;
+   always #8.333335 usb_clk_i = ~usb_clk_i; // 48MHz freq to UTMI interface
    
-     // 48 MHz clock: period = 20.833333 ns
-// USB clock: 48 MHz
-/*
-initial usb_clk_i = 1'b0;
-always #10.416667ns usb_clk_i = ~usb_clk_i;
-*/
-initial usb_clk_i = 1'b0;
-always #8.3333335ns usb_clk_i = ~usb_clk_i;
-
+   
+   
    //RESET GENERATION 
+   
    //Active Low Reset was used in the Design.(previously Active High)
    initial begin
-       usb_reset_i = 1'b1; //usb_reset_i was passed to usbh_host.sv in the wrapper.
+       usb_reset_i = 1'b0; //usb_reset_i was passed to usbh_host.sv in the wrapper.
        repeat (5) @(posedge usb_clk_i);
-       usb_reset_i = 1'b0;
+       usb_reset_i = 1'b1;
    end
    
    initial begin
-       areset_i = 1'b1;
-       repeat (5) @(posedge aclk_i);
        areset_i = 1'b0;
-       
+       repeat (5) @(posedge aclk_i);
+       areset_i = 1'b1;
    end   
    
-   
    initial begin
-  wait (usb_reset_i == 1'b0);
-  #10ns;
-
- // device_bfm.setup_ep2_out_for_test();
- // device_bfm.setup_ep1_in_for_test();
-end
+       wait (usb_reset_i == 1'b0);
+       #10ns;
+       
+       //device_bfm.setup_ep2_out_for_test(); // Enable when using directed tests for IN and OUT to configure data in EP's.
+       //device_bfm.setup_ep1_in_for_test();
+   end
+   
    initial begin
      $dumpfile("usbh_top_tb.vcd");
      $dumpvars(0, usbh_top_tb);
@@ -214,9 +208,34 @@ end
      //uvm_resource_db#(virtual reset_if)::set("*", "vif", rst_i_vif); // fallback wildcard
      //run_test("pid_data0_test"); //do reset_test also
      //run_test("reset_test_1"); //do reset_test also
-     run_test("IN_updated_test");
      
+     /*device_bfm.inject_crc16_error(1);
+     run_test("H_in_updated_test"); //IN Transfer test */
+     
+     //run_test("control_OUT_set_address_test");
+     //run_test("control_OUT_set_interface_test");
+     //run_test("control_OUT_get_interface_test");
+     //run_test("control_GET_STATUS_of_device_test");
+     
+     //run_test("control_IN_get_descriptor_test");
+     //run_test("control_IN_get_configuration_test");
+     //run_test("control_OUT_set_configuration_test");     
+     //run_test("control_OUT_clear_feature_test");
+     
+     
+     //run_test("control_IN_synch_frame_test");
+     
+     run_test("axi4_out_of_range_addr_test");
+     
+     //run_test("OUT_transfer_test");
+     //run_test("rx_fifo_empty_read_test");
    end
 
  endmodule : usbh_top_tb
- 
+/*  
+//Commands to RUN
+xvlog -sv -L uvm -f filelist.f
+xelab usbh_top_tb -s usb_host_sim -L uvm --timescale 1ns/1ps
+xsim usb_host_sim -runall
+gtkwave usbh_top_tb.vcd 
+*/ 

@@ -20,7 +20,7 @@
 // implement physical DP/DM signaling, NRZI serialization, or bit stuffing.
 // Compile and run regression in the target simulator before relying on it.
 // ============================================================================
-
+`timescale 1ns/1ps
 module usb_device_bfm #(
     parameter integer DEVICE_IFS_CLKS       = 7,
     parameter integer MAX_IN_DATA           = 64,
@@ -50,13 +50,7 @@ module usb_device_bfm #(
     output logic       utmi_rxvalid_i,
     output logic       utmi_rxactive_i,
     output logic       utmi_rxerror_i,
-    output logic [1:0] utmi_linestate_i,
-    
-    
-   input logic device_attach_req_i,
-   input logic device_detach_req_i,
-   output logic device_attach_done_o,   
-  output logic device_detach_done_o
+    output logic [1:0] utmi_linestate_i
 );
 
     // UTMI 1.05 LineState encoding (Table 1): LineState[0]=DP, [1]=DM.
@@ -653,7 +647,6 @@ module usb_device_bfm #(
         utmi_rxerror_i  = 1'b0;
         utmi_linestate_i = 2'b01; // FS J idle
 
-
         device_state = DEV_ATTACHED;
         device_addr = 7'd0;
         pending_address = 7'd0;
@@ -812,6 +805,10 @@ module usb_device_bfm #(
         if (rst_i) bfm_clk_cycle <= 0;
         else       bfm_clk_cycle <= bfm_clk_cycle + 1;
     end
+    
+    initial begin
+        endpoint_halted = 1'b0;
+    end
 
     // ------------------------------------------------------------------------
     // Reset behavior. The epoch counter invalidates packet-driving tasks that
@@ -820,10 +817,6 @@ module usb_device_bfm #(
     // public usb_bus_reset() task; see the interface-scope note at module top.
     // ------------------------------------------------------------------------
     always @(posedge clk_i) begin
-        // Completion outputs are pulses. Requests are accepted only outside reset.
-        device_attach_done_o <= 1'b0;
-        device_detach_done_o <= 1'b0;
-
         if (rst_i) begin
             utmi_data_in_i <= 8'h00;
             utmi_rxvalid_i <= 1'b0;
@@ -928,49 +921,8 @@ module usb_device_bfm #(
             ctrl_stall_pending <= 1'b0;
             tx_pkt_q.delete();
             tx_packet_active <= 1'b0;
-        end else if (device_detach_req_i) begin
-            // Detach has priority if both requests are asserted together.
-            // SE0 is an abstract disconnected indication in this packet-level BFM;
-            // it is not a physical DP/DM disconnect waveform.
-            device_state <= DEV_DETACHED;
-            device_addr <= 7'd0;
-            configuration_value <= 8'd0;
-            pending_address <= 7'd0;
-            address_update_pending <= 1'b0;
-            pending_configuration <= 8'd0;
-            control_transfer_active <= 1'b0;
-            ctrl_stage <= CTRL_IDLE;
-            state <= ST_IDLE;
-            tx_pkt_q.delete();
-            pkt_copy.delete();
-            tx_packet_active <= 1'b0;
-            utmi_rxvalid_i <= 1'b0;
-            utmi_rxactive_i <= 1'b0;
-            utmi_rxerror_i <= 1'b0;
-            utmi_linestate_i <= 2'b00;
-            device_detach_done_o <= 1'b1;
-            $display("[%0t] DEVICE BFM: detach request accepted", $time);
-        end else if (device_attach_req_i) begin
-            // Reconnect as a Full-Speed device at address zero. Enumeration
-            // and SET_ADDRESS must still be performed by the host.
-            device_state <= DEV_ATTACHED;
-            device_addr <= 7'd0;
-            configuration_value <= 8'd0;
-            pending_address <= 7'd0;
-            address_update_pending <= 1'b0;
-            pending_configuration <= 8'd0;
-            control_transfer_active <= 1'b0;
-            ctrl_stage <= CTRL_IDLE;
-            state <= ST_IDLE;
-            tx_pkt_q.delete();
-            pkt_copy.delete();
-            tx_packet_active <= 1'b0;
-            utmi_rxvalid_i <= 1'b0;
-            utmi_rxactive_i <= 1'b0;
-            utmi_rxerror_i <= 1'b0;
-            utmi_linestate_i <= 2'b01;
-            device_attach_done_o <= 1'b1;
-            $display("[%0t] DEVICE BFM: attach request accepted; Full-Speed J idle", $time);
+            //setup_ep2_out_for_test();
+            //setup_ep1_in_for_test();
         end
     end
 
@@ -1154,8 +1106,8 @@ module usb_device_bfm #(
             config_desc[43] = 8'h40; config_desc[44] = 8'h00; config_desc[45] = 8'h01;
             config_desc_len = 46;
 
-            set_string_descriptor(1, "Harish BFM");
-            set_string_descriptor(2, "USB Device BFM");
+            set_string_descriptor(1, "USB DEVICE BFM");
+            set_string_descriptor(2, "USB 1.1 Version Followed");
             set_string_descriptor(3, "000001");
 
             if (AUTO_CONFIG_DEFAULT_EP) begin
@@ -1636,6 +1588,9 @@ module usb_device_bfm #(
             setup_request_type = req_type;
             setup_recipient = recipient;
             setup_direction_in = dir_in;
+            
+            `uvm_info("BFMcaptured SETUP token", $sformatf( "SETUP: bmRequestType=%02h bRequest=%02h wValue=%04h wIndex=%04h wLength=%04h", 
+            setup_bmRequestType, setup_bRequest, setup_wValue, setup_wIndex, setup_wLength), UVM_MEDIUM)
 
             // USB bmRequestType recipient encodings 4..31 are reserved.
             // Reject them before dispatch so no class/vendor path can accept
@@ -1888,6 +1843,8 @@ module usb_device_bfm #(
                     ctrl_stage = CTRL_IDLE;
                 end
             endcase
+            `uvm_info("BFMcaptured SETUP token after processing", $sformatf( "SETUP: bmRequestType=%02h bRequest=%02h wValue=%04h wIndex=%04h wLength=%04h", 
+            setup_bmRequestType, setup_bRequest, setup_wValue, setup_wIndex, setup_wLength), UVM_MEDIUM)
         end
     endtask
 
@@ -2526,6 +2483,9 @@ module usb_device_bfm #(
                     setup_wValue = {data_bytes[3], data_bytes[2]};
                     setup_wIndex = {data_bytes[5], data_bytes[4]};
                     setup_wLength = {data_bytes[7], data_bytes[6]};
+                    `uvm_info("BFMcaptured SETUP token", $sformatf( "SETUP: bmRequestType=%02h bRequest=%02h wValue=%04h wIndex=%04h wLength=%04h", 
+            setup_bmRequestType, setup_bRequest, setup_wValue, setup_wIndex, setup_wLength), UVM_MEDIUM)
+            
                     // A new SETUP aborts any previous EP0 transfer context.
                     pending_data = 1'b0;
                     pending_feature_valid = 1'b0;
@@ -2634,7 +2594,8 @@ module usb_device_bfm #(
                     // bulk/interrupt, NAK means temporarily unavailable.
                     if (ep_type[pending_ep] != EP_TYPE_ISO)
                         send_handshake(PID_NAK);
-                end else begin
+                end 
+                else begin
                     out_data_len[pending_ep] = (data_bytes.size() > MAX_OUT_DATA) ? MAX_OUT_DATA : data_bytes.size();
                     for (j = 0; j < out_data_len[pending_ep]; j = j + 1) out_data_buf[pending_ep][j] = data_bytes[j];
                     if (msc_mode && pending_ep == 2 && ep_type[pending_ep] == EP_TYPE_BULK)
@@ -2899,7 +2860,57 @@ module usb_device_bfm #(
                      $time, pid);
         end
     endtask
+/*
+    task automatic send_data_packet(
+        input logic [7:0] pid,
+        input logic [7:0] payload[$],
+        input logic [15:0] crc,
+        input bit corrupt_crc
+    );
+        logic [15:0] tx_crc;
+        integer i;
+        begin
+            tx_crc = crc;
+            if (corrupt_crc) tx_crc[0] = ~tx_crc[0];
 
+            // UTMI RXACTIVE denotes that a packet is being received. RXVALID
+            // qualifies each byte on RX_DATA. They are intentionally HIGH
+            // together for every valid packet byte; RXACTIVE drops only after
+            // the final CRC byte has been sampled. Driving on posedges avoids
+            // races with the DUT's posedge sampling logic.
+            @(posedge clk_i);
+            utmi_rxerror_i  = 1'b0;
+            utmi_rxactive_i = 1'b1;
+            utmi_rxvalid_i  = 1'b1;
+            utmi_data_in_i  = pid;
+
+            for (i = 0; i < payload.size(); i = i + 1) begin
+                @(posedge clk_i);
+                utmi_rxactive_i = 1'b1;
+                utmi_rxvalid_i  = 1'b1;
+                utmi_data_in_i  = payload[i];
+            end
+
+            @(posedge clk_i);
+            utmi_rxactive_i = 1'b1;
+            utmi_rxvalid_i  = 1'b1;
+            utmi_data_in_i  = tx_crc[7:0];
+
+            @(posedge clk_i);
+            utmi_rxactive_i = 1'b1;
+            utmi_rxvalid_i  = 1'b1;
+            utmi_data_in_i  = tx_crc[15:8];
+
+            // The last CRC byte is sampled at the following posedge. Then
+            // end the packet cleanly: RXVALID low and RXACTIVE low together.
+            @(posedge clk_i);
+            utmi_rxvalid_i  = 1'b0;
+            utmi_rxactive_i = 1'b0;
+            utmi_rxerror_i  = 1'b0;
+            utmi_data_in_i  = 8'h00;
+        end
+    endtask
+*/
 
 task automatic send_data_packet(
     input logic [7:0] pid,
@@ -3035,6 +3046,7 @@ endtask
 
     task automatic halt_endpoint(input integer ep);
         begin if (ep < MAX_ENDPOINTS) ep_halted[ep] = 1'b1; end
+        $display("BFM: Endpoint %0d halted", ep);
     endtask
 
     task automatic clear_endpoint_halt(input integer ep);
@@ -3320,8 +3332,7 @@ endtask
       expected_data_pid = PID_DATA0;
       state = ST_IDLE;
 
-      $display("[%0t] BFM: Directed setup complete: device configured, EP2 OUT bulk enabled",
-               $time);
+      $display("[%0t] BFM: Directed setup complete: device configured, EP2 OUT bulk enabled", $time);
     end
   endtask
   
@@ -3344,54 +3355,5 @@ begin
 end
 endtask
 
-
-  // ---------------------------------------------------------
-  // Device attach/detach stimulus for host device-detect tests
-  // ---------------------------------------------------------
-
-  task automatic usb_device_attach_for_test();
-    begin
-      $display("[%0t] DEVICE BFM: Attach stimulus", $time);
-      device_state = DEV_ATTACHED;
-      device_addr = 7'd0;
-      configuration_value = 8'd0;
-      pending_address = 7'd0;
-      address_update_pending = 1'b0;
-      pending_configuration = 8'd0;
-      control_transfer_active = 1'b0;
-      ctrl_stage = CTRL_IDLE;
-      state = ST_IDLE;
-      utmi_rxvalid_i = 1'b0;
-      utmi_rxactive_i = 1'b0;
-      utmi_rxerror_i = 1'b0;
-      utmi_linestate_i = 2'b01;
-      repeat (10) @(posedge clk_i);
-      $display("[%0t] DEVICE BFM: FS J idle presented", $time);
-    end
-  endtask
-
-  task automatic usb_device_detach_for_test();
-    begin
-      $display("[%0t] DEVICE BFM: Detach stimulus", $time);
-      device_state = DEV_DETACHED;
-      device_addr = 7'd0;
-      configuration_value = 8'd0;
-      pending_address = 7'd0;
-      address_update_pending = 1'b0;
-      pending_configuration = 8'd0;
-      control_transfer_active = 1'b0;
-      ctrl_stage = CTRL_IDLE;
-      state = ST_IDLE;
-      tx_pkt_q.delete();
-      pkt_copy.delete();
-      tx_packet_active = 1'b0;
-      utmi_rxvalid_i = 1'b0;
-      utmi_rxactive_i = 1'b0;
-      utmi_rxerror_i = 1'b0;
-      utmi_linestate_i = 2'b00; // abstract disconnected indication
-      repeat (10) @(posedge clk_i);
-      $display("[%0t] DEVICE BFM: detached", $time);
-    end
-  endtask
 endmodule
 

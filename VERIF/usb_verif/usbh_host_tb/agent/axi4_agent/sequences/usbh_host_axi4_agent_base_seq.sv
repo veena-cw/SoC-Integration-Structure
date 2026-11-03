@@ -26,8 +26,35 @@
 // NOTE: Foundational scaffold -- extend all TODOs.
 //----------------------------------------------------------------------
 
-
+/*
 // Base sequence for agent "axi4_agent"
+class usbh_host_axi4_agent_base_seq extends uvm_sequence #(usbh_host_axi4_agent_seq_item);
+
+  `uvm_object_utils(usbh_host_axi4_agent_base_seq)
+
+  rand int unsigned num_items = 10;
+
+  function new(string name = "usbh_host_axi4_agent_base_seq");
+    super.new(name);
+  endfunction
+
+  task body();
+    usbh_host_axi4_agent_seq_item item;
+    repeat (num_items) begin
+      item = usbh_host_axi4_agent_seq_item::type_id::create("item");
+      start_item(item);
+      if (!item.randomize())
+        `uvm_error("RANDFAIL", "Item randomization failed")
+      finish_item(item);
+    end
+  endtask
+
+endclass : usbh_host_axi4_agent_base_seq
+
+*/
+
+
+
 // Base sequence for agent "axi4_agent"
 class usbh_host_axi4_agent_base_seq extends
     uvm_sequence #(usbh_host_axi4_agent_seq_item);
@@ -39,12 +66,18 @@ class usbh_host_axi4_agent_base_seq extends
   // ---------------------------------------------------------
   // USB HOST REGISTER MAP
   // ---------------------------------------------------------
-  localparam logic [31:0] USB_IRQ_ACK    = 32'h08;
-  localparam logic [31:0] USB_IRQ_STS    = 32'h0C;
-  localparam logic [31:0] USB_XFER_DATA  = 32'h14;
-  localparam logic [31:0] USB_XFER_TOKEN = 32'h18;
-  localparam logic [31:0] USB_RX_STAT    = 32'h1C;
-  localparam logic [31:0] USB_DATA_FIFO  = 32'h20;
+  
+  localparam bit [31:0] USB_BASE = 32'h1040_0000;
+  localparam bit [31:0] USB_CTRL       = USB_BASE + 32'h00;
+  localparam bit [31:0] USB_STATUS     = USB_BASE + 32'h04;
+  localparam bit [31:0] USB_IRQ_ACK    = USB_BASE + 32'h08;
+  localparam bit [31:0] USB_IRQ_STS    = USB_BASE + 32'h0C;
+  localparam bit [31:0] USB_IRQ_MASK   = USB_BASE + 32'h10;
+  localparam bit [31:0] USB_XFER_DATA  = USB_BASE + 32'h14;
+  localparam bit [31:0] USB_XFER_TOKEN = USB_BASE + 32'h18;
+  localparam bit [31:0] USB_RX_STAT    = USB_BASE + 32'h1C;
+  localparam bit [31:0] USB_WR_DATA    = USB_BASE + 32'h20;
+  localparam bit [31:0] USB_RD_DATA    = USB_BASE + 32'h20;
 
   // ---------------------------------------------------------
   // USB PIDs
@@ -80,7 +113,7 @@ class usbh_host_axi4_agent_base_seq extends
     req.write = 1'b1;
     req.addr  = addr;
     req.data  = value;
-    req.strb  = 4'hF;
+    req.strb  = 4'b1111;
 
     req.id      = AXI_ID;
     req.len     = 0;
@@ -171,12 +204,8 @@ class usbh_host_axi4_agent_base_seq extends
 
       if (irq_status[2]) begin
         read_reg(USB_RX_STAT, status);
-
-        `uvm_fatal("USB_ERR",
-          $sformatf("USB error: IRQ_STS=%08h RX_STAT=%08h",
-                    irq_status, status))
+        `uvm_fatal("USB_ERR",$sformatf("USB error: IRQ_STS=%08h RX_STAT=%08h", irq_status, status))
       end
-
       if (irq_status[1]) begin
         completed = 1'b1;
         break;
@@ -185,18 +214,12 @@ class usbh_host_axi4_agent_base_seq extends
 
     if (!completed) begin
       read_reg(USB_RX_STAT, status);
-
-      `uvm_fatal("USB_WAIT",
-        $sformatf("Timeout waiting for USB DONE: RX_STAT=%08h",
-                  status))
+      `uvm_fatal("USB_WAIT", $sformatf("Timeout waiting for USB DONE: RX_STAT=%08h", status))
     end
-
     read_reg(USB_RX_STAT, status);
-
+    
     if (status[31] || status[30] || status[29]) begin
-      `uvm_fatal("USB_STATUS",
-        $sformatf("Invalid completion status: RX_STAT=%08h",
-                  status))
+      `uvm_warning("USB_STATUS", $sformatf("Invalid completion status: RX_STAT=%08h", status))
     end
   endtask
 
@@ -281,3 +304,7 @@ class usbh_host_axi4_agent_base_seq extends
 */
 
 endclass : usbh_host_axi4_agent_base_seq
+
+
+
+

@@ -61,6 +61,22 @@ module usb_device_bfm #(
   output logic device_detach_done_o
 );
 
+    // Internal device-side line-state model. Existing packet/EOP/attach logic
+    // drives this signal; the host PHY pull-down controls override it at the
+    // BFM boundary to model USB bus reset (SE0).
+    logic [1:0] utmi_linestate_model;
+
+    // UTMI line-state encoding: [0]=DP, [1]=DM; SE0=00, J=01, K=10, SE1=11.
+    // When BOTH host pull-down enables are asserted, force SE0. Otherwise
+    // preserve the BFM's normal attach/packet/EOP line-state behavior.
+    always_comb begin
+        if (utmi_dppulldown_o && utmi_dmpulldown_o)
+            utmi_linestate_i = 2'b00; // SE0 during host reset configuration
+        else
+            utmi_linestate_i = utmi_linestate_model;
+    end
+
+
     // UTMI 1.05 LineState encoding (Table 1): LineState[0]=DP, [1]=DM.
     // Full-Speed: SE0=2'b00, J=2'b01, K=2'b10, SE1=2'b11.
     // Set UTMI_CLK_HZ to the actual clk_i frequency: 48 MHz or 60 MHz.
@@ -151,6 +167,13 @@ module usb_device_bfm #(
 
     integer response_mode;
 
+// Dedicated fault injection for an ordinary OUT handshake.
+logic suppress_out_handshake;
+
+// Counts valid OUT DATA packets for which the BFM
+// deliberately suppressed the handshake response.
+integer unsigned out_handshake_suppressed_count;
+
     // ------------------------------------------------------------------------
     // Device state
     // ------------------------------------------------------------------------
@@ -193,6 +216,8 @@ module usb_device_bfm #(
     logic [1:0] ep_type   [0:MAX_ENDPOINTS-1];
     integer ep_mps        [0:MAX_ENDPOINTS-1];
     integer ep_interval   [0:MAX_ENDPOINTS-1];
+    // Aggregate status: 1 when any endpoint is halted, otherwise 0.
+    logic endpoint_halted;
 
     // ------------------------------------------------------------------------
     // Generic endpoint buffers
@@ -201,6 +226,12 @@ module usb_device_bfm #(
     integer in_data_len;
     logic [7:0] ep_in_data [0:MAX_ENDPOINTS-1][0:MAX_IN_DATA-1];
     integer ep_in_data_len [0:MAX_ENDPOINTS-1];
+    // Buffer readiness is explicit so an empty endpoint buffer produces NAK,
+    // not an accidental zero-length DATA packet. ZLPs must be queued explicitly.
+    logic ep_in_data_pending [0:MAX_ENDPOINTS-1];
+    logic ep_in_zlp_pending  [0:MAX_ENDPOINTS-1];
+    logic in_data_pending;
+    logic in_zlp_pending;
 
     logic [7:0] out_data_buf [0:MAX_ENDPOINTS-1][0:MAX_OUT_DATA-1];
     integer out_data_len [0:MAX_ENDPOINTS-1];
@@ -314,6 +345,10 @@ module usb_device_bfm #(
     logic [3:0] pending_ep;
     logic       pending_data;
     logic [7:0] expected_data_pid;
+    // An OUT token is followed by DATA before the device handshake. These
+    // flags defer STALL for halted/invalid OUT endpoints until DATA is seen.
+    logic       pending_out_response_valid;
+    logic [7:0] pending_out_response_pid;
 
     typedef enum logic [3:0] {
         ST_IDLE,
@@ -334,6 +369,8 @@ module usb_device_bfm #(
     logic   last_in_was_status;
     logic   last_in_was_zlp;
     logic   last_in_requires_ack;
+    logic   last_in_from_ep_buffer;
+    logic   last_in_from_common_buffer;
 
     // IN retransmission cache: USB requires the same DATA PID and payload to
     // be retransmitted until a valid ACK is received. This also protects the
@@ -348,6 +385,8 @@ module usb_device_bfm #(
     logic retry_last_in_was_status;
     logic retry_last_in_was_zlp;
     logic retry_last_in_requires_ack;
+    logic retry_last_in_from_ep_buffer;
+    logic retry_last_in_from_common_buffer;
     integer retry_last_in_len;
     logic [7:0] retry_payload[$];
 
@@ -694,7 +733,7 @@ endtask
         utmi_rxvalid_i  = 1'b0;
         utmi_rxactive_i = 1'b0;
         utmi_rxerror_i  = 1'b0;
-        utmi_linestate_i = 2'b01; // FS J idle
+        utmi_linestate_model = 2'b01; // FS J idle
 
 
         device_state = DEV_ATTACHED;
@@ -713,6 +752,8 @@ endtask
         pending_interface_alt = 8'd0;
 
         response_mode = RESP_NORMAL;
+        suppress_out_handshake = 1'b0;
+        out_handshake_suppressed_count = 0;
         response_delay_clks = DEVICE_IFS_CLKS;
         bfm_clk_cycle = 0;
         sof_previous_cycle = 0;
@@ -743,6 +784,10 @@ endtask
         ep0_in_data_len = 0;
         ep0_out_data_len = 0;
         in_data_len = 0;
+        in_data_pending = 1'b0;
+        in_zlp_pending = 1'b0;
+        pending_out_response_valid = 1'b0;
+        pending_out_response_pid = 8'h00;
         device_desc_len = 0;
         config_desc_len = 0;
         hid_mode = HID_NONE;
@@ -796,6 +841,8 @@ endtask
         last_in_was_status = 0;
         last_in_was_zlp = 0;
         last_in_requires_ack = 1;
+        last_in_from_ep_buffer = 1'b0;
+        last_in_from_common_buffer = 1'b0;
         retry_pending = 1'b0;
         retry_ep = '0;
         retry_pid = PID_DATA0;
@@ -806,6 +853,8 @@ endtask
         retry_last_in_was_status = 1'b0;
         retry_last_in_was_zlp = 1'b0;
         retry_last_in_requires_ack = 1'b1;
+        retry_last_in_from_ep_buffer = 1'b0;
+        retry_last_in_from_common_buffer = 1'b0;
         retry_last_in_len = 0;
         retry_payload.delete();
         reset_epoch = 0;
@@ -822,6 +871,8 @@ endtask
             ep_interval[k] = 1;
             out_data_len[k] = 0;
             ep_in_data_len[k] = 0;
+            ep_in_data_pending[k] = 1'b0;
+            ep_in_zlp_pending[k] = 1'b0;
             out_last_valid[k] = 1'b0;
             out_last_pid[k] = PID_DATA0;
             out_last_len[k] = 0;
@@ -854,10 +905,25 @@ endtask
 
     // Monotonic simulation-clock counter used by SOF interval checking.
     always @(posedge clk_i) begin
-        if (rst_i) bfm_clk_cycle <= 0;
+        if (!rst_i) bfm_clk_cycle <= 0;
         else       bfm_clk_cycle <= bfm_clk_cycle + 1;
     end
 
+
+// Aggregate all per-endpoint halt bits without changing their behavior.
+    // endpoint_halted stays high while ANY ep_halted[ep] is high and returns
+    // low only after ALL endpoint halt bits have been cleared.
+    always_comb begin : update_endpoint_halted_status
+        integer ep_status_idx;
+        endpoint_halted = 1'b0;
+        for (ep_status_idx = 0; ep_status_idx < MAX_ENDPOINTS;
+             ep_status_idx = ep_status_idx + 1) begin
+            if (ep_halted[ep_status_idx] == 1'b1)
+                endpoint_halted = 1'b1;
+        end
+    end
+    
+    
     // ------------------------------------------------------------------------
     // Reset behavior. The epoch counter invalidates packet-driving tasks that
     // are waiting on clock edges, so a runtime reset cannot continue emitting
@@ -869,12 +935,12 @@ endtask
         device_attach_done_o <= 1'b0;
         device_detach_done_o <= 1'b0;
 
-        if (rst_i) begin
+        if (!rst_i) begin
             utmi_data_in_i <= 8'h00;
             utmi_rxvalid_i <= 1'b0;
             utmi_rxactive_i <= 1'b0;
             utmi_rxerror_i <= 1'b0;
-            utmi_linestate_i <= 2'b01;
+            utmi_linestate_model <= 2'b01;
             device_state <= DEV_DEFAULT;
             device_addr <= 7'd0;
             configuration_value <= 8'd0;
@@ -894,6 +960,8 @@ endtask
             pending_addr <= 7'd0;
             pending_ep <= 4'd0;
             expected_data_pid <= 8'd0;
+            pending_out_response_valid = 1'b0;
+            pending_out_response_pid = 8'h00;
             state <= ST_IDLE;
             tx_pkt_q.delete();
             pkt_copy.delete();
@@ -903,6 +971,10 @@ endtask
             last_in_was_status <= 1'b0;
             last_in_was_zlp <= 1'b0;
             last_in_requires_ack <= 1'b1;
+            last_in_from_ep_buffer = 1'b0;
+            last_in_from_common_buffer = 1'b0;
+            retry_last_in_from_ep_buffer = 1'b0;
+            retry_last_in_from_common_buffer = 1'b0;
             reset_epoch <= reset_epoch + 1;
             retry_pending <= 1'b0;
             retry_ep <= '0;
@@ -931,6 +1003,8 @@ endtask
             setup_wIndex <= 16'd0;
             setup_wLength <= 16'd0;
             in_data_len <= 0;
+            in_data_pending = 1'b0;
+            in_zlp_pending = 1'b0;
             for (reset_idx = 0; reset_idx < MAX_ENDPOINTS; reset_idx = reset_idx + 1) begin
                 ep_enabled[reset_idx] <= (reset_idx == 0);
                 ep_halted[reset_idx] <= 1'b0;
@@ -943,6 +1017,8 @@ endtask
                 ep_interval[reset_idx] <= 1;
                 out_data_len[reset_idx] <= 0;
                 ep_in_data_len[reset_idx] <= 0;
+                ep_in_data_pending[reset_idx] = 1'b0;
+                ep_in_zlp_pending[reset_idx] = 1'b0;
                 out_last_valid[reset_idx] <= 1'b0;
                 out_last_pid[reset_idx] <= PID_DATA0;
                 out_last_len[reset_idx] <= 0;
@@ -988,6 +1064,8 @@ endtask
             pending_configuration <= 8'd0;
             control_transfer_active <= 1'b0;
             ctrl_stage <= CTRL_IDLE;
+            pending_data <= 1'b0;
+            pending_out_response_valid = 1'b0;
             state <= ST_IDLE;
             tx_pkt_q.delete();
             pkt_copy.delete();
@@ -995,7 +1073,7 @@ endtask
             utmi_rxvalid_i <= 1'b0;
             utmi_rxactive_i <= 1'b0;
             utmi_rxerror_i <= 1'b0;
-            utmi_linestate_i <= 2'b00;
+            utmi_linestate_model <= 2'b00;
             device_detach_done_o <= 1'b1;
             $display("[%0t] DEVICE BFM: detach request accepted", $time);
         end else if (device_attach_req_i) begin
@@ -1009,6 +1087,8 @@ endtask
             pending_configuration <= 8'd0;
             control_transfer_active <= 1'b0;
             ctrl_stage <= CTRL_IDLE;
+            pending_data <= 1'b0;
+            pending_out_response_valid = 1'b0;
             state <= ST_IDLE;
             tx_pkt_q.delete();
             pkt_copy.delete();
@@ -1016,7 +1096,7 @@ endtask
             utmi_rxvalid_i <= 1'b0;
             utmi_rxactive_i <= 1'b0;
             utmi_rxerror_i <= 1'b0;
-            utmi_linestate_i <= 2'b01;
+            utmi_linestate_model <= 2'b01;
             device_attach_done_o <= 1'b1;
             $display("[%0t] DEVICE BFM: attach request accepted; Full-Speed J idle", $time);
         end
@@ -1042,7 +1122,7 @@ endtask
     integer      txsm_byte_clks;
 
     always @(posedge clk_i) begin
-        if (rst_i) begin
+        if (!rst_i) begin
             txsm_state     <= TXSM_RESET;
             txsm_eop_clks  <= 0;
             txsm_byte_clks <= 0;
@@ -1112,7 +1192,7 @@ endtask
     // Capture host/DUT packet bytes at UTMI TX interface.
     // ------------------------------------------------------------------------
     always @(posedge clk_i) begin
-        if (rst_i) begin
+        if (!rst_i) begin
             tx_pkt_q.delete();
             tx_packet_active <= 1'b0;
         end else begin
@@ -1135,9 +1215,9 @@ endtask
                 // Therefore SE0=00, J=01, K=10, SE1=11.
                 // FS EOP (spec 6.1.2): SE0 for 2 bit times, then J for 1 bit.
                 // EOP durations are derived from the configured UTMI clock.
-                utmi_linestate_i <= 2'b00; // SE0 / EOP
+                utmi_linestate_model <= 2'b00; // SE0 / EOP
                 repeat (FS_EOP_SE0_CLKS) @(posedge clk_i);
-                utmi_linestate_i <= 2'b01; // J / idle
+                utmi_linestate_model <= 2'b01; // J / idle
                 repeat (FS_EOP_J_CLKS) @(posedge clk_i);
                 $display("[%0t] BFM: Host packet EOP complete; LineState returned to J", $time);
 
@@ -1296,6 +1376,8 @@ endtask
             ctrl_in_zlp_required = 0;
             pending_data = 0;
             pending_token_pid = 0;
+            pending_out_response_valid = 1'b0;
+            pending_out_response_pid = 8'h00;
             pending_addr = 0;
             pending_ep = 0;
             expected_data_pid = 0;
@@ -1307,6 +1389,10 @@ endtask
             last_in_was_status = 0;
             last_in_was_zlp = 0;
             last_in_requires_ack = 1;
+            last_in_from_ep_buffer = 1'b0;
+            last_in_from_common_buffer = 1'b0;
+            retry_last_in_from_ep_buffer = 1'b0;
+            retry_last_in_from_common_buffer = 1'b0;
             reset_epoch = reset_epoch + 1;
             // USB bus reset returns BOT transport to idle. Backing storage is
             // intentionally preserved across bus reset, like a real drive.
@@ -1347,6 +1433,8 @@ endtask
             setup_wIndex = 16'd0;
             setup_wLength = 16'd0;
             in_data_len = 0;
+            in_data_pending = 1'b0;
+            in_zlp_pending = 1'b0;
             pending_feature_valid = 0;
             pending_feature_set = 0;
             pending_feature_remote_wakeup = 0;
@@ -1359,7 +1447,7 @@ endtask
             utmi_rxactive_i = 1'b0;
             utmi_rxerror_i = 1'b0;
             utmi_txready_i = 1'b0;
-            utmi_linestate_i = 2'b01; // return bus model to Full-Speed J idle
+            utmi_linestate_model = 2'b01; // return bus model to Full-Speed J idle
             txsm_state = TXSM_RESET;
             txsm_eop_clks = 0;
             txsm_byte_clks = 0;
@@ -1377,6 +1465,8 @@ endtask
                 ep_interval[i] = 1;
                 out_data_len[i] = 0;
                 ep_in_data_len[i] = 0;
+                ep_in_data_pending[i] = 1'b0;
+                ep_in_zlp_pending[i] = 1'b0;
                 out_last_valid[i] = 1'b0;
                 out_last_pid[i] = PID_DATA0;
                 out_last_len[i] = 0;
@@ -1816,17 +1906,26 @@ endtask
                         ctrl_stage = CTRL_STATUS_IN;
                     end else if (recipient == 5'd2 && setup_wValue == FEAT_ENDPOINT_HALT) begin
                         ep = setup_wIndex[3:0];
+                        // ENDPOINT_HALT is only meaningful for a configured,
+                        // non-control endpoint with a matching direction.
                         if (ep == 0 || ep >= MAX_ENDPOINTS ||
                             (setup_wIndex & 16'hFF70) != 16'h0000 ||
+                            !ep_enabled[ep] ||
                             ep_dir_in[ep] != setup_wIndex[7]) begin
                             ctrl_stall_pending = 1'b1;
                             ctrl_stage = CTRL_IDLE;
+                            $display("[%0t] BFM: SET_FEATURE(ENDPOINT_HALT) rejected: wIndex=%04h ep=%0d enabled=%0b dir_in=%0b",
+                                     $time, setup_wIndex, ep,
+                                     (ep < MAX_ENDPOINTS) ? ep_enabled[ep] : 1'b0,
+                                     (ep < MAX_ENDPOINTS) ? ep_dir_in[ep] : 1'b0);
                         end else begin
                             pending_feature_valid = 1'b1;
                             pending_feature_set = 1'b1;
                             pending_feature_remote_wakeup = 1'b0;
                             pending_feature_ep = ep[3:0];
                             ctrl_stage = CTRL_STATUS_IN;
+                            $display("[%0t] BFM: SET_FEATURE(ENDPOINT_HALT) pending for EP%0d %s",
+                                     $time, ep, setup_wIndex[7] ? "IN" : "OUT");
                         end
                     end else begin
                         ctrl_stall_pending = 1'b1;
@@ -1845,17 +1944,26 @@ endtask
                         ctrl_stage = CTRL_STATUS_IN;
                     end else if (recipient == 5'd2 && setup_wValue == FEAT_ENDPOINT_HALT) begin
                         ep = setup_wIndex[3:0];
+                        // Reject EP0, reserved address bits, disabled endpoints,
+                        // and direction mismatches. Commit only after status ACK.
                         if (ep == 0 || ep >= MAX_ENDPOINTS ||
                             (setup_wIndex & 16'hFF70) != 16'h0000 ||
+                            !ep_enabled[ep] ||
                             ep_dir_in[ep] != setup_wIndex[7]) begin
                             ctrl_stall_pending = 1'b1;
                             ctrl_stage = CTRL_IDLE;
+                            $display("[%0t] BFM: CLEAR_FEATURE(ENDPOINT_HALT) rejected: wIndex=%04h ep=%0d enabled=%0b dir_in=%0b",
+                                     $time, setup_wIndex, ep,
+                                     (ep < MAX_ENDPOINTS) ? ep_enabled[ep] : 1'b0,
+                                     (ep < MAX_ENDPOINTS) ? ep_dir_in[ep] : 1'b0);
                         end else begin
                             pending_feature_valid = 1'b1;
                             pending_feature_set = 1'b0;
                             pending_feature_remote_wakeup = 1'b0;
                             pending_feature_ep = ep[3:0];
                             ctrl_stage = CTRL_STATUS_IN;
+                            $display("[%0t] BFM: CLEAR_FEATURE(ENDPOINT_HALT) pending for EP%0d %s",
+                                     $time, ep, setup_wIndex[7] ? "IN" : "OUT");
                         end
                     end else begin
                         ctrl_stall_pending = 1'b1;
@@ -1965,6 +2073,8 @@ endtask
                 if (hid_mode != HID_NONE && ep_enabled[1] && ep_dir_in[1]) begin
                     for (i = 0; i < hid_last_report_len && i < MAX_IN_DATA; i = i + 1) ep_in_data[1][i] = hid_last_report[i];
                     ep_in_data_len[1] = hid_last_report_len;
+                    ep_in_data_pending[1] = (hid_last_report_len > 0);
+                    ep_in_zlp_pending[1] = 1'b0;
                     in_toggle[1] = 1'b0;
                     hid_report_pending = 1'b1;
                 end
@@ -1985,6 +2095,8 @@ endtask
                     out_last_valid[i] = 1'b0;
                     out_data_len[i] = 0;
                     ep_in_data_len[i] = 0;
+                    ep_in_data_pending[i] = 1'b0;
+                    ep_in_zlp_pending[i] = 1'b0;
                 end
             end
             if (pending_interface_valid) begin
@@ -1995,12 +2107,21 @@ endtask
             if (pending_feature_valid) begin
                 if (pending_feature_remote_wakeup) begin
                     remote_wakeup_enabled = pending_feature_set;
-                end else if (pending_feature_ep < MAX_ENDPOINTS) begin
-                    ep_halted[pending_feature_ep] = pending_feature_set;
-                    if (!pending_feature_set) begin
-                        // CLEAR_FEATURE(ENDPOINT_HALT) resets data toggles.
-                        in_toggle[pending_feature_ep] = 1'b0;
-                        out_toggle[pending_feature_ep] = 1'b0;
+                end else if (pending_feature_ep > 0 &&
+                             pending_feature_ep < MAX_ENDPOINTS &&
+                             ep_enabled[pending_feature_ep]) begin
+                    if (pending_feature_set) begin
+                        halt_endpoint(pending_feature_ep);
+                        $display("[%0t] BFM: EP%0d halted after successful control status stage",
+                                 $time, pending_feature_ep);
+                    end else begin
+                        // Standard CLEAR_FEATURE(ENDPOINT_HALT) recovery:
+                        // clear halt and reset the endpoint's data toggle(s).
+                        clear_endpoint_halt(pending_feature_ep);
+                        $display("[%0t] BFM: EP%0d halt cleared; IN/OUT toggles reset",
+                                 $time, pending_feature_ep);
+
+                        // BOT reset recovery is an MSC-specific extension.
                         if (msc_mode && msc_reset_recovery_pending) begin
                             if (pending_feature_ep == 1) msc_bulk_in_cleared = 1'b1;
                             if (pending_feature_ep == 2) msc_bulk_out_cleared = 1'b1;
@@ -2267,6 +2388,20 @@ endtask
         end
     endtask
 
+    // For OUT transactions, USB handshake is sent after the host's DATA
+    // packet, not immediately after the OUT token. A forced STALL is therefore
+    // remembered here and emitted after a valid DATA packet is received.
+    task automatic defer_out_response(input logic [3:0] endpoint,
+                                      input logic [7:0] response_pid);
+        begin
+            pending_data = 1'b1;
+            expected_data_pid = out_toggle[endpoint] ? PID_DATA1 : PID_DATA0;
+            pending_out_response_valid = 1'b1;
+            pending_out_response_pid = response_pid;
+            state = ST_WAIT_DATA;
+        end
+    endtask
+
     task automatic process_packet(input logic [7:0] pkt[$]);
         logic [7:0] pid;
         logic [6:0] addr;
@@ -2283,13 +2418,31 @@ endtask
                 return;
             end
 
-            // Host ACK after BFM IN response.
+            // Host may ACK a device DATA packet. NAK and STALL are device-to-host
+            // handshakes; observing either from host TX is a protocol violation.
             if (pid == PID_ACK || pid == PID_NAK || pid == PID_STALL) begin
+                if (pid == PID_NAK || pid == PID_STALL)
+                    $display("[%0t] BFM PROTOCOL ERROR: host transmitted device-only handshake PID=%02h", $time, pid);
                 if (pid == PID_ACK && state == ST_WAIT_ACK && pending_token_pid == PID_IN) begin
                     if (pending_ep < MAX_ENDPOINTS && ep_type[pending_ep] != EP_TYPE_ISO)
                         in_toggle[pending_ep] = ~in_toggle[pending_ep];
                     if (hid_mode != HID_NONE && pending_ep == 1 && hid_idle_rate == 0)
                         hid_report_pending = 1'b0;
+                    // ACK commits/consumes the queued non-control packet. HID
+                    // reports with a non-zero idle rate remain available for
+                    // polling; MSC data is consumed by its own offset tracking.
+                    if (last_in_from_ep_buffer && pending_ep < MAX_ENDPOINTS &&
+                        !(hid_mode != HID_NONE && pending_ep == 1 && hid_idle_rate != 0) &&
+                        !(msc_mode && pending_ep == 1)) begin
+                        ep_in_data_pending[pending_ep] = 1'b0;
+                        ep_in_zlp_pending[pending_ep] = 1'b0;
+                        ep_in_data_len[pending_ep] = 0;
+                    end
+                    if (last_in_from_common_buffer) begin
+                        in_data_pending = 1'b0;
+                        in_zlp_pending = 1'b0;
+                        in_data_len = 0;
+                    end
                     if (last_in_ep0) complete_ep0_in_ack();
                     else if (msc_mode && pending_ep == 1) begin
                         if (msc_phase == MSC_DATA_IN) begin
@@ -2409,6 +2562,8 @@ endtask
                 pending_token_pid = pid;
                 pending_addr = addr;
                 pending_ep = ep;
+                pending_out_response_valid = 1'b0;
+                pending_out_response_pid = 8'h00;
 
                 // A new EP0 SETUP supersedes any prior control-transfer retry.
                 if (pid == PID_SETUP && ep == 0) begin
@@ -2455,9 +2610,15 @@ endtask
                     return;
                 end
                 if (!ep_enabled[ep]) begin
-                    if (pid == PID_IN) send_handshake(PID_STALL);
-                    else pending_data = 1'b0;
-                    state = ST_IDLE;
+                    if (pid == PID_IN) begin
+                        if (ep_type[ep] != EP_TYPE_ISO) send_handshake(PID_STALL);
+                        state = ST_IDLE;
+                    end else if (pid == PID_OUT) begin
+                        defer_out_response(ep, PID_STALL);
+                    end else begin
+                        pending_data = 1'b0;
+                        state = ST_IDLE;
+                    end
                     return;
                 end
 
@@ -2466,29 +2627,39 @@ endtask
                 // fixed direction.
                 if (pid == PID_IN && ep != 0 && !ep_dir_in[ep]) begin
                     $display("[%0t] BFM: Invalid IN token on OUT EP%0d (%s)", $time, ep, endpoint_type_name(ep_type[ep]));
-                    send_handshake(PID_STALL);
+                    if (ep_type[ep] != EP_TYPE_ISO) send_handshake(PID_STALL);
                     state = ST_IDLE;
                     return;
                 end
                 if (pid == PID_OUT && ep != 0 && ep_dir_in[ep]) begin
-                    $display("[%0t] BFM: Invalid OUT token on IN EP%0d (%s)", $time, ep, endpoint_type_name(ep_type[ep]));
-                    pending_data = 1'b0;
-                    state = ST_IDLE;
+                    $display("[%0t] BFM: Invalid OUT token on IN EP%0d (%s); defer STALL until DATA", $time, ep, endpoint_type_name(ep_type[ep]));
+                    defer_out_response(ep, PID_STALL);
                     return;
                 end
 
                 if (ep != 0 && device_state != DEV_CONFIGURED) begin
                     $display("[%0t] BFM: EP%0d accessed while device not CONFIGURED", $time, ep);
-                    if (pid == PID_IN) send_handshake(PID_STALL);
-                    pending_data = 1'b0;
-                    state = ST_IDLE;
+                    if (pid == PID_IN) begin
+                        if (ep_type[ep] != EP_TYPE_ISO) send_handshake(PID_STALL);
+                        state = ST_IDLE;
+                    end else if (pid == PID_OUT) begin
+                        defer_out_response(ep, PID_STALL);
+                    end else begin
+                        pending_data = 1'b0;
+                        state = ST_IDLE;
+                    end
                     return;
                 end
 
-                if (ep_halted[ep] && pid != PID_SETUP) begin
-                    if (pid == PID_IN) send_handshake(PID_STALL);
-                    pending_data = 1'b0;
-                    state = ST_IDLE;
+                // A halted endpoint STALLs both directions. For OUT, wait for
+                // the DATA packet first; for IN, the handshake follows the token.
+                if (ep_halted[ep] && pid != PID_SETUP && ep_type[ep] != EP_TYPE_ISO) begin
+                    if (pid == PID_IN) begin
+                        send_handshake(PID_STALL);
+                        state = ST_IDLE;
+                    end else if (pid == PID_OUT) begin
+                        defer_out_response(ep, PID_STALL);
+                    end
                     return;
                 end
 
@@ -2525,9 +2696,46 @@ endtask
                     $display("[%0t] BFM: CRC16 ERROR EP%0d PID=%02h RX=%04h CALC=%04h",
                              $time, pending_ep, pid, received_crc, calculated_crc);
                     pending_data = 1'b0;
+                    pending_out_response_valid = 1'b0;
                     state = ST_ERROR;
                     return;
                 end
+
+                // Invalid/halted OUT endpoints still receive the OUT DATA packet;
+                // now respond with STALL. Isochronous endpoints have no handshake.
+                if (pending_token_pid == PID_OUT && pending_out_response_valid) begin
+                    if (ep_type[pending_ep] != EP_TYPE_ISO)
+                        send_handshake(pending_out_response_pid);
+                    pending_out_response_valid = 1'b0;
+                    pending_data = 1'b0;
+                    state = ST_IDLE;
+                    return;
+                end
+		// ------------------------------------------------------------
+		// OUT data-stage timeout fault injection.
+		//
+		// This point is reached only after the DATA packet has passed
+		// CRC16 validation. Return to idle without transmitting ACK,
+		// NAK or STALL. Keep this before duplicate handling so even a
+		// matching duplicate cannot accidentally receive an ACK while
+		// this fault injection is enabled.
+		// ------------------------------------------------------------
+		if (pending_token_pid == PID_OUT &&
+		    suppress_out_handshake) begin
+
+		    out_handshake_suppressed_count =
+			out_handshake_suppressed_count + 1;
+
+		    $display(
+			"[%0t] BFM: Valid OUT DATA received on EP%0d suppressing all handshake responses (timeout injection)",
+			$time, pending_ep
+		    );
+
+		    // Do not commit this packet or advance its OUT data toggle.
+		    pending_data = 1'b0;
+		    state = ST_IDLE;
+		    return;
+		end
 
                 // Only ACK a duplicate when PID and payload match the last
                 // committed OUT packet. Do not deliver it or toggle twice.
@@ -2749,33 +2957,48 @@ endtask
         begin
             task_epoch = reset_epoch;
             if (response_delay_clks > 0) repeat(response_delay_clks) @(posedge clk_i);
-            if (task_epoch != reset_epoch || rst_i) return;
+            if (task_epoch != reset_epoch || !rst_i) return;
 
             last_in_ep0 = (ep == 0);
             last_in_requires_ack = (ep_type[ep] != EP_TYPE_ISO);
             last_in_was_control_data = 1'b0;
             last_in_was_status = 1'b0;
             last_in_was_zlp = 1'b0;
+            last_in_from_ep_buffer = 1'b0;
+            last_in_from_common_buffer = 1'b0;
 
-            if (ep == 0 && ctrl_stall_pending) begin
-                send_handshake(PID_STALL);
-                state = ST_IDLE;
-                return;
-            end
-            if (response_mode == RESP_TIMEOUT) begin state = ST_IDLE; return; end
-            if (response_mode == RESP_NAK) begin send_handshake(PID_NAK); state = ST_IDLE; return; end
-            if (response_mode == RESP_STALL || ep_halted[ep]) begin send_handshake(PID_STALL); state = ST_IDLE; return; end
-            // HID idle rate 0 means report only on change. Nonzero idle rates
-            // currently make the latest report available on each poll; exact
-            // 4-ms idle timer scheduling is a remaining refinement.
-            if (ep == 1 && hid_mode != HID_NONE && hid_idle_rate == 0 && !hid_report_pending) begin
-                send_handshake(PID_NAK); state = ST_IDLE; return;
-            end
-            if (msc_mode && ep == 1 && msc_reset_recovery_pending) begin
-                send_handshake(PID_STALL); state = ST_IDLE; return;
-            end
-            if (msc_mode && ep == 1 && msc_phase != MSC_DATA_IN && msc_phase != MSC_CSW) begin
-                send_handshake(PID_NAK); state = ST_IDLE; return;
+            // Once an IN DATA packet has been sent, USB requires the exact same
+            // PID/payload/CRC to be retransmitted until the host ACKs it. Do not
+            // let a newly selected NAK/STALL/timeout injection replace that retry.
+            if (!(retry_pending && retry_ep == ep && last_in_requires_ack)) begin
+                if (ep == 0 && ctrl_stall_pending) begin
+                    send_handshake(PID_STALL);
+                    state = ST_IDLE;
+                    return;
+                end
+                if (response_mode == RESP_TIMEOUT) begin state = ST_IDLE; return; end
+                // ISO endpoints have no ACK/NAK/STALL handshake stage.
+                if (ep_type[ep] != EP_TYPE_ISO && ep_halted[ep]) begin
+                    send_handshake(PID_STALL); state = ST_IDLE; return;
+                end
+                if (ep_type[ep] != EP_TYPE_ISO && response_mode == RESP_STALL) begin
+                    send_handshake(PID_STALL); state = ST_IDLE; return;
+                end
+                if (ep_type[ep] != EP_TYPE_ISO && response_mode == RESP_NAK) begin
+                    send_handshake(PID_NAK); state = ST_IDLE; return;
+                end
+                // HID idle rate 0 means report only on change. Nonzero idle rates
+                // currently make the latest report available on each poll; exact
+                // 4-ms idle timer scheduling is a remaining refinement.
+                if (ep == 1 && hid_mode != HID_NONE && hid_idle_rate == 0 && !hid_report_pending) begin
+                    send_handshake(PID_NAK); state = ST_IDLE; return;
+                end
+                if (msc_mode && ep == 1 && msc_reset_recovery_pending) begin
+                    send_handshake(PID_STALL); state = ST_IDLE; return;
+                end
+                if (msc_mode && ep == 1 && msc_phase != MSC_DATA_IN && msc_phase != MSC_CSW) begin
+                    send_handshake(PID_NAK); state = ST_IDLE; return;
+                end
             end
 
             if (ep == 0) begin
@@ -2803,18 +3026,35 @@ endtask
                     if (n < 0) n = 0;
                     for (i = 0; i < n; i = i + 1)
                         payload.push_back(msc_xfer_buf[msc_xfer_offset+i]);
-                end else if (ep_in_data_len[ep] != 0) begin
+                end else if (ep_in_zlp_pending[ep]) begin
+                    // Explicitly queued ZLP: send DATA PID + CRC16, with no payload.
+                    last_in_from_ep_buffer = 1'b1;
+                end else if (ep_in_data_pending[ep] && ep_in_data_len[ep] > 0) begin
                     n = ep_in_data_len[ep];
                     // HID boot mouse reports contain buttons, X and Y only;
                     // report protocol additionally carries the wheel byte.
                     if (ep == 1 && hid_mode == HID_MOUSE && hid_protocol == 8'h01 && n > 3) n = 3;
                     if (n > ep_mps[ep]) n = ep_mps[ep];
                     for (i = 0; i < n; i = i + 1) payload.push_back(ep_in_data[ep][i]);
-                end else begin
-                    // Backward-compatible common IN buffer.
+                    last_in_from_ep_buffer = 1'b1;
+                end else if (in_zlp_pending) begin
+                    // Explicit common-buffer ZLP for legacy testbench users.
+                    last_in_from_common_buffer = 1'b1;
+                end else if (in_data_pending && in_data_len > 0) begin
                     n = in_data_len;
                     if (n > ep_mps[ep]) n = ep_mps[ep];
                     for (i = 0; i < n; i = i + 1) payload.push_back(in_data[i]);
+                    last_in_from_common_buffer = 1'b1;
+                end else if (ep_type[ep] == EP_TYPE_ISO) begin
+                    // Isochronous transfers have no handshake. When no sample
+                    // is queued, model an empty DATA packet rather than NAK.
+                    payload.delete();
+                end else if (!(retry_pending && retry_ep == ep)) begin
+                    // An empty IN endpoint is not a zero-length DATA packet.
+                    // It NAKs until data/ZLP is explicitly queued.
+                    send_handshake(PID_NAK);
+                    state = ST_IDLE;
+                    return;
                 end
             end
 
@@ -2831,6 +3071,8 @@ endtask
                 last_in_was_status = retry_last_in_was_status;
                 last_in_was_zlp = retry_last_in_was_zlp;
                 last_in_requires_ack = retry_last_in_requires_ack;
+                last_in_from_ep_buffer = retry_last_in_from_ep_buffer;
+                last_in_from_common_buffer = retry_last_in_from_common_buffer;
             end else begin
                 response_pid = in_toggle[ep] ? PID_DATA1 : PID_DATA0;
                 crc = ~crc16_usb(payload);
@@ -2854,11 +3096,13 @@ endtask
                     retry_last_in_was_status = last_in_was_status;
                     retry_last_in_was_zlp = last_in_was_zlp;
                     retry_last_in_requires_ack = last_in_requires_ack;
+                    retry_last_in_from_ep_buffer = last_in_from_ep_buffer;
+                    retry_last_in_from_common_buffer = last_in_from_common_buffer;
                 end
             end
 
             send_data_packet(response_pid, payload, crc, corrupt);
-            if (task_epoch != reset_epoch || rst_i) return;
+            if (task_epoch != reset_epoch || !rst_i) return;
             if (ep_type[ep] == EP_TYPE_ISO) begin
                 // No ACK and no DATA toggle for isochronous transfers.
                 state = ST_IDLE;
@@ -2905,7 +3149,7 @@ endtask
 
             // Device response turnaround before the handshake packet.
             repeat (DEVICE_IFS_CLKS) @(posedge clk_i);
-            if (task_epoch != reset_epoch || rst_i) return;
+            if (task_epoch != reset_epoch || !rst_i) return;
 
             // UTMI-like RX interface: present handshake PID for one configured
             // byte time (32 clocks at 48 MHz; 40 at 60 MHz). RXVALID is a pulse.
@@ -2924,15 +3168,15 @@ endtask
             // RXACTIVE remains asserted through EOP.
             for (byte_clk = 1; byte_clk < FS_BYTE_CLKS; byte_clk = byte_clk + 1) begin
                 @(posedge clk_i);
-                if (task_epoch != reset_epoch || rst_i) return;
+                if (task_epoch != reset_epoch || !rst_i) return;
             end
 
             // USB FS EOP: SE0 for 2 bit times, followed by J for 1 bit time.
             // Durations are 8+4 clocks at 48 MHz, 10+5 clocks at 60 MHz.
-            utmi_linestate_i <= 2'b00;
+            utmi_linestate_model <= 2'b00;
             repeat (FS_EOP_SE0_CLKS) @(posedge clk_i);
-            if (task_epoch != reset_epoch || rst_i) return;
-            utmi_linestate_i <= 2'b01;
+            if (task_epoch != reset_epoch || !rst_i) return;
+            utmi_linestate_model <= 2'b01;
 
             // UTMI FS RXACTIVE deasserts within 2 clocks after FS idle.
             repeat (2) @(posedge clk_i);
@@ -2983,7 +3227,7 @@ task automatic send_data_packet(
                 tx_byte = tx_crc[15:8];
 
             @(posedge clk_i);
-            if (task_epoch != reset_epoch || rst_i) return;
+            if (task_epoch != reset_epoch || !rst_i) return;
             utmi_rxerror_i  <= 1'b0;
             utmi_rxactive_i <= 1'b1;
             utmi_rxvalid_i  <= 1'b1;
@@ -2992,22 +3236,22 @@ task automatic send_data_packet(
             // One CLK of RXVALID; keep RXACTIVE high for the remainder of
             // this byte slot. Total slot length is FS_BYTE_CLKS clocks.
             @(posedge clk_i);
-            if (task_epoch != reset_epoch || rst_i) return;
+            if (task_epoch != reset_epoch || !rst_i) return;
             utmi_rxvalid_i <= 1'b0;
             repeat (FS_BYTE_CLKS - 2) @(posedge clk_i);
-            if (task_epoch != reset_epoch || rst_i) return;
+            if (task_epoch != reset_epoch || !rst_i) return;
         end
 
         // The last CRC byte's configured byte time is complete. EOP on the bus is
         // SE0 for two bit times, then J for one bit time.
         @(posedge clk_i);
-        if (task_epoch != reset_epoch || rst_i) return;
+        if (task_epoch != reset_epoch || !rst_i) return;
         utmi_rxvalid_i  <= 1'b0;
         utmi_data_in_i  <= 8'h00;
-        utmi_linestate_i <= 2'b00; // SE0: DP=0, DM=0
+        utmi_linestate_model <= 2'b00; // SE0: DP=0, DM=0
         repeat (FS_EOP_SE0_CLKS) @(posedge clk_i);
-        if (task_epoch != reset_epoch || rst_i) return;
-        utmi_linestate_i <= 2'b01; // J idle
+        if (task_epoch != reset_epoch || !rst_i) return;
+        utmi_linestate_model <= 2'b01; // J idle
         repeat (FS_EOP_J_CLKS) @(posedge clk_i);
         utmi_rxactive_i <= 1'b0;
         utmi_rxerror_i  <= 1'b0;
@@ -3034,8 +3278,10 @@ endtask
             if (n < 0) n = 0;
             if (n > MAX_IN_DATA) n = MAX_IN_DATA;
             ep_in_data_len[ep] = n;
+            ep_in_data_pending[ep] = (n > 0);
+            ep_in_zlp_pending[ep] = 1'b0;
             for (i = 0; i < n; i = i + 1) ep_in_data[ep][i] = i[7:0];
-            $display("[%0t] BFM: EP%0d IN data length=%0d type=%s", $time, ep, n, endpoint_type_name(ep_type[ep]));
+            $display("[%0t] BFM: EP%0d IN data length=%0d pending=%0b type=%s", $time, ep, n, ep_in_data_pending[ep], endpoint_type_name(ep_type[ep]));
         end
     endtask
 
@@ -3044,23 +3290,53 @@ endtask
             if (ep >= 0 && ep < MAX_ENDPOINTS && index >= 0 && index < MAX_IN_DATA) begin
                 if (index >= ep_in_data_len[ep]) ep_in_data_len[ep] = index + 1;
                 ep_in_data[ep][index] = value;
+                ep_in_data_pending[ep] = 1'b1;
+                ep_in_zlp_pending[ep] = 1'b0;
             end
         end
     endtask
 
     task automatic clear_ep_in_data(input integer ep);
         begin
-            if (ep >= 0 && ep < MAX_ENDPOINTS) ep_in_data_len[ep] = 0;
+            if (ep >= 0 && ep < MAX_ENDPOINTS) begin
+                ep_in_data_len[ep] = 0;
+                ep_in_data_pending[ep] = 1'b0;
+                ep_in_zlp_pending[ep] = 1'b0;
+            end
+        end
+    endtask
+
+    // Queue a genuine zero-length IN DATA packet. Do not use set_ep_in_data(ep,0)
+    // for this purpose: length zero there means the endpoint has no data ready
+    // and therefore responds to IN with NAK (for non-isochronous endpoints).
+    task automatic queue_ep_in_zlp(input integer ep);
+        begin
+            if (ep >= 0 && ep < MAX_ENDPOINTS) begin
+                ep_in_data_len[ep] = 0;
+                ep_in_data_pending[ep] = 1'b0;
+                ep_in_zlp_pending[ep] = 1'b1;
+            end
         end
     endtask
 
     task automatic set_in_data(input integer len);
         begin
-            in_data_len = (len > MAX_IN_DATA) ? MAX_IN_DATA : len;
+            in_data_len = (len > MAX_IN_DATA) ? MAX_IN_DATA : ((len < 0) ? 0 : len);
+            in_data_pending = (in_data_len > 0);
+            in_zlp_pending = 1'b0;
             if (in_data_len > 0) in_data[0] = 8'h11;
             if (in_data_len > 1) in_data[1] = 8'h22;
             if (in_data_len > 2) in_data[2] = 8'h33;
             if (in_data_len > 3) in_data[3] = 8'h44;
+        end
+    endtask
+
+    // Legacy common IN buffer can also intentionally produce a ZLP.
+    task automatic queue_common_in_zlp();
+        begin
+            in_data_len = 0;
+            in_data_pending = 1'b0;
+            in_zlp_pending = 1'b1;
         end
     endtask
 
@@ -3311,6 +3587,8 @@ endtask
                 if (ep_enabled[1]) begin
                     ep_in_data[1][0]=buttons & 8'h07; ep_in_data[1][1]=dx; ep_in_data[1][2]=dy; ep_in_data[1][3]=wheel;
                     ep_in_data_len[1]=4;
+                    ep_in_data_pending[1]=1'b1;
+                    ep_in_zlp_pending[1]=1'b0;
                 end
             end
         end
@@ -3333,6 +3611,8 @@ endtask
                     ep_in_data[1][2]=key0; ep_in_data[1][3]=key1; ep_in_data[1][4]=key2;
                     ep_in_data[1][5]=key3; ep_in_data[1][6]=key4; ep_in_data[1][7]=key5;
                     ep_in_data_len[1]=8;
+                    ep_in_data_pending[1]=1'b1;
+                    ep_in_zlp_pending[1]=1'b0;
                 end
             end
         end
@@ -3350,22 +3630,22 @@ endtask
   // ----------------------------------------------------------
   task automatic setup_ep2_out_for_test();
     begin
-      device_addr = 7'd0;
-      device_state = DEV_CONFIGURED;
-      configuration_value = 8'd1;
+      device_addr <= 7'd0;
+      device_state <= DEV_CONFIGURED;
+      configuration_value <= 8'd1;
 
-      ep_enabled[2]   = 1'b1;
-      ep_dir_in[2]    = 1'b0;  // OUT endpoint
-      ep_type[2]      = EP_TYPE_BULK;
-      ep_mps[2]       = 64;
-      ep_can_receive[2] = 1'b1;
-      ep_halted[2]    = 1'b0;
-      out_toggle[2]   = 1'b0;
-      out_data_len[2] = 0;
+      ep_enabled[2]   <= 1'b1;
+      ep_dir_in[2]    <= 1'b0;  // OUT endpoint
+      ep_type[2]      <= EP_TYPE_BULK;
+      ep_mps[2]       <= 64;
+      ep_can_receive[2] <= 1'b1;
+      ep_halted[2]    <= 1'b0;
+      out_toggle[2]   <= 1'b0;
+      out_data_len[2] <= 0;
 
-      pending_data = 1'b0;
-      expected_data_pid = PID_DATA0;
-      state = ST_IDLE;
+      pending_data <= 1'b0;
+      expected_data_pid <= PID_DATA0;
+      state <= ST_IDLE;
 
       $display("[%0t] BFM: Directed setup complete: device configured, EP2 OUT bulk enabled",
                $time);
@@ -3374,9 +3654,9 @@ endtask
   
   task automatic setup_ep1_in_for_test();
 begin
-    device_addr = 7'd0;
-    device_state = DEV_CONFIGURED;
-    configuration_value = 8'd1;
+    device_addr <= 7'd0;
+    device_state <= DEV_CONFIGURED;
+    configuration_value <= 8'd1;
 
     enable_endpoint(1, 1'b1, EP_TYPE_INT, 64, 1);
 
@@ -3411,7 +3691,7 @@ endtask
       utmi_rxvalid_i = 1'b0;
       utmi_rxactive_i = 1'b0;
       utmi_rxerror_i = 1'b0;
-      utmi_linestate_i = 2'b01;
+      utmi_linestate_model = 2'b01;
       repeat (10) @(posedge clk_i);
       $display("[%0t] DEVICE BFM: FS J idle presented", $time);
     end
@@ -3435,7 +3715,7 @@ endtask
       utmi_rxvalid_i = 1'b0;
       utmi_rxactive_i = 1'b0;
       utmi_rxerror_i = 1'b0;
-      utmi_linestate_i = 2'b00; // abstract disconnected indication
+      utmi_linestate_model = 2'b00; // abstract disconnected indication
       repeat (10) @(posedge clk_i);
       $display("[%0t] DEVICE BFM: detached", $time);
     end
@@ -3446,9 +3726,9 @@ endtask
 // Call before starting the UVM sequence.
 task automatic setup_synch_frame_for_test();
     begin
-        device_addr = 7'd0;
-        device_state = DEV_CONFIGURED;
-        configuration_value = 8'd1;
+        device_addr <= 7'd0;
+        device_state <= DEV_CONFIGURED;
+        configuration_value <= 8'd1;
 
         // EP0 remains the control endpoint.
         ep_enabled[0] = 1'b1;
@@ -3468,15 +3748,39 @@ task automatic setup_synch_frame_for_test();
         in_toggle[1] = 1'b0;
 
         // Reset control-transfer state for an isolated test.
-        ctrl_stage = CTRL_IDLE;
-        control_transfer_active = 1'b0;
-        ctrl_stall_pending = 1'b0;
-        pending_data = 1'b0;
-        state = ST_IDLE;
+        ctrl_stage <= CTRL_IDLE;
+        control_transfer_active <= 1'b0;
+        ctrl_stall_pending <= 1'b0;
+        pending_data <= 1'b0;
+        state <= ST_IDLE;
 
         $display("[%0t] BFM: SYNCH_FRAME test setup: EP1 IN isochronous enabled",
                  $time);
     end
 endtask
+
+// Enable or disable suppression of the handshake after a valid
+// ordinary OUT DATA packet. This does not suppress SETUP responses.
+task automatic set_out_handshake_suppression(input logic enable);
+    begin
+        suppress_out_handshake = enable;
+
+        $display(
+            "[%0t] BFM: OUT handshake suppression=%0b",
+            $time, enable
+        );
+    end
+endtask
+
+// Report the number of valid OUT DATA packets whose handshake
+// was intentionally suppressed.
+task automatic get_out_handshake_suppressed_count(
+    output integer unsigned count
+);
+    begin
+        count = out_handshake_suppressed_count;
+    end
+endtask
 endmodule
+
 

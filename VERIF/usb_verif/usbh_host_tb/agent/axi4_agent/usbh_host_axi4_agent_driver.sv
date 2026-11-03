@@ -31,11 +31,13 @@ class usbh_host_axi4_agent_driver extends
   // Assumption: rst_i is active-low.
   // ----------------------------------------------------------
   task run_phase(uvm_phase phase);
+      do_reset();
 
     forever begin
 
       // Wait until reset is deasserted.
       wait (vif.rst_i === 1'b1);
+        do_reset();
 
       `uvm_info("AXI_DRV",
         "Reset deasserted -- driver resuming",
@@ -98,101 +100,127 @@ class usbh_host_axi4_agent_driver extends
   // ----------------------------------------------------------
   // WRITE transaction
   // ----------------------------------------------------------
-  task drive_write(usbh_host_axi4_agent_seq_item req);
 
-    int unsigned timeout;
+task drive_write(usbh_host_axi4_agent_seq_item req);
 
-    timeout = 0;
+  int unsigned timeout;
+  bit aw_done;
+  bit w_done;
 
-    `uvm_info("AXI4_DRV",
-      $sformatf("WRITE ADDR=%08h DATA=%08h STRB=%h",
-                req.addr, req.data, req.strb),
-      UVM_MEDIUM)
+  aw_done = 1'b0;
+  w_done  = 1'b0;
+  timeout = 0;
 
-    // Address channel
-    vif.drv_cb.cfg_awaddr_i  <= req.addr;
-    vif.drv_cb.cfg_awid_i    <= req.id;
-    vif.drv_cb.cfg_awlen_i   <= req.len;
-    vif.drv_cb.cfg_awsize_i  <= req.size;
-    vif.drv_cb.cfg_awburst_i <= req.burst;
-    vif.drv_cb.cfg_awvalid_i <= 1'b1;
+  `uvm_info("AXI4_DRV",
+    $sformatf("WRITE START ADDR=%08h DATA=%08h STRB=%h",
+              req.addr, req.data, req.strb),
+    UVM_MEDIUM)
 
-    do begin
-      @(vif.drv_cb);
-      timeout++;
+  // --------------------------------------------------
+  // 1. Drive address and data channels together.
+  // AXI permits independent AW and W handshakes.
+  // --------------------------------------------------
+  @(vif.drv_cb);
 
-      if (vif.rst_i !== 1'b1)
-        `uvm_fatal("AXI_AW_RESET",
-          "Reset asserted during write address phase")
+  if (vif.rst_i !== 1'b1)
+    `uvm_fatal("AXI_WR_RESET",
+      "Reset asserted before write transaction")
 
-      if (timeout >= AXI_TIMEOUT)
-        `uvm_fatal("AXI_AW_TIMEOUT",
-          $sformatf("AWREADY timeout: ADDR=%08h", req.addr))
+  vif.drv_cb.cfg_awaddr_i  <= req.addr;
+  vif.drv_cb.cfg_awid_i    <= req.id;
+  vif.drv_cb.cfg_awlen_i   <= req.len;
+  vif.drv_cb.cfg_awsize_i  <= req.size;
+  vif.drv_cb.cfg_awburst_i <= req.burst;
+  vif.drv_cb.cfg_awvalid_i <= 1'b1;
 
-    end while (!vif.drv_cb.cfg_awready_o);
+  vif.drv_cb.cfg_wdata_i   <= req.data;
+  vif.drv_cb.cfg_wstrb_i   <= req.strb;
+  vif.drv_cb.cfg_wlast_i   <= 1'b1;
+  vif.drv_cb.cfg_wvalid_i  <= 1'b1;
 
-    vif.drv_cb.cfg_awvalid_i <= 1'b0;
+  // --------------------------------------------------
+  // 2. Independently wait for AW and W handshakes.
+  // Deassert each VALID only after its own handshake.
+  // --------------------------------------------------
+  timeout = 0;
 
-    // Write data channel
-    vif.drv_cb.cfg_wdata_i  <= req.data;
-    vif.drv_cb.cfg_wstrb_i  <= req.strb;
-    vif.drv_cb.cfg_wlast_i  <= 1'b1;
-    vif.drv_cb.cfg_wvalid_i <= 1'b1;
+  while (!(aw_done && w_done)) begin
+    @(vif.drv_cb);
+    timeout++;
 
-    timeout = 0;
+    if (vif.rst_i !== 1'b1)
+      `uvm_fatal("AXI_WR_RESET",
+        $sformatf("Reset during write: ADDR=%08h", req.addr))
 
-    do begin
-      @(vif.drv_cb);
-      timeout++;
+    if (timeout >= AXI_TIMEOUT)
+      `uvm_fatal("AXI_WR_TIMEOUT",
+        $sformatf(
+          "Write handshake timeout: ADDR=%08h AW_DONE=%0b W_DONE=%0b AWREADY=%0b WREADY=%0b",
+          req.addr, aw_done, w_done,
+          vif.drv_cb.cfg_awready_o,
+          vif.drv_cb.cfg_wready_o))
 
-      if (vif.rst_i !== 1'b1)
-        `uvm_fatal("AXI_W_RESET",
-          "Reset asserted during write data phase")
+    if (!aw_done && vif.drv_cb.cfg_awready_o === 1'b1) begin
+      aw_done = 1'b1;
+      vif.drv_cb.cfg_awvalid_i <= 1'b0;
 
-      if (timeout >= AXI_TIMEOUT)
-        `uvm_fatal("AXI_W_TIMEOUT",
-          $sformatf("WREADY timeout: ADDR=%08h", req.addr))
+      `uvm_info("AXI_AW",
+        $sformatf("AW handshake complete: ADDR=%08h", req.addr),
+        UVM_MEDIUM)
+    end
 
-    end while (!vif.drv_cb.cfg_wready_o);
+    if (!w_done && vif.drv_cb.cfg_wready_o === 1'b1) begin
+      w_done = 1'b1;
+      vif.drv_cb.cfg_wvalid_i <= 1'b0;
+      vif.drv_cb.cfg_wlast_i  <= 1'b0;
 
-    vif.drv_cb.cfg_wvalid_i <= 1'b0;
-    vif.drv_cb.cfg_wlast_i  <= 1'b0;
+      `uvm_info("AXI_W",
+        $sformatf("W handshake complete: ADDR=%08h DATA=%08h",
+                  req.addr, req.data),
+        UVM_MEDIUM)
+    end
+  end
 
-    // Write response channel
-    vif.drv_cb.cfg_bready_i <= 1'b1;
+  // --------------------------------------------------
+  // 3. Wait for the write response.
+  // --------------------------------------------------
+  vif.drv_cb.cfg_bready_i <= 1'b1;
+  timeout = 0;
 
-    timeout = 0;
+  do begin
+    @(vif.drv_cb);
+    timeout++;
 
-    do begin
-      @(vif.drv_cb);
-      timeout++;
+    if (vif.rst_i !== 1'b1)
+      `uvm_fatal("AXI_B_RESET",
+        "Reset asserted during write response")
 
-      if (vif.rst_i !== 1'b1)
-        `uvm_fatal("AXI_B_RESET",
-          "Reset asserted during write response phase")
+    if (timeout >= AXI_TIMEOUT)
+      `uvm_fatal("AXI_B_TIMEOUT",
+        $sformatf("BVALID timeout: ADDR=%08h", req.addr))
 
-      if (timeout >= AXI_TIMEOUT)
-        `uvm_fatal("AXI_B_TIMEOUT",
-          $sformatf("BVALID timeout: ADDR=%08h", req.addr))
+  end while (vif.drv_cb.cfg_bvalid_o !== 1'b1);
 
-    end while (!vif.drv_cb.cfg_bvalid_o);
+  req.resp    = vif.drv_cb.cfg_bresp_o;
+  req.resp_id = vif.drv_cb.cfg_bid_o;
 
-    req.resp    = vif.drv_cb.cfg_bresp_o;
-    req.resp_id = vif.drv_cb.cfg_bid_o;
+  vif.drv_cb.cfg_bready_i <= 1'b0;
 
-    vif.drv_cb.cfg_bready_i <= 1'b0;
+  if (req.resp_id != req.id)
+    `uvm_error("AXI_BID",
+      $sformatf("BID mismatch: expected=%0h received=%0h",
+                req.id, req.resp_id))
 
-    if (req.resp_id != req.id)
-      `uvm_error("AXI_BID",
-        $sformatf("BID mismatch: expected=%0h received=%0h",
-                  req.id, req.resp_id))
+  /*if (req.resp != 2'b00)
+    `uvm_error("AXI_BRESP",
+      $sformatf("Write response error: ADDR=%08h BRESP=%0b", req.addr, req.resp))*/
+      
+  `uvm_info("AXI_BRESP", $sformatf( "Write response captured: ADDR=%08h BRESP=%02b", req.addr, req.resp), UVM_MEDIUM)
+      
+  `uvm_info("AXI4_DRV",
+    $sformatf("WRITE COMPLETE ADDR=%08h DATA=%08h BRESP=%0b ID=%0h", req.addr, req.data, req.resp, req.resp_id),UVM_MEDIUM)
 
-    `uvm_info("AXI4_DRV",
-      $sformatf("WRITE COMPLETE ADDR=%08h DATA=%08h BRESP=%0b ID=%0h",
-                req.addr, req.data, req.resp, req.resp_id),
-      UVM_MEDIUM)
-
-  endtask
+endtask
 
   // ----------------------------------------------------------
   // READ transaction

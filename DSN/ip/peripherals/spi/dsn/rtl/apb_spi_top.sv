@@ -1,6 +1,6 @@
 
 
-//=============================================================================
+
 // spi_apb_top.sv
 // opensource registers
 // APB3/AP-B4 Wrapper for SPI Controller

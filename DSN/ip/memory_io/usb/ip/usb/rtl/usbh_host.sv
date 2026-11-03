@@ -1,4 +1,5 @@
 
+
 `timescale 1ns/1ps
 
 //-----------------------------------------------------------------
@@ -35,7 +36,7 @@
 //                          Generated File
 //-----------------------------------------------------------------
 
- // `include "usbh_host_defs.sv"
+ `include "usbh_host_defs.sv"
 
 //-----------------------------------------------------------------
 // Module:  USB Host IP
@@ -846,6 +847,15 @@ logic         transfer_req_ack_q;
 
 logic [7:0]  fifo_tx_data_w;
 logic        fifo_tx_pop_w;
+logic        fifo_tx_full_w;
+logic        fifo_tx_empty_w;
+logic [6:0]  fifo_tx_count_w;
+logic        tx_data_available_w;
+
+// OUT transfer may start only when the complete payload is buffered.
+// TX FIFO depth is 64 bytes, so count range is 0 to 64.
+assign tx_data_available_w =
+       ({9'b0, fifo_tx_count_w} >= usb_xfer_data_tx_len_out_w);
 
 logic [7:0]  fifo_rx_data_w;
 logic        fifo_rx_push_w;
@@ -879,7 +889,7 @@ logic         usb_err_q;
 logic         intr_done_q;
 logic         intr_sof_q;
 logic         intr_err_q;
-
+logic status_tx_underflow_w;
 //-----------------------------------------------------------------
 // Definitions
 //-----------------------------------------------------------------
@@ -948,7 +958,8 @@ u_sie
     .utmi_data_i(utmi_data_in_i),
     .utmi_rxvalid_i(utmi_rxvalid_i),
     .utmi_rxactive_i(utmi_rxactive_i),
-    .utmi_linestate_i(utmi_linestate_i)
+    .utmi_linestate_i(utmi_linestate_i),
+    .tx_underflow_o(status_tx_underflow_w)
 );    
 
 //-----------------------------------------------------------------
@@ -992,8 +1003,9 @@ u_fifo_tx
 
     .flush_i(usb_ctrl_tx_flush_out_w),
 
-    .full_o(),
-    .empty_o(),
+    .full_o(fifo_tx_full_w),
+    .empty_o(fifo_tx_empty_w),
+    .count_o(fifo_tx_count_w),
 
     .data_o(fifo_tx_data_w),
     .pop_i(fifo_tx_pop_w)
@@ -1078,16 +1090,21 @@ begin
     begin
         // Transfer request
         if (usb_xfer_token_start_out_w)
-        begin              
-            // Flush un-used previous Rx data
-            fifo_flush_q       <= 1'b1;
+        begin
+            // IN transfers do not use the TX FIFO.
+            // OUT transfers wait until the complete payload is buffered.
+            if (usb_xfer_token_in_out_w || tx_data_available_w)
+            begin
+                // Flush unused previous RX data
+                fifo_flush_q       <= 1'b1;
 
-            // Start transfer
-            in_transfer_q      <= usb_xfer_token_in_out_w;
-            resp_expected_q    <= usb_xfer_token_ack_out_w;
-            transfer_start_q   <= 1'b1;
-            sof_transfer_q     <= 1'b0;
-            transfer_req_ack_q <= 1'b1;
+                // Start transfer
+                in_transfer_q      <= usb_xfer_token_in_out_w;
+                resp_expected_q    <= usb_xfer_token_ack_out_w;
+                transfer_start_q   <= 1'b1;
+                sof_transfer_q     <= 1'b0;
+                transfer_req_ack_q <= 1'b1;
+            end
         end
     end
 end
@@ -1162,7 +1179,8 @@ begin
     else if (usb_irq_ack_sof_out_w)
         intr_sof_q <= 1'b0;
 
-    if ((status_crc_err_w || status_timeout_w) && (!err_cond_q))
+    //if ((status_crc_err_w || status_timeout_w) && (!err_cond_q))
+    if ((status_crc_err_w || status_timeout_w || status_tx_underflow_w) && (!err_cond_q))
         intr_err_q <= 1'b1;
     else if (usb_irq_ack_err_out_w)
         intr_err_q <= 1'b0;
@@ -1176,7 +1194,7 @@ begin
   else
   device_det_q  <= 1'b0;
   
-    err_cond_q  <= (status_crc_err_w | status_timeout_w);
+    err_cond_q  <= (status_crc_err_w | status_timeout_w | status_tx_underflow_w);
 
  intr_q <= (intr_done_q  & !usb_irq_mask_done_out_w) |
            (intr_err_q   & !usb_irq_mask_err_out_w)  |

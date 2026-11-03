@@ -18,11 +18,11 @@
 # ------------------------------------------------------------
 
 # ---- axi4_slave.sv ------------------------------------------------
-axi4_slave.sv:154  *     WRAP AxLEN other than 1/3/7/15 is AXI-illegal (axi_assertions flags it on the master)
-axi4_slave.sv:244  expr  "(s_axi_wready==0) => 0"  s_axi_wready == (sw_state == SW_DATA), so it is always 1 inside "case SW_DATA"
-axi4_slave.sv:266  expr  "(s_axi_bvalid==0) => 0"  s_axi_bvalid == (sw_state == SW_RESP), so it is always 1 inside "case SW_RESP"
-axi4_slave.sv:377  expr  "(s_axi_rvalid==0) => 0"  s_axi_rvalid == (sr_state == SR_DATA), so it is always 1 inside "case SR_DATA"
-axi4_slave.sv:394  *     sr_state uses all four 2-bit encodings: the read-FSM default branch is dead code
+axi4_slave.sv:156  *     WRAP AxLEN other than 1/3/7/15 is AXI-illegal (axi_assertions flags it on the master)
+axi4_slave.sv:263  expr  "(s_axi_wready==0) => 0"  s_axi_wready == (sw_state == SW_DATA), so it is always 1 inside "case SW_DATA"
+axi4_slave.sv:309  expr  "(s_axi_bvalid==0) => 0"  s_axi_bvalid == (sw_state == SW_RESP), so it is always 1 inside "case SW_RESP"
+axi4_slave.sv:410  expr  "(s_axi_rvalid==0) => 0"  s_axi_rvalid == (sr_state == SR_DATA), so it is always 1 inside "case SR_DATA"
+axi4_slave.sv:427  *     sr_state uses all four 2-bit encodings: the read-FSM default branch is dead code
 
 # ---- tc_sram.sv (sram_top: SimInit="zeros", Latency=1) -------------
 tc_sram.sv:102     *     random_init_word() is only used with SimInit="random"
@@ -61,3 +61,7 @@ axi_sram_cdc.sv:208  toggle  @u_axi_sram_cdc  "req_offset[28]"  offset bit 28 is
 # ---- dead wires in the async FIFO RTL ----
 async.sv:21          toggle  "addr["  waddr / raddr are declared but never assigned (fifo_mem uses the pointers directly)
 wptr_handler.v:11    toggle  "wrap_around"  wrap_around is never assigned: its assign is commented out (line 33)
+
+# ---- WLAST drain (late WLAST, SOC-86 fix) ----
+axi4_slave.sv:270    expr  "(addr_in_range(aw_addr_q)==0) => 1"  drain starts on beat AWLEN, which already sets aw_err_q if its address is out of range, so aw_err_q=0 with an out-of-range address cannot occur here
+axi4_slave.sv:292    expr  "(addr_in_range(aw_addr_q)==0) => 1"  needs a burst that starts in the window and leaves it; the window ends on a 4 KB boundary, which an AXI burst may not cross (A3.4.1)

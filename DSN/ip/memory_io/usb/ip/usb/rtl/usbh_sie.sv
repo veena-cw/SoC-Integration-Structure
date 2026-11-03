@@ -58,6 +58,7 @@ module usbh_sie
     ,input logic [ 15:0] data_len_i
     ,input logic data_idx_i
     ,input logic [  7:0] tx_data_i
+    ,input logic tx_empty_i
     ,input logic utmi_txready_i
     ,input logic [  7:0] utmi_data_i
     ,input logic utmi_rxvalid_i
@@ -152,6 +153,7 @@ localparam STATE_TX_ACKNAK  = 4'd9;
 localparam STATE_TX_WAIT    = 4'd10;
 localparam STATE_RX_WAIT    = 4'd11;
 localparam STATE_TX_IFS     = 4'd12;
+localparam STATE_TX_ABORT   = 4'd13; // Abort incomplete TX packet
 
 //-----------------------------------------------------------------
 // Wires
@@ -165,6 +167,11 @@ logic       rx_active_rise_w;
 
 // Tx/Rx -> Tx IFS timeout
 logic ifs_busy_w;
+
+// Payload byte accepted by UTMI.
+logic tx_byte_accept_w;
+assign tx_byte_accept_w = (state_q == STATE_TX_DATA) &&
+                          !tx_empty_i && utmi_txready_i;
 
 // Response timeout (no response after 500uS from transmit)
 logic rx_resp_timeout_w;
@@ -180,7 +187,7 @@ assign crc_error_w = (state_q == STATE_RX_DATA) && !rx_active_w && in_transfer_q
 // State Machine
 //-----------------------------------------------------------------
 logic [3:0] next_state_r;
-
+logic eop_detected_w;
 always_comb
 begin
     next_state_r = state_q;
@@ -259,9 +266,22 @@ begin
         //-----------------------------------------
         STATE_TX_DATA :
         begin
-            // Last data byte sent?
-            if (utmi_txready_i && (byte_count_q == 16'b0))
+            // Abort if the payload FIFO unexpectedly becomes empty.
+            // TXValid is deasserted in STATE_TX_ABORT; the PHY then
+            // terminates the incomplete packet with an EOP sequence.
+            if (tx_empty_i && (byte_count_q != 16'd0))
+                next_state_r = STATE_TX_ABORT;
+            // Enter CRC only after the final payload byte is accepted.
+            else if (tx_byte_accept_w && (byte_count_q == 16'd1))
                 next_state_r = STATE_TX_CRC1;
+        end
+        //-----------------------------------------
+        // TX_ABORT: wait for PHY EOP completion
+        //-----------------------------------------
+        STATE_TX_ABORT :
+        begin
+            if (eop_detected_w)
+                next_state_r = STATE_IDLE;
         end
         //-----------------------------------------
         // TX_CRC1 (first byte)
@@ -396,7 +416,7 @@ else
     se0_detect_q <= se0_detect_w;
 
 // TODO: This needs updating for HS USB...
-logic eop_detected_w;
+
 assign eop_detected_w = se0_detect_q &&
                         (utmi_linestate_i != 2'b00);
 
@@ -408,7 +428,8 @@ else if (eop_detected_w)
     wait_eop_q <= 1'b0;
 else if ((state_q == STATE_TX_CRC2   && next_state_r != STATE_TX_CRC2)   ||
          (state_q == STATE_TX_TOKEN3 && next_state_r != STATE_TX_TOKEN3) ||
-         (state_q == STATE_TX_ACKNAK && next_state_r != STATE_TX_ACKNAK))
+         (state_q == STATE_TX_ACKNAK && next_state_r != STATE_TX_ACKNAK) ||
+         (state_q == STATE_TX_DATA   && next_state_r == STATE_TX_ABORT))
     wait_eop_q <= 1'b1;
 else if (rx_active_rise_w)
     wait_eop_q <= 1'b1;
@@ -452,10 +473,9 @@ else if (state_q == STATE_IDLE && start_i && !sof_transfer_i)
     byte_count_q <= data_len_i;
 else if (state_q == STATE_RX_WAIT)
     byte_count_q <= 16'h0000;
-// Transmit byte
-else if ((state_q == STATE_TX_PID || state_q == STATE_TX_DATA) && utmi_txready_i)
+// Transmit payload byte (PID is not part of the payload length)
+else if (tx_byte_accept_w)
 begin
-    // Count down data left to send
     if (byte_count_q != 16'd0)
         byte_count_q <= byte_count_q - 16'd1;
 end
@@ -697,12 +717,9 @@ begin
             //-----------------------------------------
             STATE_TX_DATA :
             begin
-                // Data sent?
-                if (utmi_txready_i)
-                begin
-                    // Next CRC start value
-                    crc_sum_q      <= crc_out_w;
-                end
+                // Update CRC only for a payload byte accepted by UTMI.
+                if (tx_byte_accept_w)
+                    crc_sum_q <= crc_out_w;
             end
             //-----------------------------------------
             // RX_WAIT
@@ -807,8 +824,9 @@ begin
     end
     else if (state_q == STATE_TX_DATA)
     begin
-        utmi_txvalid_r = 1'b1;
-        utmi_data_r    = tx_data_i;
+         // Never present stale FIFO output as valid USB payload.
+         utmi_txvalid_r = !tx_empty_i;
+         utmi_data_r    = tx_data_i;
     end
     else
     begin
@@ -831,14 +849,12 @@ assign idle_o       = (state_q == STATE_IDLE);
 
 assign ack_o        = start_ack_q;
 
-assign tx_pop_o     = state_q == STATE_TX_DATA && utmi_txready_i;
+assign tx_pop_o     = tx_byte_accept_w;
 
 assign tx_done_o    = status_tx_done_q;
 assign rx_done_o    = status_rx_done_q;
 assign crc_err_o    = status_crc_err_q;
 assign timeout_o    = status_timeout_q;
 assign response_o   = status_response_q;
-
-
 
 endmodule

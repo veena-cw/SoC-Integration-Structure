@@ -169,13 +169,48 @@ module lpddr5c_top #(
     wire                                clk;
     wire                                rst_n;
     wire                                phy_clk;
-    // Command scheduler signals
-logic [ADDR_WIDTH-1:0] cmd_addr;
-logic [3:0]            cmd_type;
-logic                  cmd_valid;
-wire                   cmd_ready;
-logic [7:0]             cmd_id;
-wire lp_idle;
+    //============================================================
+    // SYS_CLK domain: AXI command generation
+    //============================================================
+    logic [ADDR_WIDTH-1:0] cmd_addr;
+    logic [3:0]            cmd_type;
+    logic                  cmd_valid;
+    wire                   cmd_ready;
+    logic [7:0]            cmd_id;
+
+    //============================================================
+    // Command CDC FIFO: SYS_CLK -> DFI_CLK
+    //============================================================
+    localparam CMD_FIFO_WIDTH = ADDR_WIDTH + 4 + 8;
+
+    wire [CMD_FIFO_WIDTH-1:0] cmd_fifo_wr_data;
+    wire [CMD_FIFO_WIDTH-1:0] cmd_fifo_rd_data;
+    wire                      cmd_fifo_wr_en;
+    wire                      cmd_fifo_rd_en;
+    wire                      cmd_fifo_full;
+    wire                      cmd_fifo_empty;
+
+    wire [ADDR_WIDTH-1:0] sched_cmd_addr;
+    wire [3:0]            sched_cmd_type;
+    wire [7:0]            sched_cmd_id;
+    wire                  sched_cmd_valid;
+    wire                  sched_cmd_ready;
+
+    // Scheduler status returned to SYS_CLK domain
+    wire cmd_activity_dfi;
+    wire rd_activity_dfi;
+    wire wr_activity_dfi;
+    wire lp_idle_dfi;
+
+    logic cmd_activity_meta, cmd_activity_sys;
+    logic rd_activity_meta,  rd_activity_sys;
+    logic wr_activity_meta,  wr_activity_sys;
+    logic lp_idle_meta,      lp_idle_sys;
+
+    wire cmd_activity = cmd_activity_sys;
+    wire rd_activity  = rd_activity_sys;
+    wire wr_activity  = wr_activity_sys;
+    wire lp_idle      = lp_idle_sys;
  
  
 // AXI4 command capture
@@ -256,6 +291,21 @@ logic [7:0] awlen_q;
     wire [31:0]                           reg_status;
     wire [31:0]                           reg_ecc_cfg;
     wire [31:0]                           reg_lp_cfg;
+
+    //============================================================
+    // Quasi-static configuration crossing: APB -> DFI
+    // Software must update these registers only while the scheduler
+    // is quiescent; these 2-stage bus synchronizers do not provide
+    // an atomic multi-bit configuration handshake.
+    //============================================================
+    logic [31:0] reg_timing0_meta, reg_timing0_dfi;
+    logic [3:0]  sched_policy_meta, sched_policy_dfi;
+    logic [1:0]  qos_meta, qos_dfi;
+
+    // Refresh control crossing: SYS -> DFI
+    logic refresh_pending_meta, refresh_pending_dfi;
+    logic refresh_urgent_meta,  refresh_urgent_dfi;
+    logic [7:0] refresh_row_meta, refresh_row_dfi;
     // Interrupt aggregation
     wire                                  intr_status [0:7];
     wire                                  intr_mask [0:7];
@@ -471,7 +521,95 @@ always_comb begin
 end
  
     
-    // Clock domain crossing synchronizers will be instantiated per module
+    //============================================================
+    // Command CDC FIFO: SYS_CLK -> DFI_CLK
+    //============================================================
+    assign cmd_fifo_wr_data = {cmd_id, cmd_type, cmd_addr};
+
+    // AXI command is accepted when the CDC FIFO has space.
+    assign cmd_ready       = !cmd_fifo_full;
+    assign cmd_fifo_wr_en  = cmd_valid && cmd_ready;
+
+    lpddr5c_cdc_fifo #(
+        .DATA_WIDTH (CMD_FIFO_WIDTH),
+        .FIFO_DEPTH (8)
+    ) u_cmd_cdc_fifo (
+        .wr_clk   (clk),
+        .wr_rst_n (rst_n),
+        .wr_en    (cmd_fifo_wr_en),
+        .wr_data  (cmd_fifo_wr_data),
+        .wr_full  (cmd_fifo_full),
+
+        .rd_clk   (phy_clk),
+        .rd_rst_n (dfi_rst_n),
+        .rd_en    (cmd_fifo_rd_en),
+        .rd_data  (cmd_fifo_rd_data),
+        .rd_empty (cmd_fifo_empty)
+    );
+
+    assign {sched_cmd_id, sched_cmd_type, sched_cmd_addr} = cmd_fifo_rd_data;
+    assign sched_cmd_valid = !cmd_fifo_empty;
+    assign cmd_fifo_rd_en  = sched_cmd_valid && sched_cmd_ready;
+
+    //============================================================
+    // APB configuration and SYS refresh signals -> DFI domain
+    //============================================================
+    always_ff @(posedge phy_clk or negedge dfi_rst_n) begin
+        if (!dfi_rst_n) begin
+            reg_timing0_meta       <= '0;
+            reg_timing0_dfi        <= '0;
+            sched_policy_meta      <= '0;
+            sched_policy_dfi       <= '0;
+            qos_meta               <= '0;
+            qos_dfi                <= '0;
+            refresh_pending_meta   <= 1'b0;
+            refresh_pending_dfi    <= 1'b0;
+            refresh_urgent_meta    <= 1'b0;
+            refresh_urgent_dfi     <= 1'b0;
+            refresh_row_meta       <= '0;
+            refresh_row_dfi        <= '0;
+        end else begin
+            reg_timing0_meta       <= reg_timing0;
+            reg_timing0_dfi        <= reg_timing0_meta;
+            sched_policy_meta      <= reg_ctrl0[3:0];
+            sched_policy_dfi       <= sched_policy_meta;
+            qos_meta               <= reg_ctrl1[1:0];
+            qos_dfi                <= qos_meta;
+
+            refresh_pending_meta   <= refresh_pending;
+            refresh_pending_dfi    <= refresh_pending_meta;
+            refresh_urgent_meta    <= refresh_urgent;
+            refresh_urgent_dfi    <= refresh_urgent_meta;
+            refresh_row_meta       <= refresh_row_addr;
+            refresh_row_dfi        <= refresh_row_meta;
+        end
+    end
+
+    //============================================================
+    // Scheduler status: DFI -> SYS domain
+    //============================================================
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            cmd_activity_meta <= 1'b0;
+            cmd_activity_sys  <= 1'b0;
+            rd_activity_meta  <= 1'b0;
+            rd_activity_sys   <= 1'b0;
+            wr_activity_meta  <= 1'b0;
+            wr_activity_sys   <= 1'b0;
+            lp_idle_meta      <= 1'b1;
+            lp_idle_sys       <= 1'b1;
+        end else begin
+            cmd_activity_meta <= cmd_activity_dfi;
+            cmd_activity_sys  <= cmd_activity_meta;
+            rd_activity_meta  <= rd_activity_dfi;
+            rd_activity_sys   <= rd_activity_meta;
+            wr_activity_meta  <= wr_activity_dfi;
+            wr_activity_sys   <= wr_activity_meta;
+            lp_idle_meta      <= lp_idle_dfi;
+            lp_idle_sys       <= lp_idle_meta;
+        end
+    end
+
     //========================================================================
     // Register Configuration Block (APB Interface)
     //========================================================================
@@ -509,41 +647,52 @@ end
     // Command Scheduler
     //========================================================================
     lpddr5c_cmd_scheduler #(
-        .ADDR_WIDTH     (ADDR_WIDTH),
-        .NUM_CHANNELS   (NUM_CHANNELS),
-        .NUM_BANKS      (NUM_BANKS),
-        .NUM_BANK_GROUPS(NUM_BANK_GROUPS),
-        .ROW_WIDTH      (ROW_WIDTH),
-        .COL_WIDTH      (COL_WIDTH)
+        .ADDR_WIDTH      (ADDR_WIDTH),
+        .NUM_CHANNELS    (NUM_CHANNELS),
+        .NUM_BANKS       (NUM_BANKS),
+        .NUM_BANK_GROUPS (NUM_BANK_GROUPS),
+        .ROW_WIDTH       (ROW_WIDTH),
+        .COL_WIDTH       (COL_WIDTH)
     ) u_cmd_scheduler (
-        .clk            (clk),
-        .rst_n          (rst_n),
-        // Configuration
-        .timing_params  (reg_timing0),
-        .sched_policy   (reg_ctrl0[3:0]),
-        // Command input
-        .cmd_addr       (cmd_addr),
-        .cmd_type       (cmd_type),
-        .cmd_valid      (cmd_valid),
-        .cmd_ready      (cmd_ready),
-        .cmd_id         (cmd_id),
-        // Refresh interface
-        .refresh_req    (refresh_pending),
-        .refresh_ack    (),
-        // Bank state
-        .bank_active    (bank_active),
-        .row_open       (row_open),
-        .open_row       (open_row),
-        // DFI command output
-        .dfi_cs_n       (dfi_cs_n),
-        .dfi_cke        (dfi_cke),
-        .dfi_ca         (dfi_ca),
-        .dfi_rw         (dfi_rw),
-        .dfi_addr       (dfi_addr),
-        .cmd_activity(cmd_activity),
-        .rd_activity(rd_activity),
-        .wr_activity(wr_activity),
-        .lp_idle(lp_idle)
+        // Scheduler runs entirely in DFI_CLK domain
+        .clk             (phy_clk),
+        .rst_n           (dfi_rst_n),
+
+        // Synchronized configuration
+        .timing_params   (reg_timing0_dfi),
+        .sched_policy    (sched_policy_dfi),
+        .qos_en          (qos_dfi),
+
+        // Command from asynchronous command FIFO
+        .cmd_addr        (sched_cmd_addr),
+        .cmd_type        (sched_cmd_type),
+        .cmd_valid       (sched_cmd_valid),
+        .cmd_ready       (sched_cmd_ready),
+        .cmd_id          (sched_cmd_id),
+
+        // Synchronized refresh control
+        .refresh_req     (refresh_pending_dfi),
+        .refresh_ack     (),
+        .refresh_urgent  (refresh_urgent_dfi),
+        .refresh_row     (refresh_row_dfi),
+
+        // Bank state (DFI domain)
+        .bank_active     (bank_active),
+        .row_open        (row_open),
+        .open_row        (open_row),
+
+        // DFI command outputs
+        .dfi_cs_n        (dfi_cs_n),
+        .dfi_cke         (dfi_cke),
+        .dfi_ca          (dfi_ca),
+        .dfi_rw          (dfi_rw),
+        .dfi_addr        (dfi_addr),
+
+        // DFI-domain status, synchronized back to SYS_CLK above
+        .cmd_activity    (cmd_activity_dfi),
+        .rd_activity     (rd_activity_dfi),
+        .wr_activity     (wr_activity_dfi),
+        .lp_idle         (lp_idle_dfi)
     );
     //========================================================================
     // Read/Write Data Path
@@ -558,7 +707,7 @@ end
     .sys_clk          (clk),
     .sys_rst_n        (rst_n),
     .phy_clk          (phy_clk),
-    .phy_rst_n        (rst_n),
+    .phy_rst_n        (dfi_rst_n),
  
     //====================================================================
     // AXI Read interface

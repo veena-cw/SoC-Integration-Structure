@@ -61,7 +61,8 @@ module spi_slave #(
   input  logic                          sck_i,
   input  logic                          mosi_i,
   output logic                          miso_o,
-  input  logic                          cs_n_i
+  input  logic                          cs_n_i,
+  input logic 							cs_inter_byte_i
 );
 
   // -------------------------------------------------------------
@@ -171,7 +172,8 @@ module spi_slave #(
   // pending_load_q across that spurious edge.
   logic byte_complete_w;
   assign byte_complete_w = sample_now && bit_cnt_q == DATA_WIDTH-1;
-  assign tx_fifo_rd_en = (cs_fall || byte_complete_w) && !tx_fifo_empty;
+  assign tx_fifo_rd_en =  !tx_fifo_empty &&  ( cs_fall || (byte_complete_w && cs_inter_byte_i) );
+ // assign tx_fifo_rd_en = (cs_fall || byte_complete_w) && !tx_fifo_empty;
   assign miso_o = lsb_first_i ? tx_shift_q[0] : tx_shift_q[DATA_WIDTH-1];
 
   always_ff @(posedge clk_i) begin

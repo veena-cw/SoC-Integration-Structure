@@ -58,7 +58,8 @@ module bp_be_pipe_int
   // Shift calculation
   logic [rv64_shamt_width_gp-1:0] shamt, shamtn;
   wire [rv64_shamt_width_gp-1:0] shmask = {!opw_v, 5'b11111};
-  assign shamt = (decode.irs2_r_v ? rs2 : imm) & shmask;
+  wire shadd_v = (decode.src1_sel == e_src1_is_rs1_lsh) && (decode.src2_sel == e_src2_is_rs2);
+  assign shamt = ((decode.irs2_r_v && !shadd_v) ? rs2 : imm) & shmask;
   assign shamtn = (opw_v ? 32 : 64) - shamt;
 
   // We need a separate adder here to do branch comparison + address calc

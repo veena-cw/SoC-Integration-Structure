@@ -258,11 +258,12 @@ module uart_apb_top(
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n)
         {isr_reg_vld, isr_reg} <= {1'b0, 32'h00000005};
-    else if (apb_access_valid && !PWRITE && (addr == ADDR_ISR))
-        {isr_reg_vld, isr_reg} <= {1'b1, {24'h0, 4'h0, rx_full_o, rx_empty_o, tx_full_o, tx_empty_o}};
-    else
+   else
         {isr_reg_vld, isr_reg} <= {1'b1, {24'h0, break_o, overrun_o, frame_err_o, parity_err_o, rx_full_o, rx_empty_o, tx_full_o, tx_empty_o}};
         end
+  //  else if (apb_access_valid && !PWRITE && (addr == ADDR_ISR))
+//        {isr_reg_vld, isr_reg} <= {1'b1, {24'h0, 4'h0, rx_full_o, rx_empty_o, tx_full_o, tx_empty_o}};
+    
 
   //=====================================================
   // CR[7:6] -> uart_top data_bits_i (4 bits)

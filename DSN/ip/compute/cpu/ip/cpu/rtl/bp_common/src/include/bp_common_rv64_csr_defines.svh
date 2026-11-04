@@ -658,7 +658,8 @@
     /*   4 : Hart single stepped (priority 0) */                                           \
     /*   5*: Hart halted out of reset due to resethaltreq (priority 2) */                  \
     /*         *Also legal to report 3 */                                                  \
-    logic [3:0]  cause;                                                                    \
+    /*logic [3:0]  cause;*/								   \
+    logic [2:0]  cause;                                                                    \
     logic        reserved3;                                                                \
     /* MPRV Enable */                                                                      \
     /*   0 : MPRV is ignored in Debug Mode */                                              \
@@ -1004,7 +1005,7 @@
       ,ebreaks    : data_cast_mp.ebreaks \
       ,ebreaku    : data_cast_mp.ebreaku \
       ,stepie     : data_cast_mp.stepie  \
-      ,cause      : data_cast_mp.cause   \
+      ,cause       : {1'b0, data_cast_mp.cause}\
       ,prv_m      : data_cast_mp.prv[1]  \
       ,prv_s_not_u: data_cast_mp.prv[0]  \
       ,step       : data_cast_mp.step    \
@@ -1014,12 +1015,13 @@
   `define decompress_dcsr_s(data_comp_mp) \
     '{xdebugver : 4'd4                  \
       ,ebreakm  : data_comp_mp.ebreakm  \
-      ,ebreaks  : data_comp_mp.ebreakm  \
-      ,ebreaku  : data_comp_mp.ebreakm  \
+      ,ebreaks  : data_comp_mp.ebreaks  \
+      ,ebreaku  : data_comp_mp.ebreaku  \
       ,stepie   : data_comp_mp.stepie   \
       ,stopcount: 1'b0                  \
       ,stoptime : 1'b0                  \
-      ,cause    : data_comp_mp.cause    \
+      /*,cause    : data_comp_mp.cause*/    \
+      ,cause    : data_comp_mp.cause[2:0] \
       ,mprven   : data_comp_mp.mprven   \
       ,nmip     : 1'b0                  \
       ,step     : data_comp_mp.step     \

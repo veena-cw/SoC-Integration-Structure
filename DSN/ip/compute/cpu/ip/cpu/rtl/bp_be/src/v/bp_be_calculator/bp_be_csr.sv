@@ -736,7 +736,7 @@ module bp_be_csr
       default: csr_r_data_o = csr_data_lo;
     endcase
 
-  assign commit_pkt_cast_o.npc_w_v           = |{retire_pkt_cast_i.special, retire_pkt_cast_i.exception};
+  assign commit_pkt_cast_o.npc_w_v           = |{retire_pkt_cast_i.special, retire_pkt_cast_i.exception} | enter_debug;;
   assign commit_pkt_cast_o.queue_v           = retire_pkt_cast_i.queue_v & ~|retire_pkt_cast_i.exception;
   assign commit_pkt_cast_o.instret           = retire_pkt_cast_i.instret;
   assign commit_pkt_cast_o.size              = retire_pkt_cast_i.size;

@@ -71,7 +71,9 @@ module spi_master #(
   output logic                          sck_o,
   output logic                          mosi_o,
   input  logic                          miso_i,
-  output logic [NUM_CS-1:0]             cs_n_o
+  output logic [NUM_CS-1:0]             cs_n_o,
+  output  logic                        rx_overflow_o
+
 );
 
   // -----------------------------------------------------------------
@@ -80,6 +82,8 @@ module spi_master #(
   logic                          tx_fifo_rd_en;
   logic [DATA_WIDTH-1:0]         tx_fifo_rdata;
   logic                          tx_fifo_empty;
+  logic rx_fifo_overflow;
+
 
   spi_fifo #(.WIDTH(DATA_WIDTH), .DEPTH(FIFO_DEPTH)) u_tx_fifo (
     .clk_i    (clk_i),
@@ -93,7 +97,7 @@ module spi_master #(
     .count_o  (tx_count_o)
   );
   assign tx_empty_o = tx_fifo_empty;
-
+assign rx_overflow_o = rx_fifo_overflow;
   logic                          rx_fifo_wr_en;
   logic [DATA_WIDTH-1:0]         rx_fifo_wdata;
 
@@ -106,6 +110,7 @@ module spi_master #(
     .rd_data_o(rx_rdata_o),
     .empty_o  (rx_empty_o),
     .full_o   (rx_full_o),
+	.overflow_o(rx_fifo_overflow),
     .count_o  (rx_count_o)
   );
 

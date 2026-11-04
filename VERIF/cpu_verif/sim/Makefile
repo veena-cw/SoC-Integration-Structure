@@ -406,6 +406,15 @@ VERILATOR_DEFINES += -DBP_DV_024_LATENCY
 BUILD_VARIANT := _lat
 endif
 
+# CPU_UNFREEZE=1: boot through cpu_top's unfreeze sequencer instead of
+# bp_nonsynth_cfg_loader (needs a cpu_top with the unfreeze_i port; until that
+# is in the repo, also pass CPU_FLIST=<filelist naming it>). Own build folder.
+CPU_UNFREEZE ?= 0
+ifeq ($(CPU_UNFREEZE),1)
+VERILATOR_DEFINES += -DCPU_TOP_UNFREEZE
+BUILD_VARIANT := $(BUILD_VARIANT)_unf
+endif
+
 VERILATOR_INCDIRS = \
 	-I$(UVM_HOME) \
 	-I$(TB_DIR)/agent \

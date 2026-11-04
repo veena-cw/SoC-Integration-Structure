@@ -235,6 +235,28 @@ module cpu_tb_top
                        && incoming_vif.mem_fwd_ready_and
                        && (incoming_vif.mem_fwd_msg_type == E_MEM_WR);
 
+`ifdef CPU_TOP_UNFREEZE
+  // cpu_top configures and releases the cores itself: its unfreeze sequencer
+  // writes cce/icache/dcache mode and NPC of every core, then clears every
+  // freeze bit, on a rising edge of unfreeze_i. No non-synthesizable loader.
+  // The boot image is already in the DRAM model (NBF preload).
+  logic unfreeze;
+  assign cfg_mem_fwd_header = '0;
+  assign cfg_mem_fwd_data   = '0;
+  assign cfg_mem_fwd_v      = 1'b0;
+  assign cfg_mem_rev_ready  = 1'b1;
+  initial begin : cpu_unfreeze
+    unfreeze = 1'b0;
+    cfg_done = 1'b0;
+    @(posedge reset);                  // reset is active low
+    repeat (10) @(posedge clk);
+    unfreeze = 1'b1;
+    wait (dut.unfreeze_busy_r === 1'b1);
+    wait (dut.unfreeze_busy_r === 1'b0);
+    $display("CPU UNFREEZE sequence done time=%0t", $time);
+    cfg_done = 1'b1;
+  end
+`else
   bp_nonsynth_cfg_loader
     #(.bp_params_p(bp_params_p), .ucode_str_p("ucode_mem"))
   cfg_loader
@@ -250,6 +272,7 @@ module cpu_tb_top
    , .mem_rev_ready_and_o(cfg_mem_rev_ready)
    , .done_o(cfg_done)
    );
+`endif
 
 
   // ---- PLIC interrupt sources ----
@@ -273,6 +296,9 @@ module cpu_tb_top
    // Shared PLIC. The AHB side runs on CLK_GIC; interrupt sources come
    // from plic_irq_vif (PLIC interrupt agent).
    , .plic_ahb_clk_i(plic_clk), .plic_src_i(plic_irq_vif.src)
+`ifdef CPU_TOP_UNFREEZE
+   , .unfreeze_i(unfreeze)
+`endif
    , .my_did_i(proc_did), .host_did_i(host_did)
    , .axi_clk_i(axi_clk), .axi_reset_i(reset)
    , .m_axi_awid(cpu_axi_vif.m_axi_awid), .m_axi_awaddr(cpu_axi_vif.m_axi_awaddr)
@@ -1040,10 +1066,12 @@ module cpu_tb_top
       "uvm_test_top.env.bedrock_agt.bedrock_mon", "vif", incoming_vif);
     uvm_resource_db#(virtual bedrock_if)::set(
       "uvm_test_top.env.outgoing_mon", "vif", outgoing_vif);
+`ifndef CPU_TOP_UNFREEZE
     force dut.u_bp.mem_fwd_header_i = mem_fwd_header_to_dut;
     force dut.u_bp.mem_fwd_data_i   = mem_fwd_data_to_dut;
     force dut.u_bp.mem_fwd_v_i      = mem_fwd_v_to_dut;
     force dut.u_bp.mem_rev_ready_and_i = mem_rev_ready_to_dut;
+`endif
 
     uvm_resource_db#(virtual cpu_AXI_if #(`CPU_AXI_ID_WIDTH, `CPU_AXI_ADDR_WIDTH, `CPU_AXI_DATA_WIDTH))::set(
       "uvm_test_top.env.axi_agt", "vif", cpu_axi_vif);

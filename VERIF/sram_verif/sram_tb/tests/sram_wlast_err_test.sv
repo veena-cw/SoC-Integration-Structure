@@ -23,8 +23,8 @@
 //   * each in-range burst is read back (5 beats, one past the burst):
 //     the scoreboard expects only the received beats up to AWLEN+1 to
 //     be written -- early: beats 0-1, late: beats 0-3, beat 4
-//     untouched. Out-of-range bursts are not read back (a multi-beat
-//     out-of-range read hangs sram_top, see sram_oor_burst_test).
+//     untouched. Out-of-range bursts are not read back: nothing is
+//     stored there, every read beat is DECERR (sram_oor_burst_test).
 // Any other error fails the test.
 // ------------------------------------------------------------
 `include "uvm_macros.svh"

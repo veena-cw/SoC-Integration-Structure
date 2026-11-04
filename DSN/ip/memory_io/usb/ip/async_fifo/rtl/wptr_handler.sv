@@ -19,10 +19,19 @@ module wptr_handler #(
     assign b_wptr_next = b_wptr + (w_en && !full);
     assign g_wptr_next = (b_wptr_next >> 1) ^ b_wptr_next;
 
-    assign full_next =
-        (g_wptr_next ==
-         {~g_rptr_sync[PTR_WIDTH:PTR_WIDTH-1],
-           g_rptr_sync[PTR_WIDTH-2:0]});
+    // Full = next write pointer equals the synced read pointer with its two MSBs
+    // inverted. At DEPTH=2 (PTR_WIDTH=1) those two bits are the whole pointer, so
+    // there is no [PTR_WIDTH-2:0] remainder to concatenate.
+    generate
+        if (PTR_WIDTH == 1) begin : gen_depth2_full
+            assign full_next = (g_wptr_next == ~g_rptr_sync);
+        end else begin : gen_normal_full
+            assign full_next =
+                (g_wptr_next ==
+                 {~g_rptr_sync[PTR_WIDTH:PTR_WIDTH-1],
+                   g_rptr_sync[PTR_WIDTH-2:0]});
+        end
+    endgenerate
 
     always @(posedge wclk or negedge wrst_n) begin
         if (!wrst_n) begin

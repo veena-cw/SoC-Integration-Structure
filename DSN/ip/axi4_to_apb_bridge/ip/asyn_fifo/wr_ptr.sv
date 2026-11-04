@@ -32,7 +32,16 @@ module wptr_handler #(parameter PTR_WIDTH=3) (
 
   //assign wrap_around = (g_wptr_next) ^ g_rptr_sync[PTR_WIDTH]; // To check MSB of write and read pointers are different
   //assign wfull = wrap_around & (g_wptr_next[PTR_WIDTH-1] ^ g_rptr_sync[PTR_WIDTH-1]) & (g_wptr_next[PTR_WIDTH-2:0] == g_rptr_sync[PTR_WIDTH-2:0]);
-  assign wfull = (g_wptr_next == {~g_rptr_sync[PTR_WIDTH:PTR_WIDTH-1], g_rptr_sync[PTR_WIDTH-2:0]});
+  // Full = next write pointer equals the synced read pointer with its two MSBs
+  // inverted. At DEPTH=2 (PTR_WIDTH=1) those two bits are the whole pointer, so
+  // there is no [PTR_WIDTH-2:0] remainder to concatenate.
+  generate
+    if (PTR_WIDTH == 1) begin : g_full_depth2
+      assign wfull = (g_wptr_next == ~g_rptr_sync);
+    end else begin : g_full_normal
+      assign wfull = (g_wptr_next == {~g_rptr_sync[PTR_WIDTH:PTR_WIDTH-1], g_rptr_sync[PTR_WIDTH-2:0]});
+    end
+  endgenerate
 
 endmodule
 

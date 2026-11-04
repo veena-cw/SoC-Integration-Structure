@@ -25,6 +25,12 @@ module wptr_handler #(parameter PTR_WIDTH = 9) (
             // Depth 1: one-bit pointers.
             assign wfull = (g_wptr_next != g_rptr_sync);
 
+        end else if (PTR_WIDTH == 1) begin : gen_depth2_full
+
+            // Depth 2: the two inverted MSBs are the whole pointer, so there
+            // is no [PTR_WIDTH-2:0] remainder to concatenate.
+            assign wfull = (g_wptr_next == ~g_rptr_sync);
+
         end else begin : gen_normal_full
 
             // Standard asynchronous FIFO full detection.

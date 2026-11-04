@@ -18,7 +18,10 @@ module cpu_top
     // about the AXI4 fabric side, so these stay independently set.
     parameter int ID_WIDTH       = 4,
     parameter int FIFO_DEPTH     = 8,
-    parameter int AXI_DATA_WIDTH = bedrock_fill_width_p
+    parameter int AXI_DATA_WIDTH = bedrock_fill_width_p,
+	// 1: Configure modes + NPC + freeze
+	// 0: Write freeze only (requires boot ROM)
+	parameter bit CFG_WRITES_P = 1'b1
 ) (
     // ==================================================================
     // BlackParrot core domain
@@ -98,7 +101,11 @@ module cpu_top
     // ==================================================================
     // External PLIC interrupt sources
     // ==================================================================
-    input logic [63:0] plic_src_i
+    input logic [63:0] plic_src_i,
+    // ==================================================================
+    // CPU Freeze release port
+    //===================================================================
+    input logic unfreeze_i // Rising edge: configure and release all cores
 );
 
   // --------------------------------------------------------------------
@@ -116,6 +123,140 @@ module cpu_top
   logic [bedrock_fill_width_p-1:0]    rev_data;
   logic                               rev_v;
   logic                               rev_ready;
+  // ==================================================================
+  // CPU Unfreeze Configuration Sequencer
+  // ==================================================================
+
+  // Current implementation does not initialize microcoded CCE RAM.
+  generate
+    if (cce_type_p == e_cce_ucode) begin : gen_no_ucode
+      initial begin
+        $fatal(1,
+          "cpu_top: e_cce_ucode needs CCE ucode RAM initialization");
+      end
+    end
+  endgenerate
+
+  `declare_bp_bedrock_if(
+      paddr_width_p,
+      lce_id_width_p,
+      cce_id_width_p,
+      did_width_p,
+      lce_assoc_p
+  );
+
+  localparam int core_idx_w_lp = (num_core_p > 1) ? $clog2(num_core_p) : 1;
+
+  bp_bedrock_mem_fwd_header_s      cfg_hdr;
+  logic [bedrock_fill_width_p-1:0] cfg_data;
+  logic [dev_addr_width_gp-1:0]    cfg_reg_lo;
+
+  logic unfreeze_q;
+  logic unfreeze_busy_r;
+  logic unfreeze_ready;
+
+  logic run_phase_r;
+  logic [1:0] cfg_idx_r;
+  logic [core_idx_w_lp-1:0] cfg_core_r;
+
+  wire last_core_li = (cfg_core_r == core_idx_w_lp'(num_core_p-1));
+
+  // --------------------------------------------------
+  // Select configuration register and write data
+  // --------------------------------------------------
+  always_comb begin
+    // Default: clear freeze register
+    cfg_reg_lo = cfg_reg_freeze_gp;
+    cfg_data   = '0;
+    if (!run_phase_r) begin
+      case (cfg_idx_r)
+        2'd0: begin
+          cfg_reg_lo = cfg_reg_cce_mode_gp;
+          cfg_data   = bedrock_fill_width_p'(e_cce_mode_normal);
+        end
+        2'd1: begin
+          cfg_reg_lo = cfg_reg_icache_mode_gp;
+          cfg_data   = bedrock_fill_width_p'(e_lce_mode_normal);
+        end
+        2'd2: begin
+          cfg_reg_lo = cfg_reg_dcache_mode_gp;
+          cfg_data   = bedrock_fill_width_p'(e_lce_mode_normal);
+        end
+        default: begin
+          cfg_reg_lo = cfg_reg_npc_gp;
+          cfg_data   = bedrock_fill_width_p'(dram_base_addr_gp);
+        end
+      endcase
+    end
+  end
+
+  // --------------------------------------------------
+  // Construct BedRock configuration write header
+  // --------------------------------------------------
+  always_comb begin
+    cfg_hdr = '0;
+    cfg_hdr.payload.lce_id  = lce_id_width_p'(num_core_p*2 + num_cacc_p + num_l2e_p + num_sacc_p + num_io_p);
+    cfg_hdr.payload.src_did = host_did_i;
+    cfg_hdr.addr            = paddr_width_p'(cfg_base_addr_gp + cfg_reg_lo) + (paddr_width_p'(cfg_core_r)<< core_offset_width_gp);
+    cfg_hdr.msg_type.fwd    = e_bedrock_mem_wr;
+    cfg_hdr.subop           = e_bedrock_store;
+    cfg_hdr.size            = e_bedrock_msg_size_8;
+  end
+  // --------------------------------------------------
+  // Rising-edge detection and configuration sequencing
+  // --------------------------------------------------
+  always_ff @(posedge clk_i)
+   begin
+    if (!reset_i) begin
+      unfreeze_q      <= 1'b0;
+      unfreeze_busy_r <= 1'b0;
+      run_phase_r     <= 1'b0;
+      cfg_idx_r       <= '0;
+      cfg_core_r      <= '0;
+   end
+   else begin
+      unfreeze_q <= unfreeze_i;
+      // Start configuration sequence on rising edge
+      if (unfreeze_i && !unfreeze_q && !unfreeze_busy_r) begin
+        unfreeze_busy_r <= 1'b1;
+        cfg_core_r <= '0;
+        cfg_idx_r  <= '0;
+        // Skip mode/NPC configuration if boot ROM is used
+        run_phase_r <= ~CFG_WRITES_P;
+      end
+      // Advance after BedRock request acceptance
+      else if (unfreeze_busy_r && unfreeze_ready) begin
+        if (!run_phase_r) begin
+          // Four configuration writes completed for this core
+          if (cfg_idx_r == 2'd3) begin
+            cfg_idx_r <= '0;
+            if (last_core_li) begin
+              cfg_core_r  <= '0;
+              run_phase_r <= 1'b1;
+            end
+            else begin
+              cfg_core_r <= cfg_core_r + 1'b1;
+            end
+          end
+          else begin
+            cfg_idx_r <= cfg_idx_r + 1'b1;
+          end
+        end
+        // Freeze-release phase
+        else begin
+          if (last_core_li) begin
+            unfreeze_busy_r <= 1'b0;
+            cfg_core_r      <= '0;
+            run_phase_r     <= 1'b0;
+          end
+          else begin
+            cfg_core_r <= cfg_core_r + 1'b1;
+          end
+        end
+      end
+    end
+  end
+
 
   bp_processor #(
       .bp_params_p(bp_params_p)
@@ -139,11 +280,11 @@ module cpu_top
       .mem_rev_v_i     (rev_v),
       .mem_rev_ready_and_o(rev_ready),
 
-      // ---- Incoming I/O: tied off; simulation may override via XMR ----
-      .mem_fwd_header_i('0),
-      .mem_fwd_data_i  ('0),
-      .mem_fwd_v_i     (1'b0),
-      .mem_fwd_ready_and_o(),
+      // ---- Incoming I/O: per-core config writes from the unfreeze sequencer ----
+      .mem_fwd_header_i(cfg_hdr),
+      .mem_fwd_data_i  (cfg_data),
+      .mem_fwd_v_i     (unfreeze_busy_r),
+      .mem_fwd_ready_and_o(unfreeze_ready),
 
       .mem_rev_header_o(),
       .mem_rev_data_o  (),

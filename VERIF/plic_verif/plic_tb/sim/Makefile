@@ -116,7 +116,7 @@ $(VERILATOR_STAMP): $(FILELIST) $(SOURCE_FILES) $(TB_SOURCES) $(VERILATOR_FLAGS_
 	$(SETUP_ENV) cd $(SIM_DIR) && \
 	$(VERILATOR) \
 		--binary \
-		-j 0 \
+		-j 2 \
 		--timing \
 		--trace \
 		--language 1800-2012 \

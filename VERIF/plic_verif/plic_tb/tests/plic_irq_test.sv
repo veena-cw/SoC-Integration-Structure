@@ -16,6 +16,7 @@
 //    plic_irq_base_test : reset, then scenario(); helpers for RAL
 //                         configuration, src[] stimulus, claim / complete
 //    plic_irq_*_test    : one scenario each
+//    (edge_test needs the scoreboard's edge model; reset_test resets mid-run)
 //=================================================================================
 
 `include "uvm_macros.svh"
@@ -78,6 +79,24 @@ class plic_irq_base_test extends plic_base_test;
   task raise(plic_src_t mask); drive(IRQ_RAISE, mask); endtask
   task drop(plic_src_t mask);  drive(IRQ_DROP,  mask); endtask
 
+  task wait_clk(int n);
+    repeat (n) @(posedge env.irq_agent.driver.vif.clk);
+  endtask
+
+  // One-clock pulse on every source in mask (one edge each), then a gap so
+  // back-to-back pulses are separate edges
+  task pulse(plic_src_t mask);
+    raise(mask);
+    drop(mask);
+    wait_clk(2);
+  endtask
+
+  // EL: 1 = edge-triggered, 0 = level-triggered (sources 0-31 in EL_0)
+  task set_edge(plic_src_t mask);
+    write_field("EL_0", "EL", mask[31:0]);
+    write_field("EL_1", "EL", mask[63:32]);
+  endtask
+
   // ---------------- software side ----------------
   // src -> irq takes 3 clocks (gateway, cell, target); wait 8 before checking
   task settle();
@@ -117,6 +136,34 @@ class plic_irq_base_test extends plic_base_test;
     if (id != exp_id)
       `uvm_error("CLAIM_ID", $sformatf("[%s] target %0d claimed ID=%0d, scenario expects ID=%0d", ctx, t, id, exp_id))
     complete(t, id);
+  endtask
+
+  // Claim and complete on target t until it returns 0; n = IDs served
+  task drain(int t, output int unsigned n, input string ctx = "");
+    int unsigned id;
+    n = 0;
+    forever begin
+      claim(t, id, $sformatf("%s #%0d", ctx, n + 1));
+      if (id == 0) break;
+      n++;
+      complete(t, id);
+    end
+  endtask
+
+  // Claim round-robin over all targets until none has anything left
+  task drain_all(string ctx = "");
+    int unsigned id;
+    bit          got;
+    do begin
+      got = 0;
+      for (int t = 0; t < PLIC_TARGETS; t++) begin
+        claim(t, id, $sformatf("%s t%0d", ctx, t));
+        if (id != 0) begin
+          got = 1;
+          complete(t, id);
+        end
+      end
+    end while (got);
   endtask
 endclass
 
@@ -248,7 +295,6 @@ class plic_irq_zero_prio_test extends plic_irq_base_test;
     drop(src_bit(60));
   endtask
 endclass
-
 //=======================================
 
 // TEST NAME: plic_irq_equal_prio_test
@@ -382,6 +428,9 @@ class plic_irq_claim_complete_test extends plic_irq_base_test;
     check("s3 raised");
     claim(0, id, "claim s3");
     check("claimed, src still high: no irq until complete");
+    drop(src_bit(3));
+    raise(src_bit(3));
+    check("re-raised while in service: still no irq");
     complete(0, id);
     check("completed while src high: pending again");
     drop(src_bit(3));
@@ -438,5 +487,324 @@ class plic_irq_nested_complete_test extends plic_irq_base_test;
     check("both completed");
     
    
+  endtask
+endclass
+
+// TEST NAME: plic_irq_edge_test
+// PURPOSE: edge-triggered gateway (EL=1): every rising edge is one interrupt,
+//          edges are counted while the source is pending or in service and the
+//          count saturates at MAX_PENDING_COUNT
+class plic_irq_edge_test extends plic_irq_base_test;
+  `uvm_component_utils(plic_irq_edge_test)
+  function new(string name = "plic_irq_edge_test", uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+  task scenario();
+    int unsigned id, n;
+    int unsigned max_pend = plic_irq_scoreboard::PLIC_MAX_PENDING;
+    // default priorities: s5 = 2, s25 = 6, s37 = 7, s49 = 6
+    plic_src_t   edges = src_bit(5) | src_bit(25) | src_bit(37) | src_bit(49);
+
+    set_edge(edges);
+
+    // 1. three edges before the claim, two more while in service
+    set_enable(0, src_bit(5));
+    repeat (3) pulse(src_bit(5));
+    check("s5: 3 edges, first one pending");
+    claim(0, id, "s5 event 1");
+    repeat (2) pulse(src_bit(5));
+    check("s5 in service, 2 more edges counted");
+    complete(0, id);
+    drain(0, n, "s5 counted events");
+    if (n != 4)
+      `uvm_error("EDGE_CNT", $sformatf("s5: %0d events served after the first, expected 4", n))
+    set_enable(0, '0);
+
+    // 2. more edges than the gateway can count: 1 pending + max_pend counted
+    set_enable(1, src_bit(37));
+    repeat (max_pend + 4) pulse(src_bit(37));
+    check("s37 saturated");
+    drain(1, n, "s37 saturated");
+    if (n != max_pend + 1)
+      `uvm_error("EDGE_CNT", $sformatf("s37: %0d events served, expected %0d", n, max_pend + 1))
+    set_enable(1, '0);
+
+    // 3. edge source on all targets and on some targets; one claim takes it
+    for (int t = 0; t < PLIC_TARGETS; t++) set_enable(t, src_bit(25) | (t inside {1, 2} ? src_bit(49) : '0));
+    pulse(src_bit(25) | src_bit(49));
+    check("s25 on all targets, s49 on t1/t2");
+    drain_all("s25 / s49 single edge");
+    for (int t = 0; t < PLIC_TARGETS; t++) set_enable(t, '0);
+
+    // 4. a held-high edge source is one event, not one per clock
+    set_enable(0, src_bit(5));
+    raise(src_bit(5));
+    wait_clk(20);
+    drain(0, n, "s5 held high");
+    drop(src_bit(5));
+    if (n != 1)
+      `uvm_error("EDGE_CNT", $sformatf("s5 held high: %0d events served, expected 1", n))
+
+    // 5. all sources edge, then all back to level
+    set_edge('1);
+    check("all sources edge-triggered, none toggling");
+    set_edge('0);
+    set_enable(0, '0);
+    check("all level-triggered again");
+  endtask
+endclass
+
+// TEST NAME: plic_irq_reset_test
+// PURPOSE: reset in the middle of operation (sources pending and irq high,
+//          an ID claimed, edge events counted) returns every register to its
+//          reset value and the gateways to idle
+class plic_irq_reset_test extends plic_irq_base_test;
+  `uvm_component_utils(plic_irq_reset_test)
+  function new(string name = "plic_irq_reset_test", uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+
+  // Read back every configuration register and compare with the RAL
+  // mirror, which do_reset() has set to the reset values (ID_t not read:
+  // a read is a claim)
+  task check_defaults(string ctx);
+    uvm_status_e status;
+    string       regs[$] = '{"EL_0", "EL_1"};
+    for (int i = 0; i < 8; i++) regs.push_back($sformatf("PRIORITY_%0d", i));
+    for (int t = 0; t < PLIC_TARGETS; t++) begin
+      regs.push_back($sformatf("IE_%0d_0", t));
+      regs.push_back($sformatf("IE_%0d_1", t));
+      regs.push_back($sformatf("THRESHOLD_%0d", t));
+    end
+    `uvm_info(get_type_name(), $sformatf("[%s] checking reset values", ctx), UVM_LOW)
+    foreach (regs[i]) env.ral_model.get_reg_by_name(regs[i]).mirror(status, UVM_CHECK);
+  endtask
+
+  task scenario();
+    int unsigned id;
+    // default priorities: s5 = 2, s12 = 3, s35 = 7
+    plic_src_t   mask = src_bit(12) | src_bit(35);
+
+    // 1. reset while sources are pending and irq[] is high
+    set_priority(12, 6);
+    set_priority(35, 1);
+    for (int t = 0; t < PLIC_TARGETS; t++) begin
+      set_enable(t, mask);
+      set_threshold(t, t % 2);
+    end
+    set_edge(src_bit(20));
+    raise(mask);
+    check("pending, irq high before reset");
+    do_reset();
+    check_defaults("reset with pending sources");
+    check("after reset: nothing enabled, no irq");
+    // still-high level sources pend again, at their default priorities
+    set_enable(0, mask);
+    check("still-high sources pend again");
+    drop(mask);
+    serve(0, 36, "s35 default priority 7");
+    serve(0, 13, "s12 default priority 3");
+    check("served after reset");
+
+    // 2. reset while an ID is claimed and edge events are counted
+    set_edge(src_bit(5));
+    set_enable(0, src_bit(5));
+    repeat (3) pulse(src_bit(5));
+    claim(0, id, "s5 claimed before reset");
+    wait_clk(5);  // in service for a few clocks before the reset
+    do_reset();
+    check_defaults("reset with a claimed ID");
+    // EL is level again, src low: the counted edges are gone
+    set_enable(0, src_bit(5));
+    claim(0, id, "no counted edges after reset");
+    // the claim from before reset needs no completion
+    raise(src_bit(5));
+    check("s5 interrupts again without completing the old claim");
+    drop(src_bit(5));
+    serve(0, 6, "s5 after reset");
+    check("done");
+  endtask
+endclass
+
+
+class plic_irq_level_reset_test extends plic_irq_base_test;
+  `uvm_component_utils(plic_irq_level_reset_test)
+
+  function new(string name = "plic_irq_level_reset_test",
+               uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+
+  // Check all configuration registers against reset values
+  task check_defaults(string ctx);
+    uvm_status_e status;
+    string regs[$] = '{"EL_0", "EL_1"};
+
+    for (int i = 0; i < 8; i++)
+      regs.push_back($sformatf("PRIORITY_%0d", i));
+
+    for (int t = 0; t < PLIC_TARGETS; t++) begin
+      regs.push_back($sformatf("IE_%0d_0", t));
+      regs.push_back($sformatf("IE_%0d_1", t));
+      regs.push_back($sformatf("THRESHOLD_%0d", t));
+    end
+
+    `uvm_info(get_type_name(),
+      $sformatf("[%s] checking reset values", ctx), UVM_LOW)
+
+    foreach (regs[i])
+      env.ral_model.get_reg_by_name(regs[i]).mirror(status, UVM_CHECK);
+  endtask
+
+  task scenario();
+    int unsigned id;
+    plic_src_t mask = src_bit(12) | src_bit(35);
+
+    // All sources configured as level-triggered
+    set_edge('0);
+
+    // ------------------------------------------------
+    // 1. Reset while level-triggered sources are pending
+    // ------------------------------------------------
+
+    set_priority(12, 6);
+    set_priority(35, 1);
+
+    for (int t = 0; t < PLIC_TARGETS; t++) begin
+      set_enable(t, mask);
+      set_threshold(t, t % 2);
+    end
+
+    // Raise both level-triggered sources
+    raise(mask);
+    check("level sources pending before reset");
+
+    // Apply reset while sources remain HIGH
+    do_reset();
+
+    check_defaults("reset with pending level interrupts");
+    check("after reset: IRQ outputs low");
+
+    // Re-enable target 0 while sources are still HIGH
+    set_enable(0, mask);
+    check("level sources re-pending after reset");
+
+    // Drop sources after requests have become pending
+    drop(mask);
+
+    // Default priorities: source 35 = 7, source 12 = 3
+    serve(0, 36, "source 35 default priority");
+    serve(0, 13, "source 12 default priority");
+
+    check("pending level interrupts served after reset");
+
+    // ------------------------------------------------
+    // 2. Reset while a level interrupt is claimed
+    // ------------------------------------------------
+
+    set_edge('0);
+    set_enable(0, src_bit(5));
+
+    // Keep source 5 HIGH
+    raise(src_bit(5));
+    check("s5 pending before claim");
+
+    // Claim interrupt ID 6
+    claim(0, id, "s5 claimed before reset");
+
+    if (id != 6)
+      `uvm_error("CLAIM_ID",
+        $sformatf("Expected ID 6 before reset, got ID %0d", id))
+
+    wait_clk(5);
+
+    // Reset while source 5 is still HIGH and interrupt is in service
+    do_reset();
+
+    check_defaults("reset with claimed level interrupt");
+    check("after reset: no IRQ while disabled");
+
+    // Re-enable source 5 while it is still HIGH
+    set_enable(0, src_bit(5));
+    check("s5 re-pending after reset");
+
+    // Claim the new interrupt without completing the old claim
+    claim(0, id, "s5 new interrupt after reset");
+
+    if (id != 6)
+      `uvm_error("CLAIM_ID",
+        $sformatf("Expected ID 6 after reset, got ID %0d", id))
+
+    // Deassert source before completing the new interrupt
+    drop(src_bit(5));
+    complete(0, id);
+
+    check("s5 completed after reset");
+  endtask
+endclass
+// TEST NAME: plic_irq_prio_sweep_test
+// PURPOSE: every source at every priority level on every target, with all
+//          threshold levels per target, then with sources enabled on none,
+//          one or some targets; all 64 sources raised at once each round
+class plic_irq_prio_sweep_test extends plic_irq_base_test;
+  `uvm_component_utils(plic_irq_prio_sweep_test)
+  function new(string name = "plic_irq_prio_sweep_test", uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+
+  // Source s gets priority (s + offset) % PLIC_PRIORITIES, or every source
+  // gets fixed when fixed >= 0; one write per register
+  task set_priorities(int offset, int fixed = -1);
+    uvm_status_e status;
+    for (int r = 0; r < PLIC_SOURCES / 8; r++) begin
+      uvm_reg rg = env.ral_model.get_reg_by_name($sformatf("PRIORITY_%0d", r));
+      for (int k = 0; k < 8; k++) begin
+        int unsigned p = fixed >= 0 ? fixed : (8*r + k + offset) % PLIC_PRIORITIES;
+        // Source 0 stays >= 1: a pending priority-0 ID 1 is claimable (DUT
+        // bug, checked in plic_irq_zero_prio_test)
+        if (8*r + k == 0 && p == 0) p = 1;
+        rg.get_field_by_name($sformatf("P%0d", 8*r + k)).set(p);
+      end
+      rg.update(status);
+    end
+  endtask
+
+  task scenario();
+    plic_src_t all = '1;
+    plic_src_t en[PLIC_TARGETS];
+
+    // 1. all sources on all targets; priorities and thresholds rotate
+    for (int t = 0; t < PLIC_TARGETS; t++) set_enable(t, all);
+    for (int r = 0; r < PLIC_PRIORITIES; r++) begin
+      set_priorities(r);
+      for (int t = 0; t < PLIC_TARGETS; t++) set_threshold(t, (r + t) % PLIC_PRIORITIES);
+      raise(all);
+      check($sformatf("round %0d: all raised", r));
+      drop(all);
+      drain_all($sformatf("round %0d", r));
+      check($sformatf("round %0d: drained", r));
+    end
+
+    // 2. source s enabled on targets 0 .. (s % 4) - 1: none, one or some
+    for (int t = 0; t < PLIC_TARGETS; t++) begin
+      en[t] = '0;
+      set_threshold(t, 0);
+    end
+    for (int s = 0; s < PLIC_SOURCES; s++)
+      for (int t = 0; t < s % 4; t++) en[t][s] = 1'b1;
+    for (int t = 0; t < PLIC_TARGETS; t++) set_enable(t, en[t]);
+    for (int r = 0; r < PLIC_PRIORITIES; r++) begin
+      set_priorities(r);
+      raise(all);
+      check($sformatf("mixed round %0d: all raised", r));
+      drop(all);
+      drain_all($sformatf("mixed round %0d", r));
+    end
+
+    // 3. sources still pending (no target, or priority 0): serve them all on t0
+    set_priorities(0, 1);
+    set_enable(0, all);
+    drain_all("leftovers");
+    check("all served");
   endtask
 endclass

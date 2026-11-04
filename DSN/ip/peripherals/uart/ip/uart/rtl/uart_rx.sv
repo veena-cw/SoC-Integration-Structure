@@ -291,7 +291,7 @@ if (break_armed_q) begin
     sample_q <= sample_q + 4'd1;
 
     // Early START detected before STOP2 validation completes
-    if (!rx_sync_q) begin
+   if (frame_pending_q && !rx_sync_q) begin
         frame_err_pulse_q <= 1'b1;
         frame_pending_q   <= 1'b0;  // Reject previous frame
         state_q           <= S_IDLE;

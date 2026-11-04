@@ -148,7 +148,7 @@ assign version_reg = 32'h0001_0000;
 //=====================================================
 always_ff @(posedge clk or negedge rst_n)
     if(!rst_n) irq_mask_reg <= 32'h0;
-    else if(PSEL && PENABLE && PWRITE && (addr == ADDR_IRQ_MASK))irq_mask_reg <= PWDATA;
+	else if(PSEL && PENABLE && PWRITE && (addr == ADDR_IRQ_MASK))irq_mask_reg <= {PWDATA[31:1], 1'b0};
 
 //=====================================================
 // CLK DIV Register

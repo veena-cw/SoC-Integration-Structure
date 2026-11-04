@@ -30,6 +30,7 @@ interface apb_if (input logic pclk, input logic presetn);
   logic [31:0] prdata;
   logic        pready;
   logic        pslverr;
+  logic spi_irq;
 
   clocking drv_cb @(posedge pclk);
     default input #1step output #1;
@@ -39,7 +40,7 @@ interface apb_if (input logic pclk, input logic presetn);
 
   clocking mon_cb @(posedge pclk);
     default input #1step;
-    input presetn, psel, penable, pwrite, paddr, pwdata, pstrb, pprot, prdata, pready, pslverr;
+    input presetn, psel, penable, pwrite, paddr, pwdata, pstrb, pprot, prdata, pready, pslverr,spi_irq;
   endclocking
 
 endinterface

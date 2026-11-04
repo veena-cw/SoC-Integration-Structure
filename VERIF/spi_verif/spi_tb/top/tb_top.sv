@@ -171,6 +171,7 @@ module tb_top;
     .spi_irq (spi_irq)
   );
 
+assign apb_if_i.spi_irq = spi_irq;
   // ---------------- SPI pins -> master / slave observation interfaces ----------------
   assign master_if_i.sck        = sck_o;
   assign master_if_i.mosi       = mosi_o;

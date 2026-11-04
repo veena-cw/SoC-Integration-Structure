@@ -1,0 +1,450 @@
+========== EXISTING COVERAGE ==========
+class eth_coverage extends uvm_subscriber #(eth_frame_item);
+
+    `uvm_component_utils(eth_coverage)
+
+    int frame_len;
+
+    covergroup cg;
+        cp_len : coverpoint frame_len {
+            bins min    = {60};
+            bins normal = {[61:1518]};
+            bins jumbo  = {[1519:9216]};
+        }
+    endgroup
+
+    function new(string name, uvm_component parent);
+        super.new(name, parent);
+        cg = new;
+    endfunction
+
+    function void write(eth_frame_item t);
+        frame_len = t.data.size();
+        cg.sample();
+    endfunction
+
+endclass
+========== RX MONITOR ==========
+class eth_axis_rx_monitor extends uvm_monitor;
+    `uvm_component_utils(eth_axis_rx_monitor)
+
+    virtual eth_axis_rx_if vif;
+
+    uvm_analysis_port #(eth_frame_item) ap;
+    byte unsigned frame_bytes[$];
+
+    byte unsigned observed_bytes[$];
+    int unsigned transfer_count;
+    int unsigned tlast_count;
+    int unsigned tlast_index;
+    bit          tuser_seen;
+
+    function new(string name, uvm_component parent);
+        super.new(name, parent);
+        ap = new("ap", this);
+    endfunction
+
+    function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+
+        if (!uvm_config_db#(virtual eth_axis_rx_if)::get(this, "", "vif", vif))
+            `uvm_fatal("NO_RX_AXIS_VIF", "eth_axis_rx_if missing")
+    endfunction
+
+    task run_phase(uvm_phase phase);
+        observed_bytes.delete();
+        frame_bytes.delete();
+        transfer_count = 0;
+        tlast_count     = 0;
+        tlast_index     = 0;
+        tuser_seen      = 1'b0;
+
+        forever begin
+            @(posedge vif.aclk);
+
+            if (!vif.aresetn) begin
+                observed_bytes.delete();
+                frame_bytes.delete();
+                transfer_count = 0;
+                tlast_count     = 0;
+                tlast_index     = 0;
+                tuser_seen      = 1'b0;
+            end
+            else if (vif.tvalid && vif.tready) begin
+                // A byte leaves the MAC RX path only on a valid/ready handshake.
+                observed_bytes.push_back(vif.tdata);
+                frame_bytes.push_back(vif.tdata);
+                transfer_count++;
+
+                if (vif.tuser)
+                    tuser_seen = 1'b1;
+
+                if (vif.tlast) begin
+                    eth_frame_item frame;
+
+                    tlast_count++;
+                    tlast_index = transfer_count - 1;
+
+                    frame = eth_frame_item::type_id::create("rx_frame");
+                    frame.data = new[frame_bytes.size()];
+
+                    foreach (frame.data[i])
+                        frame.data[i] = frame_bytes[i];
+
+                    ap.write(frame);
+                    frame_bytes.delete();
+                end
+
+                `uvm_info("RX_AXIS_BYTE",
+                    $sformatf(
+                        "INDEX=%0d DATA=%02h LAST=%0b USER=%0b",
+                        transfer_count-1,
+                        vif.tdata,
+                        vif.tlast,
+                        vif.tuser),
+                    UVM_LOW)
+            end
+        end
+    endtask
+endclass
+========== AXI MONITOR ==========
+class eth_axi_monitor extends uvm_monitor;
+
+    `uvm_component_utils(eth_axi_monitor)
+
+    uvm_analysis_port #(eth_axi_item) ap;
+    virtual eth_axi_if vif;
+
+    int unsigned ar_stall_cycles;
+    int unsigned aw_stall_cycles;
+    int unsigned w_stall_cycles;
+
+    int unsigned ar_stability_errors;
+    int unsigned aw_stability_errors;
+    int unsigned w_stability_errors;
+
+    bit ar_stall_active;
+    bit aw_stall_active;
+    bit w_stall_active;
+
+    logic [$bits(vif.arid)-1:0]    saved_arid;
+    logic [$bits(vif.araddr)-1:0]  saved_araddr;
+    logic [7:0]                    saved_arlen;
+    logic [2:0]                    saved_arsize;
+    logic [1:0]                    saved_arburst;
+    logic                          saved_arlock;
+    logic [3:0]                    saved_arcache;
+    logic [2:0]                    saved_arprot;
+
+    logic [$bits(vif.awid)-1:0]    saved_awid;
+    logic [$bits(vif.awaddr)-1:0]  saved_awaddr;
+    logic [7:0]                    saved_awlen;
+    logic [2:0]                    saved_awsize;
+    logic [1:0]                    saved_awburst;
+    logic                          saved_awlock;
+    logic [3:0]                    saved_awcache;
+    logic [2:0]                    saved_awprot;
+
+    logic [$bits(vif.wdata)-1:0]   saved_wdata;
+    logic [$bits(vif.wstrb)-1:0]   saved_wstrb;
+    logic                          saved_wlast;
+
+
+    function new(string name, uvm_component parent);
+        super.new(name, parent);
+        ap = new("ap", this);
+    endfunction
+
+
+    function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+
+        if (!uvm_config_db#(virtual eth_axi_if)::get(
+                this, "", "vif", vif)) begin
+            `uvm_fatal("AXI_MON",
+                "Failed to get eth_axi_if from uvm_config_db")
+        end
+    endfunction
+
+
+    task run_phase(uvm_phase phase);
+
+        ar_stall_cycles      = 0;
+        aw_stall_cycles      = 0;
+        w_stall_cycles       = 0;
+
+        ar_stability_errors  = 0;
+        aw_stability_errors  = 0;
+        w_stability_errors   = 0;
+
+        ar_stall_active      = 1'b0;
+        aw_stall_active      = 1'b0;
+        w_stall_active       = 1'b0;
+
+        forever begin
+
+            @(posedge vif.aclk);
+
+            if (!vif.aresetn) begin
+
+                ar_stall_active = 1'b0;
+                aw_stall_active = 1'b0;
+                w_stall_active  = 1'b0;
+
+            end
+            else begin
+
+                // ----------------------------------------------------
+                // AXI read-address channel stability
+                // ----------------------------------------------------
+
+                if (ar_stall_active) begin
+
+                    if (vif.arvalid !== 1'b1) begin
+                        ar_stability_errors++;
+
+                        `uvm_error("AXI_AR_STABILITY",
+                            "ARVALID deasserted before ARREADY handshake")
+                    end
+                    else begin
+
+                        if ((vif.arid    !== saved_arid)    ||
+                            (vif.araddr  !== saved_araddr)  ||
+                            (vif.arlen   !== saved_arlen)   ||
+                            (vif.arsize  !== saved_arsize)  ||
+                            (vif.arburst !== saved_arburst) ||
+                            (vif.arlock  !== saved_arlock)  ||
+                            (vif.arcache !== saved_arcache) ||
+                            (vif.arprot  !== saved_arprot)) begin
+
+                            ar_stability_errors++;
+
+                            `uvm_error("AXI_AR_STABILITY",
+                                $sformatf(
+                                    "AR channel changed while stalled: old_addr=%016h new_addr=%016h",
+                                    saved_araddr,
+                                    vif.araddr))
+                        end
+                    end
+                end
+
+                if (vif.arvalid && !vif.arready) begin
+
+                    ar_stall_cycles++;
+
+                    if (!ar_stall_active) begin
+                        saved_arid    = vif.arid;
+                        saved_araddr  = vif.araddr;
+                        saved_arlen   = vif.arlen;
+                        saved_arsize  = vif.arsize;
+                        saved_arburst = vif.arburst;
+                        saved_arlock  = vif.arlock;
+                        saved_arcache = vif.arcache;
+                        saved_arprot  = vif.arprot;
+                    end
+
+                    ar_stall_active = 1'b1;
+
+                end
+                else begin
+                    ar_stall_active = 1'b0;
+                end
+
+
+                // ----------------------------------------------------
+                // AXI write-address channel stability
+                // ----------------------------------------------------
+
+                if (aw_stall_active) begin
+
+                    if (vif.awvalid !== 1'b1) begin
+                        aw_stability_errors++;
+
+                        `uvm_error("AXI_AW_STABILITY",
+                            "AWVALID deasserted before AWREADY handshake")
+                    end
+                    else begin
+
+                        if ((vif.awid    !== saved_awid)    ||
+                            (vif.awaddr  !== saved_awaddr)  ||
+                            (vif.awlen   !== saved_awlen)   ||
+                            (vif.awsize  !== saved_awsize)  ||
+                            (vif.awburst !== saved_awburst) ||
+                            (vif.awlock  !== saved_awlock)  ||
+                            (vif.awcache !== saved_awcache) ||
+                            (vif.awprot  !== saved_awprot)) begin
+
+                            aw_stability_errors++;
+
+                            `uvm_error("AXI_AW_STABILITY",
+                                $sformatf(
+                                    "AW channel changed while stalled: old_addr=%016h new_addr=%016h",
+                                    saved_awaddr,
+                                    vif.awaddr))
+                        end
+                    end
+                end
+
+                if (vif.awvalid && !vif.awready) begin
+
+                    aw_stall_cycles++;
+
+                    if (!aw_stall_active) begin
+                        saved_awid    = vif.awid;
+                        saved_awaddr  = vif.awaddr;
+                        saved_awlen   = vif.awlen;
+                        saved_awsize  = vif.awsize;
+                        saved_awburst = vif.awburst;
+                        saved_awlock  = vif.awlock;
+                        saved_awcache = vif.awcache;
+                        saved_awprot  = vif.awprot;
+                    end
+
+                    aw_stall_active = 1'b1;
+
+                end
+                else begin
+                    aw_stall_active = 1'b0;
+                end
+
+
+                // ----------------------------------------------------
+                // AXI write-data channel stability
+                // ----------------------------------------------------
+
+                if (w_stall_active) begin
+
+                    if (vif.wvalid !== 1'b1) begin
+                        w_stability_errors++;
+
+                        `uvm_error("AXI_W_STABILITY",
+                            "WVALID deasserted before WREADY handshake")
+                    end
+                    else begin
+
+                        if ((vif.wdata !== saved_wdata) ||
+                            (vif.wstrb !== saved_wstrb) ||
+                            (vif.wlast !== saved_wlast)) begin
+
+                            w_stability_errors++;
+
+                            `uvm_error("AXI_W_STABILITY",
+                                $sformatf(
+                                    "W channel changed while stalled: old_data=%016h new_data=%016h old_strb=%02h new_strb=%02h old_last=%0b new_last=%0b",
+                                    saved_wdata,
+                                    vif.wdata,
+                                    saved_wstrb,
+                                    vif.wstrb,
+                                    saved_wlast,
+                                    vif.wlast))
+                        end
+                    end
+                end
+
+                if (vif.wvalid && !vif.wready) begin
+
+                    w_stall_cycles++;
+
+                    if (!w_stall_active) begin
+                        saved_wdata = vif.wdata;
+                        saved_wstrb = vif.wstrb;
+                        saved_wlast = vif.wlast;
+                    end
+
+                    w_stall_active = 1'b1;
+
+                end
+                else begin
+                    w_stall_active = 1'b0;
+                end
+
+
+                // ----------------------------------------------------
+                // Existing transaction logging
+                // ----------------------------------------------------
+
+                if (vif.arvalid && vif.arready)
+                    `uvm_info("AXI_READ_ADDR",
+                        $sformatf(
+                            "ADDR=%08h LEN=%0d SIZE=%0d",
+                            vif.araddr,
+                            vif.arlen,
+                            vif.arsize),
+                        UVM_LOW)
+
+                if (vif.rvalid && vif.rready)
+                    `uvm_info("AXI_READ_DATA",
+                        $sformatf(
+                            "DATA=%016h LAST=%0b",
+                            vif.rdata,
+                            vif.rlast),
+                        UVM_LOW)
+
+                if (vif.awvalid && vif.awready)
+                    `uvm_info("AXI_WRITE_ADDR",
+                        $sformatf(
+                            "ADDR=%08h LEN=%0d SIZE=%0d",
+                            vif.awaddr,
+                            vif.awlen,
+                            vif.awsize),
+                        UVM_LOW)
+
+                if (vif.wvalid && vif.wready)
+                    `uvm_info("AXI_WRITE_DATA",
+                        $sformatf(
+                            "DATA=%016h STRB=%02h LAST=%0b",
+                            vif.wdata,
+                            vif.wstrb,
+                            vif.wlast),
+                        UVM_LOW)
+
+            end
+        end
+    endtask
+
+
+    function void report_phase(uvm_phase phase);
+        super.report_phase(phase);
+
+        `uvm_info("AXI_STABILITY_SUMMARY",
+            $sformatf(
+                "AR_STALL_CYCLES=%0d AW_STALL_CYCLES=%0d W_STALL_CYCLES=%0d AR_ERRORS=%0d AW_ERRORS=%0d W_ERRORS=%0d",
+                ar_stall_cycles,
+                aw_stall_cycles,
+                w_stall_cycles,
+                ar_stability_errors,
+                aw_stability_errors,
+                w_stability_errors),
+            UVM_NONE)
+
+    endfunction
+
+endclass
+========== PROTOCOL ASSERTIONS ==========
+module eth_protocol_assertions(input logic clk,input logic rst_n,input logic valid,input logic ready,input logic last);
+ property p_hold_valid;
+ @(posedge clk) disable iff(!rst_n) valid&&!ready |=> valid;
+ endproperty a_hold_valid:assert property(p_hold_valid);
+
+endmodule
+
+========== REGRESSION LIST ==========
+eth_csr_smoke_test
+eth_dma_desc_asym_ready_test
+eth_dma_desc_asym_reverse_test
+eth_full_duplex_back_to_back_test
+eth_full_duplex_backpressure_test
+eth_full_duplex_dma_reset_test
+eth_full_duplex_reset_test
+eth_full_duplex_test
+eth_parallel_different_length_test
+eth_parallel_multi_frame_test
+eth_parallel_same_length_test
+eth_rx_axi_write_reset_test
+eth_rx_basic_test
+eth_rx_variable_length_test
+eth_tx_axi_read_reset_test
+eth_tx_basic_test
+eth_tx_rx_parallel_test
+eth_tx_variable_length_test
+

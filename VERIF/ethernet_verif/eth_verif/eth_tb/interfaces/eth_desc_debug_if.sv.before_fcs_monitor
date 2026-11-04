@@ -1,0 +1,24 @@
+`timescale 1ns/1ps
+
+interface eth_desc_debug_if(input logic clk);
+
+    logic force_rd_not_ready;
+    logic force_wr_not_ready;
+
+    logic cfg_valid;
+    logic cfg_ready;
+
+    logic rd_valid;
+    logic rd_ready;
+
+    logic wr_valid;
+    logic wr_ready;
+
+
+    // Passive DMA descriptor completion observation
+    logic       rd_sts_valid;
+    logic [3:0] rd_sts_error;
+    logic       wr_sts_valid;
+    logic [3:0] wr_sts_error;
+
+endinterface

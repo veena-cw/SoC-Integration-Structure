@@ -1,0 +1,870 @@
+
+class eth_rx_fifo_overflow_recovery_test extends eth_rx_only_irq_test;
+
+    `uvm_component_utils(eth_rx_fifo_overflow_recovery_test)
+
+    virtual eth_desc_debug_if desc_vif;
+
+    localparam int unsigned FRAME_LEN = 1024;
+    localparam int unsigned STRESS_FRAMES = 16;
+    localparam int unsigned IFG_BYTES = 12;
+
+    int unsigned overflow_count;
+    int unsigned fifo_bad_frame_count;
+    int unsigned fifo_good_frame_count;
+    int unsigned rx_transfer_count;
+    int unsigned rx_tlast_count;
+    int unsigned rx_frame_bytes;
+    int unsigned cfg_handshake_count;
+    int unsigned desc_accept_count;
+    int unsigned desc_completion_count;
+    int unsigned desc_error_count;
+
+    function new(
+        string name = "eth_rx_fifo_overflow_recovery_test",
+        uvm_component parent = null
+    );
+        super.new(name, parent);
+    endfunction
+
+    function void build_phase(uvm_phase phase);
+
+        uvm_config_db#(bit)::set(
+            this,
+            "env.scb",
+            "enable_rx_scoreboard",
+            1'b0
+        );
+
+        super.build_phase(phase);
+
+        if (!uvm_config_db#(virtual eth_desc_debug_if)::get(
+                this, "", "desc_debug_vif", desc_vif))
+            `uvm_fatal("FIFO_VIF", "Descriptor debug interface missing")
+    endfunction
+
+    function automatic byte unsigned payload_byte(
+        input int unsigned frame_id,
+        input int unsigned index
+    );
+        return 8'((frame_id * 37 + index) & 8'hFF);
+    endfunction
+
+    task automatic drive_frame(input int unsigned frame_id);
+
+        byte unsigned payload[$];
+        logic [31:0] fcs;
+
+        payload.delete();
+
+        for (int unsigned i = 0; i < FRAME_LEN; i++)
+            payload.push_back(payload_byte(frame_id, i));
+
+        fcs = calculate_ethernet_fcs(payload);
+
+        @(negedge rgmii_vif.bfm_rx_clk);
+
+        repeat (7)
+            drive_rgmii_byte(8'h55);
+
+        drive_rgmii_byte(8'hD5);
+
+        foreach (payload[i])
+            drive_rgmii_byte(payload[i]);
+
+        drive_rgmii_byte(fcs[7:0]);
+        drive_rgmii_byte(fcs[15:8]);
+        drive_rgmii_byte(fcs[23:16]);
+        drive_rgmii_byte(fcs[31:24]);
+
+        @(negedge rgmii_vif.bfm_rx_clk);
+
+        rgmii_vif.bfm_rx_ctl <= 1'b0;
+        rgmii_vif.bfm_rxd <= 4'h0;
+
+        `uvm_info("FIFO_STIM",
+            $sformatf("Injected frame=%0d length=%0d",
+                      frame_id, FRAME_LEN),
+            UVM_LOW)
+
+    endtask
+
+    task automatic send_ifg();
+        repeat (IFG_BYTES)
+            @(posedge rgmii_vif.bfm_rx_clk);
+    endtask
+
+
+
+
+    // Passive FIFO-full drop coverage counters.
+    int unsigned fifo_drop_start_count = 0;
+    int unsigned fifo_midframe_full_count = 0;
+    int unsigned fifo_drop_boundary_error_count = 0;
+
+
+    task automatic monitor_rx_fifo_drop();
+
+        bit previous_drop;
+        bit boundary_ok;
+
+        previous_drop = 1'b0;
+
+        forever begin
+            @(negedge desc_vif.rx_fifo_src_clk);
+
+            if (desc_vif.rx_fifo_drop_active === 1'b1 &&
+                previous_drop === 1'b0) begin
+
+                fifo_drop_start_count++;
+
+                boundary_ok =
+                    (desc_vif.rx_fifo_in_frame === 1'b1) &&
+                    (desc_vif.rx_fifo_full === 1'b1) &&
+                    (desc_vif.rx_fifo_full_wr === 1'b0) &&
+                    (desc_vif.rx_fifo_depth == 13'd4096) &&
+                    (desc_vif.rx_fifo_depth >
+                     desc_vif.rx_fifo_depth_commit);
+
+                `uvm_info("FIFO_DROP_BOUNDARY",
+                    $sformatf(
+                        "drop=%0d in_frame=%0b full=%0b full_wr=%0b depth=%0d committed=%0d boundary_ok=%0b time=%0t",
+                        fifo_drop_start_count,
+                        desc_vif.rx_fifo_in_frame,
+                        desc_vif.rx_fifo_full,
+                        desc_vif.rx_fifo_full_wr,
+                        desc_vif.rx_fifo_depth,
+                        desc_vif.rx_fifo_depth_commit,
+                        boundary_ok,
+                        $time),
+                    UVM_NONE)
+
+                if (boundary_ok) begin
+
+                    fifo_midframe_full_count++;
+
+                end
+                else begin
+
+                    fifo_drop_boundary_error_count++;
+
+                    `uvm_error("FIFO_DROP_BOUNDARY_FAIL",
+                        $sformatf(
+                            "Unexpected FIFO drop boundary: drop=%0d in_frame=%0b full=%0b full_wr=%0b depth=%0d committed=%0d",
+                            fifo_drop_start_count,
+                            desc_vif.rx_fifo_in_frame,
+                            desc_vif.rx_fifo_full,
+                            desc_vif.rx_fifo_full_wr,
+                            desc_vif.rx_fifo_depth,
+                            desc_vif.rx_fifo_depth_commit))
+                end
+            end
+
+            previous_drop =
+                (desc_vif.rx_fifo_drop_active === 1'b1);
+        end
+
+    endtask
+
+    task run_phase(uvm_phase phase);
+
+        bit stimulus_done;
+
+        phase.raise_objection(this);
+
+        fork
+            monitor_rx_fifo_drop();
+        join_none
+
+
+
+
+        overflow_count = 0;
+        fifo_bad_frame_count = 0;
+        fifo_good_frame_count = 0;
+        rx_transfer_count = 0;
+        rx_tlast_count = 0;
+        rx_frame_bytes = 0;
+        cfg_handshake_count = 0;
+        desc_accept_count = 0;
+        desc_completion_count = 0;
+        desc_error_count = 0;
+        stimulus_done = 0;
+
+        rgmii_vif.loopback_enable = 1'b0;
+
+        desc_vif.force_wr_not_ready = 1'b0;
+
+        begin
+            eth_reset_seq reset_sequence;
+
+            reset_sequence =
+                eth_reset_seq::type_id::create("fifo_overflow_reset");
+
+            reset_sequence.start(env.reset_ag.sqr);
+        end
+
+        repeat (30)
+            @(posedge desc_vif.clk);
+
+        clear_observation();
+
+        // Disable payload comparison during overflow stress.
+        // Frames may be dropped by the MAC FIFO by design.
+        env.scb.enable_rx_scoreboard = 1'b0;
+
+        desc_vif.force_wr_not_ready = 1'b1;
+
+        `uvm_info("FIFO_STALL",
+            "RX descriptor acceptance blocked",
+            UVM_LOW)
+
+        fork
+            begin : monitor_status
+                forever begin
+                    @(posedge desc_vif.clk);
+
+                    if (desc_vif.rx_fifo_overflow === 1'b1) begin
+                        overflow_count++;
+
+                        `uvm_info("FIFO_OVERFLOW",
+                            $sformatf(
+                                "Actual MAC RX FIFO overflow detected, count=%0d",
+                                overflow_count),
+                            UVM_LOW)
+                    end
+
+                    if (desc_vif.rx_fifo_bad_frame === 1'b1)
+                        fifo_bad_frame_count++;
+
+                    if (desc_vif.rx_fifo_good_frame === 1'b1)
+                        fifo_good_frame_count++;
+
+                    if (desc_vif.cfg_valid === 1'b1 &&
+                        desc_vif.cfg_ready === 1'b1) begin
+                        cfg_handshake_count++;
+                        `uvm_info("FIFO_CFG_ACCEPT",
+                            $sformatf("count=%0d",
+                                      cfg_handshake_count),
+                            UVM_LOW)
+                    end
+
+                    if (desc_vif.wr_valid === 1'b1 &&
+                        desc_vif.wr_ready === 1'b1) begin
+                        desc_accept_count++;
+                        `uvm_info("FIFO_DESC_ACCEPT",
+                            $sformatf("count=%0d",
+                                      desc_accept_count),
+                            UVM_LOW)
+                    end
+
+                    if (desc_vif.wr_sts_valid === 1'b1) begin
+                        desc_completion_count++;
+
+                        if (desc_vif.wr_sts_error != 0)
+                            desc_error_count++;
+                    end
+                end
+            end
+
+            begin : monitor_axis
+                forever begin
+                    @(posedge env.rx_axis_mon.vif.aclk);
+
+                    if (env.rx_axis_mon.vif.tvalid &&
+                        env.rx_axis_mon.vif.tready) begin
+
+                        rx_transfer_count++;
+                        rx_frame_bytes++;
+
+                        if (env.rx_axis_mon.vif.tlast) begin
+                            rx_tlast_count++;
+
+                            `uvm_info("FIFO_AXIS_FRAME",
+                                $sformatf(
+                                    "frame=%0d bytes=%0d tuser=%0b",
+                                    rx_tlast_count,
+                                    rx_frame_bytes,
+                                    env.rx_axis_mon.vif.tuser),
+                                UVM_LOW)
+
+                            rx_frame_bytes = 0;
+                        end
+                    end
+                end
+            end
+
+            begin : inject_stress
+
+                repeat (20)
+                    @(posedge desc_vif.clk);
+
+                for (int unsigned i = 0;
+                     i < STRESS_FRAMES; i++) begin
+
+                    drive_frame(i+1);
+                    send_ifg();
+
+                end
+
+                stimulus_done = 1'b1;
+
+                `uvm_info("FIFO_STIM_DONE",
+                    "All stress frames injected",
+                    UVM_LOW)
+
+            end
+        join_none
+
+        wait (stimulus_done);
+
+        repeat (100)
+            @(posedge desc_vif.clk);
+
+        desc_vif.force_wr_not_ready = 1'b0;
+
+        `uvm_info("FIFO_RELEASE",
+            "RX descriptor backpressure released",
+            UVM_LOW)
+
+        repeat (2000)
+            @(posedge desc_vif.clk);
+
+
+        // Drain the complete frames retained after overflow.
+        // Eight frames were reported good in the baseline experiment.
+        begin : checked_recovery
+            int unsigned drain_target;
+            int unsigned errors_before;
+            bit drain_ok;
+            bit quiet;
+            bit fresh_completed;
+            int unsigned completion_before;
+            int unsigned accept_before;
+            int unsigned last_transfers;
+            int unsigned last_tlast;
+            int unsigned mismatch_count;
+            int unsigned missing_count;
+            int unsigned matched_id;
+            int unsigned first_bad_index;
+            byte unsigned expected_byte;
+            byte unsigned actual_byte;
+            eth_rx_only_dma_seq cfg;
+
+            drain_target = fifo_good_frame_count;
+            errors_before = desc_error_count;
+            drain_ok = 1'b1;
+
+            `uvm_info("FIFO_DRAIN_BEGIN",
+                $sformatf("Attempting to drain %0d admitted frames",
+                          drain_target), UVM_NONE)
+
+            if (drain_target == 0 || drain_target > STRESS_FRAMES) begin
+                `uvm_error("FIFO_DRAIN_COUNT",
+                    "Unexpected good-frame count; cannot establish drain target")
+                drain_ok = 1'b0;
+            end
+
+            // Each descriptor is one frame long.  Keep destination
+            // regions separate to make corruption and reordering visible.
+            for (int unsigned d = 0;
+                 d < drain_target && drain_ok; d++) begin
+
+                bit completed;
+                bit accepted;
+                bit frame_match;
+                int unsigned base_addr;
+
+                completed = 1'b0;
+                accepted = 1'b0;
+                matched_id = 0;
+                base_addr = 32'h0001_0000 + d * 32'h1000;
+
+                completion_before = desc_completion_count;
+                accept_before = desc_accept_count;
+
+                cfg = eth_rx_only_dma_seq::type_id::create(
+                    $sformatf("fifo_drain_cfg_%0d", d));
+                cfg.rx_base = base_addr;
+                cfg.rx_length = FRAME_LEN;
+
+                cfg.start(env.axil_ag.sqr);
+
+                for (int unsigned cycle = 0;
+                     cycle < 20000; cycle++) begin
+                    @(negedge desc_vif.clk);
+                    if (desc_accept_count > accept_before)
+                        accepted = 1'b1;
+                    if (desc_completion_count > completion_before) begin
+                        completed = 1'b1;
+                        break;
+                    end
+                end
+
+                if (!accepted || !completed) begin
+                    `uvm_error("FIFO_DRAIN_TIMEOUT",
+                        $sformatf(
+                            "descriptor=%0d accepted=%0b completed=%0b",
+                            d, accepted, completed))
+                    drain_ok = 1'b0;
+                    break;
+                end
+
+                // Search the original stress frames for an exact match.
+                // This avoids assuming that overflow preserves every
+                // frame or that all accepted frames are consecutive.
+                for (int unsigned id = 1;
+                     id <= STRESS_FRAMES; id++) begin
+                    frame_match = 1'b1;
+
+                    for (int unsigned i = 0; i < FRAME_LEN; i++) begin
+                        if (!env.axi_ag.drv.mem.exists(base_addr+i) ||
+                            env.axi_ag.drv.mem[base_addr+i] !==
+                                payload_byte(id,i)) begin
+                            frame_match = 1'b0;
+                            break;
+                        end
+                    end
+
+                    if (frame_match) begin
+                        matched_id = id;
+                        break;
+                    end
+                end
+
+                if (matched_id != 0 && matched_id != d + 1) begin
+                    `uvm_error("FIFO_FRAME_ORDER",
+                        $sformatf(
+                            "descriptor=%0d expected_frame=%0d actual_frame=%0d",
+                            d, d+1, matched_id))
+                    drain_ok = 1'b0;
+                end
+
+                if (matched_id == 0) begin
+                    `uvm_error("FIFO_DRAIN_DATA",
+                        $sformatf(
+                            "descriptor=%0d destination=%08h does not match a stress frame",
+                            d, base_addr))
+                    drain_ok = 1'b0;
+                end
+                else begin
+                    `uvm_info("FIFO_DRAIN_FRAME",
+                        $sformatf(
+                            "descriptor=%0d stress_frame=%0d destination=%08h",
+                            d, matched_id, base_addr),
+                        UVM_NONE)
+                end
+
+                if (desc_error_count != errors_before) begin
+                    `uvm_error("FIFO_DRAIN_DMA_ERROR",
+                        "DMA reported an error while draining frames")
+                    drain_ok = 1'b0;
+                end
+            end
+
+            // Require the observed RX stream to become inactive.
+            // Quiet alone does not prove all internal FIFOs are empty;
+            // it is combined with the drain-count and payload checks.
+            quiet = 1'b0;
+            last_transfers = rx_transfer_count;
+            last_tlast = rx_tlast_count;
+
+            if (drain_ok) begin
+                repeat (2000) @(negedge desc_vif.clk);
+
+                if (rx_transfer_count == last_transfers &&
+                    rx_tlast_count == last_tlast &&
+                    env.rx_axis_mon.vif.tvalid !== 1'b1)
+                    quiet = 1'b1;
+
+                if (!quiet) begin
+                    `uvm_error("FIFO_DRAIN_NOT_QUIET",
+                        "RX stream still active after expected drain")
+                    drain_ok = 1'b0;
+                end
+            end
+
+            // Arm the fresh-frame descriptor BEFORE transmitting
+            // frame 100, so no old data can be mistaken for recovery.
+            if (drain_ok) begin
+                completion_before = desc_completion_count;
+                accept_before = desc_accept_count;
+
+                cfg = eth_rx_only_dma_seq::type_id::create(
+                    "fifo_fresh_cfg");
+                cfg.rx_base = 32'h0002_0000;
+                cfg.rx_length = FRAME_LEN;
+                cfg.start(env.axil_ag.sqr);
+
+                `uvm_info("FIFO_FRESH_ARM",
+                    "Fresh-frame descriptor configured at 0x20000",
+                    UVM_NONE)
+
+                drive_frame(100);
+                send_ifg();
+
+                fresh_completed = 1'b0;
+
+                for (int unsigned cycle = 0;
+                     cycle < 30000; cycle++) begin
+                    @(negedge desc_vif.clk);
+                    if (desc_completion_count > completion_before) begin
+                        fresh_completed = 1'b1;
+                        break;
+                    end
+                end
+
+                if (desc_accept_count != accept_before + 1)
+                    `uvm_error("FIFO_FRESH_DESCRIPTOR",
+                        "Fresh-frame descriptor acceptance count incorrect")
+
+                if (!fresh_completed) begin
+                    `uvm_error("FIFO_FRESH_TIMEOUT",
+                        "Fresh frame did not complete DMA")
+                end
+                else begin
+                    mismatch_count = 0;
+                    missing_count = 0;
+                    first_bad_index = FRAME_LEN;
+
+                    for (int unsigned i = 0; i < FRAME_LEN; i++) begin
+                        expected_byte = payload_byte(100,i);
+
+                        if (!env.axi_ag.drv.mem.exists(
+                                32'h0002_0000+i)) begin
+                            missing_count++;
+                            if (first_bad_index == FRAME_LEN)
+                                first_bad_index = i;
+                        end
+                        else begin
+                            actual_byte =
+                                env.axi_ag.drv.mem[32'h0002_0000+i];
+
+                            if (actual_byte !== expected_byte) begin
+                                mismatch_count++;
+                                if (first_bad_index == FRAME_LEN) begin
+                                    first_bad_index = i;
+                                    `uvm_info("FIFO_FIRST_MISMATCH",
+                                        $sformatf(
+                                            "index=%0d expected=%02h actual=%02h",
+                                            i, expected_byte, actual_byte),
+                                        UVM_NONE)
+                                end
+                            end
+                        end
+                    end
+
+                    if (mismatch_count == 0 &&
+                        missing_count == 0 &&
+                        desc_error_count == errors_before) begin
+                        `uvm_info("FIFO_RECOVERY_PASS",
+                            "Fresh frame 100: all 1024 DMA bytes match",
+                            UVM_NONE)
+                    end
+                    else begin
+                        `uvm_error("FIFO_RECOVERY_FAIL",
+                            $sformatf(
+                                "mismatches=%0d missing=%0d first_bad_index=%0d",
+                                mismatch_count, missing_count,
+                                first_bad_index))
+                    end
+                end
+            end
+        end
+
+
+        // Second overflow/recovery cycle, without DUT reset.
+        begin : second_overflow_cycle
+            int unsigned overflow_before;
+            int unsigned good_before;
+            int unsigned complete_before;
+            int unsigned accepted_frames;
+            int unsigned matched_id;
+            bit completed;
+            bit full_match;
+            bit cycle_ok;
+            eth_rx_only_dma_seq cfg;
+
+            overflow_before = overflow_count;
+            good_before = fifo_good_frame_count;
+            cycle_ok = 1'b1;
+
+            desc_vif.force_wr_not_ready = 1'b1;
+
+            `uvm_info("FIFO_CYCLE2_START",
+                "Starting second overflow cycle without reset",
+                UVM_NONE)
+
+            repeat (30) @(posedge desc_vif.clk);
+
+            for (int unsigned id = 101; id <= 116; id++) begin
+                drive_frame(id);
+                send_ifg();
+            end
+
+            repeat (100) @(posedge desc_vif.clk);
+            desc_vif.force_wr_not_ready = 1'b0;
+
+            if (overflow_count <= overflow_before) begin
+                `uvm_error("FIFO_CYCLE2_NO_OVERFLOW",
+                    "Second cycle did not generate FIFO overflow")
+                cycle_ok = 1'b0;
+            end
+
+            accepted_frames = fifo_good_frame_count - good_before;
+
+            `uvm_info("FIFO_CYCLE2_OVERFLOW",
+                $sformatf(
+                    "overflow_delta=%0d good_delta=%0d",
+                    overflow_count-overflow_before,
+                    accepted_frames),
+                UVM_NONE)
+
+            if (accepted_frames == 0 ||
+                accepted_frames > STRESS_FRAMES) begin
+                `uvm_error("FIFO_CYCLE2_COUNT",
+                    "Unexpected second-cycle admitted-frame count")
+                cycle_ok = 1'b0;
+            end
+
+            for (int unsigned d = 0;
+                 d < accepted_frames && cycle_ok; d++) begin
+
+                int unsigned base_addr;
+                bit accepted;
+                int unsigned accept_before;
+
+                base_addr = 32'h0003_0000 + d*32'h1000;
+                complete_before = desc_completion_count;
+                accept_before = desc_accept_count;
+                completed = 1'b0;
+                accepted = 1'b0;
+                matched_id = 0;
+
+                cfg = eth_rx_only_dma_seq::type_id::create(
+                    $sformatf("fifo_cycle2_cfg_%0d", d));
+                cfg.rx_base = base_addr;
+                cfg.rx_length = FRAME_LEN;
+                cfg.start(env.axil_ag.sqr);
+
+                for (int unsigned cycle = 0;
+                     cycle < 20000; cycle++) begin
+                    @(negedge desc_vif.clk);
+                    if (desc_accept_count > accept_before)
+                        accepted = 1'b1;
+                    if (desc_completion_count > complete_before) begin
+                        completed = 1'b1;
+                        break;
+                    end
+                end
+
+                if (!accepted || !completed) begin
+                    `uvm_error("FIFO_CYCLE2_TIMEOUT",
+                        $sformatf(
+                            "descriptor=%0d accepted=%0b completed=%0b",
+                            d, accepted, completed))
+                    cycle_ok = 1'b0;
+                    break;
+                end
+
+                for (int unsigned id = 101; id <= 116; id++) begin
+                    full_match = 1'b1;
+
+                    for (int unsigned i = 0; i < FRAME_LEN; i++) begin
+                        if (!env.axi_ag.drv.mem.exists(base_addr+i) ||
+                            env.axi_ag.drv.mem[base_addr+i] !==
+                                payload_byte(id,i)) begin
+                            full_match = 1'b0;
+                            break;
+                        end
+                    end
+
+                    if (full_match) begin
+                        matched_id = id;
+                        break;
+                    end
+                end
+
+                if (matched_id != d+101) begin
+                    `uvm_error("FIFO_CYCLE2_ORDER",
+                        $sformatf(
+                            "descriptor=%0d expected_id=%0d actual_id=%0d",
+                            d, d+101, matched_id))
+                    cycle_ok = 1'b0;
+                end
+                else begin
+                    `uvm_info("FIFO_CYCLE2_FRAME",
+                        $sformatf(
+                            "descriptor=%0d frame_id=%0d",
+                            d, matched_id),
+                        UVM_NONE)
+                end
+            end
+
+            if (cycle_ok)
+                `uvm_info("FIFO_CYCLE2_DRAIN_PASS",
+                    "Second overflow cycle drained successfully",
+                    UVM_NONE)
+        end
+
+
+        // Verify fresh RX traffic after second overflow/recovery.
+        begin : second_fresh_frame_check
+            eth_rx_only_dma_seq cfg;
+            int unsigned completion_before;
+            int unsigned accept_before;
+            int unsigned errors_before;
+            int unsigned mismatch_count;
+            int unsigned missing_count;
+            bit completed;
+
+            completion_before = desc_completion_count;
+            accept_before = desc_accept_count;
+            errors_before = desc_error_count;
+            completed = 1'b0;
+
+            cfg = eth_rx_only_dma_seq::type_id::create(
+                "fifo_cycle2_fresh_cfg");
+            cfg.rx_base = 32'h0004_0000;
+            cfg.rx_length = FRAME_LEN;
+
+            cfg.start(env.axil_ag.sqr);
+
+            `uvm_info("FIFO_CYCLE2_FRESH_ARM",
+                "Fresh descriptor configured at 0x40000",
+                UVM_NONE)
+
+            drive_frame(200);
+            send_ifg();
+
+            for (int unsigned cycle = 0;
+                 cycle < 30000; cycle++) begin
+                @(negedge desc_vif.clk);
+
+                if (desc_completion_count > completion_before) begin
+                    completed = 1'b1;
+                    break;
+                end
+            end
+
+            if (!completed) begin
+                `uvm_error("FIFO_CYCLE2_FRESH_TIMEOUT",
+                    "Fresh frame 200 DMA did not complete")
+            end
+            else begin
+                mismatch_count = 0;
+                missing_count = 0;
+
+                for (int unsigned i = 0; i < FRAME_LEN; i++) begin
+                    if (!env.axi_ag.drv.mem.exists(
+                            32'h0004_0000+i)) begin
+                        missing_count++;
+                    end
+                    else if (env.axi_ag.drv.mem[
+                            32'h0004_0000+i] !==
+                            payload_byte(200,i)) begin
+                        mismatch_count++;
+                    end
+                end
+
+                if (mismatch_count == 0 &&
+                    missing_count == 0 &&
+                    desc_error_count == errors_before &&
+                    desc_accept_count == accept_before+1) begin
+
+                    `uvm_info("FIFO_CYCLE2_FRESH_PASS",
+                        "Fresh frame 200: all 1024 DMA bytes match after second recovery",
+                        UVM_NONE)
+                end
+                else begin
+                    `uvm_error("FIFO_CYCLE2_FRESH_FAIL",
+                        $sformatf(
+                            "mismatches=%0d missing=%0d dma_errors_delta=%0d desc_accept_delta=%0d",
+                            mismatch_count,
+                            missing_count,
+                            desc_error_count-errors_before,
+                            desc_accept_count-accept_before))
+                end
+            end
+        end
+
+        `uvm_info("FIFO_HANDSHAKE_SUMMARY",
+            $sformatf(
+                "CFG_ACCEPT=%0d DESC_ACCEPT=%0d DESC_COMPLETE=%0d DESC_ERROR=%0d",
+                cfg_handshake_count,
+                desc_accept_count,
+                desc_completion_count,
+                desc_error_count),
+            UVM_NONE)
+
+        `uvm_info("FIFO_STATUS",
+            $sformatf(
+                "OVERFLOW=%0d FIFO_BAD=%0d FIFO_GOOD=%0d RX_BYTES=%0d TLAST=%0d DESC=%0d DESC_ERR=%0d",
+                overflow_count,
+                fifo_bad_frame_count,
+                fifo_good_frame_count,
+                rx_transfer_count,
+                rx_tlast_count,
+                desc_completion_count,
+                desc_error_count),
+            UVM_NONE)
+
+        if (overflow_count == 0) begin
+
+            `uvm_warning("FIFO_INCONCLUSIVE",
+                "No actual MAC RX FIFO overflow observed. Descriptor backpressure did not prove FIFO saturation.")
+
+        end
+        else begin
+
+            `uvm_info("FIFO_OVERFLOW_CONFIRMED",
+                "MAC RX FIFO overflow was observed. Recovery verification is the next stage.",
+                UVM_NONE)
+
+        end
+
+
+        // Verify that every observed overflow corresponded to
+        // a FIFO-full drop during an active Ethernet frame.
+        `uvm_info("FIFO_DROP_COVERAGE",
+            $sformatf(
+                "DROP_START=%0d MIDFRAME_FULL=%0d BOUNDARY_ERRORS=%0d OVERFLOW=%0d",
+                fifo_drop_start_count,
+                fifo_midframe_full_count,
+                fifo_drop_boundary_error_count,
+                overflow_count),
+            UVM_NONE)
+
+        if (fifo_drop_start_count == 0) begin
+            `uvm_error("FIFO_DROP_NOT_EXERCISED",
+                "No FIFO drop-state transitions were observed")
+        end
+
+        if (fifo_drop_boundary_error_count != 0) begin
+            `uvm_error("FIFO_DROP_CHECK_FAIL",
+                $sformatf(
+                    "%0d FIFO drop boundary checks failed",
+                    fifo_drop_boundary_error_count))
+        end
+
+        if (fifo_midframe_full_count != fifo_drop_start_count) begin
+            `uvm_error("FIFO_DROP_COUNT_FAIL",
+                $sformatf(
+                    "Mid-frame full drops=%0d total drops=%0d",
+                    fifo_midframe_full_count,
+                    fifo_drop_start_count))
+        end
+
+        if (fifo_midframe_full_count != overflow_count) begin
+            `uvm_error("FIFO_OVERFLOW_DROP_MISMATCH",
+                $sformatf(
+                    "Mid-frame full drops=%0d overflow events=%0d",
+                    fifo_midframe_full_count,
+                    overflow_count))
+        end
+
+        phase.drop_objection(this);
+
+    endtask
+
+endclass

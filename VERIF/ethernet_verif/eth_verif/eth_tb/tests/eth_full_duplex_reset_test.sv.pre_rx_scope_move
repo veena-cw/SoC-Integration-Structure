@@ -1,0 +1,833 @@
+class eth_full_duplex_reset_test extends eth_base_test;
+    `uvm_component_utils(eth_full_duplex_reset_test)
+
+    virtual eth_rgmii_if rgmii_vif;
+
+    function new(string name = "eth_full_duplex_reset_test",
+                 uvm_component parent = null);
+        super.new(name, parent);
+    endfunction
+
+    function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+
+        if (!uvm_config_db#(virtual eth_rgmii_if)::get(
+                this, "", "vif", rgmii_vif))
+            `uvm_fatal("FULL_DUPLEX_VIF",
+                       "Unable to obtain eth_rgmii_if")
+    endfunction
+
+
+    function automatic logic [31:0] calculate_ethernet_fcs(
+        input byte unsigned frame_bytes[$]);
+
+        logic [31:0] crc;
+        logic feedback;
+
+        crc = 32'hFFFF_FFFF;
+
+        foreach (frame_bytes[byte_index]) begin
+            for (int unsigned bit_index = 0;
+                 bit_index < 8;
+                 bit_index++) begin
+
+                feedback = crc[0] ^
+                           frame_bytes[byte_index][bit_index];
+
+                crc = crc >> 1;
+
+                if (feedback)
+                    crc = crc ^ 32'hEDB8_8320;
+            end
+        end
+
+        return ~crc;
+    endfunction
+
+
+    task automatic drive_rgmii_byte(
+        input byte unsigned data_byte);
+
+        @(negedge rgmii_vif.bfm_rx_clk);
+        rgmii_vif.bfm_rxd    <= data_byte[3:0];
+        rgmii_vif.bfm_rx_ctl <= 1'b1;
+
+        @(posedge rgmii_vif.bfm_rx_clk);
+        rgmii_vif.bfm_rxd    <= data_byte[7:4];
+        rgmii_vif.bfm_rx_ctl <= 1'b1;
+    endtask
+
+
+    task automatic drive_rx_frame(
+        output time rx_start_time,
+        output time rx_end_time);
+
+        byte unsigned payload[$];
+        logic [31:0] fcs;
+
+        payload.delete();
+
+        for (int unsigned byte_index = 0;
+             byte_index < 64;
+             byte_index++)
+            payload.push_back(8'h80 + byte_index[7:0]);
+
+        fcs = calculate_ethernet_fcs(payload);
+
+        @(negedge rgmii_vif.bfm_rx_clk);
+
+        rgmii_vif.bfm_rxd    <= 4'h5;
+        rgmii_vif.bfm_rx_ctl <= 1'b1;
+
+        rx_start_time = $time;
+
+        @(posedge rgmii_vif.bfm_rx_clk);
+        rgmii_vif.bfm_rxd    <= 4'h5;
+        rgmii_vif.bfm_rx_ctl <= 1'b1;
+
+        for (int unsigned preamble_index = 1;
+             preamble_index < 7;
+             preamble_index++)
+            drive_rgmii_byte(8'h55);
+
+        drive_rgmii_byte(8'hD5);
+
+        foreach (payload[byte_index])
+            drive_rgmii_byte(payload[byte_index]);
+
+        drive_rgmii_byte(fcs[7:0]);
+        drive_rgmii_byte(fcs[15:8]);
+        drive_rgmii_byte(fcs[23:16]);
+        drive_rgmii_byte(fcs[31:24]);
+
+        @(negedge rgmii_vif.bfm_rx_clk);
+
+        rgmii_vif.bfm_rx_ctl <= 1'b0;
+        rgmii_vif.bfm_rxd    <= 4'h0;
+
+        rx_end_time = $time;
+
+        `uvm_info("FULL_DUPLEX_RX",
+            $sformatf(
+                "Independent RX frame sent payload=80..BF FCS=%08h RX=[%0t,%0t]",
+                fcs, rx_start_time, rx_end_time),
+            UVM_LOW)
+    endtask
+
+
+    task automatic watch_tx_frame(
+        output time tx_start_time,
+        output time tx_end_time);
+
+        int unsigned timeout_cycles;
+
+        tx_start_time = 0;
+        tx_end_time   = 0;
+        timeout_cycles = 0;
+
+        while ((rgmii_vif.tx_ctl !== 1'b1) &&
+               (timeout_cycles < 5000)) begin
+            @(posedge rgmii_vif.bfm_rx_clk);
+            timeout_cycles++;
+        end
+
+        if (rgmii_vif.tx_ctl !== 1'b1) begin
+            `uvm_error("FULL_DUPLEX_TX_TIMEOUT",
+                       "Timed out waiting for RGMII TX start")
+            return;
+        end
+
+        tx_start_time = $time;
+
+        `uvm_info("FULL_DUPLEX_TX",
+            $sformatf("RGMII TX started at %0t",
+                      tx_start_time),
+            UVM_LOW)
+
+        timeout_cycles = 0;
+
+        while ((rgmii_vif.tx_ctl !== 1'b0) &&
+               (timeout_cycles < 5000)) begin
+            @(posedge rgmii_vif.bfm_rx_clk);
+            timeout_cycles++;
+        end
+
+        if (rgmii_vif.tx_ctl !== 1'b0) begin
+            `uvm_error("FULL_DUPLEX_TX_TIMEOUT",
+                       "Timed out waiting for RGMII TX end")
+            return;
+        end
+
+        tx_end_time = $time;
+
+        `uvm_info("FULL_DUPLEX_TX",
+            $sformatf("RGMII TX ended at %0t",
+                      tx_end_time),
+            UVM_LOW)
+    endtask
+
+
+    task automatic clear_observation();
+
+        env.axi_ag.drv.read_burst_count = 0;
+        env.axi_ag.drv.read_beat_count  = 0;
+        env.axi_ag.drv.read_byte_count  = 0;
+        env.axi_ag.drv.first_read_addr  = '0;
+        env.axi_ag.drv.first_read_seen  = 1'b0;
+        env.axi_ag.drv.read_error_seen  = 1'b0;
+
+        env.axi_ag.drv.write_burst_count = 0;
+        env.axi_ag.drv.write_beat_count  = 0;
+        env.axi_ag.drv.write_byte_count  = 0;
+        env.axi_ag.drv.first_write_addr  = '0;
+        env.axi_ag.drv.first_write_seen  = 1'b0;
+        env.axi_ag.drv.write_error_seen  = 1'b0;
+
+        env.tx_axis_mon.observed_bytes.delete();
+        env.tx_axis_mon.transfer_count = 0;
+        env.tx_axis_mon.tlast_count    = 0;
+        env.tx_axis_mon.tlast_index    = 0;
+        env.tx_axis_mon.tuser_seen     = 1'b0;
+
+        env.rx_axis_mon.observed_bytes.delete();
+        env.rx_axis_mon.transfer_count = 0;
+        env.rx_axis_mon.tlast_count    = 0;
+        env.rx_axis_mon.tlast_index    = 0;
+        env.rx_axis_mon.tuser_seen     = 1'b0;
+
+        env.rgmii_ag.mon.tx_bytes.delete();
+        env.rgmii_ag.mon.tx_byte_count   = 0;
+        env.rgmii_ag.mon.tx_frame_count  = 0;
+        env.rgmii_ag.mon.tx_frame_active = 1'b0;
+        env.rgmii_ag.mon.tx_error_seen   = 1'b0;
+    endtask
+
+
+    task automatic wait_for_completion();
+
+        int unsigned timeout_cycles;
+
+        timeout_cycles = 0;
+
+        while (((env.axi_ag.drv.read_byte_count < 64) ||
+                (env.axi_ag.drv.write_byte_count < 64) ||
+                env.rgmii_ag.mon.tx_frame_active) &&
+               (timeout_cycles < 10000)) begin
+
+            @(posedge env.axi_ag.drv.vif.aclk);
+            timeout_cycles++;
+        end
+
+        repeat (20)
+            @(posedge env.axi_ag.drv.vif.aclk);
+
+        if (timeout_cycles >= 10000)
+            `uvm_error("FULL_DUPLEX_TIMEOUT",
+                       "Timed out waiting for TX/RX completion")
+    endtask
+
+
+    task automatic check_results(
+        input time tx_start_time,
+        input time tx_end_time,
+        input time rx_start_time,
+        input time rx_end_time,
+        input longint unsigned expected_tx_addr,
+        input longint unsigned expected_rx_addr);
+
+        int unsigned error_count;
+        time overlap_start;
+        time overlap_end;
+
+        error_count = 0;
+
+        if (env.axi_ag.drv.read_byte_count != 64) begin
+            error_count++;
+            `uvm_error("FULL_DUPLEX_TX_DMA",
+                $sformatf(
+                    "Expected 64 TX DMA read bytes, observed %0d",
+                    env.axi_ag.drv.read_byte_count))
+        end
+
+        if (!env.axi_ag.drv.first_read_seen ||
+            env.axi_ag.drv.first_read_addr !==
+                expected_tx_addr) begin
+
+            error_count++;
+            `uvm_error("FULL_DUPLEX_TX_ADDR",
+                $sformatf(
+                    "Expected TX DMA address %016h, observed %016h",
+                    expected_tx_addr,
+                    env.axi_ag.drv.first_read_addr))
+        end
+
+
+        if (env.axi_ag.drv.write_byte_count != 64) begin
+            error_count++;
+            `uvm_error("FULL_DUPLEX_RX_DMA",
+                $sformatf(
+                    "Expected 64 RX DMA write bytes, observed %0d",
+                    env.axi_ag.drv.write_byte_count))
+        end
+
+        if (!env.axi_ag.drv.first_write_seen ||
+            env.axi_ag.drv.first_write_addr !==
+                expected_rx_addr) begin
+
+            error_count++;
+            `uvm_error("FULL_DUPLEX_RX_ADDR",
+                $sformatf(
+                    "Expected RX DMA address %016h, observed %016h",
+                    expected_rx_addr,
+                    env.axi_ag.drv.first_write_addr))
+        end
+
+
+        if (env.tx_axis_mon.observed_bytes.size() != 64) begin
+            error_count++;
+            `uvm_error("FULL_DUPLEX_TX_AXIS",
+                $sformatf(
+                    "Expected 64 TX AXIS bytes, observed %0d",
+                    env.tx_axis_mon.observed_bytes.size()))
+        end
+        else begin
+            for (int unsigned byte_index = 0;
+                 byte_index < 64;
+                 byte_index++) begin
+
+                if (env.tx_axis_mon.observed_bytes[byte_index]
+                    !== byte_index[7:0]) begin
+
+                    error_count++;
+                    `uvm_error("FULL_DUPLEX_TX_AXIS",
+                        $sformatf(
+                            "BYTE=%0d EXP=%02h GOT=%02h",
+                            byte_index,
+                            byte_index[7:0],
+                            env.tx_axis_mon.observed_bytes[
+                                byte_index]))
+                end
+            end
+        end
+
+
+        if ((env.tx_axis_mon.tlast_count != 1) ||
+            (env.tx_axis_mon.tlast_index != 63) ||
+            env.tx_axis_mon.tuser_seen) begin
+
+            error_count++;
+            `uvm_error("FULL_DUPLEX_TX_STATUS",
+                $sformatf(
+                    "TLAST_COUNT=%0d TLAST_INDEX=%0d TUSER=%0b",
+                    env.tx_axis_mon.tlast_count,
+                    env.tx_axis_mon.tlast_index,
+                    env.tx_axis_mon.tuser_seen))
+        end
+
+
+        if (env.rx_axis_mon.observed_bytes.size() != 64) begin
+            error_count++;
+            `uvm_error("FULL_DUPLEX_RX_AXIS",
+                $sformatf(
+                    "Expected 64 RX AXIS bytes, observed %0d",
+                    env.rx_axis_mon.observed_bytes.size()))
+        end
+        else begin
+            for (int unsigned byte_index = 0;
+                 byte_index < 64;
+                 byte_index++) begin
+
+                if (env.rx_axis_mon.observed_bytes[byte_index]
+                    !== (8'h80 + byte_index[7:0])) begin
+
+                    error_count++;
+                    `uvm_error("FULL_DUPLEX_RX_AXIS",
+                        $sformatf(
+                            "BYTE=%0d EXP=%02h GOT=%02h",
+                            byte_index,
+                            8'h80 + byte_index[7:0],
+                            env.rx_axis_mon.observed_bytes[
+                                byte_index]))
+                end
+            end
+        end
+
+
+        if ((env.rx_axis_mon.tlast_count != 1) ||
+            (env.rx_axis_mon.tlast_index != 63) ||
+            env.rx_axis_mon.tuser_seen) begin
+
+            error_count++;
+            `uvm_error("FULL_DUPLEX_RX_STATUS",
+                $sformatf(
+                    "TLAST_COUNT=%0d TLAST_INDEX=%0d TUSER=%0b",
+                    env.rx_axis_mon.tlast_count,
+                    env.rx_axis_mon.tlast_index,
+                    env.rx_axis_mon.tuser_seen))
+        end
+
+
+        for (int unsigned byte_index = 0;
+             byte_index < 64;
+             byte_index++) begin
+
+            longint unsigned address;
+            address =
+                expected_rx_addr + byte_index;
+
+            if (!env.axi_ag.drv.mem.exists(address)) begin
+                error_count++;
+
+                `uvm_error("FULL_DUPLEX_RX_MEMORY",
+                    $sformatf(
+                        "ADDR=%016h does not exist",
+                        address))
+            end
+            else if (env.axi_ag.drv.mem[address] !==
+                     (8'h80 + byte_index[7:0])) begin
+
+                error_count++;
+
+                `uvm_error("FULL_DUPLEX_RX_MEMORY",
+                    $sformatf(
+                        "ADDR=%016h EXP=%02h GOT=%02h",
+                        address,
+                        8'h80 + byte_index[7:0],
+                        env.axi_ag.drv.mem[address]))
+            end
+        end
+
+
+        if ((env.rgmii_ag.mon.tx_frame_count != 1) ||
+            (env.rgmii_ag.mon.tx_bytes.size() != 76) ||
+            env.rgmii_ag.mon.tx_error_seen) begin
+
+            error_count++;
+
+            `uvm_error("FULL_DUPLEX_RGMII_TX",
+                $sformatf(
+                    "FRAME_COUNT=%0d BYTES=%0d TX_ERROR=%0b",
+                    env.rgmii_ag.mon.tx_frame_count,
+                    env.rgmii_ag.mon.tx_bytes.size(),
+                    env.rgmii_ag.mon.tx_error_seen))
+        end
+
+
+        if (env.axi_ag.drv.read_error_seen ||
+            env.axi_ag.drv.write_error_seen) begin
+
+            error_count++;
+
+            `uvm_error("FULL_DUPLEX_AXI",
+                $sformatf(
+                    "READ_ERROR=%0b WRITE_ERROR=%0b",
+                    env.axi_ag.drv.read_error_seen,
+                    env.axi_ag.drv.write_error_seen))
+        end
+
+
+        overlap_start =
+            (tx_start_time > rx_start_time) ?
+             tx_start_time : rx_start_time;
+
+        overlap_end =
+            (tx_end_time < rx_end_time) ?
+             tx_end_time : rx_end_time;
+
+        if ((tx_start_time == 0) ||
+            (tx_end_time == 0) ||
+            (rx_start_time == 0) ||
+            (rx_end_time == 0) ||
+            (overlap_end <= overlap_start)) begin
+
+            error_count++;
+
+            `uvm_error("FULL_DUPLEX_OVERLAP",
+                $sformatf(
+                    "No simultaneous RGMII operation TX=[%0t,%0t] RX=[%0t,%0t]",
+                    tx_start_time,
+                    tx_end_time,
+                    rx_start_time,
+                    rx_end_time))
+        end
+        else begin
+            `uvm_info("FULL_DUPLEX_OVERLAP",
+                $sformatf(
+                    "PASS TX=[%0t,%0t] RX=[%0t,%0t] OVERLAP=%0t",
+                    tx_start_time,
+                    tx_end_time,
+                    rx_start_time,
+                    rx_end_time,
+                    overlap_end-overlap_start),
+                UVM_LOW)
+        end
+
+
+        if (error_count == 0) begin
+            `uvm_info("FULL_DUPLEX_RESULT",
+                "PASS: independent TX and RX datapaths operated concurrently through RGMII",
+                UVM_NONE)
+        end
+        else begin
+            `uvm_error("FULL_DUPLEX_RESULT",
+                $sformatf(
+                    "FAIL: full-duplex functional errors=%0d",
+                    error_count))
+        end
+    endtask
+
+
+    task run_phase(uvm_phase phase);
+
+        eth_reset_seq             reset_sequence;
+        eth_full_duplex_frame_seq interrupted_sequence;
+        eth_full_duplex_frame_seq recovery_sequence;
+
+        time interrupted_tx_start;
+        time interrupted_tx_end;
+        time interrupted_rx_start;
+        time interrupted_rx_end;
+
+        time recovery_tx_start;
+        time recovery_tx_end;
+        time recovery_rx_start;
+        time recovery_rx_end;
+
+        bit reset_injected;
+        bit both_directions_active;
+        int unsigned controller_wait_cycles;
+
+        phase.raise_objection(this);
+
+        `uvm_info("FD_RESET",
+            "Starting mid-full-duplex reset bug-hunting testcase",
+            UVM_LOW)
+
+        //------------------------------------------------------------------
+        // Initial conditions
+        //------------------------------------------------------------------
+        rgmii_vif.loopback_enable = 1'b0;
+        rgmii_vif.bfm_rx_ctl      = 1'b0;
+        rgmii_vif.bfm_rxd         = 4'h0;
+
+        reset_sequence =
+            eth_reset_seq::type_id::create("initial_reset_sequence");
+
+        reset_sequence.start(env.reset_ag.sqr);
+
+        clear_observation();
+
+        //------------------------------------------------------------------
+        // PHASE 1:
+        // Start traffic that will deliberately be interrupted by reset.
+        //------------------------------------------------------------------
+
+        for (int unsigned byte_index = 0;
+             byte_index < 64;
+             byte_index++) begin
+
+            env.axi_ag.drv.mem[
+                64'h0000_0000_0000_1000 + byte_index]
+                = byte_index[7:0];
+
+            env.axi_ag.drv.mem[
+                64'h0000_0000_0000_2000 + byte_index]
+                = 8'hA5;
+        end
+
+        interrupted_sequence =
+            eth_full_duplex_frame_seq::type_id::create(
+                "interrupted_sequence");
+
+        interrupted_sequence.tx_address   = 32'h0000_1000;
+        interrupted_sequence.rx_address   = 32'h0000_2000;
+        interrupted_sequence.frame_length = 32'd64;
+
+        reset_injected         = 1'b0;
+        both_directions_active = 1'b0;
+
+        `uvm_info("FD_RESET",
+            "PHASE1: starting traffic TX=0x1000 RX=0x2000",
+            UVM_LOW)
+
+        fork : interrupted_traffic
+
+            //------------------------------------------------------------------
+            // Observe the DUT's RGMII TX frame.
+            //------------------------------------------------------------------
+            begin : interrupted_tx_watch
+                watch_tx_frame(
+                    interrupted_tx_start,
+                    interrupted_tx_end);
+            end
+
+            //------------------------------------------------------------------
+            // Program descriptors and start TX + RX DMA together.
+            //------------------------------------------------------------------
+            begin : interrupted_dma_start
+                interrupted_sequence.start(env.axil_ag.sqr);
+            end
+
+            //------------------------------------------------------------------
+            // External RX stimulus.
+            //
+            // Wait until TX is physically active, then start the independent
+            // RX frame. This creates real simultaneous RGMII TX/RX traffic.
+            //------------------------------------------------------------------
+            begin : interrupted_rx_drive
+
+                int unsigned rx_wait_cycles;
+
+                rx_wait_cycles = 0;
+
+                while ((rgmii_vif.tx_ctl !== 1'b1) &&
+                       (rx_wait_cycles < 5000)) begin
+                    @(posedge rgmii_vif.bfm_rx_clk);
+                    rx_wait_cycles++;
+                end
+
+                if (rgmii_vif.tx_ctl !== 1'b1) begin
+                    `uvm_error("FD_RESET",
+                        "PHASE1: RGMII TX did not start")
+                end
+                else begin
+
+                    repeat (4)
+                        @(posedge rgmii_vif.bfm_rx_clk);
+
+                    drive_rx_frame(
+                        interrupted_rx_start,
+                        interrupted_rx_end);
+                end
+            end
+
+            //------------------------------------------------------------------
+            // RESET CONTROLLER
+            //
+            // Do not use a fixed absolute delay.
+            // Wait until both physical TX and RX are genuinely active.
+            //------------------------------------------------------------------
+            begin : reset_controller
+
+
+                controller_wait_cycles = 0;
+
+                while (!((rgmii_vif.tx_ctl === 1'b1) &&
+                         (rgmii_vif.bfm_rx_ctl === 1'b1)) &&
+                       (controller_wait_cycles < 5000)) begin
+
+                    @(posedge rgmii_vif.bfm_rx_clk);
+                    controller_wait_cycles++;
+                end
+
+                if (!((rgmii_vif.tx_ctl === 1'b1) &&
+                      (rgmii_vif.bfm_rx_ctl === 1'b1))) begin
+
+                    `uvm_error("FD_RESET",
+                        "PHASE1: failed to obtain simultaneous RGMII TX/RX activity")
+                end
+                else begin
+
+                    both_directions_active = 1'b1;
+
+                    `uvm_info("FD_RESET",
+                        $sformatf(
+                            "PHASE1: simultaneous RGMII TX/RX detected at %0t",
+                            $time),
+                        UVM_LOW)
+
+                    // Move into the frame rather than resetting exactly
+                    // at the first active edge.
+                    repeat (8)
+                        @(posedge rgmii_vif.bfm_rx_clk);
+
+                    `uvm_info("FD_RESET_INJECT",
+                        $sformatf(
+                            "Injecting reset during active full-duplex traffic at %0t",
+                            $time),
+                        UVM_LOW)
+
+                    reset_sequence =
+                        eth_reset_seq::type_id::create(
+                            "mid_traffic_reset_sequence");
+
+                    reset_injected = 1'b1;
+
+                    reset_sequence.start(env.reset_ag.sqr);
+
+                    `uvm_info("FD_RESET_INJECT",
+                        $sformatf(
+                            "Mid-traffic reset completed at %0t",
+                            $time),
+                        UVM_LOW)
+                end
+            end
+
+        join_none
+
+        //------------------------------------------------------------------
+        // The short AXI-Lite programming sequence must NOT terminate
+        // Phase 1.  Wait specifically for the reset controller.
+        //------------------------------------------------------------------
+        begin : wait_for_mid_traffic_reset
+
+            int unsigned reset_wait_cycles;
+
+            reset_wait_cycles = 0;
+
+            while ((!reset_injected) &&
+                   (reset_wait_cycles < 6000)) begin
+                @(posedge rgmii_vif.bfm_rx_clk);
+                reset_wait_cycles++;
+            end
+
+            if (!reset_injected) begin
+
+                `uvm_error("FD_RESET",
+                    "PHASE1: reset controller did not inject reset")
+
+                disable interrupted_traffic;
+            end
+            else begin
+
+                //------------------------------------------------------------------
+                // reset_injected is set immediately before reset_sequence.start().
+                // Therefore wait until reset is actually asserted and then
+                // deasserted before terminating the interrupted traffic.
+                //------------------------------------------------------------------
+                wait (env.reset_ag.drv.vif.rst_n === 1'b0);
+                wait (env.reset_ag.drv.vif.rst_n === 1'b1);
+
+                `uvm_info("FD_RESET",
+                    $sformatf(
+                        "PHASE1: observed completion of injected reset at %0t",
+                        $time),
+                    UVM_LOW)
+
+                disable interrupted_traffic;
+
+                rgmii_vif.bfm_rx_ctl = 1'b0;
+                rgmii_vif.bfm_rxd    = 4'h0;
+
+                `uvm_info("FD_RESET",
+                    "PHASE1: interrupted traffic terminated after reset",
+                    UVM_LOW)
+            end
+        end
+
+        if (!both_directions_active)
+            `uvm_error("FD_RESET",
+                "PHASE1: test never reached simultaneous TX/RX activity")
+
+        //------------------------------------------------------------------
+        // Give all reset domains time to settle.
+        //------------------------------------------------------------------
+        repeat (20)
+            @(posedge env.axi_ag.drv.vif.aclk);
+
+        rgmii_vif.bfm_rx_ctl = 1'b0;
+        rgmii_vif.bfm_rxd    = 4'h0;
+
+        //------------------------------------------------------------------
+        // PHASE 2:
+        // Recovery transaction.
+        //
+        // Use DIFFERENT descriptor addresses. This is intentional:
+        // stale pre-reset descriptors become observable.
+        //------------------------------------------------------------------
+        clear_observation();
+
+        for (int unsigned byte_index = 0;
+             byte_index < 64;
+             byte_index++) begin
+
+            env.axi_ag.drv.mem[
+                64'h0000_0000_0000_3000 + byte_index]
+                = byte_index[7:0];
+
+            env.axi_ag.drv.mem[
+                64'h0000_0000_0000_4000 + byte_index]
+                = 8'hA5;
+        end
+
+        recovery_sequence =
+            eth_full_duplex_frame_seq::type_id::create(
+                "recovery_sequence");
+
+        recovery_sequence.tx_address   = 32'h0000_3000;
+        recovery_sequence.rx_address   = 32'h0000_4000;
+        recovery_sequence.frame_length = 32'd64;
+
+        `uvm_info("FD_RESET_RECOVERY",
+            "PHASE2: starting recovery traffic TX=0x3000 RX=0x4000",
+            UVM_LOW)
+
+        fork
+
+            begin
+                watch_tx_frame(
+                    recovery_tx_start,
+                    recovery_tx_end);
+            end
+
+            begin
+                recovery_sequence.start(env.axil_ag.sqr);
+            end
+
+            begin
+
+                int unsigned timeout_cycles;
+
+                timeout_cycles = 0;
+
+                while ((rgmii_vif.tx_ctl !== 1'b1) &&
+                       (timeout_cycles < 5000)) begin
+
+                    @(posedge rgmii_vif.bfm_rx_clk);
+                    timeout_cycles++;
+                end
+
+                if (rgmii_vif.tx_ctl !== 1'b1) begin
+
+                    `uvm_error("FD_RESET_RECOVERY",
+                        "Recovery RGMII TX did not start")
+                end
+                else begin
+
+                    repeat (4)
+                        @(posedge rgmii_vif.bfm_rx_clk);
+
+                    drive_rx_frame(
+                        recovery_rx_start,
+                        recovery_rx_end);
+                end
+            end
+
+        join
+
+        //------------------------------------------------------------------
+        // Recovery must complete exactly like a clean full-duplex transfer.
+        //------------------------------------------------------------------
+        wait_for_completion();
+
+        check_results(
+            recovery_tx_start,
+            recovery_tx_end,
+            recovery_rx_start,
+            recovery_rx_end,
+            64'h0000_0000_0000_3000,
+            64'h0000_0000_0000_4000);
+
+        `uvm_info("FD_RESET_RESULT",
+            "Reset recovery checks completed; inspect UVM error count for final status",
+            UVM_LOW)
+
+        rgmii_vif.bfm_rx_ctl      = 1'b0;
+        rgmii_vif.bfm_rxd         = 4'h0;
+        rgmii_vif.loopback_enable = 1'b1;
+
+        phase.drop_objection(this);
+
+    endtask
+
+endclass

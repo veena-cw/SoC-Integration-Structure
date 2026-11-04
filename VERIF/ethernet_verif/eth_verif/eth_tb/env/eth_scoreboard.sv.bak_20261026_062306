@@ -1,0 +1,113 @@
+class eth_scoreboard extends uvm_scoreboard;
+
+    `uvm_component_utils(eth_scoreboard)
+
+    int errors;
+
+    bit enable_rx_scoreboard = 1'b0;
+
+    byte unsigned expected_rx_bytes[$];
+
+    bit expected_rx_valid = 1'b0;
+
+    int unsigned rx_frames_checked = 0;
+
+    uvm_analysis_imp #(eth_frame_item, eth_scoreboard) rx_imp;
+
+    function new(string name, uvm_component parent);
+        super.new(name, parent);
+        rx_imp = new("rx_imp", this);
+    endfunction
+
+    function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+
+        void'(uvm_config_db#(bit)::get(
+            this, "", "enable_rx_scoreboard",
+            enable_rx_scoreboard
+        ));
+
+        `uvm_info("ETH_SCB_CFG",
+            $sformatf("RX scoreboard enable=%0b",
+                      enable_rx_scoreboard),
+            UVM_LOW)
+    endfunction
+
+    function void set_expected_rx(
+        input byte unsigned payload[$]
+    );
+        expected_rx_bytes = payload;
+        expected_rx_valid = 1'b1;
+    endfunction
+
+    function void write(eth_frame_item frame);
+        byte unsigned expected_array[];
+        byte unsigned actual_array[];
+        int previous_errors;
+
+        if (!enable_rx_scoreboard)
+            return;
+
+        if (!expected_rx_valid) begin
+            errors++;
+            `uvm_error("ETH_RX_SCB",
+                "Unexpected RX frame: no expected frame registered")
+            return;
+        end
+
+        if (rx_frames_checked != 0) begin
+            errors++;
+            `uvm_error("ETH_RX_SCB",
+                "Unexpected additional RX frame")
+            return;
+        end
+
+        expected_array = new[expected_rx_bytes.size()];
+        actual_array   = new[frame.data.size()];
+
+        foreach (expected_array[i])
+            expected_array[i] = expected_rx_bytes[i];
+
+        foreach (actual_array[i])
+            actual_array[i] = frame.data[i];
+
+        previous_errors = errors;
+
+        compare_bytes(expected_array, actual_array);
+
+        rx_frames_checked++;
+
+        if (errors == previous_errors)
+            `uvm_info("ETH_RX_SCB",
+                $sformatf("PASS RX frame bytes=%0d",
+                          actual_array.size()),
+                UVM_LOW)
+    endfunction
+
+    function void compare_bytes(
+        byte unsigned expected_bytes[],
+        byte unsigned actual_bytes[]
+    );
+        if (expected_bytes.size() != actual_bytes.size()) begin
+            errors++;
+            `uvm_error("ETH_SCB", "Length mismatch")
+        end
+        else begin
+            foreach (expected_bytes[i]) begin
+                if (expected_bytes[i] !== actual_bytes[i]) begin
+                    errors++;
+                    `uvm_error(
+                        "ETH_SCB",
+                        $sformatf(
+                            "byte[%0d] exp=%02h act=%02h",
+                            i,
+                            expected_bytes[i],
+                            actual_bytes[i]
+                        )
+                    )
+                end
+            end
+        end
+    endfunction
+
+endclass

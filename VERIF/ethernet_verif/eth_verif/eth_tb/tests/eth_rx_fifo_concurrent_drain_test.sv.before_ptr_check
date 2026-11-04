@@ -1,0 +1,463 @@
+class eth_rx_fifo_concurrent_drain_test
+    extends eth_rx_fifo_overflow_recovery_test;
+
+    `uvm_component_utils(eth_rx_fifo_concurrent_drain_test)
+
+    localparam int unsigned N_RETAINED = 8;
+    localparam int unsigned DROP_ID = 9;
+    localparam int unsigned FRESH_ID = 40;
+    localparam int unsigned BYTES_PER_FRAME = 1024;
+    localparam bit [31:0] DMA_BASE = 32'h0040_0000;
+
+    int unsigned good_count;
+    int unsigned overflow_pulses;
+    int unsigned completed_count;
+    int unsigned accepted_count;
+
+    int unsigned out_frames;
+    int unsigned out_beats;
+    int unsigned source_drop_beats;
+    int unsigned overlap_beats;
+    int unsigned full_cleared_during_drop;
+    int unsigned drop_started;
+    int unsigned drop_ended;
+    int unsigned errors_seen;
+
+    bit drop_seen;
+    bit drain_enabled;
+    bit dropped_frame_done;
+
+    function new(
+        string name = "eth_rx_fifo_concurrent_drain_test",
+        uvm_component parent = null
+    );
+        super.new(name, parent);
+    endfunction
+
+    task automatic fail(string id, string msg);
+        errors_seen++;
+        `uvm_error(id, msg)
+    endtask
+
+    task automatic program_dma(input int unsigned index);
+        eth_rx_only_dma_seq cfg;
+
+        cfg = eth_rx_only_dma_seq::type_id::create(
+            $sformatf("concurrent_cfg_%0d", index)
+        );
+
+        cfg.rx_base = DMA_BASE + index * 32'h1000;
+        cfg.rx_length = BYTES_PER_FRAME;
+
+        cfg.start(env.axil_ag.sqr);
+    endtask
+
+    task automatic check_dma(
+        input int unsigned index,
+        input int unsigned frame_id
+    );
+        bit match;
+        bit [31:0] addr;
+        byte unsigned actual;
+        byte unsigned expected;
+
+        match = 1;
+
+        for (int unsigned i = 0; i < BYTES_PER_FRAME; i++) begin
+            addr = DMA_BASE + index * 32'h1000 + i;
+            expected = payload_byte(frame_id, i);
+
+            if (!env.axi_ag.drv.mem.exists(addr)) begin
+                fail(
+                    "CONCURRENT_MISSING",
+                    $sformatf(
+                        "frame=%0d offset=%0d address=%08h missing",
+                        frame_id, i, addr
+                    )
+                );
+                match = 0;
+                break;
+            end
+
+            actual = env.axi_ag.drv.mem[addr];
+
+            if (actual !== expected) begin
+                fail(
+                    "CONCURRENT_DATA",
+                    $sformatf(
+                        "frame=%0d offset=%0d got=%02h expected=%02h",
+                        frame_id, i, actual, expected
+                    )
+                );
+                match = 0;
+                break;
+            end
+        end
+
+        if (match)
+            `uvm_info(
+                "CONCURRENT_DMA_MATCH",
+                $sformatf(
+                    "frame=%0d all %0d bytes matched",
+                    frame_id, BYTES_PER_FRAME
+                ),
+                UVM_NONE
+            )
+    endtask
+
+    task automatic observe();
+        fork
+            begin : status_monitor
+                forever begin
+                    @(posedge desc_vif.clk);
+
+                    if (desc_vif.rx_fifo_good_frame === 1'b1)
+                        good_count++;
+
+                    if (desc_vif.rx_fifo_overflow === 1'b1)
+                        overflow_pulses++;
+
+                    if (desc_vif.wr_valid === 1'b1 &&
+                        desc_vif.wr_ready === 1'b1)
+                        accepted_count++;
+
+                    if (desc_vif.wr_sts_valid === 1'b1) begin
+                        if (desc_vif.wr_sts_error !== 4'b0000)
+                            fail(
+                                "CONCURRENT_DESC_ERROR",
+                                $sformatf(
+                                    "descriptor status=%h",
+                                    desc_vif.wr_sts_error
+                                )
+                            );
+
+                        completed_count++;
+                    end
+                end
+            end
+
+            begin : source_monitor
+                bit previous_drop;
+                previous_drop = 0;
+
+                forever begin
+                    @(negedge desc_vif.rx_fifo_src_clk);
+
+                    if (desc_vif.rx_fifo_drop_active === 1'b1) begin
+                        drop_seen = 1;
+
+                        if (!previous_drop) begin
+                            drop_started++;
+
+                            `uvm_info(
+                                "CONCURRENT_DROP_START",
+                                $sformatf(
+                                    "full=%b depth=%0d commit=%0d",
+                                    desc_vif.rx_fifo_full,
+                                    desc_vif.rx_fifo_depth,
+                                    desc_vif.rx_fifo_depth_commit
+                                ),
+                                UVM_NONE
+                            )
+                        end
+
+                        if (drain_enabled &&
+                            desc_vif.rx_fifo_full === 1'b0)
+                            full_cleared_during_drop++;
+
+                        if (desc_vif.rx_fifo_s_valid === 1'b1 &&
+                            desc_vif.rx_fifo_s_ready === 1'b1)
+                            source_drop_beats++;
+                    end
+
+                    if (previous_drop &&
+                        desc_vif.rx_fifo_drop_active === 1'b0)
+                        drop_ended++;
+
+                    previous_drop =
+                        (desc_vif.rx_fifo_drop_active === 1'b1);
+                end
+            end
+
+            begin : destination_monitor
+                forever begin
+                    @(posedge desc_vif.rx_fifo_m_clk);
+
+                    if (desc_vif.rx_fifo_m_valid === 1'b1 &&
+                        desc_vif.rx_fifo_m_ready === 1'b1) begin
+
+                        out_beats++;
+
+                        if (desc_vif.rx_fifo_m_last === 1'b1)
+                            out_frames++;
+
+                        if (drain_enabled &&
+                            desc_vif.rx_fifo_drop_active === 1'b1)
+                            overlap_beats++;
+                    end
+                end
+            end
+        join
+    endtask
+
+    task run_phase(uvm_phase phase);
+        int unsigned limit;
+        int unsigned before_complete;
+        int unsigned before_frames;
+
+        phase.raise_objection(this);
+
+        good_count = 0;
+        overflow_pulses = 0;
+        completed_count = 0;
+        accepted_count = 0;
+        out_frames = 0;
+        out_beats = 0;
+        source_drop_beats = 0;
+        overlap_beats = 0;
+        full_cleared_during_drop = 0;
+        drop_started = 0;
+        drop_ended = 0;
+        errors_seen = 0;
+
+        drop_seen = 0;
+        drain_enabled = 0;
+        dropped_frame_done = 0;
+
+        rgmii_vif.loopback_enable = 1'b0;
+        desc_vif.force_wr_not_ready = 1'b0;
+
+        begin
+            eth_reset_seq rst;
+            rst = eth_reset_seq::type_id::create(
+                "concurrent_reset"
+            );
+            rst.start(env.reset_ag.sqr);
+        end
+
+        repeat (30) @(posedge desc_vif.clk);
+
+        desc_vif.force_wr_not_ready = 1'b1;
+
+        fork
+            observe();
+        join_none
+
+        // Prefill RX FIFO while descriptor acceptance is blocked.
+        for (int unsigned id = 1; id <= N_RETAINED; id++) begin
+            drive_frame(id);
+            send_ifg();
+        end
+
+        limit = 0;
+
+        while (good_count < N_RETAINED && limit < 2000) begin
+            @(posedge desc_vif.clk);
+            limit++;
+        end
+
+        if (good_count != N_RETAINED)
+            fail(
+                "CONCURRENT_PREFILL",
+                $sformatf(
+                    "expected %0d good frames, got %0d",
+                    N_RETAINED, good_count
+                )
+            );
+
+        if (drop_seen)
+            fail(
+                "CONCURRENT_EARLY_DROP",
+                "FIFO dropped a frame during prefill"
+            );
+
+        // Release DMA while a frame is being dropped.
+        fork
+            begin : drop_frame_driver
+                drive_frame(DROP_ID);
+                dropped_frame_done = 1;
+                send_ifg();
+            end
+
+            begin : release_and_drain
+                int unsigned wait_cycles;
+                wait_cycles = 0;
+
+                while (!drop_seen && wait_cycles < 20000) begin
+                    @(posedge desc_vif.rx_fifo_src_clk);
+                    wait_cycles++;
+                end
+
+                if (!drop_seen)
+                    fail(
+                        "CONCURRENT_NO_DROP",
+                        "No mid-frame drop detected"
+                    );
+                else if (dropped_frame_done)
+                    fail(
+                        "CONCURRENT_LATE_DROP",
+                        "Drop observed after frame ended"
+                    );
+                else begin
+                    @(negedge desc_vif.clk);
+                    drain_enabled = 1;
+                    desc_vif.force_wr_not_ready = 1'b0;
+
+                    `uvm_info(
+                        "CONCURRENT_RELEASE",
+                        "Released DMA stall during dropped frame",
+                        UVM_NONE
+                    )
+                end
+
+                for (int unsigned i = 0; i < N_RETAINED; i++) begin
+                    int unsigned target;
+                    target = i + 1;
+
+                    program_dma(i);
+
+                    wait_cycles = 0;
+
+                    while (accepted_count < target &&
+                           wait_cycles < 20000) begin
+                        @(posedge desc_vif.clk);
+                        wait_cycles++;
+                    end
+
+                    if (accepted_count < target)
+                        fail(
+                            "CONCURRENT_DESC_ACCEPT",
+                            $sformatf(
+                                "descriptor %0d not accepted",
+                                target
+                            )
+                        );
+                end
+            end
+        join
+
+        limit = 0;
+
+        while (completed_count < N_RETAINED &&
+               limit < 100000) begin
+            @(posedge desc_vif.clk);
+            limit++;
+        end
+
+        if (completed_count != N_RETAINED)
+            fail(
+                "CONCURRENT_DRAIN_TIMEOUT",
+                $sformatf(
+                    "completed=%0d expected=%0d",
+                    completed_count, N_RETAINED
+                )
+            );
+
+        repeat (100) @(posedge desc_vif.clk);
+
+        for (int unsigned i = 0; i < N_RETAINED; i++)
+            check_dma(i, i + 1);
+
+        if (out_frames != N_RETAINED)
+            fail(
+                "CONCURRENT_FRAME_COUNT",
+                $sformatf(
+                    "output TLAST=%0d expected=%0d",
+                    out_frames, N_RETAINED
+                )
+            );
+
+        if (overlap_beats == 0)
+            fail(
+                "CONCURRENT_NO_OVERLAP",
+                "No FIFO output handshake during active drop"
+            );
+
+        if (full_cleared_during_drop == 0)
+            fail(
+                "CONCURRENT_NO_FULL_CLEAR",
+                "FIFO full did not clear before drop ended"
+            );
+
+        if (source_drop_beats == 0 ||
+            drop_started != 1 ||
+            drop_ended != 1)
+            fail(
+                "CONCURRENT_DROP_COVERAGE",
+                $sformatf(
+                    "source_beats=%0d starts=%0d ends=%0d",
+                    source_drop_beats,
+                    drop_started,
+                    drop_ended
+                )
+            );
+
+        if (overflow_pulses != 1)
+            fail(
+                "CONCURRENT_OVERFLOW_COUNT",
+                $sformatf(
+                    "overflow=%0d expected=1",
+                    overflow_pulses
+                )
+            );
+
+        // Verify recovery without reset.
+        before_complete = completed_count;
+        before_frames = out_frames;
+
+        program_dma(N_RETAINED);
+        drive_frame(FRESH_ID);
+
+        limit = 0;
+
+        while (completed_count < before_complete + 1 &&
+               limit < 30000) begin
+            @(posedge desc_vif.clk);
+            limit++;
+        end
+
+        if (completed_count != before_complete + 1)
+            fail(
+                "CONCURRENT_FRESH_TIMEOUT",
+                "Fresh frame DMA did not complete"
+            );
+        else
+            check_dma(N_RETAINED, FRESH_ID);
+
+        repeat (100) @(posedge desc_vif.clk);
+
+        if (out_frames != before_frames + 1)
+            fail(
+                "CONCURRENT_FRESH_COUNT",
+                "Fresh frame did not produce exactly one output frame"
+            );
+
+        `uvm_info(
+            "CONCURRENT_SUMMARY",
+            $sformatf(
+                "drop_start=%0d drop_end=%0d overlap=%0d full_clear=%0d overflow=%0d frames=%0d completed=%0d errors=%0d",
+                drop_started,
+                drop_ended,
+                overlap_beats,
+                full_cleared_during_drop,
+                overflow_pulses,
+                out_frames,
+                completed_count,
+                errors_seen
+            ),
+            UVM_NONE
+        )
+
+        desc_vif.force_wr_not_ready = 1'b0;
+
+        if (errors_seen == 0)
+            `uvm_info(
+                "CONCURRENT_PASS",
+                "Concurrent drain and recovery checks passed",
+                UVM_NONE
+            )
+
+        phase.drop_objection(this);
+    endtask
+
+endclass

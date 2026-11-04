@@ -1,0 +1,91 @@
+package eth_uvm_pkg; import uvm_pkg::*; `include "uvm_macros.svh"    //Declares the package that collects the Ethernet UVM classes.
+`include "agent/eth_axil_item.sv"                                    //Includes this dependency in the UVM package compilation.
+`include "agent/eth_axi_item.sv"
+`include "agent/eth_axi_cov_event.sv"                                     //Includes this dependency in the UVM package compilation.
+`include "agent/eth_descriptor_item.sv"                              //Includes this dependency in the UVM package compilation.
+`include "agent/eth_frame_item.sv"                                   //Includes this dependency in the UVM package compilation.
+`include "agent/eth_reset_item.sv"                                   //Includes this dependency in the UVM package compilation.
+`include "agent/eth_axil_sequencer.sv"                               //Includes this dependency in the UVM package compilation.
+`include "agent/eth_axi_sequencer.sv"                                //Includes this dependency in the UVM package compilation.
+`include "agent/eth_reset_sequencer.sv"                              //Includes this dependency in the UVM package compilation.
+`include "agent/eth_axil_driver.sv"                                  //Includes this dependency in the UVM package compilation.
+`include "agent/eth_axi_driver.sv"                                   //Includes this dependency in the UVM package compilation.
+`include "agent/eth_reset_driver.sv"                                 //Includes this dependency in the UVM package compilation.
+`include "agent/eth_axil_monitor.sv"                                 //Includes this dependency in the UVM package compilation.
+`include "agent/eth_axi_monitor.sv"                                  //Includes this dependency in the UVM package compilation.
+`include "agent/eth_irq_monitor.sv"                                  //Includes this dependency in the UVM package compilation.
+`include "agent/eth_reset_monitor.sv"                                //Includes this dependency in the UVM package compilation.
+`include "agent/eth_rgmii_monitor.sv"                                //Includes this dependency in the UVM package compilation.
+`include "agent/eth_axis_tx_monitor.sv"                               //Includes the passive DMA-to-MAC TX AXI-Stream monitor.
+`include "agent/eth_axis_rx_monitor.sv"
+`include "agent/eth_axil_agent.sv"                                   //Includes this dependency in the UVM package compilation.
+`include "agent/eth_axi_agent.sv"                                    //Includes this dependency in the UVM package compilation.
+`include "agent/eth_reset_agent.sv"                                  //Includes this dependency in the UVM package compilation.
+`include "agent/eth_rgmii_agent.sv"                                  //Includes this dependency in the UVM package compilation.
+`include "ral/eth_dma_reg_block.sv"                                  //Includes this dependency in the UVM package compilation.
+`include "ral/eth_axil_reg_adapter.sv"                               //Includes this dependency in the UVM package compilation.
+`include "env/eth_ral_env.sv"                                        //Includes this dependency in the UVM package compilation.
+`include "env/eth_scoreboard.sv"                                     //Includes this dependency in the UVM package compilation.
+`include "env/eth_coverage.sv"                                       //Includes this dependency in the UVM package compilation.
+`include "env/eth_env.sv"                                            //Includes this dependency in the UVM package compilation.
+`include "tests/eth_basic_sequences.sv"                              //Includes this dependency in the UVM package compilation.
+`include "tests/eth_base_test.sv"                                    //Includes this dependency in the UVM package compilation.
+`include "tests/eth_csr_smoke_test.sv"                               //Includes this dependency in the UVM package compilation.
+
+`include "tests/eth_csr_random_seq.sv"
+`include "tests/eth_csr_random_test.sv"
+`include "tests/eth_tx_basic_test.sv"                                //Includes this dependency in the UVM package compilation.
+`include "tests/eth_tx_axi_read_reset_test.sv"
+`include "tests/eth_rx_basic_test.sv"                                //Includes this dependency in the UVM package compilation.
+`include "tests/eth_tx_rx_parallel_test.sv"
+`include "tests/eth_tx_rx_parallel_irq_test.sv"  // Full-duplex TX/RX directed scenarios.
+`include "tests/eth_full_duplex_test.sv"
+`include "tests/eth_full_duplex_reset_test.sv"
+    `include "tests/eth_full_duplex_backpressure_test.sv"
+`include "tests/eth_full_duplex_back_to_back_test.sv"
+`include "tests/eth_dma_desc_asym_ready_test.sv"
+`include "tests/eth_dma_desc_asym_reverse_test.sv"
+`include "tests/eth_rx_axi_write_reset_test.sv"
+`include "tests/eth_full_duplex_dma_reset_test.sv"
+`include "tests/eth_tx_variable_length_test.sv"
+    `include "tests/eth_rx_variable_length_test.sv"
+    `include "tests/eth_rx_only_irq_test.sv"
+`include "tests/eth_rx_bad_fcs_test.sv"
+    `include "tests/eth_rx_bad_to_good_recovery_test.sv"
+`include "tests/eth_rx_good_bad_good_recovery_test.sv"
+`include "tests/eth_rx_dma_length_mismatch_test.sv"
+    `include "tests/eth_rx_dma_early_tlast_test.sv"
+
+`include "tests/eth_rx_fifo_overflow_recovery_test.sv"
+`include "tests/eth_rx_fifo_concurrent_drain_test.sv"
+`include "tests/eth_rx_fifo_random_backpressure_test.sv"
+`include "tests/eth_rx_bad_descriptor_probe_test.sv"
+`include "tests/eth_rx_variable_length_recovery_test.sv"
+`include "tests/eth_rx_two_bad_to_good_recovery_test.sv"
+`include "tests/eth_rx_fragment_test.sv"
+    `include "tests/eth_rx_preamble_error_test.sv"
+`include "tests/eth_rx_framing_error_test.sv"
+`include "tests/eth_rx_oversize_test.sv"
+`include "tests/eth_parallel_same_length_test.sv"
+    `include "tests/eth_parallel_different_length_test.sv"
+`include "tests/eth_parallel_multi_frame_test.sv"
+`include "tests/eth_tx_axi_slverr_test.sv"
+`include "tests/eth_tx_axi_decerr_test.sv"
+`include "tests/eth_tx_dma_error_recovery_test.sv"
+`include "tests/eth_tx_dma_rd_err_bug_test.sv"
+    `include "tests/eth_rx_dma_error_recovery_test.sv"
+`include "tests/eth_tx_rx_dma_error_recovery_test.sv"
+`include "tests/eth_tx_rx_dma_recovery_integrity_test.sv"
+`include "tests/eth_dma_burst_backpressure_test.sv"
+`include "tests/eth_dma_bp_short_test.sv"
+`include "tests/eth_dma_bp_one_cycle_test.sv"
+`include "tests/eth_dma_bp_bvalid_zero_test.sv"
+`include "tests/eth_dma_bp_medium_test.sv"
+`include "tests/eth_dma_bp_long_test.sv"
+
+`include "tests/eth_dma_unaligned_boundary_test.sv"
+`include "tests/eth_dma_4kb_boundary_test.sv"
+`include "tests/eth_dma_length_mismatch_tests.sv"
+`include "tests/eth_rx_axi_slverr_test.sv"
+`include "tests/eth_rx_axi_decerr_test.sv"
+endpackage

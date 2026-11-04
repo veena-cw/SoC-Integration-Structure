@@ -1,0 +1,15 @@
+`verilator_config
+
+// Exclude UVM library code
+coverage_off -file "*uvm-1.1d/src/*"
+
+// Exclude Ethernet verification environment
+coverage_off -file "*eth_tb/tests/*"
+coverage_off -file "*eth_tb/agent/*"
+coverage_off -file "*eth_tb/env/*"
+coverage_off -file "*eth_tb/sequences/*"
+coverage_off -file "*eth_tb/top/*"
+coverage_off -file "*eth_tb/interfaces/*"
+
+coverage_off -file "*eth_tb_top.sv"
+coverage_off -file "*verilated_std.sv"

@@ -1,0 +1,298 @@
+class eth_tx_dma_rd_err_bug_test extends eth_base_test;
+    `uvm_component_utils(eth_tx_dma_rd_err_bug_test)
+
+    virtual eth_irq_if        irq_vif;
+    virtual eth_desc_debug_if desc_vif;
+
+    int unsigned rd_req_count;
+    int unsigned rd_sts_count;
+    bit [3:0] rd_sts_errors[$];
+
+    bit failed;
+    bit dma_rd_err_seen;
+
+    function new(string name = "eth_tx_dma_rd_err_bug_test",
+                 uvm_component parent = null);
+        super.new(name, parent);
+    endfunction
+
+    function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+
+        if (!uvm_config_db#(virtual eth_irq_if)::get(
+                this, "", "vif", irq_vif))
+            `uvm_fatal("RECOVERY_VIF", "IRQ interface unavailable")
+
+        if (!uvm_config_db#(virtual eth_desc_debug_if)::get(
+                this, "", "desc_debug_vif", desc_vif))
+            `uvm_fatal("RECOVERY_VIF", "Descriptor interface unavailable")
+    endfunction
+
+
+
+    task automatic csr_write(
+        input bit [31:0] addr,
+        input bit [31:0] data
+    );
+        eth_irq002_access_seq seq;
+
+        seq = eth_irq002_access_seq::type_id::create("csr_write_seq");
+        seq.wr   = 1'b1;
+        seq.addr = addr;
+        seq.data = data;
+        seq.start(env.axil_ag.sqr);
+
+        if (seq.resp !== 2'b00) begin
+            failed = 1'b1;
+            `uvm_error("RECOVERY_CSR",
+                $sformatf("Write failed addr=%08h resp=%02b",
+                          addr, seq.resp))
+        end
+    endtask
+
+    task automatic csr_read(
+        input bit [31:0] addr,
+        output bit [31:0] data
+    );
+        eth_irq002_access_seq seq;
+
+        seq = eth_irq002_access_seq::type_id::create("csr_read_seq");
+        seq.wr   = 1'b0;
+        seq.addr = addr;
+        seq.data = 32'h0;
+        seq.start(env.axil_ag.sqr);
+
+        data = seq.data;
+
+        if (seq.resp !== 2'b00) begin
+            failed = 1'b1;
+            `uvm_error("RECOVERY_CSR",
+                $sformatf("Read failed addr=%08h resp=%02b",
+                          addr, seq.resp))
+        end
+    endtask
+
+    task automatic wait_for_status_count(
+        input int unsigned target,
+        input int unsigned max_cycles
+    );
+        int unsigned cycles;
+
+        cycles = 0;
+
+        while (rd_sts_count < target && cycles < max_cycles) begin
+            @(negedge desc_vif.clk);
+            cycles++;
+        end
+
+        if (rd_sts_count < target) begin
+            failed = 1'b1;
+            `uvm_error("RECOVERY_TIMEOUT",
+                $sformatf("Expected %0d descriptor completions, got %0d",
+                          target, rd_sts_count))
+        end
+    endtask
+
+    task run_phase(uvm_phase phase);
+        eth_reset_seq  reset_seq;
+        eth_tx_dma_seq tx_seq;
+
+        bit [31:0] status;
+        int unsigned initial_error_count;
+
+        phase.raise_objection(this);
+
+        failed = 1'b0;
+        dma_rd_err_seen = 1'b0;
+        rd_req_count = 0;
+        rd_sts_count = 0;
+        rd_sts_errors.delete();
+
+        `uvm_info("RECOVERY",
+            "Starting TX DMA SLVERR recovery test", UVM_LOW)
+
+        reset_seq = eth_reset_seq::type_id::create("reset_seq");
+        reset_seq.start(env.reset_ag.sqr);
+
+        // Monitor descriptor handshakes and completion events
+        // throughout both transactions.
+        fork
+            begin : dma_rd_err_monitor
+                forever begin
+                    @(negedge desc_vif.clk);
+                    if ($root.eth_tb_top.dut.taxi_axi_dma_inst.axi_dma_rd_inst.dma_rd_err === 1'b1)
+                        dma_rd_err_seen = 1'b1;
+                end
+            end
+            begin : descriptor_monitor
+                forever begin
+                    @(posedge desc_vif.clk);
+                    if (desc_vif.rd_valid === 1'b1 &&
+                        desc_vif.rd_ready === 1'b1)
+                        rd_req_count++;
+
+                    if (desc_vif.rd_sts_valid === 1'b1) begin
+                        rd_sts_errors.push_back(desc_vif.rd_sts_error);
+                        rd_sts_count++;
+
+                        `uvm_info("RECOVERY_DESC",
+                            $sformatf(
+                                "Completion=%0d error=%0h",
+                                rd_sts_count,
+                                desc_vif.rd_sts_error),
+                            UVM_LOW)
+                    end
+                end
+            end
+        join_none
+
+        // Initialize source memory.
+        for (int unsigned i = 0; i < 64; i++)
+            env.axi_ag.drv.mem[64'h1000 + i] = i[7:0];
+
+        // -------------------------------------------------
+        // Transaction 1: Inject SLVERR.
+        // -------------------------------------------------
+        env.axi_ag.drv.inject_read_error = 1'b1;
+        env.axi_ag.drv.injected_rresp = 2'b10;
+        env.axi_ag.drv.inject_read_beat = 0;
+
+        initial_error_count =
+            env.axi_ag.drv.injected_read_error_count;
+
+        tx_seq = eth_tx_dma_seq::type_id::create("tx_error_seq");
+        tx_seq.start(env.axil_ag.sqr);
+
+        wait_for_status_count(1, 2000);
+
+        if (rd_sts_count >= 1 &&
+            rd_sts_errors[0] !== 4'h4) begin
+            failed = 1'b1;
+            `uvm_error("RECOVERY_FIRST",
+                $sformatf("Expected SLVERR descriptor status 4, got %0h",
+                          rd_sts_errors[0]))
+        end
+
+        if (env.axi_ag.drv.injected_read_error_count <=
+            initial_error_count) begin
+            failed = 1'b1;
+            `uvm_error("RECOVERY_INJECT",
+                "No injected SLVERR handshake observed")
+        end
+
+        // Check read-error output after injected SLVERR.
+        if (rd_sts_count >= 1 &&
+            rd_sts_errors[0] === 4'h4 &&
+            env.axi_ag.drv.injected_read_error_count > initial_error_count) begin
+
+            if (!dma_rd_err_seen) begin
+                failed = 1'b1;
+                `uvm_error("DMA_RD_ERR_BUG",
+                    "RTL BUG: SLVERR descriptor completed, but dma_rd_err never asserted")
+            end
+            else begin
+                `uvm_info("DMA_RD_ERR_PASS",
+                    "dma_rd_err asserted after SLVERR", UVM_LOW)
+            end
+        end
+
+        // Wait for the DMA error event to cross into the
+        // AXI-Lite interrupt/status clock domain.
+        begin
+            int unsigned irq_wait_cycles;
+            bit error_irq_seen;
+
+            irq_wait_cycles = 0;
+            error_irq_seen = 0;
+
+            while (irq_wait_cycles < 2000) begin
+                @(negedge irq_vif.clk);
+                irq_wait_cycles++;
+
+                if (irq_vif.irq_dma_err === 1'b1) begin
+                    error_irq_seen = 1'b1;
+                    break;
+                end
+            end
+
+            if (!error_irq_seen) begin
+                failed = 1'b1;
+                `uvm_error("RECOVERY_IRQ_TIMEOUT",
+                    "Timeout waiting for DMA error IRQ after SLVERR")
+            end
+            else begin
+                `uvm_info("RECOVERY_IRQ",
+                    "PASS: DMA error IRQ asserted after SLVERR",
+                    UVM_LOW)
+            end
+        end
+
+        csr_read(32'h0000_000C, status);
+
+        if (status[2] !== 1'b1) begin
+            failed = 1'b1;
+            `uvm_error("RECOVERY_STATUS",
+                "DMA error status not asserted")
+        end
+
+        if (irq_vif.irq_dma_err !== 1'b1) begin
+            failed = 1'b1;
+            `uvm_error("RECOVERY_IRQ",
+                "DMA error IRQ not asserted")
+        end
+
+        // Clear the sticky DMA error.
+        csr_write(32'h0000_000C, 32'h0000_0004);
+
+        csr_read(32'h0000_000C, status);
+
+        if (status[2] !== 1'b0) begin
+            failed = 1'b1;
+            `uvm_error("RECOVERY_CLEAR",
+                "DMA error status did not clear")
+        end
+
+        // -------------------------------------------------
+        // Transaction 2: Disable injection and retry.
+        // No reset is applied between transactions.
+        // -------------------------------------------------
+        env.axi_ag.drv.inject_read_error = 1'b0;
+
+        tx_seq = eth_tx_dma_seq::type_id::create("tx_recovery_seq");
+        tx_seq.start(env.axil_ag.sqr);
+
+        wait_for_status_count(2, 2000);
+
+        if (rd_sts_count >= 2 &&
+            rd_sts_errors[1] !== 4'h0) begin
+            failed = 1'b1;
+            `uvm_error("RECOVERY_SECOND",
+                $sformatf("Expected successful descriptor status 0, got %0h",
+                          rd_sts_errors[1]))
+        end
+
+        if (rd_req_count < 2) begin
+            failed = 1'b1;
+            `uvm_error("RECOVERY_REQUEST",
+                $sformatf("Expected two descriptor handshakes, got %0d",
+                          rd_req_count))
+        end
+
+        csr_read(32'h0000_000C, status);
+
+        if (status[2] !== 1'b0) begin
+            failed = 1'b1;
+            `uvm_error("RECOVERY_REERROR",
+                "DMA error status asserted after successful retry")
+        end
+
+        if (failed)
+            `uvm_error("RECOVERY_FAIL",
+                "TX DMA ERROR RECOVERY TEST FAILED")
+        else
+            `uvm_info("RECOVERY_PASS",
+                "TX DMA ERROR RECOVERY TEST PASSED", UVM_LOW)
+
+        phase.drop_objection(this);
+    endtask
+endclass

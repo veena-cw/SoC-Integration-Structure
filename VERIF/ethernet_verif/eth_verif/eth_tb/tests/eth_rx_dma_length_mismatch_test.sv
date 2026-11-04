@@ -1,0 +1,241 @@
+class eth_rx_dma_length_mismatch_test
+    extends eth_rx_only_irq_test;
+
+    `uvm_component_utils(eth_rx_dma_length_mismatch_test)
+
+    function new(
+        string name = "eth_rx_dma_length_mismatch_test",
+        uvm_component parent = null
+    );
+        super.new(name, parent);
+    endfunction
+
+    task run_phase(uvm_phase phase);
+
+        eth_reset_seq reset_sequence;
+        eth_rx_only_dma_seq rx_sequence;
+
+        int unsigned descriptor_len;
+        int unsigned frame_len;
+        int unsigned expected_bytes;
+        int unsigned timeout_cycles;
+        int unsigned errors;
+
+        byte unsigned expected_payload[$];
+
+        phase.raise_objection(this);
+
+        descriptor_len = 64;
+        frame_len      = 128;
+        expected_bytes = descriptor_len;
+        errors         = 0;
+
+        rx_base = 64'h0000_0000_0000_2000;
+
+        `uvm_info("DMA_MISMATCH",
+            $sformatf(
+                "START descriptor=%0d frame=%0d",
+                descriptor_len, frame_len),
+            UVM_LOW)
+
+        // Reset DUT
+        reset_sequence =
+            eth_reset_seq::type_id::create("reset_sequence");
+
+        reset_sequence.start(env.reset_ag.sqr);
+
+        // Independent RGMII RX stimulus
+        rgmii_vif.loopback_enable = 1'b0;
+        rgmii_vif.bfm_rx_ctl = 1'b0;
+        rgmii_vif.bfm_rxd = 4'h0;
+
+        clear_observation();
+
+        // Initialize destination and guard memory.
+        for (int unsigned i = 0;
+             i < frame_len + 16;
+             i++)
+            env.axi_ag.drv.mem[rx_base + i] = 8'hA5;
+
+        // Program RX DMA descriptor shorter than frame.
+        rx_sequence =
+            eth_rx_only_dma_seq::type_id::create(
+                "rx_sequence");
+
+        rx_sequence.rx_base = rx_base[31:0];
+        rx_sequence.rx_length = descriptor_len;
+
+        rx_sequence.start(env.axil_ag.sqr);
+
+        // AXI-Stream scoreboard expects complete MAC frame.
+        expected_payload.delete();
+
+        for (int unsigned i = 0; i < frame_len; i++)
+            expected_payload.push_back(i[7:0]);
+
+        env.scb.set_expected_rx(expected_payload);
+
+        // Inject longer Ethernet frame.
+        drive_rx_frame(frame_len);
+
+        // Wait for expected useful memory writes.
+        timeout_cycles = 0;
+
+        while ((env.axi_ag.drv.write_byte_count <
+                expected_bytes) &&
+               timeout_cycles < 20000) begin
+
+            @(posedge env.axi_ag.drv.vif.aclk);
+            timeout_cycles++;
+
+        end
+
+        if (env.axi_ag.drv.write_byte_count <
+            expected_bytes) begin
+
+            errors++;
+
+            `uvm_error("DMA_TIMEOUT",
+                "Expected DMA write bytes not observed")
+
+        end
+
+        // Wait for complete RX AXI-Stream frame and TLAST.
+        timeout_cycles = 0;
+
+        while ((env.rx_axis_mon.observed_bytes.size() < frame_len ||
+                env.rx_axis_mon.tlast_count < 1) &&
+               timeout_cycles < 20000) begin
+
+            @(posedge env.axi_ag.drv.vif.aclk);
+            timeout_cycles++;
+
+        end
+
+        if (env.rx_axis_mon.observed_bytes.size() < frame_len ||
+            env.rx_axis_mon.tlast_count < 1) begin
+
+            errors++;
+
+            `uvm_error("DMA_RX_TIMEOUT",
+                $sformatf(
+                    "RX frame incomplete: bytes=%0d expected=%0d TLAST=%0d",
+                    env.rx_axis_mon.observed_bytes.size(),
+                    frame_len,
+                    env.rx_axis_mon.tlast_count))
+
+        end
+
+        // Allow final AXI response and monitor accounting to settle.
+        repeat (30)
+            @(posedge env.axi_ag.drv.vif.aclk);
+
+        // Verify full AXI-Stream frame.
+        if (env.rx_axis_mon.observed_bytes.size() !=
+            frame_len) begin
+
+            errors++;
+
+            `uvm_error("DMA_AXIS",
+                $sformatf(
+                    "Expected %0d AXIS bytes, observed %0d",
+                    frame_len,
+                    env.rx_axis_mon.observed_bytes.size()))
+
+        end
+
+        if (env.rx_axis_mon.tlast_count != 1 ||
+            env.rx_axis_mon.tlast_index != frame_len - 1) begin
+
+            errors++;
+
+            `uvm_error("DMA_TLAST",
+                "Incorrect RX TLAST")
+
+        end
+
+        // Verify DMA does not exceed descriptor length.
+        if (env.axi_ag.drv.write_byte_count !=
+            expected_bytes) begin
+
+            errors++;
+
+            `uvm_error("DMA_BYTE_COUNT",
+                $sformatf(
+                    "Expected %0d useful bytes, observed %0d",
+                    expected_bytes,
+                    env.axi_ag.drv.write_byte_count))
+
+        end
+
+        // Verify permitted DMA bytes.
+        for (int unsigned i = 0;
+             i < expected_bytes;
+             i++) begin
+
+            if (!env.axi_ag.drv.mem.exists(rx_base + i) ||
+                env.axi_ag.drv.mem[rx_base + i] !==
+                    i[7:0]) begin
+
+                errors++;
+
+                `uvm_error("DMA_MEMORY",
+                    $sformatf(
+                        "Mismatch at byte %0d", i))
+
+            end
+
+        end
+
+        // Verify excess frame bytes were discarded.
+        for (int unsigned i = descriptor_len;
+             i < frame_len + 16;
+             i++) begin
+
+            if (!env.axi_ag.drv.mem.exists(rx_base + i) ||
+                env.axi_ag.drv.mem[rx_base + i] !==
+                    8'hA5) begin
+
+                errors++;
+
+                `uvm_error("DMA_GUARD",
+                    $sformatf(
+                        "Unexpected memory write at byte %0d",
+                        i))
+
+            end
+
+        end
+
+        if (env.axi_ag.drv.write_error_seen) begin
+
+            errors++;
+
+            `uvm_error("DMA_PROTOCOL",
+                "AXI memory model reported protocol error")
+
+        end
+
+        `uvm_info("DMA_MISMATCH_SUMMARY",
+            $sformatf(
+                "DESC=%0d FRAME=%0d AXI_BYTES=%0d AXI_BEATS=%0d ERRORS=%0d",
+                descriptor_len,
+                frame_len,
+                env.axi_ag.drv.write_byte_count,
+                env.axi_ag.drv.write_beat_count,
+                errors),
+            UVM_LOW)
+
+        if (errors == 0)
+            `uvm_info("DMA_MISMATCH_PASS",
+                "DMA LENGTH MISMATCH TEST PASSED",
+                UVM_LOW)
+        else
+            `uvm_error("DMA_MISMATCH_FAIL",
+                "DMA LENGTH MISMATCH TEST FAILED")
+
+        phase.drop_objection(this);
+
+    endtask
+
+endclass

@@ -1,0 +1,17 @@
+`timescale 1ns/1ps
+
+interface eth_desc_debug_if(input logic clk);
+
+    logic force_rd_not_ready;
+    logic force_wr_not_ready;
+
+    logic cfg_valid;
+    logic cfg_ready;
+
+    logic rd_valid;
+    logic rd_ready;
+
+    logic wr_valid;
+    logic wr_ready;
+
+endinterface

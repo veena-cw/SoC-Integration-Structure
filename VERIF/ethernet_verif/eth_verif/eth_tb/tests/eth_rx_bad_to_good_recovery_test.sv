@@ -1,0 +1,375 @@
+class eth_rx_bad_to_good_recovery_test extends eth_rx_only_irq_test;
+
+    `uvm_component_utils(eth_rx_bad_to_good_recovery_test)
+
+    virtual eth_desc_debug_if desc_vif;
+
+    localparam longint unsigned RX_ADDR = 64'h2000;
+    localparam int unsigned RX_LEN = 64;
+    localparam byte unsigned GUARD_VALUE = 8'hA5;
+
+    int unsigned bad_fcs_pulse_count;
+    int unsigned bad_frame_pulse_count;
+    int unsigned error_count;
+
+    function new(
+        string name = "eth_rx_bad_to_good_recovery_test",
+        uvm_component parent = null
+    );
+        super.new(name, parent);
+    endfunction
+
+    function void build_phase(uvm_phase phase);
+
+        uvm_config_db#(bit)::set(
+            this,
+            "env.scb",
+            "enable_rx_scoreboard",
+            1'b1
+        );
+
+        super.build_phase(phase);
+
+        if (!uvm_config_db#(virtual eth_desc_debug_if)::get(
+                this, "", "desc_debug_vif", desc_vif))
+            `uvm_fatal("RECOVERY_VIF",
+                       "Unable to obtain eth_desc_debug_if")
+    endfunction
+
+    function automatic byte unsigned expected_good_byte(
+        input int unsigned index
+    );
+        return 8'h80 + index[7:0];
+    endfunction
+
+    task automatic drive_test_frame(input bit corrupt_fcs);
+
+        byte unsigned payload[$];
+        logic [31:0] fcs;
+
+        payload.delete();
+
+        for (int unsigned i = 0; i < RX_LEN; i++) begin
+            if (corrupt_fcs)
+                payload.push_back(8'h20 + i[7:0]);
+            else
+                payload.push_back(expected_good_byte(i));
+        end
+
+        fcs = calculate_ethernet_fcs(payload);
+
+        if (corrupt_fcs)
+            fcs = fcs ^ 32'h0000_0001;
+
+        `uvm_info("RECOVERY_INJECT",
+            $sformatf(
+                "Sending %s frame: length=%0d FCS=%08h",
+                corrupt_fcs ? "BAD-FCS" : "GOOD-FCS",
+                RX_LEN, fcs),
+            UVM_LOW)
+
+        @(negedge rgmii_vif.bfm_rx_clk);
+
+        for (int unsigned i = 0; i < 7; i++)
+            drive_rgmii_byte(8'h55);
+
+        drive_rgmii_byte(8'hD5);
+
+        foreach (payload[i])
+            drive_rgmii_byte(payload[i]);
+
+        drive_rgmii_byte(fcs[7:0]);
+        drive_rgmii_byte(fcs[15:8]);
+        drive_rgmii_byte(fcs[23:16]);
+        drive_rgmii_byte(fcs[31:24]);
+
+        @(negedge rgmii_vif.bfm_rx_clk);
+
+        rgmii_vif.bfm_rx_ctl <= 1'b0;
+        rgmii_vif.bfm_rxd    <= 4'h0;
+
+    endtask
+
+    task run_phase(uvm_phase phase);
+
+        eth_reset_seq reset_sequence;
+        eth_rx_only_dma_seq cfg_seq;
+        byte unsigned expected_data;
+        byte unsigned expected_good_payload[$];
+
+        phase.raise_objection(this);
+
+        error_count = 0;
+        bad_fcs_pulse_count = 0;
+        bad_frame_pulse_count = 0;
+
+        reset_sequence =
+            eth_reset_seq::type_id::create("reset_sequence");
+
+        reset_sequence.start(env.reset_ag.sqr);
+
+        repeat (20)
+            @(posedge env.axi_ag.drv.vif.aclk);
+
+        // Initialize destination and guard bytes once.
+        for (longint unsigned addr = RX_ADDR - 8;
+             addr < RX_ADDR + RX_LEN + 16;
+             addr++)
+            env.axi_ag.drv.mem[addr] = GUARD_VALUE;
+
+        clear_observation();
+
+        // Register the only frame expected to reach RX AXI-Stream.
+        expected_good_payload.delete();
+
+        for (int unsigned i = 0; i < RX_LEN; i++)
+            expected_good_payload.push_back(expected_good_byte(i));
+
+        env.scb.set_expected_rx(expected_good_payload);
+
+        `uvm_info("RECOVERY_SCB_SETUP",
+            $sformatf(
+                "RX scoreboard enabled; expected good payload=%0d bytes",
+                expected_good_payload.size()),
+            UVM_LOW)
+
+        // Configure a single RX descriptor.
+        cfg_seq = eth_rx_only_dma_seq::type_id::create("cfg_seq");
+        cfg_seq.rx_base = RX_ADDR[31:0];
+        cfg_seq.rx_length = RX_LEN;
+        cfg_seq.start(env.axil_ag.sqr);
+
+        rgmii_vif.loopback_enable = 1'b0;
+
+        repeat (30)
+            @(posedge env.axi_ag.drv.vif.aclk);
+
+        `uvm_info("RECOVERY_START",
+            "Starting bad-FCS to good-frame recovery test",
+            UVM_LOW)
+
+        fork
+            begin : frame_sequence
+
+                // Frame 1: invalid FCS.
+                drive_test_frame(1'b1);
+
+                // Initial legal 1 Gb/s inter-frame gap.
+                // One RX clock cycle represents one byte-time.
+                repeat (12)
+                    @(posedge rgmii_vif.bfm_rx_clk);
+
+                // Frame 2: valid FCS, different payload.
+                // No reset or DMA reconfiguration between frames.
+                drive_test_frame(1'b0);
+
+                // Allow MAC, FIFO, CDC and DMA to finish.
+                repeat (1200)
+                    @(posedge env.axi_ag.drv.vif.aclk);
+
+            end
+
+            begin : monitor_bad_fcs
+                forever begin
+                    @(posedge desc_vif.rx_error_bad_fcs);
+                    bad_fcs_pulse_count++;
+                end
+            end
+
+            begin : monitor_bad_frame
+                forever begin
+                    @(posedge desc_vif.rx_error_bad_frame);
+                    bad_frame_pulse_count++;
+                end
+            end
+
+        join_any
+
+        disable fork;
+
+        `uvm_info("RECOVERY_STATUS",
+            $sformatf(
+                "Bad-FCS pulses=%0d Bad-frame pulses=%0d RX bytes=%0d TLAST=%0d DMA bytes=%0d",
+                bad_fcs_pulse_count,
+                bad_frame_pulse_count,
+                env.rx_axis_mon.transfer_count,
+                env.rx_axis_mon.tlast_count,
+                env.axi_ag.drv.write_byte_count),
+            UVM_LOW)
+
+        // The corrupted frame must produce exactly one FCS error.
+        if (bad_fcs_pulse_count != 1) begin
+            error_count++;
+            `uvm_error("RECOVERY_BAD_FCS",
+                $sformatf(
+                    "Expected 1 bad-FCS pulse, got %0d",
+                    bad_fcs_pulse_count))
+        end
+
+        // A bad-FCS packet is also classified as a bad packet.
+        // Expect one bad-frame indication for the corrupted frame.
+        if (bad_frame_pulse_count != 1) begin
+            error_count++;
+            `uvm_error("RECOVERY_BAD_FRAME",
+                $sformatf(
+                    "Expected 1 bad-frame pulse, observed %0d",
+                    bad_frame_pulse_count))
+        end
+
+        // Only the good frame should appear on RX AXI-Stream.
+        if (env.rx_axis_mon.transfer_count != RX_LEN ||
+            env.rx_axis_mon.tlast_count != 1 ||
+            env.rx_axis_mon.tuser_seen) begin
+
+            error_count++;
+
+            `uvm_error("RECOVERY_RX_AXIS",
+                $sformatf(
+                    "Expected 64 bytes, 1 TLAST, no TUSER; got bytes=%0d TLAST=%0d TUSER=%0b",
+                    env.rx_axis_mon.transfer_count,
+                    env.rx_axis_mon.tlast_count,
+                    env.rx_axis_mon.tuser_seen))
+        end
+
+        if (env.rx_axis_mon.observed_bytes.size() != RX_LEN) begin
+
+            error_count++;
+
+            `uvm_error("RECOVERY_AXIS_SIZE",
+                $sformatf(
+                    "Expected %0d bytes, observed %0d",
+                    RX_LEN,
+                    env.rx_axis_mon.observed_bytes.size()))
+
+        end
+        else begin
+
+            for (int unsigned i = 0; i < RX_LEN; i++) begin
+
+                expected_data = expected_good_byte(i);
+
+                if (env.rx_axis_mon.observed_bytes[i] !==
+                    expected_data) begin
+
+                    error_count++;
+
+                    `uvm_error("RECOVERY_AXIS_DATA",
+                        $sformatf(
+                            "Byte %0d expected=%02h actual=%02h",
+                            i,
+                            expected_data,
+                            env.rx_axis_mon.observed_bytes[i]))
+                end
+            end
+        end
+
+        // Verify DMA destination contains only the good frame.
+        for (int unsigned i = 0; i < RX_LEN; i++) begin
+
+            expected_data = expected_good_byte(i);
+
+            if (env.axi_ag.drv.mem[RX_ADDR+i] !== expected_data) begin
+
+                error_count++;
+
+                `uvm_error("RECOVERY_DMA_DATA",
+                    $sformatf(
+                        "Memory 0x%0h expected=%02h actual=%02h",
+                        RX_ADDR+i,
+                        expected_data,
+                        env.axi_ag.drv.mem[RX_ADDR+i]))
+            end
+        end
+
+        // Lower memory guard.
+        for (longint unsigned addr = RX_ADDR - 8;
+             addr < RX_ADDR;
+             addr++) begin
+
+            if (env.axi_ag.drv.mem[addr] !== GUARD_VALUE) begin
+                error_count++;
+                `uvm_error("RECOVERY_GUARD",
+                    $sformatf(
+                        "Lower guard corrupted at 0x%0h", addr))
+            end
+        end
+
+        // Upper memory guard.
+        for (longint unsigned addr = RX_ADDR + RX_LEN;
+             addr < RX_ADDR + RX_LEN + 16;
+             addr++) begin
+
+            if (env.axi_ag.drv.mem[addr] !== GUARD_VALUE) begin
+                error_count++;
+                `uvm_error("RECOVERY_GUARD",
+                    $sformatf(
+                        "Upper guard corrupted at 0x%0h", addr))
+            end
+        end
+
+        // Verify exactly one payload was written.
+        if (env.axi_ag.drv.write_burst_count == 0 ||
+            env.axi_ag.drv.write_byte_count != RX_LEN ||
+            env.axi_ag.drv.write_error_seen) begin
+
+            error_count++;
+
+            `uvm_error("RECOVERY_DMA_WRITE",
+                $sformatf(
+                    "DMA bursts=%0d bytes=%0d error=%0b",
+                    env.axi_ag.drv.write_burst_count,
+                    env.axi_ag.drv.write_byte_count,
+                    env.axi_ag.drv.write_error_seen))
+        end
+
+        if (env.axi_ag.drv.first_write_seen &&
+            env.axi_ag.drv.first_write_addr != RX_ADDR) begin
+
+            error_count++;
+
+            `uvm_error("RECOVERY_DMA_ADDR",
+                $sformatf(
+                    "Expected first write address=0x%0h, actual=0x%0h",
+                    RX_ADDR,
+                    env.axi_ag.drv.first_write_addr))
+        end
+
+        // Scoreboard must verify exactly one good RX frame.
+        if (env.scb.rx_frames_checked != 1 ||
+            env.scb.errors != 0) begin
+
+            error_count++;
+
+            `uvm_error("RECOVERY_SCOREBOARD",
+                $sformatf(
+                    "FAIL: checked=%0d errors=%0d",
+                    env.scb.rx_frames_checked,
+                    env.scb.errors))
+        end
+        else begin
+
+            `uvm_info("RECOVERY_SCOREBOARD",
+                "PASS: Exactly one good RX frame matched",
+                UVM_LOW)
+        end
+
+        if (error_count == 0) begin
+
+            `uvm_info("RECOVERY_PASS",
+                "Bad frame discarded; subsequent good frame received and written correctly",
+                UVM_LOW)
+
+        end
+        else begin
+
+            `uvm_error("RECOVERY_FAIL",
+                $sformatf(
+                    "Bad-to-good recovery failed with %0d check errors",
+                    error_count))
+        end
+
+        phase.drop_objection(this);
+
+    endtask
+
+endclass

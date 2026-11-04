@@ -1,0 +1,165 @@
+class eth_dma_desc_asym_ready_test extends eth_base_test;
+    `uvm_component_utils(eth_dma_desc_asym_ready_test)
+
+    function new(string name = "eth_dma_desc_asym_ready_test",
+                 uvm_component parent = null);
+        super.new(name, parent);
+    endfunction
+
+    task automatic axil_write(
+        bit [31:0] addr,
+        bit [31:0] data
+    );
+        eth_axil_item tr;
+
+        tr = eth_axil_item::type_id::create("desc_asym_axil_write");
+
+        start_axil_item:
+        begin
+            tr.write = 1'b1;
+            tr.addr  = addr;
+            tr.data  = data;
+            tr.strb  = 4'hF;
+
+            env.axil_agent.sequencer.execute_item(tr);
+        end
+
+        if (tr.resp != 2'b00)
+            `uvm_error("DESC_ASYM",
+                $sformatf("AXI-Lite write failed ADDR=%08h DATA=%08h RESP=%0h",
+                          addr, data, tr.resp))
+    endtask
+
+
+    task run_phase(uvm_phase phase);
+        bit case_a_cfg_dropped;
+        bit case_a_wr_lost;
+
+        phase.raise_objection(this);
+
+        `uvm_info("DESC_ASYM",
+            "Starting descriptor asymmetric-ready integration test",
+            UVM_LOW)
+
+        /*
+         * Configure 64-byte TX and RX descriptors.
+         * DMA_CTRL is written separately because it is the commit point.
+         */
+        axil_write(32'h0000_0010, 32'h0000_1000);
+        axil_write(32'h0000_0014, 32'h0000_0000);
+        axil_write(32'h0000_0018, 32'h0000_0040);
+
+        axil_write(32'h0000_001C, 32'h0000_2000);
+        axil_write(32'h0000_0020, 32'h0000_0000);
+        axil_write(32'h0000_0024, 32'h0000_0040);
+
+        /*
+         * CASE A:
+         *
+         * TX descriptor consumer is allowed to become ready.
+         * RX descriptor consumer is deliberately held not-ready.
+         */
+        $root.eth_tb_top.force_wr_desc_not_ready = 1'b1;
+        $root.eth_tb_top.force_rd_desc_not_ready = 1'b0;
+
+        repeat (5) @(posedge $root.eth_tb_top.logic_clk);
+
+        `uvm_info("DESC_ASYM",
+            $sformatf(
+                "CASE_A BEFORE_COMMIT CFG_VALID=%0b CFG_READY=%0b RD_VALID=%0b RD_READY=%0b WR_VALID=%0b WR_READY=%0b",
+                $root.eth_tb_top.dut.dma_cfg_valid_o,
+                $root.eth_tb_top.dut.dma_cfg_ready_i,
+                $root.eth_tb_top.dut.rd_desc_req_if.req_valid,
+                $root.eth_tb_top.dut.rd_desc_req_if.req_ready,
+                $root.eth_tb_top.dut.wr_desc_req_if.req_valid,
+                $root.eth_tb_top.dut.wr_desc_req_if.req_ready),
+            UVM_LOW)
+
+        fork
+            axil_write(32'h0000_0000, 32'h0000_0003);
+        join_none
+
+        wait ($root.eth_tb_top.dut.dma_cfg_valid_o === 1'b1);
+
+        `uvm_info("DESC_ASYM",
+            $sformatf(
+                "CASE_A CONFIG_PRESENT CFG_VALID=%0b CFG_READY=%0b RD_VALID=%0b RD_READY=%0b WR_VALID=%0b WR_READY=%0b",
+                $root.eth_tb_top.dut.dma_cfg_valid_o,
+                $root.eth_tb_top.dut.dma_cfg_ready_i,
+                $root.eth_tb_top.dut.rd_desc_req_if.req_valid,
+                $root.eth_tb_top.dut.rd_desc_req_if.req_ready,
+                $root.eth_tb_top.dut.wr_desc_req_if.req_valid,
+                $root.eth_tb_top.dut.wr_desc_req_if.req_ready),
+            UVM_LOW)
+
+        if (!($root.eth_tb_top.dut.rd_desc_req_if.req_valid &&
+              $root.eth_tb_top.dut.rd_desc_req_if.req_ready))
+            `uvm_error("DESC_ASYM",
+                "CASE_A did not establish TX descriptor handshake")
+
+        if ($root.eth_tb_top.dut.wr_desc_req_if.req_ready !== 1'b0)
+            `uvm_error("DESC_ASYM",
+                "CASE_A RX descriptor READY was not held low")
+
+        @(posedge $root.eth_tb_top.logic_clk);
+        #1ps;
+
+        case_a_cfg_dropped =
+            ($root.eth_tb_top.dut.dma_cfg_valid_o === 1'b0);
+
+        `uvm_info("DESC_ASYM",
+            $sformatf(
+                "CASE_A AFTER_TX_HANDSHAKE CFG_VALID=%0b CFG_READY=%0b RD_VALID=%0b RD_READY=%0b WR_VALID=%0b WR_READY=%0b",
+                $root.eth_tb_top.dut.dma_cfg_valid_o,
+                $root.eth_tb_top.dut.dma_cfg_ready_i,
+                $root.eth_tb_top.dut.rd_desc_req_if.req_valid,
+                $root.eth_tb_top.dut.rd_desc_req_if.req_ready,
+                $root.eth_tb_top.dut.wr_desc_req_if.req_valid,
+                $root.eth_tb_top.dut.wr_desc_req_if.req_ready),
+            UVM_LOW)
+
+        /*
+         * Release RX.  If the shared configuration valid was already
+         * consumed by TX, RX should have no descriptor valid left to accept.
+         */
+        $root.eth_tb_top.force_wr_desc_not_ready = 1'b0;
+
+        repeat (10) @(posedge $root.eth_tb_top.logic_clk);
+        #1ps;
+
+        case_a_wr_lost =
+            case_a_cfg_dropped &&
+            ($root.eth_tb_top.dut.wr_desc_req_if.req_valid === 1'b0);
+
+        `uvm_info("DESC_ASYM",
+            $sformatf(
+                "CASE_A AFTER_RELEASE CFG_VALID=%0b RD_VALID=%0b RD_READY=%0b WR_VALID=%0b WR_READY=%0b",
+                $root.eth_tb_top.dut.dma_cfg_valid_o,
+                $root.eth_tb_top.dut.rd_desc_req_if.req_valid,
+                $root.eth_tb_top.dut.rd_desc_req_if.req_ready,
+                $root.eth_tb_top.dut.wr_desc_req_if.req_valid,
+                $root.eth_tb_top.dut.wr_desc_req_if.req_ready),
+            UVM_LOW)
+
+        if (case_a_wr_lost) begin
+            `uvm_error("DESC_ASYM_LOST_RX",
+                "CASE_A: shared DMA config was acknowledged by TX while RX was not ready; RX descriptor valid disappeared before RX handshake")
+        end
+        else begin
+            `uvm_info("DESC_ASYM_RESULT",
+                "CASE_A did not demonstrate a lost RX descriptor",
+                UVM_LOW)
+        end
+
+        /*
+         * Always release the white-box controls before ending simulation.
+         */
+        $root.eth_tb_top.force_rd_desc_not_ready = 1'b0;
+        $root.eth_tb_top.force_wr_desc_not_ready = 1'b0;
+
+        repeat (5) @(posedge $root.eth_tb_top.logic_clk);
+
+        phase.drop_objection(this);
+    endtask
+
+endclass

@@ -1,0 +1,734 @@
+========== MAKEFILES ==========
+eth_tb/sim/Makefile
+eth_tb/sim/Makefile.backup
+eth_tb/sim/verilator_obj_dir/Veth_tb_top.mk
+eth_tb/sim/verilator_obj_dir/Veth_tb_top_classes.mk
+========== SIM MAKEFILE ==========
+################################################################################
+# Makefile - Ethernet DMA MAC RGMII UVM Environment
+# Based on the I2C APB UVM Makefile layout
+# Supported: Verilator 5.052 + UVM 1.1d, Vivado XSIM 2025.2
+# Targets: verilator, run, regression, cov_merge, coverage_report,
+#          functional_coverage, cov_summary, coverage_all, waveform,
+#          vivado, vivado-nogui, clean
+# NOTE: No designer RTL modifications.
+################################################################################
+
+SHELL := /bin/bash
+
+PROJECT_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
+SIM_DIR      := $(PROJECT_ROOT)/sim
+
+# UVM installation used on the AWS machine.
+REPO_ROOT ?= /home/cw019_sai/uvm-tools/SoC-Integration-Structure
+UVM_HOME  ?= $(REPO_ROOT)/VERIF/uvm-1.1d
+UVM_SRC   := $(UVM_HOME)/src
+UVM_PKG   := $(UVM_SRC)/uvm_pkg.sv
+
+FILELIST := $(SIM_DIR)/eth_tb_filelist.f
+TOP      := eth_tb_top
+TESTNAME ?= eth_csr_smoke_test
+
+################################################################################
+# Verilator
+################################################################################
+VERILATOR_MDIR  := $(SIM_DIR)/verilator_obj_dir
+VERILATOR_EXE   := $(VERILATOR_MDIR)/V$(TOP)
+VERILATOR_STAMP := $(SIM_DIR)/.verilator_build
+VERILATOR_LOG_DIR := $(SIM_DIR)/verilator_log
+
+################################################################################
+# Coverage and regression configuration
+################################################################################
+VERILATOR ?= verilator
+VERILATOR_COVERAGE ?= verilator_coverage
+
+COVERAGE_DIR     := $(VERILATOR_LOG_DIR)/coverage
+COVERAGE_MERGED  := $(COVERAGE_DIR)/coverage.dat
+COVERAGE_INFO    := $(COVERAGE_DIR)/code.info
+COVERAGE_RTL_INFO := $(COVERAGE_DIR)/code_rtl.info
+FUNCTIONAL_INFO := $(COVERAGE_DIR)/functional.info
+FUNCTIONAL_HTML := $(COVERAGE_DIR)/functional_html
+COVERAGE_ANNOTATED := $(COVERAGE_DIR)/annotated
+COVERAGE_SUMMARY := $(COVERAGE_DIR)/summary.txt
+COVERAGE_HTML    := $(COVERAGE_DIR)/html
+
+COVERAGE_CFG ?= $(SIM_DIR)/verilator_coverage.vlt
+ASSERT_ARGS ?=
+REGRESSION_DIR   := $(VERILATOR_LOG_DIR)/regression
+REGRESSION_LIST  ?= $(SIM_DIR)/regression_tests.f
+
+################################################################################
+# Verilator simulation entry points
+################################################################################
+verilator: verilator-sim
+run: verilator-sim
+
+################################################################################
+# Verilator Build
+################################################################################
+verilator-build: $(VERILATOR_STAMP)
+
+$(VERILATOR_STAMP): $(FILELIST) $(UVM_PKG) $(wildcard $(PROJECT_ROOT)/tests/*.sv) $(wildcard $(PROJECT_ROOT)/agent/*.sv) $(wildcard $(PROJECT_ROOT)/env/*.sv)
+	@echo "========================================"
+	@echo "        VERILATOR BUILD"
+	@echo "========================================"
+	@mkdir -p $(VERILATOR_LOG_DIR)
+	@mkdir -p $(COVERAGE_DIR)
+	cd $(SIM_DIR) && \
+	$(VERILATOR) \
+		$(if $(wildcard $(COVERAGE_CFG)),$(COVERAGE_CFG)) \
+		--binary \
+		--timing \
+		--trace \
+		--coverage \
+		--assert \
+		--no-stop-fail \
+		--build-jobs 4 \
+		--threads 4 \
+		--language 1800-2012 \
+		--top-module $(TOP) \
+		-I$(UVM_SRC) \
+		-I$(PROJECT_ROOT) \
+		$(UVM_PKG) \
+		-f $(FILELIST) \
+		+define+UVM_NO_DPI \
+		--Mdir $(VERILATOR_MDIR) \
+		-Wno-WIDTHEXPAND \
+		-Wno-WIDTHTRUNC \
+		-Wno-UNSIGNED \
+		-Wno-PINMISSING \
+		-Wno-IMPLICIT \
+		-Wno-IGNOREDRETURN \
+		-Wno-fatal \
+		> $(VERILATOR_LOG_DIR)/build.log 2>&1 || { \
+			tail -80 $(VERILATOR_LOG_DIR)/build.log; \
+			exit 1; \
+		}
+	@test -x "$(VERILATOR_EXE)" || { \
+		echo "ERROR: Verilator executable was not generated"; \
+		exit 1; \
+	}
+	@touch $@
+
+################################################################################
+# Verilator Simulation
+################################################################################
+verilator-sim: verilator-build
+	@mkdir -p $(VERILATOR_LOG_DIR)
+	@mkdir -p $(COVERAGE_DIR)
+	@echo "========================================"
+	@echo "        VERILATOR SIMULATION"
+	@echo "        TEST = $(TESTNAME)"
+	@echo "        LOG  = $(VERILATOR_LOG_DIR)/$(TESTNAME).log"
+	@echo "========================================"
+	@rm -f "$(SIM_DIR)/coverage.dat"
+	@set -o pipefail; cd $(SIM_DIR) && \
+	$(VERILATOR_EXE) \
+		+UVM_TESTNAME=$(TESTNAME) \
+		$(ASSERT_ARGS) \
+		2>&1 | tee $(VERILATOR_LOG_DIR)/$(TESTNAME).log
+	@if [ -f "$(SIM_DIR)/coverage.dat" ]; then \
+		mv -f "$(SIM_DIR)/coverage.dat" "$(COVERAGE_DIR)/$(TESTNAME).dat"; \
+		echo "Coverage saved to: $(COVERAGE_DIR)/$(TESTNAME).dat"; \
+	else \
+		echo "WARNING: coverage.dat was not generated"; \
+	fi
+
+################################################################################
+# Regression
+################################################################################
+
+regression: verilator-build
+	@mkdir -p $(REGRESSION_DIR)
+	@mkdir -p $(COVERAGE_DIR)
+	@echo "=================================================="
+	@echo "             VERILATOR REGRESSION"
+	@echo "=================================================="
+	@if [ ! -f "$(REGRESSION_LIST)" ]; then \
+		echo "ERROR: Regression list not found: $(REGRESSION_LIST)"; \
+		exit 1; \
+	fi
+	@mkdir -p "$(COVERAGE_DIR)/previous_runs"
+	@find "$(COVERAGE_DIR)" -maxdepth 1 -type f -name "*.dat" -exec mv -t "$(COVERAGE_DIR)/previous_runs" {} +
+	@rm -f "$(COVERAGE_INFO)" "$(COVERAGE_RTL_INFO)" "$(COVERAGE_SUMMARY)"
+	@rm -rf "$(COVERAGE_HTML)"
+	@fail=0; \
+	while IFS= read -r test || [ -n "$$test" ]; do \
+		test=$$(echo "$$test" | sed 's/#.*//' | xargs); \
+		[ -z "$$test" ] && continue; \
+		echo ""; \
+		echo "=================================================="; \
+		echo " Running TEST = $$test"; \
+		echo "=================================================="; \
+		rm -f "$(SIM_DIR)/coverage.dat"; \
+		if (set -o pipefail; cd "$(SIM_DIR)" && $(VERILATOR_EXE) +UVM_TESTNAME=$$test $(ASSERT_ARGS) \
+			2>&1 | tee "$(REGRESSION_DIR)/$$test.log"); then \
+			if ! grep -q "UVM Report Summary" "$(REGRESSION_DIR)/$$test.log" || grep -qE "UVM_(FATAL|ERROR)[[:space:]]*:[[:space:]]*[1-9][0-9]*" \
+				"$(REGRESSION_DIR)/$$test.log"; then \
+				echo ">>> FAIL: $$test"; \
+				fail=1; \
+			else \
+				echo ">>> PASS: $$test"; \
+			fi; \
+			if [ -f "$(SIM_DIR)/coverage.dat" ]; then \
+				mv -f "$(SIM_DIR)/coverage.dat" "$(COVERAGE_DIR)/$$test.dat"; \
+				echo ">>> Coverage saved: $$test.dat"; \
+			else \
+				echo ">>> WARNING: No coverage.dat for $$test"; \
+				fail=1; \
+			fi; \
+		else \
+			echo ">>> FAIL: $$test (simulation failed)"; \
+			fail=1; \
+		fi; \
+	done < "$(REGRESSION_LIST)"; \
+	echo ""; \
+	echo "=================================================="; \
+	echo " Regression complete"; \
+	echo "=================================================="; \
+	if [ $$fail -eq 0 ]; then echo "REGRESSION PASSED"; \
+	else echo "REGRESSION FAILED"; fi; \
+	$(MAKE) --no-print-directory cov_merge || fail=1; \
+	if [ $$fail -ne 0 ]; then exit 1; fi
+
+################################################################################
+# Coverage Merge
+################################################################################
+
+cov_merge:
+	@mkdir -p "$(COVERAGE_DIR)"
+	@echo "========== MERGING PER-TEST COVERAGE =========="
+	@files=$$(find "$(COVERAGE_DIR)" -maxdepth 1 -type f -name '*.dat' ! -name 'coverage.dat' ! -name '*merged.dat' | sort); \
+	if [ -z "$$files" ]; then echo "ERROR: No testcase .dat files found"; exit 1; fi; \
+	$(VERILATOR_COVERAGE) --write "$(COVERAGE_MERGED)" $$files
+	@echo "Merged: $(COVERAGE_MERGED)"
+
+################################################################################
+# Coverage Report - RTL-only line coverage
+################################################################################
+# Include only rtl/ sources. UVM, verification agents and test classes are excluded.
+coverage_report: cov_merge
+	@command -v lcov >/dev/null || { echo 'ERROR: lcov missing'; exit 1; }
+	@command -v genhtml >/dev/null || { echo 'ERROR: genhtml missing'; exit 1; }
+	$(VERILATOR_COVERAGE) --write-info "$(COVERAGE_INFO)" "$(COVERAGE_MERGED)"
+	lcov --extract "$(COVERAGE_INFO)" '*/rtl/*' -o "$(COVERAGE_RTL_INFO)"
+	@echo "========== ETHERNET RTL LINE COVERAGE =========="
+	lcov --summary "$(COVERAGE_RTL_INFO)" | tee "$(COVERAGE_SUMMARY)"
+	@echo "========== MODULE-WISE RTL COVERAGE =========="
+	lcov --list "$(COVERAGE_RTL_INFO)"
+	@rm -rf "$(COVERAGE_HTML)"
+	genhtml "$(COVERAGE_RTL_INFO)" --output-directory "$(COVERAGE_HTML)" --title 'Ethernet DMA RTL Code Coverage' --legend
+	@echo "RTL HTML report: $(COVERAGE_HTML)/index.html"
+
+################################################################################
+# Functional Coverage - SystemVerilog covergroups
+################################################################################
+# Functional coverage is independent of RTL line coverage.
+functional_coverage: cov_merge
+	@command -v genhtml >/dev/null || { echo 'ERROR: genhtml missing'; exit 1; }
+	@echo "========== COVERGROUP COVERAGE =========="
+	$(VERILATOR_COVERAGE) --filter-type covergroup --report summary "$(COVERAGE_MERGED)"
+	$(VERILATOR_COVERAGE) --filter-type covergroup --write-info "$(FUNCTIONAL_INFO)" "$(COVERAGE_MERGED)"
+	@rm -rf "$(FUNCTIONAL_HTML)"
+	genhtml "$(FUNCTIONAL_INFO)" --output-directory "$(FUNCTIONAL_HTML)" --title 'Ethernet DMA Functional Coverage' --legend
+	@echo "Functional HTML report: $(FUNCTIONAL_HTML)/index.html"
+
+################################################################################
+# Coverage Summary - Annotated source
+################################################################################
+cov_summary: cov_merge
+	@echo "========== VERILATOR NATIVE COVERAGE =========="
+	$(VERILATOR_COVERAGE) --annotate "$(COVERAGE_ANNOTATED)" --annotate-all "$(COVERAGE_MERGED)"
+	@echo "Uncovered source points: grep -Rn '%00' $(COVERAGE_ANNOTATED)"
+
+################################################################################
+# Complete Coverage
+################################################################################
+coverage_all: coverage_report functional_coverage cov_summary
+
+################################################################################
+# Waveform
+################################################################################
+WAVEFORM := $(SIM_DIR)/dump.vcd
+
+waveform: verilator-sim
+	@echo "=========================================="
+	@echo "        OPENING GTKWave"
+	@echo "=========================================="
+	@if [ -f "$(WAVEFORM)" ]; then \
+		gtkwave "$(WAVEFORM)" & \
+	else \
+		echo "ERROR: Waveform file not found: $(WAVEFORM)"; \
+		exit 1; \
+	fi
+
+################################################################################
+# Vivado Compile
+################################################################################
+
+vivado-compile:
+	@echo "=============================="
+	@echo " VIVADO COMPILE"
+	@echo "=============================="
+	cd $(SIM_DIR) && \
+	xvlog -sv \
+		-d UVM_NO_DPI \
+		-i $(UVM_SRC) \
+		-i .. \
+		-i ../agent \
+		-i ../interfaces \
+		-i ../sequences \
+		-i ../env \
+		-i ../ral \
+		-i ../tests \
+		-i ../top \
+		$(UVM_PKG) \
+		/opt/Xilinx/2025.2/Vivado/data/verilog/src/glbl.v \
+		-f $(FILELIST) \
+		2>&1 | tee vivado_compile.log
+		
+################################################################################
+# Vivado Elaborate
+################################################################################
+vivado-elab: vivado-compile
+	@echo "=============================="
+	@echo " VIVADO ELABORATE"
+	@echo "=============================="
+	cd $(SIM_DIR) && \
+	xelab $(TOP) glbl \
+		-L unisims_ver \
+		-timescale 1ns/1ps \
+		-s $(TOP)_sim \
+		-debug typical \
+		2>&1 | tee vivado_elab.log
+################################################################################
+# Vivado Simulation
+################################################################################
+vivado: vivado-elab
+	@echo "=============================="
+	@echo " VIVADO SIMULATION"
+	@echo " TEST = $(TESTNAME)"
+	@echo "=============================="
+	cd $(SIM_DIR) && \
+	xsim $(TOP)_sim \
+		--gui \
+		--testplusarg "UVM_TESTNAME=$(TESTNAME)"
+
+vivado-sim:
+	@echo "=============================="
+	@echo " VIVADO SIMULATION"
+	@echo " TEST = $(TESTNAME)"
+	@echo "=============================="
+	cd $(SIM_DIR) && \
+	xsim $(TOP)_sim \
+		--gui \
+		--testplusarg "UVM_TESTNAME=$(TESTNAME)"
+
+vivado-nogui:
+	@echo "=============================="
+	@echo " VIVADO SIMULATION"
+	@echo " TEST = $(TESTNAME)"
+	@echo "=============================="
+	cd $(SIM_DIR) && \
+	xsim $(TOP)_sim \
+		--runall \
+		--testplusarg "UVM_TESTNAME=$(TESTNAME)" \
+		2>&1 | tee vivado_$(TESTNAME).log
+
+################################################################################
+# Helpful log checks
+################################################################################
+check-compile:
+	@grep -nE "ERROR:|FATAL:" $(SIM_DIR)/vivado_compile.log || true
+
+check-elab:
+	@grep -nE "ERROR:|FATAL:" $(SIM_DIR)/vivado_elab.log || true
+
+################################################################################
+# Clean
+################################################################################
+clean:
+	rm -rf $(SIM_DIR)/xsim.dir
+	rm -rf $(SIM_DIR)/.Xil
+	rm -rf $(SIM_DIR)/$(TOP)_sim*
+	rm -f $(SIM_DIR)/xvlog.pb $(SIM_DIR)/xvlog.log
+	rm -f $(SIM_DIR)/xelab.pb $(SIM_DIR)/xelab.log
+	rm -f $(SIM_DIR)/xsim.jou $(SIM_DIR)/xsim.log
+	rm -f $(SIM_DIR)/*.wdb
+	rm -f $(SIM_DIR)/vivado_compile.log $(SIM_DIR)/vivado_elab.log
+	rm -rf $(VERILATOR_MDIR)
+	rm -f $(VERILATOR_STAMP)
+	rm -rf $(VERILATOR_LOG_DIR)
+	rm -f $(SIM_DIR)/coverage.dat
+
+.PHONY: vivado vivado-compile vivado-elab vivado-sim vivado-nogui \
+        verilator verilator-sim verilator-build run regression cov_merge coverage_report functional_coverage coverage_all cov_summary \
+        waveform clean check-compile check-elab
+################################################################################
+# Help
+################################################################################
+help:
+	@echo "=========================================================="
+	@echo " Ethernet UVM - Verilator + Vivado"
+	@echo "=========================================================="
+	@echo ""
+	@echo "VERILATOR"
+	@echo "  make verilator"
+	@echo "  make verilator TESTNAME=eth_csr_smoke_test"
+	@echo "  make run TESTNAME=eth_csr_smoke_test"
+	@echo ""
+	@echo "REGRESSION"
+	@echo "  make regression"
+	@echo "  make regression REGRESSION_LIST=sim/regression_tests.f"
+	@echo "  # One test name per line in regression_tests.f"
+	@echo ""
+	@echo "COVERAGE"
+	@echo "  make cov_merge"
+	@echo "  make coverage_report"
+	@echo "  make cov_summary"
+	@echo "  make functional_coverage"
+	@echo "  make coverage_all"
+	@echo "  # Coverage files: sim/verilator_log/coverage/"
+	@echo ""
+	@echo "WAVEFORM"
+	@echo "  make waveform TESTNAME=eth_csr_smoke_test"
+	@echo ""
+	@echo "VIVADO"
+	@echo "  make vivado TESTNAME=eth_csr_smoke_test"
+	@echo "  make vivado-sim TESTNAME=eth_csr_smoke_test"
+	@echo "  make vivado-nogui TESTNAME=eth_csr_smoke_test"
+	@echo "  make vivado-compile"
+	@echo "  make vivado-elab"
+	@echo ""
+	@echo "CHECKS"
+	@echo "  make check-compile"
+	@echo "  make check-elab"
+	@echo ""
+	@echo "CLEAN"
+	@echo "  make clean"
+	@echo ""
+	@echo "EXAMPLES"
+	@echo "  make verilator TESTNAME=eth_csr_smoke_test"
+	@echo "  make regression"
+	@echo "  make coverage_report"
+	@echo "  make waveform TESTNAME=eth_csr_smoke_test"
+
+.PHONY: help
+
+========== UVM ENV ==========
+class eth_env extends uvm_env;
+    `uvm_component_utils(eth_env)
+
+    eth_axil_agent       axil_ag;      // Programs and reads the DMA control/status register bank.
+    eth_axi_agent        axi_ag;       // Models the external memory accessed by the DMA AXI master.
+    eth_reset_agent      reset_ag;
+    eth_rgmii_agent      rgmii_ag;     // Observes Ethernet bytes transmitted on the external RGMII boundary.
+    eth_irq_monitor      irq_mon;
+    eth_axis_tx_monitor  tx_axis_mon;  // Checks the 8-bit packet stream presented to the MAC TX input.
+    eth_axis_rx_monitor  rx_axis_mon;  // Observes the packet stream produced by the MAC RX path.
+    eth_ral_env          ral_env;
+    eth_scoreboard       scb;
+    eth_coverage         cov;
+
+    function new(string name, uvm_component parent);
+        super.new(name, parent);
+    endfunction
+
+    function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+        axil_ag     = eth_axil_agent::type_id::create("axil_ag", this);
+        axi_ag      = eth_axi_agent::type_id::create("axi_ag", this);
+        reset_ag    = eth_reset_agent::type_id::create("reset_ag", this);
+        rgmii_ag    = eth_rgmii_agent::type_id::create("rgmii_ag", this);
+        irq_mon     = eth_irq_monitor::type_id::create("irq_mon", this);
+        tx_axis_mon = eth_axis_tx_monitor::type_id::create("tx_axis_mon", this);
+        rx_axis_mon = eth_axis_rx_monitor::type_id::create("rx_axis_mon", this);
+        ral_env     = eth_ral_env::type_id::create("ral_env", this);
+        scb         = eth_scoreboard::type_id::create("scb", this);
+        cov         = eth_coverage::type_id::create("cov", this);
+    endfunction
+
+    function void connect_phase(uvm_phase phase);
+        super.connect_phase(phase);
+        tx_axis_mon.ap.connect(cov.analysis_export);
+        rx_axis_mon.ap.connect(scb.rx_imp);
+        rgmii_ag.mon.ap.connect(scb.tx_imp);
+    endfunction
+endclass
+========== UVM PACKAGE ==========
+package eth_uvm_pkg; import uvm_pkg::*; `include "uvm_macros.svh"    //Declares the package that collects the Ethernet UVM classes.
+`include "agent/eth_axil_item.sv"                                    //Includes this dependency in the UVM package compilation.
+`include "agent/eth_axi_item.sv"                                     //Includes this dependency in the UVM package compilation.
+`include "agent/eth_descriptor_item.sv"                              //Includes this dependency in the UVM package compilation.
+`include "agent/eth_frame_item.sv"                                   //Includes this dependency in the UVM package compilation.
+`include "agent/eth_reset_item.sv"                                   //Includes this dependency in the UVM package compilation.
+`include "agent/eth_axil_sequencer.sv"                               //Includes this dependency in the UVM package compilation.
+`include "agent/eth_axi_sequencer.sv"                                //Includes this dependency in the UVM package compilation.
+`include "agent/eth_reset_sequencer.sv"                              //Includes this dependency in the UVM package compilation.
+`include "agent/eth_axil_driver.sv"                                  //Includes this dependency in the UVM package compilation.
+`include "agent/eth_axi_driver.sv"                                   //Includes this dependency in the UVM package compilation.
+`include "agent/eth_reset_driver.sv"                                 //Includes this dependency in the UVM package compilation.
+`include "agent/eth_axil_monitor.sv"                                 //Includes this dependency in the UVM package compilation.
+`include "agent/eth_axi_monitor.sv"                                  //Includes this dependency in the UVM package compilation.
+`include "agent/eth_irq_monitor.sv"                                  //Includes this dependency in the UVM package compilation.
+`include "agent/eth_reset_monitor.sv"                                //Includes this dependency in the UVM package compilation.
+`include "agent/eth_rgmii_monitor.sv"                                //Includes this dependency in the UVM package compilation.
+`include "agent/eth_axis_tx_monitor.sv"                               //Includes the passive DMA-to-MAC TX AXI-Stream monitor.
+`include "agent/eth_axis_rx_monitor.sv"
+`include "agent/eth_axil_agent.sv"                                   //Includes this dependency in the UVM package compilation.
+`include "agent/eth_axi_agent.sv"                                    //Includes this dependency in the UVM package compilation.
+`include "agent/eth_reset_agent.sv"                                  //Includes this dependency in the UVM package compilation.
+`include "agent/eth_rgmii_agent.sv"                                  //Includes this dependency in the UVM package compilation.
+`include "ral/eth_dma_reg_block.sv"                                  //Includes this dependency in the UVM package compilation.
+`include "ral/eth_axil_reg_adapter.sv"                               //Includes this dependency in the UVM package compilation.
+`include "env/eth_ral_env.sv"                                        //Includes this dependency in the UVM package compilation.
+`include "env/eth_scoreboard.sv"                                     //Includes this dependency in the UVM package compilation.
+`include "env/eth_coverage.sv"                                       //Includes this dependency in the UVM package compilation.
+`include "env/eth_env.sv"                                            //Includes this dependency in the UVM package compilation.
+`include "tests/eth_basic_sequences.sv"                              //Includes this dependency in the UVM package compilation.
+`include "tests/eth_base_test.sv"                                    //Includes this dependency in the UVM package compilation.
+`include "tests/eth_csr_smoke_test.sv"                               //Includes this dependency in the UVM package compilation.
+
+`include "tests/eth_csr_random_seq.sv"
+`include "tests/eth_csr_random_test.sv"
+`include "tests/eth_tx_basic_test.sv"                                //Includes this dependency in the UVM package compilation.
+`include "tests/eth_tx_axi_read_reset_test.sv"
+`include "tests/eth_rx_basic_test.sv"                                //Includes this dependency in the UVM package compilation.
+`include "tests/eth_tx_rx_parallel_test.sv"
+`include "tests/eth_tx_rx_parallel_irq_test.sv"  // Full-duplex TX/RX directed scenarios.
+`include "tests/eth_full_duplex_test.sv"
+`include "tests/eth_full_duplex_reset_test.sv"
+    `include "tests/eth_full_duplex_backpressure_test.sv"
+`include "tests/eth_full_duplex_back_to_back_test.sv"
+`include "tests/eth_dma_desc_asym_ready_test.sv"
+`include "tests/eth_dma_desc_asym_reverse_test.sv"
+`include "tests/eth_rx_axi_write_reset_test.sv"
+`include "tests/eth_full_duplex_dma_reset_test.sv"
+`include "tests/eth_tx_variable_length_test.sv"
+    `include "tests/eth_rx_variable_length_test.sv"
+    `include "tests/eth_rx_only_irq_test.sv"
+`include "tests/eth_rx_bad_fcs_test.sv"
+    `include "tests/eth_rx_bad_to_good_recovery_test.sv"
+`include "tests/eth_rx_good_bad_good_recovery_test.sv"
+`include "tests/eth_rx_fifo_overflow_recovery_test.sv"
+`include "tests/eth_rx_fifo_concurrent_drain_test.sv"
+`include "tests/eth_rx_fifo_random_backpressure_test.sv"
+`include "tests/eth_rx_bad_descriptor_probe_test.sv"
+`include "tests/eth_rx_variable_length_recovery_test.sv"
+`include "tests/eth_rx_two_bad_to_good_recovery_test.sv"
+`include "tests/eth_rx_fragment_test.sv"
+    `include "tests/eth_rx_preamble_error_test.sv"
+`include "tests/eth_rx_framing_error_test.sv"
+`include "tests/eth_rx_oversize_test.sv"
+`include "tests/eth_parallel_same_length_test.sv"
+    `include "tests/eth_parallel_different_length_test.sv"
+`include "tests/eth_parallel_multi_frame_test.sv"
+`include "tests/eth_tx_axi_slverr_test.sv"
+`include "tests/eth_tx_axi_decerr_test.sv"
+`include "tests/eth_tx_dma_error_recovery_test.sv"
+    `include "tests/eth_rx_dma_error_recovery_test.sv"
+`include "tests/eth_tx_rx_dma_error_recovery_test.sv"
+`include "tests/eth_tx_rx_dma_recovery_integrity_test.sv"
+`include "tests/eth_dma_burst_backpressure_test.sv"
+`include "tests/eth_dma_unaligned_boundary_test.sv"
+`include "tests/eth_dma_4kb_boundary_test.sv"
+`include "tests/eth_dma_length_mismatch_tests.sv"
+`include "tests/eth_rx_axi_slverr_test.sv"
+`include "tests/eth_rx_axi_decerr_test.sv"
+endpackage
+========== DEBUG INTERFACE ==========
+`timescale 1ns/1ps
+
+interface eth_desc_debug_if(input logic clk);
+
+    // MAC RX FIFO source-clock-domain diagnostic signals.
+    // Passive RX FIFO core AXI-Stream observations.
+    logic rx_fifo_s_valid;
+    logic rx_fifo_s_ready;
+    logic rx_fifo_s_last;
+
+    logic rx_fifo_m_valid;
+    logic rx_fifo_m_ready;
+    logic rx_fifo_m_last;
+
+    logic rx_fifo_m_clk;
+
+    logic rx_fifo_src_clk;
+    logic rx_fifo_drop_active;
+    logic rx_fifo_in_frame;
+
+    logic [12:0] rx_fifo_depth;
+    logic [12:0] rx_fifo_depth_commit;
+    logic rx_fifo_full;
+    logic rx_fifo_full_wr;
+
+
+
+
+    logic force_rd_not_ready;
+    logic force_wr_not_ready;
+
+    logic cfg_valid;
+    logic cfg_ready;
+
+    logic rd_valid;
+    logic rd_ready;
+
+    logic wr_valid;
+    logic wr_ready;
+
+
+    // Passive DMA descriptor completion observation
+    logic       rd_sts_valid;
+    logic [3:0] rd_sts_error;
+    logic       wr_sts_valid;
+    logic [3:0] wr_sts_error;
+
+    logic rx_error_bad_frame;
+    logic rx_pkt_fragment;
+    logic rx_error_preamble;
+    logic rx_error_oversize;
+    logic rx_error_bad_fcs;
+
+    // Passive MAC RX FIFO status observation.
+    logic rx_fifo_overflow;
+    logic rx_fifo_bad_frame;
+    logic rx_fifo_good_frame;
+
+
+
+    logic [31:0] rx_fifo_wr_ptr;
+    logic [31:0] rx_fifo_wr_ptr_commit;
+    localparam int RX_FIFO_RAM_MON_W = 64;
+    logic [RX_FIFO_RAM_MON_W-1:0] rx_fifo_ram_word;
+    logic rx_fifo_ram_full;
+    logic rx_fifo_ram_write_decision;
+    logic rx_fifo_ram_write_handshake;
+
+
+
+endinterface
+========== COVERAGE FILES ==========
+eth_tb/tests/eth_parallel_multi_frame_test.sv.before_coverage
+eth_tb/tests/eth_tx_rx_parallel_test.sv.coverage_100_pass
+eth_tb/tests/eth_rx_fifo_random_backpressure_test.sv.before_iteration_coverage
+eth_tb/tests/eth_rx_fifo_concurrent_drain_test.sv.before_ptr_coverage
+eth_tb/tests/eth_parallel_multi_frame_test.sv.before_coverage_fix
+eth_tb/tests/eth_tx_rx_parallel_test.sv.before_coverage
+eth_tb/top/eth_tb_top.sv.before_irq_assertion
+eth_tb/assertions/eth_protocol_assertions.sv
+eth_tb/agent/eth_axis_tx_monitor.sv.before_coverage
+eth_tb/env/eth_coverage.sv
+eth_tb/env/eth_env.sv.before_coverage
+eth_tb/sim/parallel_coverage_xsim.log
+eth_tb/sim/tc017_coverage_run_new.log
+eth_tb/sim/fifo_random_coverage_run.log
+eth_tb/sim/coverage_connection_test.log
+eth_tb/sim/parallel_coverage_100_build.log
+eth_tb/sim/fifo_ptr_coverage_run.log
+eth_tb/sim/verilator_obj_dir/Veth_tb_top_eth_uvm_pkg__03a__03aeth_coverage__02e__vlAnonCG_cg__Vclpkg__0.cpp
+eth_tb/sim/verilator_obj_dir/Veth_tb_top_eth_uvm_pkg__03a__03aeth_coverage__02e__vlAnonCG_cg__Vclpkg__0__Slow.cpp
+eth_tb/sim/verilator_obj_dir/Veth_tb_top_eth_uvm_pkg__03a__03aeth_coverage__Vclpkg__0__Slow.cpp
+eth_tb/sim/verilator_obj_dir/verilated_covergroup.o
+eth_tb/sim/verilator_obj_dir/Veth_tb_top_eth_uvm_pkg__03a__03aeth_coverage__Vclpkg.h
+eth_tb/sim/verilator_obj_dir/Veth_tb_top_eth_uvm_pkg__03a__03aeth_coverage__Vclpkg__0.cpp
+eth_tb/sim/verilator_obj_dir/Veth_tb_top_eth_uvm_pkg__03a__03aeth_coverage__02e__vlAnonCG_cg__Vclpkg.h
+eth_tb/sim/verilator_obj_dir/Veth_tb_top_eth_uvm_pkg__03a__03aeth_coverage__02e__vlAnonCG_cg__Vclpkg__Slow.cpp
+eth_tb/sim/verilator_obj_dir/verilated_covergroup.d
+eth_tb/sim/verilator_obj_dir/Veth_tb_top_eth_uvm_pkg__03a__03aeth_coverage__Vclpkg__Slow.cpp
+eth_tb/sim/dma_backpressure_coverage.log
+eth_tb/sim/fifo_ptr_coverage_elab.log
+eth_tb/sim/fifo_random_coverage_elab.log
+eth_tb/sim/tc017_coverage_compile_fixed.log
+eth_tb/sim/parallel_coverage_100_pass.log
+eth_tb/sim/tc017_coverage_build_new.log
+eth_tb/sim/fifo_assert_elab.log
+eth_tb/sim/tc017_coverage_run.log
+eth_tb/sim/tc017_coverage_elab_fixed.log
+eth_tb/sim/fifo_assert_run.log
+eth_tb/sim/ethernet_coverage_all.log
+eth_tb/sim/coverage_build.log
+eth_tb/sim/tc017_coverage_run_fixed.log
+eth_tb/sim/parallel_coverage_build.log
+eth_tb/sim/verilator_log/coverage/coverage.info
+eth_tb/sim/verilator_log/coverage/coverage.dat
+eth_tb/sim/verilator_log/coverage/tc017_html/home/cw019_sai/ethernet1/eth_rtl_verif_1/eth_rtl_verif/eth_verif/eth_tb/env/eth_coverage.sv.gcov.html
+eth_tb/sim/verilator_log/coverage/tc017_html/home/cw019_sai/ethernet1/eth_rtl_verif_1/eth_rtl_verif/eth_verif/eth_tb/env/eth_coverage.sv.func-sort-c.html
+eth_tb/sim/verilator_log/coverage/tc017_html/home/cw019_sai/ethernet1/eth_rtl_verif_1/eth_rtl_verif/eth_verif/eth_tb/env/eth_coverage.sv.func.html
+eth_tb/sim/verilator_log/coverage/tc017_annotated/eth_coverage.sv
+eth_tb/sim/verilator_log/coverage/previous_runs/coverage.dat
+eth_tb/sim/verilator_log/coverage/functional_html/env/eth_coverage.sv.gcov.html
+eth_tb/sim/verilator_log/coverage/functional_html/env/eth_coverage.sv.func-sort-c.html
+eth_tb/sim/verilator_log/coverage/functional_html/env/eth_coverage.sv.func.html
+eth_tb/sim/verilator_log/coverage/annotated/eth_coverage.sv
+========== XSIM VERSION ==========
+Vivado Simulator v2025.2
+Copyright 1986-2025 Xilinx, Inc. All Rights Reserved.
+========== XELAB COVERAGE OPTIONS ==========
+                                        ability turned on. Choices are:
+                                          line: HDL breakpoint
+                                          wave: waveform generation, 
+                                                conditional execution, force 
+                                                value
+                                          drivers: signal driver value probing
+                                          readers: signal reader (load) probing
+--
+                                        'vhdl|verilog <work lib> <HDL file 
+                                        name>'
+  --ccExclusionFile arg                 Specify Vivado SimulatorElaboration 
+                                        time code coverage exclusion file
+  -r [ --run ]                          Run the generated executable
+  --relax                               Relax strict HDL language checking 
+                                        rules
+--
+  --report_assertion_pass               Report System Verilog Concurrent 
+                                        Assertions Pass, even if there is no 
+                                        pass action block
+  --ignore_coverage                     Ignore System Verilog Functional 
+                                        Coverage
+  --maxarraysize arg                    Set the maximum VHDL array size, beyond
+                                        which an array declaration will 
+                                        generate an error, to be 2**arg 
+--
+                                        are to be found. Default: 
+                                        <current_directory>/xsim.dir/work/xsc
+
+ Coverage options:
+ *******************:
+  --cov_db_dir arg                      Directory where the Functional/Code 
+                                        Coverage database will be saved. The 
+                                        functional coverage data will be 
+                                        present under <cov_db_dir_argvalue>/xsi
+                                        m.covdb/<cov_db_name_argvalue> 
+                                        directory. Code coverage data will be 
+                                        present under <cov_db_dir_argvalue>/xsi
+                                        m.codecov/<cov_db_argvalue>.  Default 
+                                        is ./ 
+  --cov_db_name arg                     Database name under which 
+                                        Functional/Code Coverage database will 
+                                        be saved. The functional coverage data 
+                                        will be present under 
+                                        <cov_db_dir_argvalue>/xsim.covdb/<cov_d
+                                        b_name_argvalue> directory. Code 
+                                        coverage data will be present under 
+                                        <cov_db_dir_argvalue>/xsim.codecov/<cov
+                                        _db_argvalue>. Default is snapshot name
+
+ Code Coverage options:
+ *******************:
+  --cc_celldefines                      Specify if code coverage information 
+                                        needs to be captured for libs/modules 
+                                        with cell define attribute set. OFF by 
+                                        default.
+  --cc_libs                             Specify if code coverage information 
+                                        needs to be captured for all the 
+                                        libraries specified. OFF by default.
+  --cc_type arg                         Specify options for generating Code 
+                                        Coverage Statistics -sbct. 
+                                        (s)Statement, (b)Branch, (c)Condition 
+                                        and (t)Toggle are supported 
+
+Examples:
+  xelab top1 top2
+========== XVLOG COVERAGE OPTIONS ==========

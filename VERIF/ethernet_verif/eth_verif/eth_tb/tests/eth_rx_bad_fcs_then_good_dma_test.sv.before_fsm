@@ -1,0 +1,331 @@
+class eth_rx_bad_fcs_then_good_dma_test extends eth_rx_only_irq_test;
+
+    `uvm_component_utils(eth_rx_bad_fcs_then_good_dma_test)
+
+    virtual eth_axi_if axi_vif;
+    virtual eth_desc_debug_if desc_vif;
+
+    localparam longint unsigned RX_ADDR = 64'h2000;
+    localparam int unsigned RX_LEN = 64;
+
+    int unsigned bad_fcs_count;
+    int unsigned aw_count;
+    int unsigned wlast_count;
+    int unsigned bvalid_count;
+    int unsigned b_handshake_count;
+    int unsigned error_count;
+
+    bit [1:0] last_bresp;
+
+    function new(
+        string name = "eth_rx_bad_fcs_then_good_dma_test",
+        uvm_component parent = null
+    );
+        super.new(name, parent);
+    endfunction
+
+    function void build_phase(uvm_phase phase);
+
+        uvm_config_db#(bit)::set(
+            this, "env.scb", "enable_rx_scoreboard", 1'b1
+        );
+
+        super.build_phase(phase);
+
+        if (!uvm_config_db#(virtual eth_axi_if)::get(
+            this, "", "vif", axi_vif))
+            `uvm_fatal("TEST_VIF", "AXI interface not found")
+
+        if (!uvm_config_db#(virtual eth_desc_debug_if)::get(
+            this, "", "desc_debug_vif", desc_vif))
+            `uvm_fatal("TEST_VIF", "Descriptor debug interface not found")
+
+    endfunction
+
+    function automatic byte unsigned payload_byte(
+        input bit bad_frame,
+        input int unsigned index
+    );
+        if (bad_frame)
+            return 8'h20 + index[7:0];
+        else
+            return 8'h80 + index[7:0];
+    endfunction
+
+    task automatic send_rx_frame(input bit bad_fcs);
+
+        byte unsigned payload[$];
+        logic [31:0] fcs;
+
+        for (int unsigned i = 0; i < RX_LEN; i++)
+            payload.push_back(payload_byte(bad_fcs, i));
+
+        fcs = calculate_ethernet_fcs(payload);
+
+        if (bad_fcs)
+            fcs ^= 32'h0000_0001;
+
+        `uvm_info("FRAME_INJECT",
+            $sformatf("Sending %s frame, FCS=%08h",
+                bad_fcs ? "BAD_FCS" : "GOOD_FCS", fcs),
+            UVM_LOW)
+
+        @(negedge rgmii_vif.bfm_rx_clk);
+
+        repeat (7)
+            drive_rgmii_byte(8'h55);
+
+        drive_rgmii_byte(8'hD5);
+
+        foreach (payload[i])
+            drive_rgmii_byte(payload[i]);
+
+        drive_rgmii_byte(fcs[7:0]);
+        drive_rgmii_byte(fcs[15:8]);
+        drive_rgmii_byte(fcs[23:16]);
+        drive_rgmii_byte(fcs[31:24]);
+
+        @(negedge rgmii_vif.bfm_rx_clk);
+
+        rgmii_vif.bfm_rx_ctl <= 1'b0;
+        rgmii_vif.bfm_rxd <= 4'h0;
+
+    endtask
+
+    task automatic monitor_axi();
+
+        bit outstanding;
+        int unsigned response_wait_cycles;
+
+        outstanding = 0;
+        response_wait_cycles = 0;
+
+        forever begin
+            @(posedge axi_vif.aclk);
+
+            if (axi_vif.aresetn) begin
+
+                if (axi_vif.awvalid && axi_vif.awready) begin
+                    aw_count++;
+                    outstanding = 1;
+
+                    `uvm_info("AXI_AW",
+                        $sformatf("AW handshake count=%0d",
+                            aw_count), UVM_LOW)
+                end
+
+                if (axi_vif.wvalid &&
+                    axi_vif.wready &&
+                    axi_vif.wlast) begin
+
+                    wlast_count++;
+
+                    `uvm_info("AXI_WLAST",
+                        "Final write-data beat accepted",
+                        UVM_LOW)
+                end
+
+                if (axi_vif.bvalid) begin
+                    bvalid_count++;
+
+                    if (axi_vif.bresp !== 2'b00) begin
+                        error_count++;
+                        `uvm_error("AXI_BRESP",
+                            $sformatf("BRESP error=%02b",
+                                axi_vif.bresp))
+                    end
+                end
+
+                if (axi_vif.bvalid && axi_vif.bready) begin
+
+                    b_handshake_count++;
+                    last_bresp = axi_vif.bresp;
+                    outstanding = 0;
+
+                    `uvm_info("AXI_BVALID",
+                        $sformatf(
+                            "BVALID=%0b BREADY=%0b BRESP=%02b",
+                            axi_vif.bvalid,
+                            axi_vif.bready,
+                            axi_vif.bresp),
+                        UVM_LOW)
+                end
+
+                if (outstanding) begin
+                    response_wait_cycles++;
+
+                    if (response_wait_cycles > 2000) begin
+                        error_count++;
+                        `uvm_error("AXI_B_TIMEOUT",
+                            "AXI write response timeout")
+                        outstanding = 0;
+                    end
+                end
+                else
+                    response_wait_cycles = 0;
+
+            end
+        end
+
+    endtask
+
+    task run_phase(uvm_phase phase);
+
+        eth_reset_seq reset_sequence;
+        eth_rx_only_dma_seq cfg_seq;
+        byte unsigned expected_payload[$];
+
+        phase.raise_objection(this);
+
+        bad_fcs_count = 0;
+        aw_count = 0;
+        wlast_count = 0;
+        bvalid_count = 0;
+        b_handshake_count = 0;
+        error_count = 0;
+
+        reset_sequence =
+            eth_reset_seq::type_id::create("reset_sequence");
+
+        reset_sequence.start(env.reset_ag.sqr);
+
+        repeat (20)
+            @(posedge axi_vif.aclk);
+
+        clear_observation();
+
+        for (int unsigned i = 0; i < RX_LEN; i++)
+            expected_payload.push_back(payload_byte(0, i));
+
+        env.scb.set_expected_rx(expected_payload);
+
+        cfg_seq =
+            eth_rx_only_dma_seq::type_id::create("cfg_seq");
+
+        cfg_seq.rx_base = RX_ADDR[31:0];
+        cfg_seq.rx_length = RX_LEN;
+        cfg_seq.start(env.axil_ag.sqr);
+
+        rgmii_vif.loopback_enable = 1'b0;
+
+        repeat (30)
+            @(posedge axi_vif.aclk);
+
+        `uvm_info("TEST_START",
+            "Starting BAD FCS followed by GOOD FCS",
+            UVM_LOW)
+
+        fork
+
+            begin : stimulus
+
+                // Transaction 1: corrupted FCS.
+                send_rx_frame(1'b1);
+
+                repeat (12)
+                    @(posedge rgmii_vif.bfm_rx_clk);
+
+                // Transaction 2: correct FCS.
+                send_rx_frame(1'b0);
+
+                repeat (1200)
+                    @(posedge axi_vif.aclk);
+
+            end
+
+            begin : fcs_monitor
+
+                forever begin
+                    @(posedge desc_vif.rx_error_bad_fcs);
+                    bad_fcs_count++;
+                end
+
+            end
+
+            begin : axi_monitor_thread
+                monitor_axi();
+            end
+
+        join_any
+
+        disable fork;
+
+        if (bad_fcs_count != 1) begin
+            error_count++;
+            `uvm_error("BAD_FCS_CHECK",
+                $sformatf(
+                    "Expected one Bad FCS event, observed %0d",
+                    bad_fcs_count))
+        end
+
+        if (aw_count != 1) begin
+            error_count++;
+            `uvm_error("AXI_AW_CHECK",
+                $sformatf("Expected one AW handshake, got %0d",
+                    aw_count))
+        end
+
+        if (wlast_count != 1) begin
+            error_count++;
+            `uvm_error("AXI_WLAST_CHECK",
+                $sformatf("Expected one WLAST, got %0d",
+                    wlast_count))
+        end
+
+        if (b_handshake_count != 1) begin
+            error_count++;
+            `uvm_error("AXI_B_CHECK",
+                $sformatf("Expected one B handshake, got %0d",
+                    b_handshake_count))
+        end
+
+        if (env.axi_ag.drv.write_byte_count != RX_LEN) begin
+            error_count++;
+            `uvm_error("DMA_WRITE",
+                $sformatf("Expected %0d written bytes, got %0d",
+                    RX_LEN, env.axi_ag.drv.write_byte_count))
+        end
+
+        if (env.scb.rx_frames_checked != 1 ||
+            env.scb.errors != 0) begin
+
+            error_count++;
+            `uvm_error("RX_SCOREBOARD",
+                "Good RX frame scoreboard failed")
+        end
+
+        for (int unsigned i = 0; i < RX_LEN; i++) begin
+            if (env.axi_ag.drv.mem[RX_ADDR+i] !==
+                payload_byte(0, i)) begin
+
+                error_count++;
+                `uvm_error("DMA_MEMORY",
+                    $sformatf("Memory mismatch at 0x%0h",
+                        RX_ADDR+i))
+            end
+        end
+
+        `uvm_info("TEST_SUMMARY",
+            $sformatf(
+                "BadFCS=%0d AW=%0d WLAST=%0d BVALID_cycles=%0d B_handshakes=%0d errors=%0d",
+                bad_fcs_count,
+                aw_count,
+                wlast_count,
+                bvalid_count,
+                b_handshake_count,
+                error_count),
+            UVM_LOW)
+
+        if (error_count == 0)
+            `uvm_info("TEST_PASS",
+                "Bad FCS to Good FCS DMA/AXI test PASSED",
+                UVM_LOW)
+        else
+            `uvm_error("TEST_FAIL",
+                "Bad FCS to Good FCS DMA/AXI test FAILED")
+
+        phase.drop_objection(this);
+
+    endtask
+
+endclass

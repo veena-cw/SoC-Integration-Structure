@@ -1,0 +1,14 @@
+class eth_axil_monitor extends uvm_monitor;
+
+`uvm_component_utils(eth_axil_monitor) uvm_analysis_port#(eth_axil_item) ap;
+ virtual eth_axil_if vif;                                                       //Stores the virtual interface handle used to access DUT signals.
+
+function new(string n,uvm_component p);
+super.new(n,p);
+ap=new("ap",this);
+endfunction
+function void build_phase(uvm_phase phase);
+void'(uvm_config_db#(virtual eth_axil_if)::get(this,"","vif",vif));
+endfunction
+endclass
+

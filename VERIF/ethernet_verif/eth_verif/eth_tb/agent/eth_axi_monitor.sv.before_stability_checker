@@ -1,0 +1,23 @@
+class eth_axi_monitor extends uvm_monitor;
+
+`uvm_component_utils(eth_axi_monitor) uvm_analysis_port#(eth_axi_item) ap;
+ virtual eth_axi_if vif;                                                                //Stores the virtual interface handle used to access DUT signals.
+
+function new(string n,uvm_component p);
+super.new(n,p);
+ap=new("ap",this);
+endfunction
+function void build_phase(uvm_phase phase);
+void'(uvm_config_db#(virtual eth_axi_if)::get(this,"","vif",vif));
+endfunction
+task run_phase(uvm_phase phase);
+ forever begin @(posedge vif.aclk);
+ if(vif.arvalid&&vif.arready)
+`uvm_info("AXI_READ_ADDR",$sformatf("ADDR=%08h LEN=%0d SIZE=%0d",vif.araddr,vif.arlen,vif.arsize),UVM_LOW) if(vif.rvalid&&vif.rready)
+`uvm_info("AXI_READ_DATA",$sformatf("DATA=%016h LAST=%0b",vif.rdata,vif.rlast),UVM_LOW) if(vif.awvalid&&vif.awready)
+`uvm_info("AXI_WRITE_ADDR",$sformatf("ADDR=%08h LEN=%0d SIZE=%0d",vif.awaddr,vif.awlen,vif.awsize),UVM_LOW) if(vif.wvalid&&vif.wready)
+`uvm_info("AXI_WRITE_DATA",$sformatf("DATA=%016h STRB=%02h LAST=%0b",vif.wdata,vif.wstrb,vif.wlast),UVM_LOW) end
+endtask
+
+endclass
+

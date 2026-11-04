@@ -1,0 +1,246 @@
+class eth_dma_desc_asym_ready_test extends eth_base_test;
+    `uvm_component_utils(eth_dma_desc_asym_ready_test)
+
+    virtual eth_desc_debug_if desc_vif;
+
+    function new(
+        string name = "eth_dma_desc_asym_ready_test",
+        uvm_component parent = null
+    );
+        super.new(name, parent);
+    endfunction
+
+    function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+
+        if (!uvm_config_db#(virtual eth_desc_debug_if)::get(
+                this,
+                "",
+                "desc_debug_vif",
+                desc_vif
+            ))
+            `uvm_fatal(
+                "DESC_ASYM",
+                "desc_debug_vif not found"
+            )
+    endfunction
+
+    task automatic print_state(string label);
+        `uvm_info(
+            "DESC_ASYM",
+            $sformatf(
+                "%s CFG_VALID=%0b CFG_READY=%0b RD_VALID=%0b RD_READY=%0b WR_VALID=%0b WR_READY=%0b",
+                label,
+                desc_vif.cfg_valid,
+                desc_vif.cfg_ready,
+                desc_vif.rd_valid,
+                desc_vif.rd_ready,
+                desc_vif.wr_valid,
+                desc_vif.wr_ready
+            ),
+            UVM_LOW
+        )
+    endtask
+
+    task run_phase(uvm_phase phase);
+
+        eth_reset_seq               reset_sequence;
+        eth_parallel_dma_config_seq config_sequence;
+        eth_parallel_dma_start_seq  start_sequence;
+
+        bit asymmetric_handshake_seen;
+        bit cfg_cleared_after_handshake;
+        bit rx_handshake_seen;
+        int unsigned timeout_cycles;
+
+        phase.raise_objection(this);
+
+        asymmetric_handshake_seen   = 1'b0;
+        cfg_cleared_after_handshake = 1'b0;
+        rx_handshake_seen           = 1'b0;
+
+        `uvm_info(
+            "DESC_ASYM",
+            "CASE_A: TX descriptor ready, RX descriptor forced not-ready",
+            UVM_LOW
+        )
+
+        desc_vif.force_rd_not_ready = 1'b0;
+        desc_vif.force_wr_not_ready = 1'b0;
+
+        reset_sequence =
+            eth_reset_seq::type_id::create("reset_sequence");
+
+        reset_sequence.start(env.reset_ag.sqr);
+
+        repeat (5)
+            @(posedge desc_vif.clk);
+
+        config_sequence =
+            eth_parallel_dma_config_seq::type_id::create(
+                "config_sequence"
+            );
+
+        config_sequence.start(env.axil_ag.sqr);
+
+        repeat (3)
+            @(posedge desc_vif.clk);
+
+        /*
+         * Block only the RX descriptor consumer before DMA_CTRL=3.
+         */
+        desc_vif.force_wr_not_ready = 1'b1;
+
+        repeat (3)
+            @(posedge desc_vif.clk);
+
+        print_state("BEFORE_COMMIT");
+
+        start_sequence =
+            eth_parallel_dma_start_seq::type_id::create(
+                "start_sequence"
+            );
+
+        fork
+            begin
+                start_sequence.start(env.axil_ag.sqr);
+            end
+        join_none
+
+        /*
+         * Wait for the exact asymmetric handshake condition:
+         *
+         * TX: VALID && READY
+         * RX: VALID && !READY
+         * shared CFG_READY asserted
+         */
+        timeout_cycles = 0;
+
+        while (!asymmetric_handshake_seen &&
+               timeout_cycles < 100) begin
+
+            @(posedge desc_vif.clk);
+            #1ps;
+
+            if ((desc_vif.cfg_valid === 1'b1) &&
+                (desc_vif.cfg_ready === 1'b1) &&
+                (desc_vif.rd_valid  === 1'b1) &&
+                (desc_vif.rd_ready  === 1'b1) &&
+                (desc_vif.wr_valid  === 1'b1) &&
+                (desc_vif.wr_ready  === 1'b0)) begin
+
+                asymmetric_handshake_seen = 1'b1;
+
+                print_state("ASYMMETRIC_HANDSHAKE");
+
+                `uvm_info(
+                    "DESC_ASYM_EVENT",
+                    "Observed TX descriptor handshake while RX descriptor was not ready",
+                    UVM_LOW
+                )
+            end
+
+            timeout_cycles++;
+        end
+
+        if (!asymmetric_handshake_seen) begin
+            `uvm_fatal(
+                "DESC_ASYM_TIMEOUT",
+                "Did not observe the required asymmetric descriptor handshake"
+            )
+        end
+
+        /*
+         * Keep RX blocked and check whether the shared configuration
+         * disappears after the TX-side handshake.
+         */
+        timeout_cycles = 0;
+
+        while (!cfg_cleared_after_handshake &&
+               timeout_cycles < 20) begin
+
+            @(posedge desc_vif.clk);
+            #1ps;
+
+            if (desc_vif.cfg_valid === 1'b0) begin
+                cfg_cleared_after_handshake = 1'b1;
+
+                print_state("CFG_CLEARED_RX_BLOCKED");
+            end
+
+            timeout_cycles++;
+        end
+
+        if (!cfg_cleared_after_handshake) begin
+            `uvm_info(
+                "DESC_ASYM_RESULT",
+                "CFG_VALID remained asserted while RX was blocked; CASE_A did not reproduce the suspected failure",
+                UVM_LOW
+            )
+
+            desc_vif.force_wr_not_ready = 1'b0;
+
+            repeat (5)
+                @(posedge desc_vif.clk);
+
+            phase.drop_objection(this);
+            return;
+        end
+
+        /*
+         * Now permit RX to become ready.
+         */
+        desc_vif.force_wr_not_ready = 1'b0;
+
+        /*
+         * Observe several clocks and explicitly look for an RX
+         * descriptor VALID/READY handshake.
+         */
+        repeat (20) begin
+
+            @(posedge desc_vif.clk);
+            #1ps;
+
+            if ((desc_vif.wr_valid === 1'b1) &&
+                (desc_vif.wr_ready === 1'b1)) begin
+
+                rx_handshake_seen = 1'b1;
+
+                print_state("RX_HANDSHAKE_AFTER_RELEASE");
+            end
+        end
+
+        print_state("FINAL_STATE");
+
+        if (!rx_handshake_seen) begin
+
+            `uvm_error(
+                "DESC_ASYM_LOST_RX",
+                {"CASE_A reproduced lost RX descriptor: ",
+                 "TX handshook while RX was blocked, ",
+                 "CFG_VALID then cleared, and no RX descriptor handshake ",
+                 "occurred after RX became ready"}
+            )
+
+        end
+        else begin
+
+            `uvm_info(
+                "DESC_ASYM_RESULT",
+                "RX descriptor handshake occurred after release; descriptor was not lost",
+                UVM_LOW
+            )
+
+        end
+
+        desc_vif.force_rd_not_ready = 1'b0;
+        desc_vif.force_wr_not_ready = 1'b0;
+
+        repeat (5)
+            @(posedge desc_vif.clk);
+
+        phase.drop_objection(this);
+
+    endtask
+
+endclass

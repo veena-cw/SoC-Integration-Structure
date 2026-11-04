@@ -1,0 +1,224 @@
+`uvm_analysis_imp_decl(_rx_cov)
+
+class eth_coverage extends uvm_subscriber #(eth_frame_item);
+
+    `uvm_component_utils(eth_coverage)
+
+    uvm_analysis_imp_rx_cov #(eth_frame_item, eth_coverage) rx_export;
+
+    int unsigned tx_frame_len;
+    int unsigned rx_frame_len;
+    int unsigned frame_direction;
+    int unsigned frame_length;
+    int unsigned frame_alignment;
+
+    int unsigned tx_frame_count;
+    int unsigned rx_frame_count;
+
+    // ---------------------------------------------
+    // TX frame coverage
+    // ---------------------------------------------
+
+    covergroup tx_frame_cg;
+
+        option.per_instance = 1;
+
+        cp_tx_length : coverpoint tx_frame_len {
+
+            bins minimum       = {60};
+            bins short_frames  = {[61:63]};
+            bins length_64     = {64};
+            bins small_frames  = {[65:127]};
+            bins length_128    = {128};
+            bins medium_frames = {[129:511]};
+            bins length_512    = {512};
+            bins large_frames  = {[513:1023]};
+            bins length_1024   = {1024};
+            bins near_maximum  = {[1025:1513]};
+            bins maximum       = {1514};
+
+        }
+
+        cp_tx_alignment : coverpoint (tx_frame_len % 4) {
+            bins align_0 = {0};
+            bins align_1 = {1};
+            bins align_2 = {2};
+            bins align_3 = {3};
+        }
+
+    endgroup
+
+    // ---------------------------------------------
+    // RX frame coverage
+    // ---------------------------------------------
+
+    covergroup rx_frame_cg;
+
+        option.per_instance = 1;
+
+        cp_rx_length : coverpoint rx_frame_len {
+
+            bins minimum       = {60};
+            bins short_frames  = {[61:63]};
+            bins length_64     = {64};
+            bins small_frames  = {[65:127]};
+            bins length_128    = {128};
+            bins medium_frames = {[129:511]};
+            bins length_512    = {512};
+            bins large_frames  = {[513:1023]};
+            bins length_1024   = {1024};
+            bins near_maximum  = {[1025:1513]};
+            bins maximum       = {1514};
+
+        }
+
+        cp_rx_alignment : coverpoint (rx_frame_len % 4) {
+            bins align_0 = {0};
+            bins align_1 = {1};
+            bins align_2 = {2};
+            bins align_3 = {3};
+        }
+
+    endgroup
+
+    // ---------------------------------------------
+    // Combined TX/RX coverage
+    // ---------------------------------------------
+
+    covergroup frame_cross_cg;
+
+        option.per_instance = 1;
+
+        cp_direction : coverpoint frame_direction {
+            bins tx = {0};
+            bins rx = {1};
+        }
+
+        cp_length : coverpoint frame_length {
+            bins minimum = {60};
+            bins small_frames = {[61:127]};
+            bins medium  = {[128:511]};
+            bins large   = {[512:1023]};
+            bins maximum_range = {[1024:1514]};
+        }
+
+        cp_alignment : coverpoint frame_alignment {
+            bins align_0 = {0};
+            bins align_1 = {1};
+            bins align_2 = {2};
+            bins align_3 = {3};
+        }
+
+        cross_direction_length :
+            cross cp_direction, cp_length;
+
+        cross_direction_alignment :
+            cross cp_direction, cp_alignment;
+
+    endgroup
+
+    // ---------------------------------------------
+    // Constructor
+    // ---------------------------------------------
+
+    function new(
+        string name,
+        uvm_component parent
+    );
+
+        super.new(name, parent);
+
+        tx_frame_cg = new();
+        rx_frame_cg = new();
+        frame_cross_cg = new();
+
+    endfunction
+
+    // ---------------------------------------------
+    // Build phase
+    // ---------------------------------------------
+
+    function void build_phase(uvm_phase phase);
+
+        super.build_phase(phase);
+
+        rx_export = new("rx_export", this);
+
+    endfunction
+
+    // ---------------------------------------------
+    // TX monitor callback
+    // ---------------------------------------------
+
+    virtual function void write(eth_frame_item t);
+
+        if (t == null)
+            return;
+
+        tx_frame_len = t.data.size();
+
+        frame_direction = 0;
+        frame_length = tx_frame_len;
+        frame_alignment = tx_frame_len % 4;
+
+        tx_frame_cg.sample();
+        frame_cross_cg.sample();
+
+        tx_frame_count++;
+
+    endfunction
+
+    // ---------------------------------------------
+    // RX monitor callback
+    // ---------------------------------------------
+
+    function void write_rx_cov(eth_frame_item t);
+
+        if (t == null)
+            return;
+
+        rx_frame_len = t.data.size();
+
+        frame_direction = 1;
+        frame_length = rx_frame_len;
+        frame_alignment = rx_frame_len % 4;
+
+        rx_frame_cg.sample();
+        frame_cross_cg.sample();
+
+        rx_frame_count++;
+
+    endfunction
+
+    // ---------------------------------------------
+    // Final coverage report
+    // ---------------------------------------------
+
+    virtual function void report_phase(uvm_phase phase);
+
+        super.report_phase(phase);
+
+        `uvm_info(
+            "ETH_COVERAGE",
+            $sformatf(
+                "TX frames=%0d RX frames=%0d",
+                tx_frame_count,
+                rx_frame_count
+            ),
+            UVM_LOW
+        )
+
+        `uvm_info(
+            "ETH_COVERAGE",
+            $sformatf(
+                "TX=%0.2f%% RX=%0.2f%% CROSS=%0.2f%%",
+                tx_frame_cg.get_inst_coverage(),
+                rx_frame_cg.get_inst_coverage(),
+                frame_cross_cg.get_inst_coverage()
+            ),
+            UVM_LOW
+        )
+
+    endfunction
+
+endclass

@@ -97,6 +97,8 @@ module uart_rx (
   logic        frame_err_pulse_q;
   logic        parity_err_pulse_q;
   logic        break_pulse_q;
+  logic stop2_bit;
+
 
   assign data_valid_o = data_valid_pulse_q;
   assign frame_err_o  = frame_err_pulse_q;
@@ -292,7 +294,7 @@ if (break_armed_q) begin
             end
           end
 
-          S_STOP2: begin
+         /* S_STOP2: begin
             sample_q <= sample_q + 4'd1;
             // After 1 + 1 stop bits we have sample_q traversing 10..15
             // in S_STOP first, then 0..15 here. We exit at sample 9
@@ -301,7 +303,31 @@ if (break_armed_q) begin
               state_q  <= S_IDLE;
               sample_q <= 4'd0;
             end
-          end
+          end */
+		  S_STOP2: begin
+				sample_q <= sample_q + 4'd1;
+
+				// Take 3 samples like S_STOP
+				if (sample_q == 4'd7)
+					votes0_q <= rx_sync_q;
+
+				if (sample_q == 4'd8)
+					votes1_q <= rx_sync_q;
+
+				if (sample_q == 4'd9) begin
+
+					// Majority vote of second stop bit
+					stop2_bit = (votes0_q & votes1_q) |
+								(votes0_q & rx_sync_q) |
+								(votes1_q & rx_sync_q);
+
+					if (stop2_bit == 1'b0)
+						frame_err_pulse_q <= 1'b1;
+
+					state_q  <= S_IDLE;
+					sample_q <= 4'd0;
+				end
+			end
 
           default: state_q <= S_IDLE;
         endcase

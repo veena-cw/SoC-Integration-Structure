@@ -78,7 +78,7 @@ module spi_top #(
   output logic [NUM_CS-1:0]             cs_n_o,
 
   // Interrupts (master side).
-  output logic                          irq_tx_empty_o,
+ // output logic                          irq_tx_empty_o,
   output logic                          irq_rx_full_o,
   output logic                          irq_done_o,
   output logic                          irq_err_o
@@ -159,7 +159,7 @@ module spi_top #(
 
   // Interrupts (master perspective; slave wires are available through
   // the per-side outputs).
-  assign irq_tx_empty_o = m_tx_empty_o;
+ // assign irq_tx_empty_o = m_tx_empty_o;
   assign irq_rx_full_o  = m_rx_full_o;
   assign irq_done_o     = m_xfer_done_o;
   assign irq_err_o      = m_rx_full_o && m_xfer_done_o;

@@ -419,7 +419,7 @@ endfunction
                                 ar_burst_q
                             );
                             rbeat_cnt <= rbeat_cnt + 8'd1;
-                            sr_state <= SR_REQ;
+                            sr_state <= ar_err_q ? SR_DATA : SR_REQ;
                         end
                     end
                 end

@@ -2,13 +2,13 @@
 //
 // UART receiver with 16x oversampling and majority-vote bit recovery.
 //
-// The RX line `rx_i` is sampled on every `tick_x16_i` pulse from the
+// The RX line rx_i is sampled on every tick_x16_i pulse from the
 // baud generator (16 samples per bit time). The receiver:
 //
-//   1. Synchronises `rx_i` through a 2-FF chain to defeat metastability.
+//   1. Synchronises rx_i through a 2-FF chain to defeat metastability.
 //   2. Watches for a high->low edge while idle. On the falling edge it
 //      starts a sample counter and waits 8 ticks: that lands on bit
-//      centre of the start bit. If `rx_i` is still 0 (confirming start),
+//      centre of the start bit. If rx_i is still 0 (confirming start),
 //      the receiver locks on. Otherwise it returns to idle (rejects a
 //      glitch).
 //   3. After centre-of-start, samples every 16 ticks at bit centre. For
@@ -17,15 +17,15 @@
 //      tolerated (the 5% baud mismatch that the 16x oversampling
 //      tolerates).
 //   4. After the data bits it samples the parity (if enabled) and the
-//      first stop bit. If the stop bit is 0, `frame_err_o` pulses for
+//      first stop bit. If the stop bit is 0, frame_err_o pulses for
 //      one cycle. If the parity does not match the configured mode,
-//      `parity_err_o` pulses.
-//   5. Continuous-low detection: if `rx_i` stays at 0 for at least one
-//      full frame (~ data_bits + parity + stop bit times), `break_o`
+//      parity_err_o pulses.
+//   5. Continuous-low detection: if rx_i stays at 0 for at least one
+//      full frame (~ data_bits + parity + stop bit times), break_o
 //      pulses for one cycle.
 //
-// On a successful frame, `data_valid_o` pulses for one cycle with
-// `data_o` populated (data bits zero-extended into the low bits of a
+// On a successful frame, data_valid_o pulses for one cycle with
+// data_o populated (data bits zero-extended into the low bits of a
 // 9-bit word). The downstream FIFO captures it.
 
 module uart_rx (
@@ -34,7 +34,7 @@ module uart_rx (
 
   input  logic        tick_x16_i,
 
-  // Frame configuration. Sampled on the falling edge of `rx_i` (start
+  // Frame configuration. Sampled on the falling edge of rx_i (start
   // detect).
   input  logic [3:0]  data_bits_i,
   input  logic        parity_en_i,
@@ -97,8 +97,7 @@ module uart_rx (
   logic        frame_err_pulse_q;
   logic        parity_err_pulse_q;
   logic        break_pulse_q;
-  logic stop2_bit;
-
+  logic        frame_pending_q;
 
   assign data_valid_o = data_valid_pulse_q;
   assign frame_err_o  = frame_err_pulse_q;
@@ -144,6 +143,7 @@ module uart_rx (
       frame_err_pulse_q  <= 1'b0;
       parity_err_pulse_q <= 1'b0;
       break_pulse_q      <= 1'b0;
+      frame_pending_q    <= 1'b0;
     end else begin
       data_valid_pulse_q <= 1'b0;
       frame_err_pulse_q  <= 1'b0;
@@ -252,82 +252,62 @@ if (break_armed_q) begin
               state_q  <= S_STOP;
             end
           end
-
+          
           S_STOP: begin
-            sample_q <= sample_q + 4'd1;
-            if (sample_q == 4'd7) votes0_q <= rx_sync_q;
-            if (sample_q == 4'd8) votes1_q <= rx_sync_q;
-            // Decision at sample 9: if the stop bit is 0, frame error.
-            if (sample_q == 4'd9) begin
-              logic stop_bit;
-              stop_bit = (votes0_q & votes1_q) | (votes0_q & rx_sync_q) |
-                         (votes1_q & rx_sync_q);
-              if (stop_bit == 1'b0) begin
-                frame_err_pulse_q <= 1'b1;
-              end else begin
-                // Frame is structurally fine. Check parity if enabled.
-                if (parity_en_q) begin
-                  if (parity_bit_q != exp_parity(data_q, data_bits_q,
-                                                 parity_mode_q)) begin
-                    parity_err_pulse_q <= 1'b1;
-                  end else begin
-                    data_valid_pulse_q <= 1'b1;
-                  end
-                end else begin
-                  data_valid_pulse_q <= 1'b1;
-                end
-              end
-              // Return to IDLE now: we've decided on the stop bit; the
-              // remaining 6 sample-ticks of the bit time are consumed
-              // by the inter-frame margin. Exiting early gives the FSM
-              // up to 6/16 of a bit time of slack to catch the next
-              // falling edge — this is what extends the cross-baud
-              // tolerance. For 2-stop-bit configurations we still must
-              // wait for the second stop bit, so we stay in S_STOP2.
-              if (stop_2_q) begin
-                state_q  <= S_STOP2;
-                sample_q <= 4'd10;
-              end else begin
-                state_q  <= S_IDLE;
-                sample_q <= 4'd0;
-              end
-            end
+          sample_q <= sample_q + 4'd1;
+          if (sample_q == 4'd7) votes0_q <= rx_sync_q;
+          if (sample_q == 4'd8) votes1_q <= rx_sync_q;
+          
+          if (sample_q == 4'd9) begin
+          logic stop_bit;
+          stop_bit = (votes0_q & votes1_q) | (votes0_q & rx_sync_q) | (votes1_q & rx_sync_q);
+          
+          frame_pending_q <= 1'b0;
+          if (!stop_bit) begin
+          frame_err_pulse_q <= 1'b1;
           end
+          
+          else if (parity_en_q && parity_bit_q != exp_parity(data_q, data_bits_q, parity_mode_q)) begin
+          parity_err_pulse_q <= 1'b1;
+          end
+          else begin
+          if (stop_2_q)
+          frame_pending_q <= 1'b1;     // Wait for STOP2
+          else
+          data_valid_pulse_q <= 1'b1;  // Accept 1-STOP frame
+          end
+          if (stop_2_q) begin
+          state_q  <= S_STOP2;
+          sample_q <= 4'd10;
+          end
+          else begin
+          state_q  <= S_IDLE;
+          sample_q <= 4'd0;
+          end
+          end
+          end
+          
+          S_STOP2: begin
+    sample_q <= sample_q + 4'd1;
 
-         /* S_STOP2: begin
-            sample_q <= sample_q + 4'd1;
-            // After 1 + 1 stop bits we have sample_q traversing 10..15
-            // in S_STOP first, then 0..15 here. We exit at sample 9
-            // here too, for the same drift-tolerance reasoning.
-            if (sample_q == 4'd9) begin
-              state_q  <= S_IDLE;
-              sample_q <= 4'd0;
-            end
-          end */
-		  S_STOP2: begin
-				sample_q <= sample_q + 4'd1;
+    // Early START detected before STOP2 validation completes
+    if (!rx_sync_q) begin
+        frame_err_pulse_q <= 1'b1;
+        frame_pending_q   <= 1'b0;  // Reject previous frame
+        state_q           <= S_IDLE;
+        sample_q          <= 4'd0;
+    end
+    else if (sample_q == 4'd9) begin
+        // STOP2 is valid
+        if (frame_pending_q)
+            data_valid_pulse_q <= 1'b1;
 
-				// Take 3 samples like S_STOP
-				if (sample_q == 4'd7)
-					votes0_q <= rx_sync_q;
+        frame_pending_q <= 1'b0;
+        state_q         <= S_IDLE;
+        sample_q        <= 4'd0;
+        end
+      end
 
-				if (sample_q == 4'd8)
-					votes1_q <= rx_sync_q;
-
-				if (sample_q == 4'd9) begin
-
-					// Majority vote of second stop bit
-					stop2_bit = (votes0_q & votes1_q) |
-								(votes0_q & rx_sync_q) |
-								(votes1_q & rx_sync_q);
-
-					if (stop2_bit == 1'b0)
-						frame_err_pulse_q <= 1'b1;
-
-					state_q  <= S_IDLE;
-					sample_q <= 4'd0;
-				end
-			end
 
           default: state_q <= S_IDLE;
         endcase

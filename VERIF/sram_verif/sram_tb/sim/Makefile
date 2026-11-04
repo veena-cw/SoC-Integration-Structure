@@ -59,6 +59,9 @@ VERILATOR     := $(VERILATOR_HOME)/bin/verilator
 VERILATOR_COV := $(VERILATOR_HOME)/bin/verilator_coverage
 COV_REPORT    := python3 -I $(PROJECT_DIR)/cov_report.py
 CODE_REPORT   := python3 -I $(PROJECT_DIR)/code_cov_report.py
+COVER_REPORT  ?= $(HOME)/coverage_tool/cover_report
+COV_PLUGIN    := $(PROJECT_DIR)/cover_report_waivers.py
+COV_MIN       ?= line=100,branch=100,expr=100,toggle=100,covergroup=100,user=100
 
 # RTL code coverage scope: $(WORK_DIR)/code_cov.vlt is generated at
 # compile time with a coverage_off for every non-DSN file in filelist.f
@@ -124,6 +127,10 @@ Targets
                        sram_clk configurations (ratios 4:1 .. 1:4, random
                        phase, jitter) and print a pass/fail table
                          logs     -> verilator_logs/clk_sweep_<config>.log
+  make cov_gui         open verilator_cov/merged.dat in the coverage explorer,
+                       with RTL source view and both waiver files applied
+  make cov_check       fail if coverage after waivers is below COV_MIN
+  make cov_rank        show which tests add coverage
   make check_verilator fail unless VERILATOR_HOME/bin/verilator is $(VERILATOR_VERSION)
   make clean           remove logs, build and coverage output
   make help            this text
@@ -294,6 +301,19 @@ cov:
 	$(COV_REPORT) --per-test $$dats --merged "$(COV_DIR)/merged.dat" \
 		--waivers "$(PROJECT_DIR)/func_cov_waivers.txt" \
 		| tee "$(COV_DIR)/coverage_report.txt"
+
+.PHONY: cov_gui
+cov_gui:
+	python3 $(COVER_REPORT) "$(COV_DIR)/merged.dat" -gui --waivers "$(COV_PLUGIN)"
+
+.PHONY: cov_check
+cov_check:
+	python3 $(COVER_REPORT) "$(COV_DIR)/merged.dat" --check $(COV_MIN) --waivers "$(COV_PLUGIN)"
+
+.PHONY: cov_rank
+cov_rank:
+	python3 $(COVER_REPORT) --rank --vcov "$(VERILATOR_COV)" \
+		$(filter-out $(COV_DIR)/merged.dat,$(wildcard $(COV_DIR)/*.dat))
 
 # verilator_coverage --filter-type takes one wildcard pattern (* ?), not
 # a regex, so the annotated sources are built from a per-type filtered

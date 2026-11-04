@@ -302,6 +302,9 @@ COVERAGE_WAIVERS := $(SIM_DIR)/coverage_waivers.txt
 COVERAGE_EXCLUDE := '*/VERIF/uvm-1.1d/*' '*/VERIF/cpu_verif/*' '*/VERIF/plic_verif/*' '*/share/verilator/*'
 COVERAGE_SUMMARY := $(COVERAGE_DIR)/summary.txt
 COVERAGE_HTML_DIR := $(COVERAGE_DIR)/html
+COVER_REPORT ?= $(HOME)/coverage_tool/cover_report
+COVERAGE_PLUGIN := $(SIM_DIR)/../scripts/cover_report_waivers.py
+COV_MIN ?= line=88,branch=86,expr=85,toggle=74
 
 # BSG memory models print one informational line for every large memory
 # instance. Filter only those messages from simulator output; keep UVM,
@@ -439,7 +442,7 @@ VERILATOR_SRCS = $(SIM_DIR)/coverage.vlt -f $(TB_FILELIST)
 # Targets
 ###############################################################################
 
-.PHONY: all compile sim run build print_exe regression coverage_report coverage_holes wave check_uvm sim_info clean help
+.PHONY: all compile sim run build print_exe regression coverage_report coverage_holes coverage_gui coverage_check coverage_rank wave check_uvm sim_info clean help
 
 all: compile sim
 
@@ -703,6 +706,17 @@ coverage_holes:
 	python3 $(SIM_DIR)/../scripts/coverage_holes.py $(COVERAGE_MERGED) \
 		$(COVERAGE_DIR)/holes --scope $(HOLES_SCOPE) --waivers $(COVERAGE_WAIVERS)
 
+# Coverage explorer: same scope and waivers as coverage_by_type.txt.
+coverage_gui:
+	python3 $(COVER_REPORT) $(COVERAGE_MERGED) -gui --waivers $(COVERAGE_PLUGIN)
+
+coverage_check:
+	python3 $(COVER_REPORT) $(COVERAGE_MERGED) --check $(COV_MIN) --waivers $(COVERAGE_PLUGIN)
+
+coverage_rank:
+	python3 $(COVER_REPORT) --rank --vcov $(VERILATOR_COVERAGE) \
+		$(filter-out $(COVERAGE_MERGED),$(wildcard $(COVERAGE_DIR)/*.dat))
+
 # PLIC-only waveform: Verilator always dumps the whole design to
 # sim/cpu_tb_top.vcd, so cut the PLIC path out of it afterwards into
 # sim/plic.vcd (open in Vaporview / GTKWave). Run after make sim.
@@ -800,6 +814,12 @@ help:
 	@echo "  make coverage_holes [HOLES_SCOPE=integration|design|all]"
 	@echo "      Lists never-toggled signals and never-hit lines/branches"
 	@echo "      Merge existing per-test coverage.dat files"
+	@echo "  make coverage_gui"
+	@echo "      Open the merged coverage in the coverage explorer, with RTL source view"
+	@echo "  make coverage_check [COV_MIN=line=90,branch=85]"
+	@echo "      Fail if coverage after waivers is below COV_MIN"
+	@echo "  make coverage_rank"
+	@echo "      Show which tests add coverage"
 	@echo ""
 	@echo "WAVEFORM"
 	@echo "  make wave"

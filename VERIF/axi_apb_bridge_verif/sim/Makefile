@@ -7,6 +7,9 @@
 #   make orig             build + run the original directed TB (tb_axi4_to_apb_bridge_cdc)
 #   make cov              coverage build, COV_SEEDS runs, merge -> coverage/ (report, annotate, html)
 #   make cov-report       re-print the report (with holes) from coverage/merged.dat
+#   make cov-gui          open coverage/merged.dat in the coverage explorer, with RTL source view
+#   make cov-check        fail if coverage after exclusions is below COV_MIN
+#   make cov-rank         show which COV_SEEDS runs add coverage
 #   make push GIT_MSG="..."   commit this flow's sources (+ coverage summary) and push the current branch
 #   make clean
 #
@@ -34,7 +37,7 @@ REG_RESET_SEEDS ?= 11 12      # extra seeds per config run with +RESETS=$(REG_RE
 REG_RESETS  ?= 12          # one reset aimed at each of the 12 AXI/APB FSM states
 REG_CONFIGS ?= 128:32:4 128:32:2 128:32:8 128:32:16 64:32:4 32:32:4 128:64:4
 
-.PHONY: all build run regress orig clean cov cov-build cov-report reset-char push
+.PHONY: all build run regress orig clean cov cov-build cov-report cov-gui cov-check cov-rank reset-char push
 all: run
 
 build: $(BIN)
@@ -88,6 +91,8 @@ COV_RESET_SEEDS ?= 21 22 23 24   # run with +RESETS=$(REG_RESETS), both domains
 COV_DIR   := coverage
 COV_OBJ   := obj_cov_$(CFG)
 COV_BIN   := $(COV_OBJ)/Vtb_bridge_rand
+COVER_REPORT ?= $(HOME)/coverage_tool/cover_report
+COV_MIN   ?= line=95,branch=85,expr=85,toggle=95,covergroup=100
 
 cov-build: $(COV_BIN)
 
@@ -115,6 +120,15 @@ cov: $(COV_BIN)
 
 cov-report:
 	python3 cov_report.py $(COV_DIR)/merged.dat --holes
+
+cov-gui:
+	python3 $(COVER_REPORT) $(COV_DIR)/merged.dat -gui --source-root .
+
+cov-check:
+	python3 $(COVER_REPORT) $(COV_DIR)/merged.dat --check $(COV_MIN)
+
+cov-rank:
+	python3 $(COVER_REPORT) --rank --vcov $(VCOV) $(COV_DIR)/runs/*.dat
 
 #---------------------------------------------------------------------------
 # Git: stage only the verification sources (build output is in .gitignore)

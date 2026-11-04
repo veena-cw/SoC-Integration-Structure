@@ -34,7 +34,8 @@ module spi_fifo #(
 
   output logic                          empty_o,
   output logic                          full_o,
-  output logic [$clog2(DEPTH+1)-1:0]    count_o
+  output logic [$clog2(DEPTH+1)-1:0]    count_o,
+  output logic overflow_o
 );
 
   localparam int unsigned PTR_W = $clog2(DEPTH);
@@ -81,14 +82,16 @@ module spi_fifo #(
   // Registered read data — sampled the cycle of rd_en_i, available next
   // cycle. We expose the head of the queue combinationally so that
   // single-cycle peeks work; a registered read keeps timing clean.
-  always_ff @(posedge clk_i) begin
+  /*always_ff @(posedge clk_i) begin
     if (!rst_ni) rd_data_o <= '0;
     else if (do_rd) rd_data_o <= mem_q[rd_ptr_q];
-  end
- // assign rd_data_o = (empty_o) ? '0 : mem_q[rd_ptr_q];
+  end */
+  assign rd_data_o = (empty_o) ? '0 : mem_q[rd_ptr_q];
 
   assign empty_o = (count_q == 0);
   assign full_o  = (count_q == DEPTH);
   assign count_o = count_q;
+  
+assign overflow_o = wr_en_i && full_o;
 
 endmodule

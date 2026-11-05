@@ -79,6 +79,7 @@ module usbh_sie
     ,output logic idle_o
     ,output logic [  7:0] utmi_data_o
     ,output logic utmi_txvalid_o
+    ,output logic tx_underflow_o
 );
 
 
@@ -369,6 +370,18 @@ begin
            ;
     endcase
 end
+
+logic status_tx_underflow_q;
+
+// TX FIFO Underflow Status
+always_ff @(posedge clk_i or negedge rst_i)
+begin
+    if (!rst_i) status_tx_underflow_q <= 1'b0;
+    else if (state_q == STATE_IDLE ) status_tx_underflow_q <= 1'b0;
+    else if (state_q == STATE_TX_ABORT) status_tx_underflow_q <= 1'b1;
+end
+
+assign tx_underflow_o = status_tx_underflow_q;
 
 // Update state
 //always_ff @(posedge clk_i or posedge rst_i)
@@ -856,5 +869,7 @@ assign rx_done_o    = status_rx_done_q;
 assign crc_err_o    = status_crc_err_q;
 assign timeout_o    = status_timeout_q;
 assign response_o   = status_response_q;
+
+
 
 endmodule

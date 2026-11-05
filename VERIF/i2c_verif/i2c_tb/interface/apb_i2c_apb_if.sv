@@ -33,6 +33,8 @@ interface apb_i2c_apb_if (
     logic        i2c_irq_en;
     logic       i2c_irq;
     
+    
+    logic i_rd_data_valid_mon;
      //============================================================
     // Temporary PREADY generation
     //============================================================

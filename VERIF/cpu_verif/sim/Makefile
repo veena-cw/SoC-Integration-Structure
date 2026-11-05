@@ -452,7 +452,7 @@ all: compile sim
 
 compile: $(TCNAME).nbf
 
-$(TCNAME).elf: $(C_DIR)/$(TCNAME).c $(C_DIR)/link.ld $(C_DIR)/dual_core.h $(wildcard $(C_DIR)/plic_cpu.h $(C_DIR)/plic_irq_scenarios.c $(C_DIR)/cbo_ops.c $(C_DIR)/axi_block_dual_core.c $(C_DIR)/vm_sv39.c $(C_DIR)/l2_uncached_ops.c)
+$(TCNAME).elf: $(wildcard $(C_DIR)/$(TCNAME).c $(C_DIR)/$(TCNAME).S) $(C_DIR)/link.ld $(C_DIR)/dual_core.h $(wildcard $(C_DIR)/plic_cpu.h $(C_DIR)/plic_irq_scenarios.c $(C_DIR)/cbo_ops.c $(C_DIR)/axi_block_dual_core.c $(C_DIR)/vm_sv39.c $(C_DIR)/l2_uncached_ops.c)
 	@mkdir -p $(LOG_DIR)
 	@echo "=================================================="
 	@echo " Compiling RISC-V C test"

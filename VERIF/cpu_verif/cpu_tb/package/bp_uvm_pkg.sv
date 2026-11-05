@@ -52,6 +52,14 @@ package bp_uvm_pkg;
   `include "plic_irq_agent.sv"
   `include "plic_irq_sequences.sv"
   `include "plic_irq_ctrl.sv"
+  // PLIC register model and AHB monitor from the PLIC testbench, passive
+  import plic_ahb_lite_item_pkg::*;
+  import plic_ral_block_pkg::*;
+  import plic_ral_metadata_pkg::*;
+  import plic_ahb_lite_adapter_pkg::*;
+  import plic_ahb_lite_predictor_pkg::*;
+  `include "plic_ahb_lite_monitor.sv"
+  `include "plic_ral_passive.sv"
   `include "nbf_load_seq.sv"
   `include "alu_test_seq.sv"
   `include "immediate_test_seq.sv"

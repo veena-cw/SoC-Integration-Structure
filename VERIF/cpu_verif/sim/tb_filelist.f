@@ -27,6 +27,15 @@ $CPU_RTL_DIR/bp_top/test/common/bp_nonsynth_dram.sv
 +incdir+$REPO_ROOT/VERIF/plic_verif/plic_tb/irq_sequence
 $REPO_ROOT/VERIF/plic_verif/plic_tb/agent/irq_agent/plic_irq_item.sv
 $REPO_ROOT/VERIF/plic_verif/plic_tb/interface/plic_irq_if.sv
+# PLIC register model and AHB monitor (passive; the CPU is the AHB master)
++incdir+$REPO_ROOT/VERIF/plic_verif/plic_tb/agent/ahb_agent
+$REPO_ROOT/VERIF/plic_verif/plic_tb/ral/plic_ral_pkg.sv
+$REPO_ROOT/VERIF/plic_verif/plic_tb/ral/plic_ral_block.sv
+$REPO_ROOT/VERIF/plic_verif/plic_tb/ral/plic_ral_metadata_pkg.sv
+$REPO_ROOT/VERIF/plic_verif/plic_tb/agent/ahb_agent/plic_ahb_lite_item.sv
+$REPO_ROOT/VERIF/plic_verif/plic_tb/ral/plic_ahb_lite_adapter.sv
+$REPO_ROOT/VERIF/plic_verif/plic_tb/env/ahb_env/plic_ahb_lite_predictor.sv
+$REPO_ROOT/VERIF/plic_verif/plic_tb/interface/plic_ahb_lite_if.sv
 # UVM verification environment
 $TB_DIR/package/bp_uvm_pkg.sv
 $TB_DIR/interface/bedrock_if.sv

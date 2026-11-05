@@ -835,8 +835,15 @@ endclass
 class bp_dv_042_plic_reg_test extends bp_base_test;
   `uvm_component_utils(bp_dv_042_plic_reg_test)
 
+  plic_ral_passive plic_ral;
+
   function new(string name, uvm_component parent);
     super.new(name, parent);
+  endfunction
+
+  function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    plic_ral = plic_ral_passive::type_id::create("plic_ral", this);
   endfunction
 
   task run_phase(uvm_phase phase);
@@ -876,9 +883,10 @@ endclass
 class bp_dv_058_plic_irq_test extends bp_base_test;
   `uvm_component_utils(bp_dv_058_plic_irq_test)
 
-  plic_irq_agent irq_agt;
-  plic_irq_ctrl  irq_ctrl;
-  time           run_limit = 1500us;   // tohost deadline (subclasses may raise it)
+  plic_irq_agent   irq_agt;
+  plic_irq_ctrl    irq_ctrl;
+  plic_ral_passive plic_ral;
+  time             run_limit = 1500us;   // tohost deadline (subclasses may raise it)
 
   function new(string name, uvm_component parent);
     super.new(name, parent);
@@ -890,6 +898,7 @@ class bp_dv_058_plic_irq_test extends bp_base_test;
       uvm_top.set_timeout(run_limit + 100us, 1);
     irq_agt  = plic_irq_agent::type_id::create("irq_agt", this);
     irq_ctrl = plic_irq_ctrl::type_id::create("irq_ctrl", this);
+    plic_ral = plic_ral_passive::type_id::create("plic_ral", this);
   endfunction
 
   function void connect_phase(uvm_phase phase);

@@ -286,6 +286,23 @@ module cpu_tb_top
   assign plic_irq_vif.irq = dut.u_bp.m.multicore.plic_irq_lo;
   initial uvm_resource_db#(virtual plic_irq_if #(64, 4))::set("*", "irq_vif", plic_irq_vif);
 
+  // PLIC AHB port, observed by the PLIC testbench's AHB monitor. Read-only
+  // here: the bridge in bp_plic_shared_top is the master. HREADY at the PLIC
+  // is its own HREADYOUT.
+  plic_ahb_lite_if plic_ahb_vif (.hclk(plic_clk), .hreset_n(plic_irq_rstn));
+  assign plic_ahb_vif.hsel      = dut.u_bp.m.multicore.shared_plic.ahb_hsel;
+  assign plic_ahb_vif.haddr     = dut.u_bp.m.multicore.shared_plic.ahb_haddr_full[31:0];
+  assign plic_ahb_vif.hwrite    = dut.u_bp.m.multicore.shared_plic.ahb_hwrite;
+  assign plic_ahb_vif.htrans    = dut.u_bp.m.multicore.shared_plic.ahb_htrans;
+  assign plic_ahb_vif.hsize     = dut.u_bp.m.multicore.shared_plic.ahb_hsize;
+  assign plic_ahb_vif.hburst    = dut.u_bp.m.multicore.shared_plic.ahb_hburst;
+  assign plic_ahb_vif.hwdata    = dut.u_bp.m.multicore.shared_plic.ahb_hwdata;
+  assign plic_ahb_vif.hrdata    = dut.u_bp.m.multicore.shared_plic.ahb_hrdata;
+  assign plic_ahb_vif.hready    = dut.u_bp.m.multicore.shared_plic.ahb_hreadyout;
+  assign plic_ahb_vif.hreadyout = dut.u_bp.m.multicore.shared_plic.ahb_hreadyout;
+  assign plic_ahb_vif.hresp     = dut.u_bp.m.multicore.shared_plic.ahb_hresp;
+  initial uvm_resource_db#(virtual plic_ahb_lite_if)::set("*", "vif", plic_ahb_vif);
+
   // ---- cpu_top instantiation ----
   cpu_top #(
     .bp_params_p(bp_params_p),

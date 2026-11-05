@@ -57,6 +57,6 @@
 ../env/apb_i2c_ral_env.sv
 ../tests/apb_i2c_ral_test.sv
 
-
+../env/i2c_fsm_coverage_probe.sv
 ../assertion/i2c_assertions.sv
 ../top/test_top.sv

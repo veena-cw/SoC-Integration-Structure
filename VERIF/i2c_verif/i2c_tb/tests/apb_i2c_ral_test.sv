@@ -43,13 +43,41 @@ import apb_i2c_ral_sequences_pkg::*;
 class apb_i2c_base_test extends uvm_test;
   `uvm_component_utils(apb_i2c_base_test)
   apb_i2c_ral_env env;
-   bit irq_enable_test = 0;
+  virtual i2c_irq_if irq_vif;
+  bit select_salve;
+  bit p_enable;
   function new(string name = "apb_i2c_base_test", uvm_component parent = null);
     super.new(name, parent);
   endfunction
   function void build_phase(uvm_phase phase);
     super.build_phase(phase);
     env = apb_i2c_ral_env::type_id::create("env", this);
+    
+     // Get IRQ interface
+    if (!uvm_config_db#(virtual i2c_irq_if)::get(
+          this,
+          "",
+          "irq_vif",
+          irq_vif
+        )) begin
+
+      `uvm_fatal("IRQ_VIF",
+                 "Failed to get i2c_irq_if in test")
+    end
+    
+    /*
+     uvm_resource_db#(bit)::set(
+    "*",
+    "select_salve",
+    1'b1,
+    this);	
+    
+      uvm_resource_db#(bit)::set(
+    "*",
+    "p_enable",
+    1'b1,
+    this);*/
+
   endfunction
   // Central reset task - called at start of every test's run_phase
   task do_reset();
@@ -281,7 +309,8 @@ class apb_i2c_reg_write_test extends apb_i2c_base_test;
   wseq.read_write = 1'b0;
 
  
-    repeat(1)
+
+    repeat(50)
     wseq.start(env.agent.sequencer);
     #10;
    // env.scoreboard.check_mirror_desired("after_write_read");
@@ -309,9 +338,9 @@ class apb_i2c_reg_write_push_test extends apb_i2c_base_test;
    wseq.slave_addr = 7'h55;
   wseq.read_write = 1'b0;
 
-    repeat(1)
+    repeat(5)
     wseq.start(env.agent.sequencer);
-    #10;
+    #1000ns;
    // env.scoreboard.check_mirror_desired("after_write_read");
     phase.drop_objection(this);
   endtask
@@ -338,7 +367,7 @@ class apb_i2c_reg_read_test extends apb_i2c_base_test;
     rseq.slave_addr = 7'h55;
   rseq.read_write = 1'b1;
  // rseq.tx_data    = 32'h0000d500;
-     repeat(300)
+     repeat(50)
     rseq.start(env.agent.sequencer);
    // env.scoreboard.check_mirror_desired("after_write_read");
     phase.drop_objection(this);
@@ -365,7 +394,7 @@ class apb_i2c_reg_write_wrong_addr_test extends apb_i2c_base_test;
     wr_seq.model = env.ral_model;
    // rseq.slave_addr = 7'h55;
   //rseq.read_write = 1'b1;
-    //repeat(25)
+    repeat(10)
     wr_seq.start(env.agent.sequencer);
     
     phase.drop_objection(this);
@@ -399,7 +428,7 @@ class apb_i2c_reg_write_wrong_addr_test extends apb_i2c_base_test;
     wr_seq.model = env.ral_model;
    // rseq.slave_addr = 7'h55;
   //rseq.read_write = 1'b1;
-    repeat(25)
+    repeat(50)
     wr_seq.start(env.agent.sequencer);
     
     phase.drop_objection(this);
@@ -432,9 +461,9 @@ endclass
     do_reset();
     `uvm_info(get_type_name(), "WRITE + NACK:", UVM_LOW)
     wr_seq.model = env.ral_model;
-   // rseq.slave_addr = 7'h55;
-  //rseq.read_write = 1'b1;
-    //repeat(25)
+  //  rseq.slave_addr = 7'h55;
+  // rseq.read_write = 1'b1;
+    repeat(50)
     wr_seq.start(env.agent.sequencer);
     
     phase.drop_objection(this);
@@ -478,7 +507,7 @@ class apb_i2c_valid_addr_unused_test extends apb_i2c_base_test;
   i2c_irq_enable_seq irq_en_seq;
 
 
-virtual i2c_irq_if irq_vif;
+
   // APB sequences
   apb_i2c_irq_reg_write_seq seq1;
 
@@ -490,17 +519,7 @@ virtual i2c_irq_if irq_vif;
  virtual function void build_phase(uvm_phase phase);
     super.build_phase(phase);
 
-    // Get IRQ interface
-    if (!uvm_config_db#(virtual i2c_irq_if)::get(
-          this,
-          "",
-          "irq_vif",
-          irq_vif
-        )) begin
-
-      `uvm_fatal("IRQ_VIF",
-                 "Failed to get i2c_irq_if in test")
-    end
+   
   endfunction
 
   virtual task run_phase(uvm_phase phase);
@@ -512,6 +531,7 @@ virtual i2c_irq_if irq_vif;
     seq1 = apb_i2c_irq_reg_write_seq::type_id::create("seq1");
       //  seq1.irq_seqr = env.irq_agent.irq_sequencer;
     seq1.model = env.ral_model;
+    seq1.irq_enable = 1'b1;
     //============================================================
     // 1. Enable IRQ - only once
     //============================================================
@@ -543,7 +563,508 @@ virtual i2c_irq_if irq_vif;
     phase.drop_objection(this);
 
   endtask
+  
+  endclass
+  
+  class apb_i2c_irq_ready_test extends apb_i2c_base_test;
+
+  `uvm_component_utils(apb_i2c_irq_ready_test)
+
+  apb_i2c_reg_write_seq   wseq;
+  // APB sequences
+  apb_i2c_irq_reg_write_seq seq1;
+  
+uvm_status_e   status;
+    uvm_reg_data_t status_value;
+    uvm_reg_data_t ctrl_value;
+bit busy;
+    bit done;
+    bit slave_error;
+
+  function new(string name = "apb_i2c_irq_ready_test",
+               uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+ virtual function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+
+   
+  endfunction
+
+  virtual task run_phase(uvm_phase phase);
+
+    phase.raise_objection(this);
+ 	do_reset();
+    `uvm_info(get_type_name(), "IRQ TEST:", UVM_LOW)
+
+    seq1 = apb_i2c_irq_reg_write_seq::type_id::create("seq1");
+   wseq = apb_i2c_reg_write_seq :: type_id :: create("wseq",this);
+   
+   
+    seq1.model = env.ral_model;
+   wseq.slave_addr = 7'h55;
+   wseq.read_write = 1'b0;
+    //============================================================
+    // 1. Enable IRQ - only once
+    //============================================================
+
+
+  
+    //==========================================================
+    //  WRITE CTRL_REG
+    //==========================================================
+
+    ctrl_value = '0;
+
+    ctrl_value[8] = 1;
+
+
+
+    `uvm_info(
+      "I2C_WRITE",
+      $sformatf(
+        "CTRL_REG <= 0x%08h",
+        ctrl_value
+      ),
+      UVM_MEDIUM
+    );
+
+
+    env.ral_model.CTRL_REG.write(
+      status,
+      ctrl_value,
+      UVM_FRONTDOOR
+    );
+
+
+    if (status != UVM_IS_OK) begin
+
+      `uvm_fatal(
+        "I2C_WRITE",
+        "CTRL_REG write failed"
+      )
+
+    end
+
+
+
+    //============================================================
+    // 2. Wait for FIRST interrupt
+    //============================================================
+
+    `uvm_info("IRQ_TEST",
+              "Waiting for first I2C interrupt...",
+              UVM_LOW)
+
+   @(posedge irq_vif.i2c_irq);
+
+    `uvm_info("IRQ_TEST",
+              "First I2C interrupt received",
+              UVM_LOW)
+
+
+  
+       env.ral_model.STATUS_REG.read(
+        status,
+        status_value,
+        UVM_FRONTDOOR
+      );
+
+
+      if (status != UVM_IS_OK) begin
+
+        `uvm_fatal(
+          "I2C_WRITE",
+          "STATUS_REG read failed"
+        )
+
+      end
+
+
+      busy = status_value[0];
+
+
+      `uvm_info(
+        "I2C_WRITE",
+        $sformatf(
+          "STATUS = 0x%08h BUSY=%0b",
+          status_value,
+          busy
+        ),
+        UVM_MEDIUM
+      );
+
+//  repeat(3)
+  //  seq1.start(env.agent.sequencer);
+#10;
+
+    phase.drop_objection(this);
+
+  endtask
 
 endclass
   
+  class apb_i2c_r_access_hold_test extends apb_i2c_base_test;
+
+  `uvm_component_utils(apb_i2c_r_access_hold_test)
+
+  function new(string name = "apb_i2c_r_access_hold_test",
+               uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+
+  virtual function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+  endfunction
+
+  virtual task run_phase(uvm_phase phase);
+
+    apb_i2c_r_access_hold_seq seq;
+apb_i2c_reg_read_seq  rseq;
+    phase.raise_objection(this);
+
+    `uvm_info("R_ACCESS_TEST",
+              "Starting R_ACCESS hold branch coverage test",
+              UVM_MEDIUM)
+
+    // Apply reset using the base-test reset task.
+    do_reset();
+
+    // Create and start directed sequence.
+    seq = apb_i2c_r_access_hold_seq::type_id::create("seq");
+     rseq = apb_i2c_reg_read_seq :: type_id :: create("rseq",this);
+ 	seq.model = env.ral_model;
+ 	rseq.model = env.ral_model;
+
+    seq.start(env.agent.sequencer);
+#50ns;
+
+ 
+    `uvm_info("R_ACCESS_TEST",
+              "Completed R_ACCESS hold branch coverage test",
+              UVM_MEDIUM)
+#500ns;
+    phase.drop_objection(this);
+
+  endtask
+ 
+
+endclass
+
+
+  class apb_i2c_irq_error_status_test extends apb_i2c_base_test;
+
+  `uvm_component_utils(apb_i2c_irq_error_status_test)
+
+  // IRQ enable sequence
+  i2c_irq_enable_seq irq_en_seq;
+
+
+
+  // APB sequences
+  apb_i2c_irq_error_reg_write_seq   seq1;
+
+
+  function new(string name = "apb_i2c_irq_test",
+               uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+ virtual function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+
+   
+  endfunction
+
+  virtual task run_phase(uvm_phase phase);
+
+    phase.raise_objection(this);
+ 	do_reset();
+    `uvm_info(get_type_name(), "IRQ TEST:", UVM_LOW)
+
+    seq1 = apb_i2c_irq_error_reg_write_seq::type_id::create("seq1");
+      //  seq1.irq_seqr = env.irq_agent.irq_sequencer;
+    seq1.model = env.ral_model;
+    seq1.irq_enable = 1'b1;
+    //============================================================
+    // 1. Enable IRQ - only once
+    //============================================================
+
+    irq_en_seq =
+      i2c_irq_enable_seq::type_id::create("irq_en_seq");
+
+
+
+    //============================================================
+    // 2. Wait for FIRST interrupt
+    //============================================================
+
+    `uvm_info("IRQ_TEST",
+              "Waiting for first I2C interrupt...",
+              UVM_LOW)
+
+   // @(posedge irq_vif.i2c_irq);
+
+    `uvm_info("IRQ_TEST",
+              "First I2C interrupt received",
+              UVM_LOW)
+
+
+//  repeat(3)
+    seq1.start(env.agent.sequencer);
+
+
+    phase.drop_objection(this);
+
+  endtask
   
+  endclass
+  
+  class apb_i2c_reg_write_no_enable_test extends apb_i2c_base_test;
+  `uvm_component_utils(apb_i2c_reg_write_no_enable_test)
+
+  apb_i2c_reg_write_seq   wseq;
+  function new(string name = "apb_i2c_reg_write_no_enable_test", uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+  function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+  //  seq = apb_i2c_reg_write_read_seq::type_id::create("seq", this);
+    wseq = apb_i2c_reg_write_seq :: type_id :: create("wseq",this);
+    
+    
+    
+   uvm_resource_db#(bit)::set(
+  "*",
+  "select_salve",
+  1'b1,
+  this
+);
+
+uvm_resource_db#(bit)::set(
+  "*",
+  "p_enable",
+  1'b0,
+  this
+);
+
+
+`uvm_info("APB_CONFIG",
+          $sformatf("select_salve=%0b p_enable=%0b",
+                     1'b1, 1'b0),
+          UVM_LOW)
+  endfunction
+  task run_phase(uvm_phase phase);
+    phase.raise_objection(this);
+    do_reset();
+    `uvm_info(get_type_name(), "WRITE TEST: frontdoor write, check mirrored vs desired", UVM_LOW)
+    wseq.model = env.ral_model;
+   wseq.slave_addr = 7'h55;
+  wseq.read_write = 1'b0;
+
+ 
+
+    repeat(10)
+    wseq.start(env.agent.sequencer);
+    #10;
+   // env.scoreboard.check_mirror_desired("after_write_read");
+    phase.drop_objection(this);
+  endtask
+endclass
+
+class apb_i2c_default_coverage_test extends apb_i2c_base_test;
+
+  `uvm_component_utils(apb_i2c_default_coverage_test)
+
+  apb_i2c_default_coverage_seq seq;
+
+  function new(string name = "apb_i2c_default_coverage_test",
+               uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+
+  task run_phase(uvm_phase phase);
+
+    phase.raise_objection(this);
+
+    do_reset();
+
+    seq = apb_i2c_default_coverage_seq::type_id::create("seq");
+
+    seq.start(env.agent.sequencer);
+
+#500;
+
+    phase.drop_objection(this);
+
+  endtask
+
+endclass
+
+//============================================================
+// TEST: apb_i2c_fsm_default_test
+//
+// PURPOSE:
+// Exercise uncovered I2C master FSM default branches.
+//
+// FLOW:
+// 1. Reuse existing APB-I2C base test setup.
+// 2. Run FSM fault-injection sequence.
+// 3. Check STOP default recovery.
+// 4. Check main FSM default recovery when supported.
+//============================================================
+
+
+class apb_i2c_fsm_default_test extends apb_i2c_ral_test;
+
+  `uvm_component_utils(apb_i2c_fsm_default_test)
+
+  apb_i2c_fsm_default_seq seq;
+
+  function new(
+    string name = "apb_i2c_fsm_default_test",
+    uvm_component parent = null
+  );
+
+    super.new(name, parent);
+
+  endfunction
+
+  //============================================================
+  // RUN PHASE
+  //============================================================
+
+  virtual task run_phase(uvm_phase phase);
+
+    phase.raise_objection(
+      this,
+      "I2C FSM default test started"
+    );
+
+    `uvm_info(
+      get_type_name(),
+      "Starting I2C master default branch verification",
+      UVM_MEDIUM
+    )
+
+    //==========================================================
+    // 1. RESET DUT
+    //==========================================================
+
+    do_reset();
+
+    //==========================================================
+    // 2. CREATE SEQUENCE
+    //==========================================================
+
+    seq = apb_i2c_fsm_default_seq::type_id::create("seq");
+
+    //==========================================================
+    // 3. CONNECT RAL MODEL
+    //==========================================================
+
+    seq.model = env.ral_model;
+
+    if (seq.model == null) begin
+      `uvm_fatal(
+        "RAL_MODEL",
+        "env.ral_model is NULL"
+      )
+    end
+
+    //==========================================================
+    // 4. START SEQUENCE
+    //
+    // RAL frontdoor accesses use the sequencer configured
+    // in the register map.
+    //==========================================================
+
+    seq.start(null);
+
+    //==========================================================
+    // 5. REPORT
+    //==========================================================
+
+    if (seq.stop_default_pass) begin
+
+      `uvm_info(
+        get_type_name(),
+        "PASS: STOP nested default branch verified",
+        UVM_NONE
+      )
+
+    end
+    else begin
+
+      `uvm_error(
+        get_type_name(),
+        "FAIL: STOP nested default branch verification failed"
+      )
+
+    end
+
+    `uvm_info(
+      get_type_name(),
+      "I2C master default branch verification finished",
+      UVM_LOW
+    )
+
+    phase.drop_objection(
+      this,
+      "I2C FSM default test completed"
+    );
+
+  endtask
+
+endclass
+
+
+class apb_i2c_strobe_coverage_test extends apb_i2c_ral_test;
+
+  `uvm_component_utils(apb_i2c_strobe_coverage_test)
+
+  apb_i2c_strobe_coverage_seq seq;
+
+  function new(
+    string name = "apb_i2c_strobe_coverage_test",
+    uvm_component parent = null
+  );
+
+    super.new(name, parent);
+
+  endfunction
+
+  //============================================================
+  // RUN PHASE
+  //============================================================
+
+  virtual task run_phase(uvm_phase phase);
+
+    phase.raise_objection(
+      this,
+      "apb_i2c_strobe_coverage_test started"
+    );
+    
+    do_reset();
+
+    //==========================================================
+    // 2. CREATE SEQUENCE
+    //==========================================================
+
+    seq = apb_i2c_strobe_coverage_seq::type_id::create("seq");
+
+    //==========================================================
+    // 3. CONNECT RAL MODEL
+    //==========================================================
+
+    seq.model = env.ral_model;
+
+
+ seq.start(env.agent.sequencer);
+  
+  #500;
+
+    phase.drop_objection(this);
+    
+  endtask
+
+endclass

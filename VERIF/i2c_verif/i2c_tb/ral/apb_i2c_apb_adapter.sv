@@ -117,7 +117,7 @@ package apb_i2c_apb_adapter_pkg;
               item.pwdata,
               item.pstrb
             ),
-            UVM_NONE
+            UVM_DEBUG
           )
 
         end
@@ -141,7 +141,7 @@ package apb_i2c_apb_adapter_pkg;
               item.pwdata,
               item.pstrb
             ),
-            UVM_NONE
+            UVM_DEBUG
           )
 
         end
@@ -165,7 +165,7 @@ package apb_i2c_apb_adapter_pkg;
               item.pwdata,
               item.pstrb
             ),
-            UVM_NONE
+            UVM_DEBUG
           )
 
         end
@@ -190,7 +190,7 @@ package apb_i2c_apb_adapter_pkg;
             "READ REQUEST: ADDR=%h",
             rw.addr
           ),
-          UVM_NONE
+          UVM_DEBUG
         )
 
       end
@@ -249,6 +249,7 @@ package apb_i2c_apb_adapter_pkg;
 
           rw.byte_en = '0;
           rw.byte_en[0] = 1'b1;
+           rw.byte_en[1] = 1'b1;
 
 
           `uvm_info(
@@ -260,7 +261,7 @@ package apb_i2c_apb_adapter_pkg;
               rw.data,
               rw.byte_en
             ),
-            UVM_NONE
+            UVM_DEBUG
           )
 
         end
@@ -286,7 +287,7 @@ package apb_i2c_apb_adapter_pkg;
               rw.data,
               rw.byte_en
             ),
-            UVM_NONE
+            UVM_DEBUG
           )
 
         end
@@ -312,7 +313,7 @@ package apb_i2c_apb_adapter_pkg;
               rw.data,
               rw.byte_en
             ),
-            UVM_NONE
+            UVM_DEBUG
           )
 
         end
@@ -346,6 +347,7 @@ package apb_i2c_apb_adapter_pkg;
 
           rw.byte_en = '0;
           rw.byte_en[0] = item.pstrb[1];
+           rw.byte_en[1] = item.pstrb[2];
 
 
           `uvm_info(
@@ -412,7 +414,7 @@ package apb_i2c_apb_adapter_pkg;
           rw.byte_en,
           rw.status.name()
         ),
-        UVM_NONE
+        UVM_DEBUG
       )
 
     endfunction

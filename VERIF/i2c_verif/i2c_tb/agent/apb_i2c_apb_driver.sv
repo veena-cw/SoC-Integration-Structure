@@ -24,6 +24,11 @@ class apb_i2c_apb_driver extends uvm_driver #(apb_i2c_apb_item);
   `uvm_component_utils(apb_i2c_apb_driver)
   virtual apb_i2c_apb_if vif;
   virtual apb_i2c_reset_if rst_vif; // reset-aware via resource_db
+  
+  
+  bit select_salve;
+  bit p_enable;
+  int not_ready;
   function new(string name = "apb_i2c_apb_driver", uvm_component parent = null);
     super.new(name, parent);
   endfunction
@@ -34,6 +39,31 @@ class apb_i2c_apb_driver extends uvm_driver #(apb_i2c_apb_item);
     end
     // reset interface via resource_db only, no config_db, optional (test_top always sets it)
     void'(uvm_resource_db#(virtual apb_i2c_reset_if)::read_by_name(get_full_name(), "rst_vif", rst_vif));
+    
+    
+    if (!uvm_resource_db#(bit)::read_by_name(
+            get_full_name(),
+            "select_salve",
+            select_salve)) begin
+
+       select_salve = 1'b1;
+
+        `uvm_info("I2C_BFM",
+                  "Configure the Slave select",
+                  UVM_LOW)
+   end
+   
+   if (!uvm_resource_db#(bit)::read_by_name(
+            get_full_name(),
+            "p_enable",
+            p_enable)) begin
+
+        p_enable = 1'b1;
+
+        `uvm_info("I2C_BFM",
+                  "Configure the p_eanble",
+                  UVM_LOW)
+   end
   endfunction
   // Reset helper - drives ALL master signals to 0 (never DUT outputs pready/prdata/pslverr)
   task reset_signals();
@@ -86,7 +116,7 @@ class apb_i2c_apb_driver extends uvm_driver #(apb_i2c_apb_item);
     vif.pwrite  <= tr.pwrite;
     if (tr.pwrite) vif.pwdata <= tr.pwdata;
     vif.pstrb   <= tr.pstrb;
-    vif.psel    <= 1;
+    vif.psel    <= 1 & select_salve;
     vif.penable <= 0;
    //  vif.i2c_irq_en <=tr.i2c_irq_en;
     @(posedge vif.pclk);
@@ -99,8 +129,17 @@ class apb_i2c_apb_driver extends uvm_driver #(apb_i2c_apb_item);
       return;
     end
     // ACCESS
-    vif.penable <= 1;
-    @(posedge vif.pclk);
+    vif.psel    <= 1 & select_salve;
+    vif.penable <=  p_enable;
+   // @(posedge vif.pclk);
+    
+    if (p_enable == 1'b0) begin
+  if (vif.penable !== 1'b0)
+    `uvm_error("APB_PENABLE",
+               "PENABLE should remain LOW in no-enable test")
+end
+
+
     // 4. During ACCESS while waiting for PREADY - check each cycle
     while (!vif.pready) begin
       if (rst_vif != null && !rst_vif.rst_n) begin
@@ -109,7 +148,12 @@ class apb_i2c_apb_driver extends uvm_driver #(apb_i2c_apb_item);
         tr.aborted_by_reset = 1'b1;
         `uvm_warning(get_type_name(), "Reset during ACCESS wait for PREADY - transaction aborted")
         return;
-      end
+      end 
+      not_ready++;
+      
+      if(not_ready==0)
+      `uvm_fatal("APB_DRIVER","Not recieved Ready within 100 cycles")
+      
       @(posedge vif.pclk);
     end
     // 5. Before completing transaction
@@ -125,65 +169,4 @@ class apb_i2c_apb_driver extends uvm_driver #(apb_i2c_apb_item);
     vif.psel    <= 0;
     vif.penable <= 0;
   endtask
-  
-  
-  
-task drive_enable(apb_i2c_apb_item tr);
-   // Ensure clean flag at start
-    tr.aborted_by_reset = 1'b0;
-    // 1. Before starting transaction - handles initial reset already asserted (no negedge needed)
-    if (rst_vif != null && !rst_vif.rst_n) begin
-      reset_signals();
-      wait (rst_vif.rst_n === 1'b1);
-      tr.aborted_by_reset = 1'b1;
-      `uvm_info(get_type_name(), "Reset before IDLE - transaction aborted, will resume next item after deassert", UVM_MEDIUM)
-      return;
-    end
-    // IDLE
-    vif.psel    <= 0;
-    vif.penable <= 0;
-    vif.pwrite  <= 0;
-    vif.paddr   <= '0;
-    vif.pwdata  <= '0;
-    vif.pstrb   <= '0;
- //    vif.i2c_irq_en <= '0;
-    @(posedge vif.pclk);
-    // 2. After IDLE clock
-    if (rst_vif != null && !rst_vif.rst_n) begin
-      reset_signals();
-      wait (rst_vif.rst_n === 1'b1);
-      tr.aborted_by_reset = 1'b1;
-      return;
-    end
-    // ACCESS 
-    vif.paddr   <= tr.paddr;
-    vif.pwrite  <= tr.pwrite;
-    if (tr.pwrite) vif.pwdata <= tr.pwdata;
-    vif.pstrb   <= tr.pstrb;
-    vif.psel    <= 1;
-    vif.penable <= 1;
-     vif.psel    <= 1;
-    @(posedge vif.pclk);
-    // 4. During ACCESS while waiting for PREADY - check each cycle
-    while (!vif.pready) begin
-      if (rst_vif != null && !rst_vif.rst_n) begin
-        reset_signals();
-        wait (rst_vif.rst_n === 1'b1);
-        tr.aborted_by_reset = 1'b1;
-        `uvm_warning(get_type_name(), "Reset during ACCESS wait for PREADY - transaction aborted")
-        return;
-      end
-      @(posedge vif.pclk);
-    end
-    // 5. Before completing transaction
-    if (rst_vif != null && !rst_vif.rst_n) begin
-      reset_signals();
-      wait (rst_vif.rst_n === 1'b1);
-      tr.aborted_by_reset = 1'b1;
-      return;
-    end
-    if (!tr.pwrite) tr.prdata = vif.prdata;
-    tr.pslverr = vif.pslverr;
-
-endtask 
 endclass

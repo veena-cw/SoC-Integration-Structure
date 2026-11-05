@@ -148,7 +148,7 @@ class apb_i2c_scoreboard extends uvm_component;
       // Update RAL mirror from actual APB write
       //----------------------------------------------------------------------
 
-      rg.predict(tr.pwdata);
+   //   rg.predict(tr.pwdata);
 
 
       `uvm_info(
@@ -290,7 +290,7 @@ class apb_i2c_scoreboard extends uvm_component;
       // Predict actual DUT read value into RAL mirror
       //----------------------------------------------------------------------
 
-      rg.predict(tr.prdata);
+  //    rg.predict(tr.prdata);
 
 
       //======================================================================
@@ -829,4 +829,3 @@ class apb_i2c_scoreboard extends uvm_component;
 
 
 endclass
-

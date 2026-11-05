@@ -156,6 +156,8 @@ module ahb3lite_plic_top #(
   logic [TARGETS      -1:0] claim,
                             complete;
 
+  //Added for out-of-order completion
+  logic [SOURCES_BITS-1:0] complete_id;
   //////////////////////////////////////////////////////////////////
   //
   // Functions
@@ -264,6 +266,14 @@ module ahb3lite_plic_top #(
     if (HREADY) ahb_we <= HSEL & HWRITE & (HTRANS != HTRANS_BUSY) & (HTRANS != HTRANS_IDLE);
     else        ahb_we <= 1'b0;
 
+  //Added for out-of-order completion
+  always @(posedge HCLK or negedge HRESETn) begin
+    if (!HRESETn)
+        complete_id <= '0;
+    else if (HREADY && ahb_we)
+        complete_id <= HWDATA[SOURCES_BITS-1:0];
+  end
+  
   //decode Byte-Enables
   always @(posedge HCLK)
     if (HREADY) ahb_be <= gen_be(HSIZE,HADDR);
@@ -335,7 +345,8 @@ module ahb3lite_plic_top #(
     .ireq      ( irq      ),
     .id        ( id       ),
     .claim     ( claim    ),
-    .complete  ( complete )
+    .complete  ( complete ),
+    .complete_id ( complete_id )//Added for out of order interrupt completion
   );
 
 endmodule : ahb3lite_plic_top

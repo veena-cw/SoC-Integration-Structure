@@ -91,7 +91,8 @@ module plic_core #(
   output [TARGETS      -1:0] ireq,                //Interrupt request for each target
   output [SOURCES_BITS -1:0] id       [TARGETS],  //Interrupt ID (1..SOURCES), for each target
   input  [TARGETS      -1:0] claim,               //Interrupt claim
-  input  [TARGETS      -1:0] complete             //Interrupt handling complete
+  input  [TARGETS      -1:0] complete,             //Interrupt handling complete
+  input  [SOURCES_BITS -1:0] complete_id          // Identifies which interrupt source software wants to complete.
 );
   //////////////////////////////////////////////////////////////////
   //
@@ -102,7 +103,7 @@ module plic_core #(
   logic [SOURCES_BITS -1:0] id_array       [TARGETS][SOURCES];
   logic [PRIORITY_BITS-1:0] pr_array       [TARGETS][SOURCES];
 
-  logic [SOURCES_BITS -1:0] id_claimed     [TARGETS];
+  //logic [SOURCES_BITS -1:0] id_claimed     [TARGETS];
   logic [TARGETS      -1:0] claim_array    [SOURCES];
   logic [TARGETS      -1:0] complete_array [SOURCES];
 
@@ -120,8 +121,9 @@ generate
   begin : gen_claims_source_array
       for (t=0; t < TARGETS; t++)
       begin : gen_claim_complete
-          assign claim_array   [s][t] = (id[t]         == s+1) ? claim[t]    : 1'b0;
-          assign complete_array[s][t] = (id_claimed[t] == s+1) ? complete[t] : 1'b0; 
+          assign claim_array   [s][t] 	= (id[t]         == s+1) ? claim[t]    : 1'b0;
+          //assign complete_array[s][t] = (id_claimed[t] == s+1) ? complete[t] : 1'b0; 
+	  assign complete_array  [s][t] = (complete_id   == s+1) ? complete[t] : 1'b0;
       end
   end
 endgenerate
@@ -129,7 +131,7 @@ endgenerate
 
   /** Store claimed ID
    */
-generate
+/*generate
   for (t=0; t < TARGETS; t++)
   begin : gen_id_claimed
       always @(posedge clk,negedge rst_n)
@@ -137,7 +139,7 @@ generate
         else if ( claim[t]) id_claimed[t] <= id[t];
   end
 endgenerate
-
+*/
 
   /** Build Gateways
    *

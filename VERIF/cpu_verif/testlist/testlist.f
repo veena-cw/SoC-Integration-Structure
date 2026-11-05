@@ -259,6 +259,12 @@ bp_dv_050_csr_sweep_test 50 csr_sweep.nbf
 # (fail_count << 16) | 0x5100 | first failing check (c/debug_mode.c).
 bp_dv_051_debug_mode_test 51 debug_mode.nbf
 
+# BP-DV-063 - Debug Mode cases BP-DV-051 does not cover, on both harts: dpc
+# after single steps (taken branch, jr, three in a row), ebreaks/ebreaku per
+# mode, Debug Mode entered from S and U. Nonzero tohost per hart:
+# (bitmask of failed checks << 16) | 0x6300 (c/debug_priv.c).
+bp_dv_063_debug_priv_test 63 debug_priv.nbf
+
 # BP-DV-052 - Instruction-decode completeness on both harts: lr.w/sc.w and
 # word AMOs, unsigned FP conversions, fsgnj/fsgnjx, wfi, fence.i
 # (self-modifying code), cmo.*.all (illegal on two cores), prefetch hints,

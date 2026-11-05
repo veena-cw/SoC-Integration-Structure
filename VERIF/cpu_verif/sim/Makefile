@@ -27,8 +27,8 @@ export CCACHE_DISABLE := 1
 ###############################################################################
 
 RISCV_PREFIX ?= riscv64-unknown-elf-
-VERILATOR    ?= /opt/verilator-5.048/bin/verilator
-VERILATOR_COVERAGE ?= /opt/verilator-5.048/bin/verilator_coverage
+VERILATOR    ?= /opt/verilator-5.052/bin/verilator
+VERILATOR_COVERAGE ?= /opt/verilator-5.052/bin/verilator_coverage
 RISCV_MARCH  ?= rv64ima
 RISCV_OPT    ?= -O0
 # Extra C flags for the test programs, e.g. -DDUAL_CORE_USE_CBO_FLUSH
@@ -235,6 +235,9 @@ TEST_ID      ?= 50
 else ifeq ($(TEST),bp_dv_051_debug_mode_test)
 TCNAME       ?= debug_mode
 TEST_ID      ?= 51
+else ifeq ($(TEST),bp_dv_063_debug_priv_test)
+TCNAME       ?= debug_priv
+TEST_ID      ?= 63
 else ifeq ($(TEST),bp_dv_052_isa_complete_test)
 TCNAME       ?= isa_complete
 TEST_ID      ?= 52
@@ -334,7 +337,10 @@ ifeq ($(COVERAGE),1)
 COVERAGE_FLAGS := --coverage
 endif
 
+# -fno-expand: without it Verilator 5.052 recurses forever in V3Const, called
+# from V3Expand, on this RTL (memory climbs until the build is killed).
 VERILATOR_FLAGS = \
+	-fno-expand \
 	--binary \
 	--sv \
 	--build \

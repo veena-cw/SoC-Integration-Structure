@@ -1351,6 +1351,18 @@ class bp_dv_051_debug_mode_test extends bp_base_test;
   endtask
 endclass
 
+// Test ID: BP-DV-063 | Feature: Debug Mode cases BP-DV-051 does not cover, on
+// both harts - dpc after single steps (taken branch, jr, three in a row) and
+// Debug Mode entered from S and U mode (see c/debug_priv.c). Same flow as
+// BP-DV-051; the program comes from +NBF_FILE.
+class bp_dv_063_debug_priv_test extends bp_dv_051_debug_mode_test;
+  `uvm_component_utils(bp_dv_063_debug_priv_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+endclass
+
 // Test ID: BP-DV-052 | Feature: instruction-decode completeness on both
 // harts - word LR/SC/AMOs, unsigned FP conversions, fsgnj/fsgnjx, wfi,
 // fence.i (self-modifying code), cmo.*.all, prefetch hints, one illegal

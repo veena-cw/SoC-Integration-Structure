@@ -79,7 +79,17 @@ class apb_i2c_apb_coverage extends uvm_component;
         RXDATA_REG_ADDR
       };
 
-      illegal_bins  OTHER = default;
+       // Reserved addresses inside the valid aperture
+  bins RESERVED_ADDR = {
+    [32'h3001_0000 : 32'h3001_00FF]
+  } with (
+    item != CTRL_REG_ADDR   &&
+    item != STATUS_REG_ADDR &&
+    item != TXDATA_REG_ADDR &&
+    item != RXDATA_REG_ADDR
+  );
+ // Addresses outside the valid aperture
+  bins OUT_OF_RANGE = default;
 
     }
 
@@ -88,22 +98,23 @@ class apb_i2c_apb_coverage extends uvm_component;
     // BYTE ENABLE
     //==========================================================
 
-    cp_strb: coverpoint tr.pstrb {
+    // CTRL register: only APB byte lanes 1 and 2
+cp_ctrl_strb: coverpoint tr.pstrb
+  iff (tr.pwrite && tr.paddr == CTRL_REG_ADDR) {
 
-      bins BYTE0 = {4'b0001};
-      bins BYTE1 = {4'b0010};
-      bins BYTE2 = {4'b0100};
-      bins BYTE3 = {4'b1000};
+  bins CTRL_BYTE = {4'b0010};
+  bins IRQ_BYTE  = {4'b0100};
+  bins BOTH      = {4'b0110};
+}
 
-      bins BYTE01 = {4'b0011};
-      bins BYTE12 = {4'b0110};
-      bins BYTE23 = {4'b1100};
+// TXDATA register: assuming independent byte writes
+cp_txdata_strb: coverpoint tr.pstrb
+  iff (tr.pwrite && tr.paddr == TXDATA_REG_ADDR) {
 
-      bins ALL_BYTES = {4'b1111};
-
-      bins OTHER = default;
-
-    }
+  bins BYTE0 = {4'b0001};
+  bins BYTE1 = {4'b0010};
+  bins BOTH  = {4'b0011};
+}
 
 
     //==========================================================
@@ -114,8 +125,17 @@ class apb_i2c_apb_coverage extends uvm_component;
 
       bins ZERO = {32'h0000_0000};
 
-      bins NON_ZERO = {
-        [32'h0000_0001 : 32'hFFFF_FFFF]
+      bins SMALL[50] = {
+        [32'h0000_0001 : 32'h0000_00FF]
+      };
+
+	
+      bins MEDIUM[50] = {
+        [32'h0000_0100 : 32'h0000_FF00]
+      };
+
+       bins LONG = {
+           32'h0001_0000
       };
 
     }
@@ -129,8 +149,17 @@ class apb_i2c_apb_coverage extends uvm_component;
 
       bins ZERO = {32'h0000_0000};
 
-      bins NON_ZERO = {
-        [32'h0000_0001 : 32'hFFFF_FFFF]
+      bins SMALL[50] = {
+        [32'h0000_0001 : 32'h0000_00FF]
+      };
+
+	
+      bins MEDIUM[50] = {
+        [32'h0000_0100 : 32'h0000_FF00]
+      };
+
+       bins LONG = {
+           32'h0001_0000
       };
 
     }

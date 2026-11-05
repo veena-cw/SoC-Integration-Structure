@@ -94,6 +94,7 @@ module spi_master #(
     .rd_data_o(tx_fifo_rdata),
     .empty_o  (tx_fifo_empty),
     .full_o   (tx_full_o),
+    .overflow_o(rx_fifo_overflow),
     .count_o  (tx_count_o)
   );
   assign tx_empty_o = tx_fifo_empty;

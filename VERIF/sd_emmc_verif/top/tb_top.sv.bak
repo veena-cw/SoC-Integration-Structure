@@ -1,0 +1,139 @@
+`timescale 1ns/1ps 
+`include "uvm_macros.svh"
+import uvm_pkg::*;
+
+module tb_top;
+
+  logic s00_axi_aclk;
+  logic s00_axi_aresetn;
+
+  // 1. Interface Instantiations
+  reset_if s00_axi_aresetn_vif(.clk(s00_axi_aclk));
+
+  sd_emmc_controller_axi_lite_if axi_lite_vif (.s00_axi_aclk(s00_axi_aclk));
+  assign axi_lite_vif.s00_axi_aresetn = s00_axi_aresetn;
+
+  sd_emmc_controller_axi_mem_if axi_mem_vif (.s00_axi_aclk(s00_axi_aclk));
+  assign axi_mem_vif.M_AXI_ACLK    = s00_axi_aclk;
+  assign axi_mem_vif.M_AXI_ARESETN = s00_axi_aresetn;
+
+  sd_emmc_controller_sd_emmc_if sd_emmc_vif (.s00_axi_aclk(s00_axi_aclk));
+  assign sd_emmc_vif.s00_axi_aresetn = s00_axi_aresetn;
+
+  assign s00_axi_aresetn = s00_axi_aresetn_vif.rst_n;
+
+  // 2. DUT Instantiation
+  sd_emmc_controller dut (
+    .SD_CLK(sd_emmc_vif.sd_clk),
+    .sd_cmd_o(sd_emmc_vif.sd_cmd_o),
+    .sd_cmd_i(sd_emmc_vif.sd_cmd_i),
+    .sd_cmd_t(sd_emmc_vif.sd_cmd_t),
+    .sd_dat_o(sd_emmc_vif.sd_dat_o),
+    .sd_dat_i(sd_emmc_vif.sd_dat_i),
+    .sd_dat_t(sd_emmc_vif.sd_dat_t),
+    .interrupt(sd_emmc_vif.interrupt),
+    .s00_axi_aclk(s00_axi_aclk),
+    .s00_axi_aresetn(s00_axi_aresetn),
+    .s00_axi_awaddr(axi_lite_vif.s00_axi_awaddr),
+    .s00_axi_awprot(axi_lite_vif.s00_axi_awprot),
+    .s00_axi_awvalid(axi_lite_vif.s00_axi_awvalid),
+    .s00_axi_awready(axi_lite_vif.s00_axi_awready),
+    .s00_axi_wdata(axi_lite_vif.s00_axi_wdata),
+    .s00_axi_wstrb(axi_lite_vif.s00_axi_wstrb),
+    .s00_axi_wvalid(axi_lite_vif.s00_axi_wvalid),
+    .s00_axi_wready(axi_lite_vif.s00_axi_wready),
+    .s00_axi_bresp(axi_lite_vif.s00_axi_bresp),
+    .s00_axi_bvalid(axi_lite_vif.s00_axi_bvalid),
+    .s00_axi_bready(axi_lite_vif.s00_axi_bready),
+    .s00_axi_araddr(axi_lite_vif.s00_axi_araddr),
+    .s00_axi_arprot(axi_lite_vif.s00_axi_arprot),
+    .s00_axi_arvalid(axi_lite_vif.s00_axi_arvalid),
+    .s00_axi_arready(axi_lite_vif.s00_axi_arready),
+    .s00_axi_rdata(axi_lite_vif.s00_axi_rdata),
+    .s00_axi_rresp(axi_lite_vif.s00_axi_rresp),
+    .s00_axi_rvalid(axi_lite_vif.s00_axi_rvalid),
+    .s00_axi_rready(axi_lite_vif.s00_axi_rready),
+    .M_AXI_ACLK(axi_mem_vif.M_AXI_ACLK),
+    .M_AXI_ARESETN(axi_mem_vif.M_AXI_ARESETN),
+    .M_AXI_AWID(axi_mem_vif.M_AXI_AWID),
+    .M_AXI_AWADDR(axi_mem_vif.M_AXI_AWADDR),
+    .M_AXI_AWLEN(axi_mem_vif.M_AXI_AWLEN),
+    .M_AXI_AWSIZE(axi_mem_vif.M_AXI_AWSIZE),
+    .M_AXI_AWBURST(axi_mem_vif.M_AXI_AWBURST),
+    .M_AXI_AWLOCK(axi_mem_vif.M_AXI_AWLOCK),
+    .M_AXI_AWCACHE(axi_mem_vif.M_AXI_AWCACHE),
+    .M_AXI_AWPROT(axi_mem_vif.M_AXI_AWPROT),
+    .M_AXI_AWQOS(axi_mem_vif.M_AXI_AWQOS),
+    .M_AXI_AWVALID(axi_mem_vif.M_AXI_AWVALID),
+    .M_AXI_AWREADY(axi_mem_vif.M_AXI_AWREADY),
+    .M_AXI_WDATA(axi_mem_vif.M_AXI_WDATA),
+    .M_AXI_WSTRB(axi_mem_vif.M_AXI_WSTRB),
+    .M_AXI_WLAST(axi_mem_vif.M_AXI_WLAST),
+    .M_AXI_WVALID(axi_mem_vif.M_AXI_WVALID),
+    .M_AXI_WREADY(axi_mem_vif.M_AXI_WREADY),
+    .M_AXI_BID(axi_mem_vif.M_AXI_BID),
+    .M_AXI_BRESP(axi_mem_vif.M_AXI_BRESP),
+    .M_AXI_BVALID(axi_mem_vif.M_AXI_BVALID),
+    .M_AXI_BREADY(axi_mem_vif.M_AXI_BREADY),
+    .M_AXI_ARID(axi_mem_vif.M_AXI_ARID),
+    .M_AXI_ARADDR(axi_mem_vif.M_AXI_ARADDR),
+    .M_AXI_ARLEN(axi_mem_vif.M_AXI_ARLEN),
+    .M_AXI_ARSIZE(axi_mem_vif.M_AXI_ARSIZE),
+    .M_AXI_ARBURST(axi_mem_vif.M_AXI_ARBURST),
+    .M_AXI_ARLOCK(axi_mem_vif.M_AXI_ARLOCK),
+    .M_AXI_ARCACHE(axi_mem_vif.M_AXI_ARCACHE),
+    .M_AXI_ARPROT(axi_mem_vif.M_AXI_ARPROT),
+    .M_AXI_ARQOS(axi_mem_vif.M_AXI_ARQOS),
+    .M_AXI_ARVALID(axi_mem_vif.M_AXI_ARVALID),
+    .M_AXI_ARREADY(axi_mem_vif.M_AXI_ARREADY),
+    .M_AXI_RID(axi_mem_vif.M_AXI_RID),
+    .M_AXI_RDATA(axi_mem_vif.M_AXI_RDATA),
+    .M_AXI_RRESP(axi_mem_vif.M_AXI_RRESP),
+    .M_AXI_RLAST(axi_mem_vif.M_AXI_RLAST),
+    .M_AXI_RVALID(axi_mem_vif.M_AXI_RVALID),
+    .M_AXI_RREADY(axi_mem_vif.M_AXI_RREADY)
+  );
+
+  // 3. Clock Generation
+  initial s00_axi_aclk = 0;
+  always #5 s00_axi_aclk = ~s00_axi_aclk;   // 100MHz clock
+
+  // 4. Waveform Dumping
+  initial begin
+    $dumpfile("tb_top.vcd");
+    $dumpvars(0, tb_top);
+  end
+
+  // 5. Publish Virtual Interfaces to UVM Resource DB
+ // Publish Virtual Interfaces to UVM Resource DB
+  initial begin
+    // 1. Agent-Specific Scopes (Matches auto-generated agent build_phase lookups)
+    uvm_resource_db#(virtual sd_emmc_controller_axi_lite_if)::set(
+      "uvm_test_top.env.axi_lite_agent*", "vif", axi_lite_vif);
+      
+    uvm_resource_db#(virtual sd_emmc_controller_axi_mem_if)::set(
+      "uvm_test_top.env.axi_mem_agent*", "vif", axi_mem_vif);
+      
+    uvm_resource_db#(virtual sd_emmc_controller_sd_emmc_if)::set(
+      "uvm_test_top.env.sd_emmc_agent*", "vif", sd_emmc_vif);
+
+    uvm_resource_db#(virtual reset_if)::set(
+      "uvm_test_top.env.reset_agent_s00_axi_aresetn*", "vif", s00_axi_aresetn_vif);
+
+    // 2. Global Named Fallbacks (Matches test & virtual sequence lookups)
+    uvm_resource_db#(virtual sd_emmc_controller_sd_emmc_if)::set("*", "sd_emmc_vif", sd_emmc_vif);
+    uvm_resource_db#(virtual sd_emmc_controller_sd_emmc_if)::set("*", "vif", sd_emmc_vif);
+    uvm_resource_db#(virtual sd_emmc_controller_axi_lite_if)::set("*", "axi_lite_vif", axi_lite_vif);
+
+    run_test();
+  end
+
+  // 6. Testbench Force Control Hook for Inhibit Testing
+  always @(sd_emmc_vif.force_inh_dat) begin
+    if (sd_emmc_vif.force_inh_dat) 
+      force dut.command_inhibit_dat_axi_clk = 1'b1;
+    else                           
+      release dut.command_inhibit_dat_axi_clk;
+  end
+
+endmodule : tb_top

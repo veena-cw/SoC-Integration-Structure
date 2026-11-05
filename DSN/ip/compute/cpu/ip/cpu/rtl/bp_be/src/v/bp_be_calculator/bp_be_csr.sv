@@ -727,14 +727,23 @@ module bp_be_csr
 
   // The supervisor external interrupt line does not impact the supervisor software interrupt bit of MIP.
   // However, software read operations return as if it does. bit 9 is supervisor software interrupt
-  always_comb
-    unique casez (csr_addr_li)
-      `CSR_ADDR_SIP   : csr_r_data_o = csr_data_lo | ((s_external_irq_i & mideleg_lo.sei) << 9);
-      `CSR_ADDR_MIP   : csr_r_data_o = csr_data_lo | (s_external_irq_i << 9);
+  /*always_comb
+    unique casez (csr_r_addr_i)
+      `CSR_ADDR_SIP   : csr_r_data_o = csr_data_lo | (dword_width_gp'(s_external_irq_i & mideleg_lo.sei) << 9);
+      `CSR_ADDR_MIP   : csr_r_data_o = csr_data_lo | (dword_width_gp'(s_external_irq_i) << 9);
       `CSR_ADDR_FFLAGS
       ,`CSR_ADDR_FCSR : csr_r_data_o = csr_data_lo | fflags_acc_i;
       default: csr_r_data_o = csr_data_lo;
     endcase
+*/
+always_comb
+  unique casez (csr_r_addr_i)
+    `CSR_ADDR_SIP   : csr_r_data_o = csr_data_lo | (dword_width_gp'(s_external_irq_i & mideleg_lo.sei) << 9);
+    `CSR_ADDR_MIP   : csr_r_data_o = csr_data_lo | (dword_width_gp'(s_external_irq_i) << 9);
+    `CSR_ADDR_FFLAGS
+    ,`CSR_ADDR_FCSR : csr_r_data_o = csr_data_lo | fflags_acc_i;
+    default         : csr_r_data_o = csr_data_lo;
+  endcase
 
   assign commit_pkt_cast_o.npc_w_v           = |{retire_pkt_cast_i.special, retire_pkt_cast_i.exception} | enter_debug;;
   assign commit_pkt_cast_o.queue_v           = retire_pkt_cast_i.queue_v & ~|retire_pkt_cast_i.exception;
@@ -794,5 +803,29 @@ module bp_be_csr
     | (is_u_mode & mcounteren_lo.ir & scounteren_lo.ir);
 
   assign frm_dyn_o = rv64_frm_e'(fcsr_lo.frm);
+
+`ifndef SYNTHESIS
+always @(posedge clk_i) begin
+  if (s_external_irq_i ||
+      (csr_r_v_i &&
+       ((csr_r_addr_i == `CSR_ADDR_MIP) ||
+        (csr_r_addr_i == `CSR_ADDR_SIP)))) begin
+
+    $display(
+      "[CSR_SEIP] time=%0t core=%0d read_v=%b read_addr=%h retire_addr=%h ext_irq=%b mideleg_sei=%b base_seip=%b read_seip=%b full_data=%h",
+      $time,
+      cfg_bus_cast_i.core_id,
+      csr_r_v_i,
+      csr_r_addr_i,
+      csr_addr_li,
+      s_external_irq_i,
+      mideleg_lo.sei,
+      csr_data_lo[9],
+      csr_r_data_o[9],
+      csr_r_data_o
+    );
+  end
+end
+`endif
 
 endmodule

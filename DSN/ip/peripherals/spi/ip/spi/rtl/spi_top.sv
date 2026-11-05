@@ -88,6 +88,7 @@ module spi_top #(
   logic [NUM_CS-1:0] cs_n_w;
   logic xfer_done_o;
   logic m_rx_overflow;
+  logic s_rx_overflow;
 
   spi_master #(
     .DATA_WIDTH(DATA_WIDTH),
@@ -151,6 +152,7 @@ module spi_top #(
     .mosi_i       (mosi_w),
     .miso_o       (miso_w),
     .cs_inter_byte_i(m_cs_inter_byte_i),
+    .rx_overflow_o(s_rx_overflow),
     .cs_n_i       (cs_n_w[0])
   );
 

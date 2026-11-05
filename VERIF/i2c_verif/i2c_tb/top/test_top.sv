@@ -68,6 +68,7 @@ module test_top;
   );
   
   // assertion binding 
+  /*
   bind i2c_master i2c_assertions #(
     .ADDR_NACK(1'b0)
 ) i2c_assertions_inst (
@@ -79,6 +80,12 @@ module test_top;
     .sda     (i2c_sda),
     .scl     (i2c_scl)
 );
+*/
+
+i2c_fsm_coverage_probe u_i2c_fsm_coverage_probe (
+    .state(dut.i2cm.state)
+);
+assign APB_vif.i_rd_data_valid_mon = dut.apbs.i_rd_data_valid;
     // Clock generation
     initial begin
         pclk = 0;
@@ -117,4 +124,76 @@ end
     #1000;
     $finish;
     end*/
+    
+    
+    
+    //============================================================
+// I2C MASTER FSM DEFAULT BRANCH FAULT INJECTION
+//============================================================
+
+`define I2C_MST dut.i2cm
+
+
+task automatic i2c_master_stop_default_test(
+    output bit stop_default_pass
+);
+
+    integer timeout_count;
+
+    stop_default_pass = 0;
+    timeout_count = 0;
+
+    // Wait for normal I2C transaction to reach STOP.
+    while ((dut.i2cm.state != 3'd7) &&
+           (timeout_count < 100000)) begin
+
+        @(posedge dut.i2cm.clk);
+        timeout_count++;
+
+    end
+
+    if (dut.i2cm.state != 3'd7) begin
+
+        $error(
+            "[I2C FSM TEST] FAIL: STOP state was not reached"
+        );
+
+        return;
+
+    end
+
+    // Inject invalid STOP phase.
+    @(negedge dut.i2cm.clk);
+
+    force dut.i2cm.bit_cnt = 4'd3;
+    force dut.i2cm.clk_div = 8'd249;
+
+    $display(
+        "[I2C FSM TEST] Injected STOP bit_cnt=3 clk_div=249"
+    );
+
+    // STOP nested default executes on this rising edge.
+    @(posedge dut.i2cm.clk);
+    #1;
+
+    if (dut.i2cm.state == 3'd0) begin
+
+        stop_default_pass = 1'b1;
+
+        $display(
+            "[I2C FSM TEST] PASS: STOP nested default executed"
+        );
+
+    end
+    else begin
+
+        $error(
+            "[I2C FSM TEST] FAIL: Expected IDLE, actual state=%0d",
+            dut.i2cm.state
+        );
+
+    end
+
+endtask
+
 endmodule

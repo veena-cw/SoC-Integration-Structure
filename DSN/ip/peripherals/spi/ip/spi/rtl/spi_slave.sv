@@ -62,7 +62,8 @@ module spi_slave #(
   input  logic                          mosi_i,
   output logic                          miso_o,
   input  logic                          cs_n_i,
-  input logic 							cs_inter_byte_i
+  input logic 							cs_inter_byte_i,
+  output logic rx_overflow_o
 );
 
   // -------------------------------------------------------------
@@ -71,6 +72,7 @@ module spi_slave #(
   logic                          tx_fifo_rd_en;
   logic [DATA_WIDTH-1:0]         tx_fifo_rdata;
   logic                          tx_fifo_empty;
+  logic rx_fifo_overflow;
 
   spi_fifo #(.WIDTH(DATA_WIDTH), .DEPTH(FIFO_DEPTH)) u_tx_fifo (
     .clk_i    (clk_i),
@@ -81,8 +83,10 @@ module spi_slave #(
     .rd_data_o(tx_fifo_rdata),
     .empty_o  (tx_fifo_empty),
     .full_o   (tx_full_o),
+    .overflow_o   (rx_fifo_overflow),
     .count_o  (tx_count_o)
   );
+  assign rx_overflow_o = rx_fifo_overflow;
   assign tx_empty_o = tx_fifo_empty;
 
   logic                          rx_fifo_wr_en;
@@ -97,6 +101,7 @@ module spi_slave #(
     .rd_data_o(rx_rdata_o),
     .empty_o  (rx_empty_o),
     .full_o   (rx_full_o),
+    .overflow_o   (rx_fifo_overflow),
     .count_o  (rx_count_o)
   );
 

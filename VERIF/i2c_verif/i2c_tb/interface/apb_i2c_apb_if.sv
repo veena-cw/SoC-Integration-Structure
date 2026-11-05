@@ -81,7 +81,7 @@ assert property (apb_setup_check)
 endproperty
 
 assert property (apb_access_check)
-  else `uvm_error("APB_ASSERT",
+  else `uvm_error("APB_ASSERT",APB_vif.i_rd_data_valid_mon
                   "APB ACCESS violation: PSEL must remain HIGH and PENABLE must become HIGH");
                   
 property apb_access_stable_check;

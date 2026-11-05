@@ -64,11 +64,18 @@ parameter
     FINISH_WO = 7'h40;   
 logic [STATE_SIZE-1:0] state;
 logic [STATE_SIZE-1:0] next_state;
+logic response_done;
 //Misc
 `define cmd_idx  (CMD_SIZE-1-counter) 
 
 // command_inhibit_cmd is a control signal indicating that the CMD transaction is in its final/completion stage.
-assign command_inhibit_cmd = (/*state != IDLE &&*/ state != INIT); //((state == FINISH_WO) || (state == FINISH_WR));
+assign command_inhibit_cmd =
+       ((state == SETUP_CRC) ||
+        (state == WRITE)     ||
+        (state == READ_WAIT) ||
+        (state == READ)      ||
+        (state == FINISH_WR) ||
+        (state == FINISH_WO)) && !response_done; //(((state != IDLE) && (state != INIT)) && ((state == FINISH_WO) || (state == FINISH_WR)));
  
 //sd cmd input logicpad logicister
 always_ff @(posedge sd_clk)
@@ -184,13 +191,16 @@ begin: FSM_OUT
         crc_ok_o <= 0;
         crc_ok <= 0;
         counter <= 0;
+        response_done <= 0;
     end
     else begin
+    response_done <= 1'b0;
         case(state)
             INIT: begin
                 counter <= counter+1;
                 cmd_oe_o <= 0;
                 cmd_out_o <= 1;  // during that command line stays high 
+                response_done <= 0;
             end
             IDLE: begin
                 cmd_oe_o <= 1;      //Put CMD to Z (so now card what to talk to host)
@@ -202,13 +212,16 @@ begin: FSM_OUT
                 crc_ok_o <= 0;
                 index_ok_o <= 0;
                 finish_o <= 0;
+                response_done <= 0;
             end
             SETUP_CRC: begin
                 crc_rst <= 0;
                 crc_enable <= 1; // enabling the CRC with the command 
                 crc_bit <= cmd_buff[`cmd_idx];
+                response_done <= 0;
             end
             WRITE: begin
+            response_done <= 0;
                 if (counter < BITS_TO_SEND-8) begin  // 1->40 CMD, (41 >= CNT && CNT <=47) CRC, 48 stop_bit
                     cmd_oe_o <= 0; // host is sending commad 
                     cmd_out_o <= cmd_buff[`cmd_idx]; //comd sent through this 
@@ -239,6 +252,7 @@ begin: FSM_OUT
                 counter <= 1;
                 cmd_oe_o <= 1;
                 resp_buff[RESP_SIZE-1] <= cmd_dat_logic;
+                response_done <= 0;
             end
             FINISH_WO: begin
                 finish_o <= 1;
@@ -246,11 +260,13 @@ begin: FSM_OUT
                 crc_rst <= 1;
                 counter <= 0;
                 cmd_oe_o <= 1;
+                response_done <= 1;
             end
             READ: begin
                 crc_rst <= 0;
                 crc_enable <= (resp_len != RESP_SIZE-1 || counter > 7);
                 cmd_oe_o <= 1;
+                response_done <= 0;
                 if (counter <= resp_len) begin
                     if (counter < 8) //1+1+6 (Start bit ,Transmission bit,CMD Index)
                         resp_buff[RESP_SIZE-1-counter] <= cmd_dat_logic;
@@ -283,6 +299,7 @@ begin: FSM_OUT
                 counter <= 0;
                 cmd_oe_o <= 1;
                 response_o <= resp_buff[119:0];
+                response_done <= 1;
             end
         endcase
     end

@@ -1,0 +1,103 @@
+# ------------------------------------------------------------
+# code_cov_waivers.txt -- RTL code-coverage waivers (make cov-report)
+#
+# Points listed here stay in the coverage database but are reported
+# as WAIVED and left out of the percentages. Only points that no
+# legal stimulus can reach with this PLIC configuration belong here:
+# SOURCES=64, TARGETS=4, PRIORITIES=8, HAS_THRESHOLD=1, HAS_CONFIG_REG=1,
+# HDATA_SIZE=32. Change a parameter and this list has to be reviewed.
+#
+# Format (one waiver per line):
+#   <file>:<line>  <type>  [@<instance substring>]  ["<point text>"]  <reason>
+#     type        = line | branch | expr | toggle | *   (* = every type)
+#                   const_id = toggle bits that are 0 in every ID that can
+#                   reach this signal (worked out per instance by
+#                   plic_code_cov_report.py); bits that can toggle stay counted
+#     point text  = substring of the point's description (expression
+#                   term, branch if/else, toggle signal); limits the
+#                   waiver to those points -- a line usually has several
+#                   points and only some are unreachable
+#
+# plic_code_cov_report.py warns about a waiver that matches no point
+# (stale line number) and about a waived point that was hit.
+# ------------------------------------------------------------
+
+# ---- constant ID bits ----------------------------------------------
+# plic_cell drives id_o = ID (= source + 1) or 0, so a bit that is 0 in the
+# ID can never toggle. The priority tree only carries the IDs of its range.
+plic_cell.sv:87              const_id  "id_o["    bit is 0 in this cell's constant ID parameter
+plic_priority_index.sv:82    const_id  "idx_o["   bit is 0 in every ID of this tree node's source range
+plic_priority_index.sv:91    const_id  "idx_hi["  bit is 0 in every ID of this tree node's source range
+plic_priority_index.sv:91    const_id  "idx_lo["  bit is 0 in every ID of this tree node's source range
+
+# ---- ahb3lite_plic_top.sv: tied outputs ----------------------------
+ahb3lite_plic_top.sv:103     toggle  "HREADYOUT:1->0"  assign HREADYOUT = 1'b1: the slave is always ready
+ahb3lite_plic_top.sv:105     toggle  "HRESP"           assign HRESP = HRESP_OKAY: the slave never returns an error
+
+# ---- ahb3lite_plic_top.sv: HDATA_SIZE=32 ---------------------------
+ahb3lite_plic_top.sv:99      toggle  "HSIZE[2]"  HSIZE >= 3'b100 is a transfer of 128 bits or more, AHB-illegal on a 32-bit bus
+ahb3lite_plic_top.sv:178     line    address_offset() case for a 1024-bit bus, HDATA_SIZE=32
+ahb3lite_plic_top.sv:179     line    address_offset() case for a 512-bit bus, HDATA_SIZE=32
+ahb3lite_plic_top.sv:180     line    address_offset() case for a 256-bit bus, HDATA_SIZE=32
+ahb3lite_plic_top.sv:181     line    address_offset() case for a 128-bit bus, HDATA_SIZE=32
+ahb3lite_plic_top.sv:182     line    address_offset() case for a 64-bit bus, HDATA_SIZE=32
+ahb3lite_plic_top.sv:184     line    address_offset() case for a 16-bit bus, HDATA_SIZE=32
+ahb3lite_plic_top.sv:185     line    address_offset() default, HDATA_SIZE=32 selects the 32 case
+ahb3lite_plic_top.sv:211     line    HSIZE_B1024 is wider than the 32-bit bus (AHB-illegal)
+ahb3lite_plic_top.sv:212     line    HSIZE_B512 is wider than the 32-bit bus (AHB-illegal)
+ahb3lite_plic_top.sv:213     line    HSIZE_B256 is wider than the 32-bit bus (AHB-illegal)
+ahb3lite_plic_top.sv:214     line    HSIZE_B128 is wider than the 32-bit bus (AHB-illegal)
+ahb3lite_plic_top.sv:215     line    HSIZE_DWORD is wider than the 32-bit bus (AHB-illegal)
+
+# ---- ahb3lite_plic_top.sv: functions that are never called ---------
+ahb3lite_plic_top.sv:190     *       address_mask() is defined but never called
+ahb3lite_plic_top.sv:229     *       gen_wval() in the top is defined but never called
+ahb3lite_plic_top.sv:237     *       gen_wval() in the top is defined but never called
+ahb3lite_plic_top.sv:238     *       gen_wval() in the top is defined but never called
+
+# ---- plic_gateway.sv -----------------------------------------------
+plic_gateway.sv:166          expr    "((edge_lvl == EDGE)==0 && (edge_lvl == LEVEL)==0) => 0"  edge_lvl is 1 bit: it is always EDGE or LEVEL
+plic_gateway.sv:180          line    ip_state is only assigned 00/01/10: the default branch is dead code
+
+# ---- register bank: branches whose body is a bare "return" ---------
+# These run (register reads, claims and completes all work) but read 0:
+# Verilator 5.052 does not count an if/else branch that ends in return
+# (probed with a small testbench: the branch ran, its count stayed 0).
+plic_dynamic_registers_priority_bank.sv:221  branch  "if"  bare return branch, not counted by Verilator 5.052 (CONFIG decode runs)
+plic_dynamic_registers_priority_bank.sv:226  branch  "if"  bare return branch, not counted by Verilator 5.052 (EL decode runs)
+plic_dynamic_registers_priority_bank.sv:230  branch  "if"  bare return branch, not counted by Verilator 5.052 (PRIORITY decode runs)
+plic_dynamic_registers_priority_bank.sv:232  branch  "if"  bare return branch, not counted by Verilator 5.052 (IE decode runs)
+plic_dynamic_registers_priority_bank.sv:236  branch  "if"  bare return branch, not counted by Verilator 5.052 (THRESHOLD decode runs)
+plic_dynamic_registers_priority_bank.sv:249  branch  "if"  bare return branch, not counted by Verilator 5.052 (CONFIG index runs)
+plic_dynamic_registers_priority_bank.sv:255  branch  "if"  bare return branch, not counted by Verilator 5.052 (EL index runs)
+plic_dynamic_registers_priority_bank.sv:259  branch  "if"  bare return branch, not counted by Verilator 5.052 (PRIORITY index runs)
+plic_dynamic_registers_priority_bank.sv:261  branch  "if"  bare return branch, not counted by Verilator 5.052 (IE index runs)
+plic_dynamic_registers_priority_bank.sv:265  branch  "if"  bare return branch, not counted by Verilator 5.052 (THRESHOLD index runs)
+plic_dynamic_registers_priority_bank.sv:289  branch        bare return branches, not counted by Verilator 5.052 (gen_claim runs on every ID read)
+plic_dynamic_registers_priority_bank.sv:306  branch        bare return branches, not counted by Verilator 5.052 (gen_complete runs on every ID write)
+plic_dynamic_registers_priority_bank.sv:330  line          bare return branches, not counted by Verilator 5.052 (CONFIG_0/1 are read back)
+
+# ---- register bank: parameter-dependent branches -------------------
+plic_dynamic_registers_priority_bank.sv:325  branch  "cond_else"  HAS_THRESHOLD=1
+plic_dynamic_registers_priority_bank.sv:327  line    CONFIG_REGS=2: the single-register encoding is not used
+plic_dynamic_registers_priority_bank.sv:345  branch  "else"  SOURCES=64 fills every PRIORITY register: no partial last register
+plic_dynamic_registers_priority_bank.sv:349  line    SOURCES=64 fills every PRIORITY register: no partial last register
+plic_dynamic_registers_priority_bank.sv:456  line    CONFIG_REGS=2: the single-register display is not used
+plic_dynamic_registers_priority_bank.sv:468  branch  "else"  SOURCES=64 fills every EL register: no partial last register
+plic_dynamic_registers_priority_bank.sv:482  branch  "else"  SOURCES=64 fills every IE register: no partial last register
+plic_dynamic_registers_priority_bank.sv:491  branch  "else"  SOURCES=64 fills every PRIORITY register: no partial last register
+plic_dynamic_registers_priority_bank.sv:495  branch  "else"  PRIORITY_BITS=3: PRIORITY_BITS % 4 is never 0
+plic_dynamic_registers_priority_bank.sv:504  line    inside the partial-last-register branch of line 491, SOURCES=64
+plic_dynamic_registers_priority_bank.sv:506  branch  inside the partial-last-register branch of line 491, SOURCES=64
+plic_dynamic_registers_priority_bank.sv:508  branch  inside the partial-last-register branch of line 491, SOURCES=64
+plic_dynamic_registers_priority_bank.sv:623  branch  "else"  every source index of the 8 PRIORITY registers is below SOURCES=64
+plic_dynamic_registers_priority_bank.sv:772  branch  "else"  HAS_CONFIG_REG=1
+plic_dynamic_registers_priority_bank.sv:777  branch  "else"  HAS_THRESHOLD=1
+
+# ---- register bank: dead code --------------------------------------
+plic_dynamic_registers_priority_bank.sv:369  *  encode_th() is never called: its only use, at line 776, is commented out
+plic_dynamic_registers_priority_bank.sv:377  *  encode_th() is never called: its only use, at line 776, is commented out
+plic_dynamic_registers_priority_bank.sv:378  *  encode_th() is never called: its only use, at line 776, is commented out
+plic_dynamic_registers_priority_bank.sv:381  *  encode_th() is never called: its only use, at line 776, is commented out
+plic_dynamic_registers_priority_bank.sv:448  line  register_function() only returns the six listed types: the default is dead code
+

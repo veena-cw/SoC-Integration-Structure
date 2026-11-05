@@ -62,6 +62,8 @@ COV_ANNOTATE  := $(COV_DIR)/annotate
 COV_VLT       := $(SIM_DIR)/coverage_scope.vlt
 CODE_COV_TYPES := line branch expr toggle
 FCOV_REPORT   := $(PROJECT_ROOT)/scripts/plic_fcov_report.py
+CODE_REPORT   := $(PROJECT_ROOT)/scripts/plic_code_cov_report.py
+CODE_WAIVERS  := $(SIM_DIR)/code_cov_waivers.txt
 
 ifeq ($(COVERAGE),1)
   COV_FLAGS := --coverage-line --coverage-toggle --coverage-expr --coverage-user $(COV_VLT)
@@ -214,12 +216,19 @@ cov-report: cov-merge
 	$(VERILATOR_COV) --rank $(COV_TEST_DIR)/*.dat > $(COV_DIR)/test_rank.txt 2>&1; \
 	echo "Annotated sources : coverage/annotate/  (lines marked %000000 are uncovered)"
 	@echo "========================================"
+	@echo "        CODE COVERAGE AFTER WAIVERS"
+	@echo "========================================"
+	@python3 -I $(CODE_REPORT) --per-test $(COV_TEST_DIR)/*.dat --merged $(COV_MERGED) \
+		--waivers $(CODE_WAIVERS) > $(COV_DIR)/code_coverage_report.txt; \
+	sed -n '/^Merged RTL/,/^$$/p' $(COV_DIR)/code_coverage_report.txt; \
+	grep 'WARNING' $(COV_DIR)/code_coverage_report.txt || true
+	@echo "========================================"
 	@echo "        FUNCTIONAL COVERAGE"
 	@echo "========================================"
 	@$(SETUP_ENV) \
 	python3 $(FCOV_REPORT) --per-test $(COV_TEST_DIR)/*.dat -o $(COV_DIR)/fcov_per_test.txt && echo && \
 	python3 $(FCOV_REPORT) $(COV_MERGED) -o $(COV_DIR)/fcov_report.txt
-	@echo "Reports in sim/coverage/: code_coverage_summary.txt fcov_report.txt fcov_per_test.txt test_rank.txt code_coverage.info"
+	@echo "Reports in sim/coverage/: code_coverage_summary.txt code_coverage_report.txt fcov_report.txt fcov_per_test.txt test_rank.txt code_coverage.info"
 
 # ============================================================
 # Waveform

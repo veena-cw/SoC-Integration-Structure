@@ -934,10 +934,11 @@ u_sie
     .data_len_i(usb_xfer_data_tx_len_out_w),
     .data_idx_i(usb_xfer_token_pid_datax_out_w),
 
-    // Tx Data FIFO
-    .tx_data_i(fifo_tx_data_w),
-    .tx_pop_o(fifo_tx_pop_w),
-
+   // Tx Data FIFO
+	.tx_data_i  (fifo_tx_data_w),
+	.tx_empty_i (fifo_tx_empty_w),  
+	.tx_pop_o   (fifo_tx_pop_w),
+ 
     // Rx Data FIFO
     .rx_data_o(fifo_rx_data_w),
     .rx_push_o(fifo_rx_push_w),

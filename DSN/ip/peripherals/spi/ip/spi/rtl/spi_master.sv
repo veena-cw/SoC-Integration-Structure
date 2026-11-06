@@ -82,8 +82,8 @@ module spi_master #(
   logic                          tx_fifo_rd_en;
   logic [DATA_WIDTH-1:0]         tx_fifo_rdata;
   logic                          tx_fifo_empty;
-  logic rx_fifo_overflow;
-
+logic tx_fifo_overflow;
+logic rx_fifo_overflow;
 
   spi_fifo #(.WIDTH(DATA_WIDTH), .DEPTH(FIFO_DEPTH)) u_tx_fifo (
     .clk_i    (clk_i),
@@ -94,11 +94,11 @@ module spi_master #(
     .rd_data_o(tx_fifo_rdata),
     .empty_o  (tx_fifo_empty),
     .full_o   (tx_full_o),
-    .overflow_o(rx_fifo_overflow),
+   .overflow_o(tx_fifo_overflow),
     .count_o  (tx_count_o)
   );
   assign tx_empty_o = tx_fifo_empty;
-assign rx_overflow_o = rx_fifo_overflow;
+
   logic                          rx_fifo_wr_en;
   logic [DATA_WIDTH-1:0]         rx_fifo_wdata;
 
@@ -114,7 +114,7 @@ assign rx_overflow_o = rx_fifo_overflow;
 	.overflow_o(rx_fifo_overflow),
     .count_o  (rx_count_o)
   );
-
+assign rx_overflow_o = rx_fifo_overflow;
   // -----------------------------------------------------------------
   // FSM and bit-clock generator
   // -----------------------------------------------------------------

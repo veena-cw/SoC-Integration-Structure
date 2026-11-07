@@ -7,8 +7,8 @@
  * Expected: each AMO is executed atomically by the L2 (bsg_cache atomic
  * ALU) - or, if AMOs to uncached memory are not supported, raises a
  * store/AMO access fault (mcause 7), which the M-mode handler counts.
- * Currently the core hangs on the first AMO (amoswap.d, progress marker
- * step 14 / 0x10e at 0x0010_8200): the test times out.
+ * The core used to hang on the first AMO (amoswap.d, progress marker step
+ * 14 / 0x10e at 0x0010_8200); fixed by e2a13a8, the test passes.
  *
  * tohost: as l2_uncached_ops.c.
  */

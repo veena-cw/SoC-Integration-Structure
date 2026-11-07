@@ -136,3 +136,140 @@
 */bp_be/src/v/bp_be_dcache/bp_be_dcache_decoder.sv      132-132  # PTW load
 */bp_common/src/v/bp_mmu.sv                             140-141  # translation-enabled TLB muxes
 */bp_be/src/v/bp_be_checker/bp_be_instr_decoder.sv      512-516  # sfence.vma decode
+
+# PLIC: from VERIF/plic_verif/plic_tb/sim/code_cov_waivers.txt, same PLIC
+# configuration in cpu_top (SOURCES=64, TARGETS=4, PRIORITIES=8,
+# HAS_THRESHOLD=1, HAS_CONFIG_REG=1, HDATA_SIZE=32). ahb3lite_plic_top.sv
+# line numbers here are 2 higher than in that list, which predates 0b9490f.
+# const_id rules are not carried over: this report merges instances, so a
+# bit counts as covered if any cell toggles it.
+*/ahb3lite_plic_top.sv toggle=HSIZE[2]  # HSIZE >= 3'b100 is a transfer of 128 bits or more, AHB-illegal on a 32-bit bus
+*/ahb3lite_plic_top.sv 180-180 kind=line  # address_offset() case for a 1024-bit bus, HDATA_SIZE=32
+*/ahb3lite_plic_top.sv 181-181 kind=line  # address_offset() case for a 512-bit bus, HDATA_SIZE=32
+*/ahb3lite_plic_top.sv 182-182 kind=line  # address_offset() case for a 256-bit bus, HDATA_SIZE=32
+*/ahb3lite_plic_top.sv 183-183 kind=line  # address_offset() case for a 128-bit bus, HDATA_SIZE=32
+*/ahb3lite_plic_top.sv 184-184 kind=line  # address_offset() case for a 64-bit bus, HDATA_SIZE=32
+*/ahb3lite_plic_top.sv 186-186 kind=line  # address_offset() case for a 16-bit bus, HDATA_SIZE=32
+*/ahb3lite_plic_top.sv 187-187 kind=line  # address_offset() default, HDATA_SIZE=32 selects the 32 case
+*/ahb3lite_plic_top.sv 213-213 kind=line  # HSIZE_B1024 is wider than the 32-bit bus (AHB-illegal)
+*/ahb3lite_plic_top.sv 214-214 kind=line  # HSIZE_B512 is wider than the 32-bit bus (AHB-illegal)
+*/ahb3lite_plic_top.sv 215-215 kind=line  # HSIZE_B256 is wider than the 32-bit bus (AHB-illegal)
+*/ahb3lite_plic_top.sv 216-216 kind=line  # HSIZE_B128 is wider than the 32-bit bus (AHB-illegal)
+*/ahb3lite_plic_top.sv 217-217 kind=line  # HSIZE_DWORD is wider than the 32-bit bus (AHB-illegal)
+*/ahb3lite_plic_top.sv 192-192  # address_mask() is defined but never called
+*/ahb3lite_plic_top.sv 231-231  # gen_wval() in the top is defined but never called
+*/ahb3lite_plic_top.sv 239-239  # gen_wval() in the top is defined but never called
+*/ahb3lite_plic_top.sv 240-240  # gen_wval() in the top is defined but never called
+*/plic_gateway.sv 166-166 kind=expr text="((edge_lvl == EDGE)==0 && (edge_lvl == LEVEL)==0) => 0"  # edge_lvl is 1 bit: it is always EDGE or LEVEL
+*/plic_gateway.sv 180-180 kind=line  # ip_state is only assigned 00/01/10: the default branch is dead code
+*/plic_dynamic_registers_priority_bank.sv 221-221 kind=branch text="if"  # bare return branch, not counted by Verilator 5.052 (CONFIG decode runs)
+*/plic_dynamic_registers_priority_bank.sv 226-226 kind=branch text="if"  # bare return branch, not counted by Verilator 5.052 (EL decode runs)
+*/plic_dynamic_registers_priority_bank.sv 230-230 kind=branch text="if"  # bare return branch, not counted by Verilator 5.052 (PRIORITY decode runs)
+*/plic_dynamic_registers_priority_bank.sv 232-232 kind=branch text="if"  # bare return branch, not counted by Verilator 5.052 (IE decode runs)
+*/plic_dynamic_registers_priority_bank.sv 236-236 kind=branch text="if"  # bare return branch, not counted by Verilator 5.052 (THRESHOLD decode runs)
+*/plic_dynamic_registers_priority_bank.sv 249-249 kind=branch text="if"  # bare return branch, not counted by Verilator 5.052 (CONFIG index runs)
+*/plic_dynamic_registers_priority_bank.sv 255-255 kind=branch text="if"  # bare return branch, not counted by Verilator 5.052 (EL index runs)
+*/plic_dynamic_registers_priority_bank.sv 259-259 kind=branch text="if"  # bare return branch, not counted by Verilator 5.052 (PRIORITY index runs)
+*/plic_dynamic_registers_priority_bank.sv 261-261 kind=branch text="if"  # bare return branch, not counted by Verilator 5.052 (IE index runs)
+*/plic_dynamic_registers_priority_bank.sv 265-265 kind=branch text="if"  # bare return branch, not counted by Verilator 5.052 (THRESHOLD index runs)
+*/plic_dynamic_registers_priority_bank.sv 289-289 kind=branch  # bare return branches, not counted by Verilator 5.052 (gen_claim runs on every ID read)
+*/plic_dynamic_registers_priority_bank.sv 306-306 kind=branch  # bare return branches, not counted by Verilator 5.052 (gen_complete runs on every ID write)
+*/plic_dynamic_registers_priority_bank.sv 330-330 kind=line  # bare return branches, not counted by Verilator 5.052 (CONFIG_0/1 are read back)
+*/plic_dynamic_registers_priority_bank.sv 325-325 kind=branch text="cond_else"  # HAS_THRESHOLD=1
+*/plic_dynamic_registers_priority_bank.sv 327-327 kind=line  # CONFIG_REGS=2: the single-register encoding is not used
+*/plic_dynamic_registers_priority_bank.sv 345-345 kind=branch text="else"  # SOURCES=64 fills every PRIORITY register: no partial last register
+*/plic_dynamic_registers_priority_bank.sv 349-349 kind=line  # SOURCES=64 fills every PRIORITY register: no partial last register
+*/plic_dynamic_registers_priority_bank.sv 456-456 kind=line  # CONFIG_REGS=2: the single-register display is not used
+*/plic_dynamic_registers_priority_bank.sv 468-468 kind=branch text="else"  # SOURCES=64 fills every EL register: no partial last register
+*/plic_dynamic_registers_priority_bank.sv 482-482 kind=branch text="else"  # SOURCES=64 fills every IE register: no partial last register
+*/plic_dynamic_registers_priority_bank.sv 491-491 kind=branch text="else"  # SOURCES=64 fills every PRIORITY register: no partial last register
+*/plic_dynamic_registers_priority_bank.sv 495-495 kind=branch text="else"  # PRIORITY_BITS=3: PRIORITY_BITS % 4 is never 0
+*/plic_dynamic_registers_priority_bank.sv 504-504 kind=line  # inside the partial-last-register branch of line 491, SOURCES=64
+*/plic_dynamic_registers_priority_bank.sv 506-506 kind=branch  # inside the partial-last-register branch of line 491, SOURCES=64
+*/plic_dynamic_registers_priority_bank.sv 508-508 kind=branch  # inside the partial-last-register branch of line 491, SOURCES=64
+*/plic_dynamic_registers_priority_bank.sv 623-623 kind=branch text="else"  # every source index of the 8 PRIORITY registers is below SOURCES=64
+*/plic_dynamic_registers_priority_bank.sv 772-772 kind=branch text="else"  # HAS_CONFIG_REG=1
+*/plic_dynamic_registers_priority_bank.sv 777-777 kind=branch text="else"  # HAS_THRESHOLD=1
+*/plic_dynamic_registers_priority_bank.sv 369-369  # encode_th() is never called: its only use, at line 776, is commented out
+*/plic_dynamic_registers_priority_bank.sv 377-377  # encode_th() is never called: its only use, at line 776, is commented out
+*/plic_dynamic_registers_priority_bank.sv 378-378  # encode_th() is never called: its only use, at line 776, is commented out
+*/plic_dynamic_registers_priority_bank.sv 381-381  # encode_th() is never called: its only use, at line 776, is commented out
+*/plic_dynamic_registers_priority_bank.sv 448-448 kind=line  # register_function() only returns the six listed types: the default is dead code
+
+# Unreachable in BP_CFG_ID=9 (hole review, 7 Nov 2026)
+# Coherent accelerator complex: cac_x_dim = 0 in bp_multicore_2_cfg_p, so the
+# module is only the '0 tie-off generate branch (0.7% toggle, no line/branch).
+*/bp_top/src/v/bp_cacc_complex.sv                                    # cac_x_dim = 0: tie-off only
+# L2 cache controller tag/address ops: bp_core routes only DRAM addresses
+# (addr >= dram_base) to the L2 slices, so !fwd_pkt_dram_lo never holds for a
+# real request (line 372 is only "hit" by the idle all-zero header).
+*/bp_me/src/v/dev/bp_me_cache_controller.sv              367-370     # TAGFL/TAGLV/TAGLA/TAGST: non-DRAM address never reaches L2
+*/bp_me/src/v/dev/bp_me_cache_controller.sv              373-376     # AFLINV/AINV/ALOCK/default: non-DRAM address never reaches L2
+# Round-robin arbiter: hold_on_sr_p / reset_on_sr_p are only set by
+# bsg_mem_banked_crossbar, which is not in tb_filelist.f.
+*/external/basejump_stl/bsg_misc/bsg_round_robin_arb.sv  6482-6487   # hold_on_sr_p = reset_on_sr_p = 0 for every instance
+# CSR file: num_pmp = 0 in BP_CFG_ID=9, so the decoder makes every PMP CSR
+# access illegal (bp_be_instr_decoder.sv:533-535); the PMP registers are
+# never written. BP-DV-050 check 32 checks that the accesses trap.
+*/bp_be/src/v/bp_be_calculator/bp_be_csr.sv      467-467   # pmpcfg2 read: PMP CSRs trap (num_pmp = 0)
+*/bp_be/src/v/bp_be_calculator/bp_be_csr.sv      566-568   # PMP CSR writes: PMP CSRs trap (num_pmp = 0)
+*/bp_be/src/v/bp_be_calculator/bp_be_csr.sv      toggle=pmpcfg_li,pmpcfg_lo,pmpaddr_li,pmpaddr_lo,pmpcfg\d+_(li|lo|n)(\..*)?,pmpaddr\d+_(li|lo|n|r)(\..*)?  # num_pmp = 0: never written
+# sret: priv_mode_n = {0, spp} is always below M, so the keep-MPRV arm is dead
+*/bp_be/src/v/bp_be_calculator/bp_be_csr.sv      702-702 kind=branch text="cond_else"  # sret target is always S or U
+*/bp_be/src/v/bp_be_calculator/bp_be_csr.sv      702-702 kind=expr text="==0"         # sret target is always S or U
+# PLIC AHB bridge (hole review, 7 Nov 2026). The only requests are uncached
+# CPU loads/stores to the PLIC, at most 8 bytes = one 16-byte BedRock flit,
+# with one request in flight; the PLIC ties HREADYOUT high. 8-byte (two-beat)
+# accesses are covered by BP-DV-067 (c/plic_wide.c).
+*/bp_cpu_ahb3lite_if/bp_bedrock_ahb3lite_bridge.sv 299-299 kind=branch text="cond_else"  # request >= 16 bytes (multi-flit): never from the CPU
+*/bp_cpu_ahb3lite_if/bp_bedrock_ahb3lite_bridge.sv 340-340 kind=branch text="cond_else"  # dead: ST_IDLE only accepts rd/wr (ready = fwd_is_wr | fwd_is_rd)
+*/bp_cpu_ahb3lite_if/bp_bedrock_ahb3lite_bridge.sv 345-345 kind=branch text="cond_else"  # master always back in M_IDLE (HREADYOUT tied 1; observed, fixed timing)
+*/bp_cpu_ahb3lite_if/bp_bedrock_ahb3lite_bridge.sv 351-351 kind=branch text="cond_else"  # write with more flits to come: multi-flit, never from the CPU
+*/bp_cpu_ahb3lite_if/bp_bedrock_ahb3lite_bridge.sv 360-360 kind=line                     # ST_FETCH (next flit of a multi-flit write)
+*/bp_cpu_ahb3lite_if/bp_bedrock_ahb3lite_bridge.sv 360-360 kind=branch                   # ST_FETCH (next flit of a multi-flit write)
+*/bp_cpu_ahb3lite_if/bp_bedrock_ahb3lite_bridge.sv 413-413                               # ST_FETCH output
+*/bp_cpu_ahb3lite_if/bp_bedrock_ahb3lite_bridge.sv 472-472 kind=branch text="if"         # ST_FETCH datapath
+*/bp_cpu_ahb3lite_if/bp_bedrock_ahb3lite_bridge.sv 364-364 kind=branch text="cond_else"  # read with more flits to come: multi-flit, never from the CPU
+*/bp_cpu_ahb3lite_if/bp_bedrock_ahb3lite_bridge.sv 363-363 kind=branch text="else"       # response FIFO full: one request in flight, FIFO depth 8
+*/bp_cpu_ahb3lite_if/bp_bedrock_ahb3lite_bridge.sv 369-369 kind=branch text="cond_else"  # response FIFO full: one request in flight, FIFO depth 8
+# Parameter-fixed / unused paths, BP_CFG_ID=9 (hole review, 7 Nov 2026).
+# L2 (bsg_cache_miss): l2_features has no e_cfg_word_tracking (bit 3), so
+# word_tracking_p = 0: no store-tag-miss, no track miss. LOCK_OP and TAGFL
+# are tag/lock ops, which never reach the L2 (bp_me_cache_controller
+# 367-376 waiver: only DRAM addresses are routed to the L2).
+*/bsg_cache/bsg_cache_miss.sv 161-161 kind=branch text="cond_then"   # word_tracking_p = 0
+*/bsg_cache/bsg_cache_miss.sv 301-301 kind=branch text="cond_then"   # word_tracking_p = 0
+*/bsg_cache/bsg_cache_miss.sv 494-494 kind=branch text="cond_then"   # word_tracking_p = 0
+*/bsg_cache/bsg_cache_miss.sv 477-477 kind=branch text="cond_then"   # track_miss_i: word tracking only
+*/bsg_cache/bsg_cache_miss.sv 308-308 kind=branch text="cond_then"   # STORE_TAG_MISS: word tracking only
+*/bsg_cache/bsg_cache_miss.sv 510-540 kind=line                      # STORE_TAG_MISS / _ALLOCATE states: word tracking only
+*/bsg_cache/bsg_cache_miss.sv 511-515 kind=branch                    # STORE_TAG_MISS state: word tracking only
+*/bsg_cache/bsg_cache_miss.sv 306-306 kind=branch text="cond_then"   # LOCK_OP: lock ops never reach the L2
+*/bsg_cache/bsg_cache_miss.sv 381-385 kind=line                      # LOCK_OP state: lock ops never reach the L2
+*/bsg_cache/bsg_cache_miss.sv 262-262 kind=branch text="cond_then"   # TAGFL: tag ops never reach the L2
+*/bsg_cache/bsg_cache_miss.sv 347-347 kind=branch text="cond_then"   # TAGFL: tag ops never reach the L2
+*/bsg_cache/bsg_cache.sv      953-956 kind=line                      # TAGLV / TAGLA read-back: tag ops never reach the L2
+*/bsg_cache/bsg_cache.sv      1081-1081 kind=branch text="cond_then" # miss_track_* mux: word_tracking_p = 0
+*/bsg_cache/bsg_cache.sv      1085-1085 kind=branch text="cond_then" # miss_track_* mux: word_tracking_p = 0
+*/bsg_cache/bsg_cache.sv      1089-1089 kind=branch text="cond_then" # miss_track_* mux: word_tracking_p = 0
+*/bsg_cache/bsg_cache.sv      1095-1095 kind=branch text="cond_then" # miss_track_* mux: word_tracking_p = 0
+# CCE directory: num_cacc = 0 (no accelerator caches); the addr_* outputs
+# exist only for the microcode CCE's RDE op - the FSM CCE leaves them
+# unconnected (bp_cce_fsm.sv: "only for RDE") and never issues e_rde_op.
+*/bp_me/src/v/cce/bp_cce_dir.sv 329-329 kind=line                     # acache loop: num_cacc = 0
+*/bp_me/src/v/cce/bp_cce_dir.sv 342-342 kind=branch text="cond_then"  # acache LRU: num_cacc = 0
+*/bp_me/src/v/cce/bp_cce_dir.sv 349-349 kind=branch text="cond_then"  # acache LRU: num_cacc = 0
+*/bp_me/src/v/cce/bp_cce_dir.sv 354-354 kind=branch text="cond_then"  # addr_o / addr_dst_gpr_o: RDE only (ucode CCE)
+*/bp_me/src/v/cce/bp_cce_dir.sv 356-356 kind=branch text="cond_then"  # addr_o / addr_dst_gpr_o: RDE only (ucode CCE)
+*/bp_me/src/v/cce/bp_cce_dir.sv 358-358 kind=branch text="cond_then"  # addr_o / addr_dst_gpr_o: RDE only (ucode CCE)
+*/bp_me/src/v/cce/bp_cce_dir.sv 361-361 kind=branch text="cond_then"  # addr_o / addr_dst_gpr_o: RDE only (ucode CCE)
+*/bp_me/src/v/cce/bp_cce_dir.sv 363-363 kind=branch text="cond_then"  # addr_o / addr_dst_gpr_o: RDE only (ucode CCE)
+*/bp_me/src/v/cce/bp_cce_dir.sv 365-365 kind=branch text="cond_then"  # addr_o / addr_dst_gpr_o: RDE only (ucode CCE)
+*/bp_me/src/v/cce/bp_cce_dir_segment.sv 368-368 kind=branch           # e_rde_op: never issued by the FSM CCE
+*/bp_me/src/v/cce/bp_cce_dir_segment.sv 445-445 kind=line             # READ_ENTRY state: e_rde_op only
+# LCE: the FSM CCE never sends e_bedrock_cmd_set_clear (ucode CCE only)
+*/bp_me/src/v/lce/bp_lce_cmd.sv 418-418 kind=line                     # set_clear command: ucode CCE only
+# bsg_two_fifo: allow_enq_deq_on_full_p and verbose_p are 0 in every instance
+*/bsg_dataflow/bsg_two_fifo.sv 99-99 kind=branch text="if"            # allow_enq_deq_on_full_p = 0
+*/bsg_dataflow/bsg_two_fifo.sv 131-131 kind=branch text="if"          # verbose_p = 0 (debug $display)
+*/bsg_dataflow/bsg_two_fifo.sv 133-136 kind=branch                    # inside the verbose_p branch (debug $display)

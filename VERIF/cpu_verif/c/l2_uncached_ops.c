@@ -118,8 +118,9 @@ static void run_window(struct state *s, uint64_t b)
   check(s, LD("lb",  b + 0x02), (int64_t)0x33);
 
 #ifdef WITH_AMO
-  /* 3. AMOs, 64-bit at b+0x40, 32-bit at b+0x48 (BP-DV-048 only: an AMO
-   *    to L1-uncached DRAM currently hangs the core, see l2_uncached_amo.c) */
+  /* 3. AMOs, 64-bit at b+0x40, 32-bit at b+0x48, memory-wins min/max at
+   *    b+0x50 / b+0x58 (BP-DV-048 only; the uncached-AMO hang is fixed by
+   *    e2a13a8) */
   uint64_t d = b + 0x40, w = b + 0x48;
   ST("sd", d, 100ULL);
   check(s, AMO("amoswap.d", d, 7),      100);
@@ -145,6 +146,22 @@ static void run_window(struct state *s, uint64_t b)
   check(s, AMO("amomaxu.w", w, -1),     0);
   check(s, LD("lw", w), -1);
   check(s, LD("lw", w + 4), 0);                              /* neighbour untouched */
+
+  /* memory operand wins every compare (the other arm of the bsg_cache
+   * min/max/minu/maxu muxes): old value returned, memory unchanged */
+  uint64_t m = b + 0x50, mw = b + 0x58;
+  ST("sd", m, -10LL);
+  check(s, AMO("amomin.d",  m, 5),      -10);                /* -10 < 5           */
+  check(s, AMO("amomax.d",  m, -20),    -10);                /* -10 > -20         */
+  check(s, AMO("amominu.d", m, -1),     -10);                /* 2^64-10 < 2^64-1  */
+  check(s, AMO("amomaxu.d", m, 1),      -10);                /* 2^64-10 > 1       */
+  check(s, LD("ld", m), -10);
+  ST("sw", mw, -10LL);
+  check(s, AMO("amomin.w",  mw, 5),     -10);
+  check(s, AMO("amomax.w",  mw, -20),   -10);
+  check(s, AMO("amominu.w", mw, -1),    -10);
+  check(s, AMO("amomaxu.w", mw, 1),     -10);
+  check(s, LD("lw", mw), -10);
 #endif
 }
 

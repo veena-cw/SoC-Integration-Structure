@@ -230,8 +230,9 @@ bp_dv_046_l2_thrash_test 46 l2_thrash.nbf
 # Nonzero tohost per hart: (traps << 16) | 0x4700 | (window << 7) | check.
 bp_dv_047_l2_uncached_ops_test 47 l2_uncached_ops.nbf
 
-# BP-DV-048 - BP-DV-047 plus all AMOs (.w/.d) to L1-uncached DRAM. Currently
-# FAILS (timeout): the core hangs on the first uncached AMO (Jira).
+# BP-DV-048 - BP-DV-047 plus all AMOs (.w/.d) to L1-uncached DRAM, including
+# min/max with the memory operand winning. Passes since e2a13a8 (the uncached
+# AMO hang is fixed).
 bp_dv_048_l2_uncached_amo_test 48 l2_uncached_amo.nbf
 
 # BP-DV-049 - Two-core coherence stress: upgrade/sharer invalidation and
@@ -294,3 +295,28 @@ bp_dv_055_cce_stall_test 55 smp_coherence.nbf
 
 # Supplemental CPU smoke test retained from earlier development
 bp_dv_007_load_add_store_test 9  load_add_store.nbf
+# BP-DV-065 - boot through cpu_top's unfreeze sequencer (CPU_TOP_UNFREEZE,
+# build variant _unf) instead of bp_nonsynth_cfg_loader; load/add/store program.
+bp_dv_065_unfreeze_boot_test 65 load_add_store.nbf
+# BP-DV-066 - coherence corner cases not reached by BP-DV-049: uncached access
+# to E / F owned lines, uncached AMO to a modified line, replacement +
+# invalidate + transfer, three sharers. tohost per hart (phase << 8) | detail
+# (c/coh_corner.c).
+bp_dv_066_coh_corner_test 66 coh_corner.nbf
+# BP-DV-067 - 64-bit ld/sd to the PLIC (two AHB beats per access in the AHB
+# bridge); tohost hart 0 (fail_count << 16) | 0x6700 | first failing check
+# (c/plic_wide.c). Runs on the BP-DV-059 class (same PLIC sequence, boot image
+# from the row); by hand:
+#   make sim TEST=bp_dv_059_plic_reg_full_test TCNAME=plic_wide TEST_ID=67
+bp_dv_059_plic_reg_full_test 67 plic_wide.nbf
+# BP-DV-068 - CLINT timer and software interrupts on both harts (mtimecmp,
+# mtime, mtimesel, MTIP / MSIP, wfi wake-up, cross-hart IPI). Runs on the
+# BP-DV-049 class; tohost per hart (fail_count << 16) | 0x6800 | first check
+# (c/clint_timer.c). By hand:
+#   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=clint_timer TEST_ID=68
+bp_dv_049_smp_coherence_test 68 clint_timer.nbf
+# BP-DV-069 - loads/stores of every size to unmapped local devices (4, 6, 15)
+# on tile 0 and tile 1, answered by bp_me_loopback; no trap, no hang
+# (c/loopback.c). By hand:
+#   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=loopback TEST_ID=69
+bp_dv_049_smp_coherence_test 69 loopback.nbf

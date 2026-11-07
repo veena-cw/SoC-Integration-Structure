@@ -238,6 +238,12 @@ TEST_ID      ?= 51
 else ifeq ($(TEST),bp_dv_063_debug_priv_test)
 TCNAME       ?= debug_priv
 TEST_ID      ?= 63
+else ifeq ($(TEST),bp_dv_065_unfreeze_boot_test)
+TCNAME       ?= load_add_store
+TEST_ID      ?= 65
+else ifeq ($(TEST),bp_dv_066_coh_corner_test)
+TCNAME       ?= coh_corner
+TEST_ID      ?= 66
 else ifeq ($(TEST),bp_dv_052_isa_complete_test)
 TCNAME       ?= isa_complete
 TEST_ID      ?= 52
@@ -418,6 +424,10 @@ endif
 # CPU_UNFREEZE=1: boot through cpu_top's unfreeze sequencer instead of
 # bp_nonsynth_cfg_loader (needs a cpu_top with the unfreeze_i port; until that
 # is in the repo, also pass CPU_FLIST=<filelist naming it>). Own build folder.
+# BP-DV-065 always boots through the sequencer (variant _unf).
+ifeq ($(TEST),bp_dv_065_unfreeze_boot_test)
+CPU_UNFREEZE := 1
+endif
 CPU_UNFREEZE ?= 0
 ifeq ($(CPU_UNFREEZE),1)
 VERILATOR_DEFINES += -DCPU_TOP_UNFREEZE

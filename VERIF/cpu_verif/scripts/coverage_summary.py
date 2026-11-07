@@ -56,6 +56,8 @@ def main():
             kind = d.get("page", "").split("/")[0]
             if kind == "v_toggle" and coverage_waive.waived_toggle(rules, path, d.get("o", "")):
                 continue
+            if coverage_waive.waived_point(rules, path, int(d.get("l", "0")), kind, d.get("o", "")):
+                continue
             key = (kind, path, d.get("l"), d.get("n"), d.get("o"))
             points[key] = max(points.get(key, 0), int(cnt))
 

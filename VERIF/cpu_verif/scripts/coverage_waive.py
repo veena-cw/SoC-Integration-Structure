@@ -4,7 +4,12 @@
 Waiver file (sim/coverage_waivers.txt), one entry per line:
   <path glob> [<first>-<last>]          # comment
   <path glob> toggle=<signal>[,<signal>...]   # comment
+  <path glob> <first>[-<last>] kind=<line|branch|expr> [text="<substring>"]  # comment
 A glob alone waives the whole file; with a range only those lines.
+kind= waives only that type of point on those lines, and text= only the
+points whose description (Verilator 'o' field: if / else / cond_else, or the
+expression term) contains the substring: a line usually has several points
+and only some are unreachable. Applied at report time, like toggle=.
 toggle= waives only the toggle points of the named signals (a constant
 signal sharing its declaration line with signals that do toggle). A name
 is a regular expression matched against the whole signal name, e.g.
@@ -39,6 +44,13 @@ def load(path):
             if len(parts) > 1 and parts[1].startswith("toggle="):
                 for sig in parts[1][len("toggle="):].split(","):
                     rules.append((parts[0], "toggle", _toggle_rule(sig)))
+                continue
+            kind = re.search(r"\bkind=(\w+)", line)
+            if kind:
+                a, _, b = parts[1].partition("-")
+                text = re.search(r'\btext="(.*)"', line)
+                rules.append((parts[0], "point", (int(a), int(b or a), kind.group(1),
+                                                  text.group(1) if text else "")))
                 continue
             lo, hi = 1, 1 << 30
             if len(parts) > 1:
@@ -77,7 +89,7 @@ def waived(rules, path, line=None):
     """True if `path` (and `line`, if given) is waived. With line=None, True
     only when the whole file is waived."""
     for glob, lo, hi in rules:
-        if lo == "toggle":
+        if lo in ("toggle", "point"):
             continue
         if fnmatch.fnmatch(path, glob):
             if line is None:
@@ -85,6 +97,18 @@ def waived(rules, path, line=None):
                     return True
             elif lo <= line <= hi:
                 return True
+    return False
+
+
+def waived_point(rules, path, line, page, point=""):
+    """True if a kind= rule covers this point. page: Verilator page type
+    (v_line, v_branch, v_expr); point: its 'o' field."""
+    for glob, tag, rule in rules:
+        if tag != "point" or not fnmatch.fnmatch(path, glob):
+            continue
+        lo, hi, kind, text = rule
+        if lo <= line <= hi and page == "v_" + kind and text in point:
+            return True
     return False
 
 
@@ -122,7 +146,8 @@ def main():
                 cur = None
                 continue
             if line.startswith("DA:") and cur is not None and not drop_file:
-                if waived(rules, cur, int(line[3:].split(",")[0])):
+                n = int(line[3:].split(",")[0])
+                if waived(rules, cur, n) or waived_point(rules, cur, n, "v_line"):
                     removed_lines += 1
                     continue
             if cur is None:

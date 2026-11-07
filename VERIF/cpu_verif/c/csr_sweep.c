@@ -27,11 +27,14 @@
  *   25-28 mcycle counts, mcycle write, mcountinhibit.CY freezes mcycle,
  *         mcountinhibit.IR freezes minstret
  *   29-31 fcsr = {frm, fflags} aliasing; fcsr with mstatus.FS = Off traps
- *   32    pmpcfg0 / pmpaddr0 read back
+ *   32    pmpaddr0 / pmpcfg0 / pmpcfg2 accesses trap (num_pmp = 0)
  *   33-34 unknown CSR (0x7C0): read and write-only access trap
  *   35    sedeleg / sideleg (no N extension) read 0, writes ignored
  *   36-38 U-mode: cycle with mcounteren.CY=0 traps, with CY=1 (and
  *         scounteren.CY=1) reads; mstatus read from U traps
+ *   39    minstret write
+ *   40    scause read/write
+ *   41-42 misaligned ld / sd trap (mcause 4 / 6), mtval = address
  * Informational only (not a failure): bit 0 of the info word = dcsr was
  * readable from M-mode without trapping (debug CSRs outside Debug Mode).
  *
@@ -45,6 +48,8 @@
 
 #define CAUSE_ILLEGAL  2
 #define CAUSE_ECALL_U  8
+#define CAUSE_MISALIGNED_LD 4
+#define CAUSE_MISALIGNED_ST 6
 
 #define CSRR(csr)        ({ uint64_t _v; __asm__ volatile ("csrr %0, " #csr : "=r"(_v) :: "memory"); _v; })
 #define CSRW(csr, v)     __asm__ volatile ("csrw " #csr ", %0" :: "r"((uint64_t)(v)) : "memory")
@@ -259,11 +264,15 @@ static uint64_t run_sweep(void)
   n = s.r[0]; v = CSRR(fcsr);
   check(&s, trapped(&s, n, CAUSE_ILLEGAL));
 
-  /* 32 PMP (entry 0, A=OFF so nothing is matched or locked) */
+  /* 32 PMP: num_pmp = 0 in this configuration, so the decoder makes every
+   * PMP CSR access illegal (bp_be_instr_decoder.sv). Counted per access:
+   * the old readback check passed only because a trapped csrr leaves rd
+   * holding the value just written. */
+  n = s.r[0];
   CSRW(pmpaddr0, 0x12345); v = CSRR(pmpaddr0);
-  CSRW(pmpcfg0, 0x07);     w = CSRR(pmpcfg0) & 0xFF;
-  CSRW(pmpcfg0, 0); CSRW(pmpaddr0, 0);
-  check(&s, v == 0x12345 && w == 0x07);
+  CSRW(pmpcfg0, 0x07);     w = CSRR(pmpcfg0);
+  v = CSRR(pmpcfg2);
+  check(&s, s.r[0] == n + 5 && s.r[1] == CAUSE_ILLEGAL);
 
   /* 33-34 unknown CSR 0x7C0 */
   n = s.r[0]; v = CSRR(0x7c0);  check(&s, trapped(&s, n, CAUSE_ILLEGAL));
@@ -292,6 +301,27 @@ static uint64_t run_sweep(void)
   n = s.r[0];
   v = run_user(u_read_mstatus);
   check(&s, v == ~0ULL && s.r[0] == n + 2);
+
+  /* 39 minstret write (M) */
+  CSRW(minstret, 1000000); v = CSRR(minstret);
+  check(&s, v >= 1000000 && v < 1000000 + 1000);
+
+  /* 40 scause read/write (M-mode access to the S CSR) */
+  CSRW(scause, 5); v = CSRR(scause);
+  CSRW(scause, 0);
+  check(&s, v == 5);
+
+  /* 41-42 misaligned load / store: mcause 4 / 6, mtval = the address */
+  {
+    static volatile uint64_t buf[2] __attribute__((aligned(16)));
+    uint64_t a = (uint64_t)&buf[0] + 1;
+    n = s.r[0];
+    __asm__ volatile ("ld %0, 0(%1)" : "=r"(v) : "r"(a) : "memory");
+    check(&s, trapped(&s, n, CAUSE_MISALIGNED_LD) && s.r[2] == a);
+    n = s.r[0];
+    __asm__ volatile ("sd %0, 0(%1)" :: "r"(a), "r"(a + 2) : "memory");
+    check(&s, trapped(&s, n, CAUSE_MISALIGNED_ST) && s.r[2] == a + 2);
+  }
 
   *(volatile uint64_t *)(0x00108700UL + hart_id() * 0x10UL) =
       (info << 32) | ((uint64_t)s.fails << 16) | s.first;

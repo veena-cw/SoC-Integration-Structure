@@ -174,6 +174,19 @@ class bp_dv_007_load_add_store_test extends bp_base_test;
 
 endclass
 
+// Test ID: BP-DV-065 | Feature: cpu_top unfreeze sequencer boot
+// Same program as BP-DV-007 load/add/store, but built with CPU_TOP_UNFREEZE
+// (Makefile variant _unf): cpu_top writes cce/icache/dcache mode and NPC of
+// both cores and clears their freeze bits, instead of bp_nonsynth_cfg_loader.
+// Both harts reaching tohost = 0 shows every configuration write landed.
+class bp_dv_065_unfreeze_boot_test extends bp_dv_007_load_add_store_test;
+  `uvm_component_utils(bp_dv_065_unfreeze_boot_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+endclass
+
 // Test ID: BP-DV-007 | Feature: conditional branches
 class bp_dv_007_branch_test extends bp_base_test;
   `uvm_component_utils(bp_dv_007_branch_test)
@@ -1269,6 +1282,19 @@ class bp_dv_049_smp_coherence_test extends bp_base_test;
 
     phase.drop_objection(this);
   endtask
+endclass
+
+// Test ID: BP-DV-066 | Feature: coherence corner cases (c/coh_corner.c) -
+// uncached access to lines owned in E / F by the other core, uncached AMO to
+// a modified line, write miss with replacement + sharer invalidation + owner
+// transfer, three-sharer invalidation. Same sequence and 1 ms limit as
+// BP-DV-049; the boot image comes from +NBF_FILE (coh_corner.nbf).
+class bp_dv_066_coh_corner_test extends bp_dv_049_smp_coherence_test;
+  `uvm_component_utils(bp_dv_066_coh_corner_test)
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
 endclass
 
 // Test ID: BP-DV-050 | Feature: CSR read/write sweep on both harts -

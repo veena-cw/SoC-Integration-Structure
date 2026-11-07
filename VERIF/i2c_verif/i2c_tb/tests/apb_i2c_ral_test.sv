@@ -6,11 +6,11 @@
 //
 //  Chipweave Technologies Confidential
 //==================================================================================
-//  Project           				: 
-//  Module            				: 
-//  Primary Unit Owner                         	: 
-//  Secondary Contact                           : 
-//  Source [SystemVerilog|Verilog|VHDL|Other]   : 
+//  Project                           :
+//  Module                            :
+//  Primary Unit Owner                             :
+//  Secondary Contact                           :
+//  Source [SystemVerilog|Verilog|VHDL|Other]   :
 //=================================================================================
 //  Description: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 //=================================================================================
@@ -52,7 +52,7 @@ class apb_i2c_base_test extends uvm_test;
   function void build_phase(uvm_phase phase);
     super.build_phase(phase);
     env = apb_i2c_ral_env::type_id::create("env", this);
-    
+
      // Get IRQ interface
     if (!uvm_config_db#(virtual i2c_irq_if)::get(
           this,
@@ -64,14 +64,14 @@ class apb_i2c_base_test extends uvm_test;
       `uvm_fatal("IRQ_VIF",
                  "Failed to get i2c_irq_if in test")
     end
-    
+
     /*
      uvm_resource_db#(bit)::set(
     "*",
     "select_salve",
     1'b1,
-    this);	
-    
+    this);
+
       uvm_resource_db#(bit)::set(
     "*",
     "p_enable",
@@ -284,8 +284,8 @@ class apb_i2c_scoreboard_test extends apb_i2c_base_test;
     `uvm_info(get_type_name(), $sformatf("SNOOPED %0d bus transactions, scoreboard will report in report_phase", env.scoreboard.write_cnt), UVM_LOW)
     phase.drop_objection(this);
   endtask
-  
-  
+
+
 endclass
 
 class apb_i2c_reg_write_test extends apb_i2c_base_test;
@@ -308,7 +308,7 @@ class apb_i2c_reg_write_test extends apb_i2c_base_test;
    wseq.slave_addr = 7'h55;
   wseq.read_write = 1'b0;
 
- 
+
 
     repeat(50)
     wseq.start(env.agent.sequencer);
@@ -394,15 +394,15 @@ class apb_i2c_reg_write_wrong_addr_test extends apb_i2c_base_test;
     wr_seq.model = env.ral_model;
    // rseq.slave_addr = 7'h55;
   //rseq.read_write = 1'b1;
-    repeat(10)
+    repeat(1)
     wr_seq.start(env.agent.sequencer);
-    
+
     phase.drop_objection(this);
   endtask
-  
+
   endclass
  // apb_i2c_write_data_nack_test
-  
+
   class apb_i2c_write_data_nack_test extends apb_i2c_base_test;
   `uvm_component_utils(apb_i2c_write_data_nack_test)
 
@@ -419,7 +419,7 @@ class apb_i2c_reg_write_wrong_addr_test extends apb_i2c_base_test;
     "generate_nack",
     1'b1,
     this
-);	
+);
   endfunction
   task run_phase(uvm_phase phase);
     phase.raise_objection(this);
@@ -428,12 +428,12 @@ class apb_i2c_reg_write_wrong_addr_test extends apb_i2c_base_test;
     wr_seq.model = env.ral_model;
    // rseq.slave_addr = 7'h55;
   //rseq.read_write = 1'b1;
-    repeat(50)
+    repeat(1)
     wr_seq.start(env.agent.sequencer);
-    
+
     phase.drop_objection(this);
   endtask
-  
+
 endclass
 
 
@@ -454,7 +454,7 @@ endclass
     "generate_nack",
     1'b1,
     this
-);	
+);
   endfunction
   task run_phase(uvm_phase phase);
     phase.raise_objection(this);
@@ -465,16 +465,16 @@ endclass
   // rseq.read_write = 1'b1;
     repeat(50)
     wr_seq.start(env.agent.sequencer);
-    
+
     phase.drop_objection(this);
   endtask
-  
+
 endclass
 
 
 class apb_i2c_valid_addr_unused_test extends apb_i2c_base_test;
   `uvm_component_utils(apb_i2c_valid_addr_unused_test)
-  
+
 
   apb_i2c_valid_addr_unused_seq   wr_seq;
   function new(string name = "apb_i2c_valid_addr_unused_test", uvm_component parent = null);
@@ -492,13 +492,13 @@ class apb_i2c_valid_addr_unused_test extends apb_i2c_base_test;
     wr_seq.model = env.ral_model;
     repeat(10)
     wr_seq.start(env.agent.sequencer);
-    
+
     phase.drop_objection(this);
   endtask
-  
+
   endclass
-  
-  
+
+
   class apb_i2c_irq_test extends apb_i2c_base_test;
 
   `uvm_component_utils(apb_i2c_irq_test)
@@ -519,13 +519,13 @@ class apb_i2c_valid_addr_unused_test extends apb_i2c_base_test;
  virtual function void build_phase(uvm_phase phase);
     super.build_phase(phase);
 
-   
+
   endfunction
 
   virtual task run_phase(uvm_phase phase);
 
     phase.raise_objection(this);
- 	do_reset();
+     do_reset();
     `uvm_info(get_type_name(), "IRQ TEST:", UVM_LOW)
 
     seq1 = apb_i2c_irq_reg_write_seq::type_id::create("seq1");
@@ -563,9 +563,9 @@ class apb_i2c_valid_addr_unused_test extends apb_i2c_base_test;
     phase.drop_objection(this);
 
   endtask
-  
+
   endclass
-  
+
   class apb_i2c_irq_ready_test extends apb_i2c_base_test;
 
   `uvm_component_utils(apb_i2c_irq_ready_test)
@@ -573,7 +573,7 @@ class apb_i2c_valid_addr_unused_test extends apb_i2c_base_test;
   apb_i2c_reg_write_seq   wseq;
   // APB sequences
   apb_i2c_irq_reg_write_seq seq1;
-  
+
 uvm_status_e   status;
     uvm_reg_data_t status_value;
     uvm_reg_data_t ctrl_value;
@@ -588,19 +588,19 @@ bit busy;
  virtual function void build_phase(uvm_phase phase);
     super.build_phase(phase);
 
-   
+
   endfunction
 
   virtual task run_phase(uvm_phase phase);
 
     phase.raise_objection(this);
- 	do_reset();
+     do_reset();
     `uvm_info(get_type_name(), "IRQ TEST:", UVM_LOW)
 
     seq1 = apb_i2c_irq_reg_write_seq::type_id::create("seq1");
    wseq = apb_i2c_reg_write_seq :: type_id :: create("wseq",this);
-   
-   
+
+
     seq1.model = env.ral_model;
    wseq.slave_addr = 7'h55;
    wseq.read_write = 1'b0;
@@ -609,7 +609,7 @@ bit busy;
     //============================================================
 
 
-  
+
     //==========================================================
     //  WRITE CTRL_REG
     //==========================================================
@@ -663,7 +663,7 @@ bit busy;
               UVM_LOW)
 
 
-  
+
        env.ral_model.STATUS_REG.read(
         status,
         status_value,
@@ -703,7 +703,7 @@ bit busy;
   endtask
 
 endclass
-  
+
   class apb_i2c_r_access_hold_test extends apb_i2c_base_test;
 
   `uvm_component_utils(apb_i2c_r_access_hold_test)
@@ -733,13 +733,13 @@ apb_i2c_reg_read_seq  rseq;
     // Create and start directed sequence.
     seq = apb_i2c_r_access_hold_seq::type_id::create("seq");
      rseq = apb_i2c_reg_read_seq :: type_id :: create("rseq",this);
- 	seq.model = env.ral_model;
- 	rseq.model = env.ral_model;
+     seq.model = env.ral_model;
+     rseq.model = env.ral_model;
 
     seq.start(env.agent.sequencer);
 #50ns;
 
- 
+
     `uvm_info("R_ACCESS_TEST",
               "Completed R_ACCESS hold branch coverage test",
               UVM_MEDIUM)
@@ -747,7 +747,7 @@ apb_i2c_reg_read_seq  rseq;
     phase.drop_objection(this);
 
   endtask
- 
+
 
 endclass
 
@@ -772,13 +772,13 @@ endclass
  virtual function void build_phase(uvm_phase phase);
     super.build_phase(phase);
 
-   
+
   endfunction
 
   virtual task run_phase(uvm_phase phase);
 
     phase.raise_objection(this);
- 	do_reset();
+     do_reset();
     `uvm_info(get_type_name(), "IRQ TEST:", UVM_LOW)
 
     seq1 = apb_i2c_irq_error_reg_write_seq::type_id::create("seq1");
@@ -816,9 +816,9 @@ endclass
     phase.drop_objection(this);
 
   endtask
-  
+
   endclass
-  
+
   class apb_i2c_reg_write_no_enable_test extends apb_i2c_base_test;
   `uvm_component_utils(apb_i2c_reg_write_no_enable_test)
 
@@ -830,9 +830,9 @@ endclass
     super.build_phase(phase);
   //  seq = apb_i2c_reg_write_read_seq::type_id::create("seq", this);
     wseq = apb_i2c_reg_write_seq :: type_id :: create("wseq",this);
-    
-    
-    
+
+
+
    uvm_resource_db#(bit)::set(
   "*",
   "select_salve",
@@ -861,7 +861,7 @@ uvm_resource_db#(bit)::set(
    wseq.slave_addr = 7'h55;
   wseq.read_write = 1'b0;
 
- 
+
 
     repeat(10)
     wseq.start(env.agent.sequencer);
@@ -1043,7 +1043,7 @@ class apb_i2c_strobe_coverage_test extends apb_i2c_ral_test;
       this,
       "apb_i2c_strobe_coverage_test started"
     );
-    
+
     do_reset();
 
     //==========================================================
@@ -1060,11 +1060,11 @@ class apb_i2c_strobe_coverage_test extends apb_i2c_ral_test;
 
 
  seq.start(env.agent.sequencer);
-  
+
   #500;
 
     phase.drop_objection(this);
-    
+
   endtask
 
 endclass

@@ -64,7 +64,7 @@ module i2c_master (
 
     // Interrupt is asserted on transaction completion or error.
     // It is disabled when the interrupt enable is low.
-    assign i2c_irq = i2c_irq_en && (done || ack_error);
+    assign i2c_irq = i2c_irq_en && (done || ack_error || ready);
 
     // Received byte is held in data_out.
     assign rx_data = data_out;

@@ -6,11 +6,11 @@
 //
 //  Chipweave Technologies Confidential
 //==================================================================================
-//  Project           				: 
-//  Module            				: 
-//  Primary Unit Owner                         	: 
-//  Secondary Contact                           : 
-//  Source [SystemVerilog|Verilog|VHDL|Other]   : 
+//  Project           				:
+//  Module            				:
+//  Primary Unit Owner                         	:
+//  Secondary Contact                           :
+//  Source [SystemVerilog|Verilog|VHDL|Other]   :
 //=================================================================================
 //  Description: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 //=================================================================================
@@ -854,9 +854,9 @@ endclass
       end
     endtask
   endclass
-  
 
-  
+
+
   class apb_i2c_reg_write_seq extends apb_i2c_ral_base_seq;
 
   `uvm_object_utils(apb_i2c_reg_write_seq)
@@ -947,7 +947,7 @@ endclass
         UVM_MEDIUM
       );
 
-   
+
 
     end while (busy);
 
@@ -1001,13 +1001,13 @@ endclass
       UVM_MEDIUM
     )
 
-  
+
     model.TXDATA_REG.write(
       status,
       tx_data,
       UVM_FRONTDOOR);
-      
-      
+
+
 
     if (status != UVM_IS_OK) begin
       `uvm_fatal(
@@ -1087,7 +1087,7 @@ if(!done)
         UVM_MEDIUM
       )
     end
-    
+
      model.STATUS_REG.read(
         status,
         status_value,
@@ -1101,7 +1101,7 @@ if(!done)
           "STATUS_REG read failed"
         )
       end
-      
+
        model.STATUS_REG.read(
         status,
         status_value,
@@ -1115,7 +1115,7 @@ if(!done)
           "STATUS_REG read failed"
         )
       end
-      
+
 
   endtask
 
@@ -1190,7 +1190,7 @@ rand bit [7:0]	tx_data_lower;
 
 
 
-    
+
     `uvm_info(
       "I2C_READ",
       "Waiting for BUSY = 0",
@@ -1229,7 +1229,7 @@ rand bit [7:0]	tx_data_lower;
       );
 
 
-      
+
 
 
     end while (busy);
@@ -1268,7 +1268,7 @@ rand bit [7:0]	tx_data_lower;
         "CTRL_REG write failed"
       )
     end
-     
+
      //========================================================
     // 3. WRITE TXDATA_REG
     //========================================================
@@ -1296,7 +1296,7 @@ rand bit [7:0]	tx_data_lower;
         "TXDATA_REG write failed"
       )
     end
-    
+
 
 
     //========================================================
@@ -1359,7 +1359,7 @@ rand bit [7:0]	tx_data_lower;
 
 if(!done)
      #200ns;
-      
+
 
 
     end while (!done);
@@ -1419,7 +1419,7 @@ model.STATUS_REG.read(
           "STATUS_REG read failed"
         )
       end
-      
+
       model.STATUS_REG.read(
         status,
         status_value,
@@ -1633,7 +1633,7 @@ class apb_i2c_reg_write_wrong_addr_seq extends apb_i2c_ral_base_seq;
       );
 
 
-     
+
 
       busy        = status_value[0];
       done        = status_value[1];
@@ -1804,7 +1804,7 @@ endclass
         UVM_MEDIUM
       );
 
-      
+
 
     end while (busy);
 
@@ -1944,7 +1944,7 @@ endclass
         UVM_MEDIUM
       )
     end
-   
+
 
   endtask
 
@@ -2059,7 +2059,7 @@ class apb_i2c_irq_reg_write_seq extends apb_i2c_ral_base_seq;
 
        bit  irq_en;
 
-     
+
 
  //============================================================
   // Constraints
@@ -2217,7 +2217,7 @@ end
 
     end while (busy);
 
-      
+
     //==========================================================
     // 2. WRITE CTRL_REG
     //==========================================================
@@ -2388,7 +2388,7 @@ end
 
 endclass
 
-    
+
 class apb_i2c_valid_addr_unused_seq extends apb_i2c_ral_base_seq;
 
   `uvm_object_utils(apb_i2c_valid_addr_unused_seq)
@@ -2468,7 +2468,7 @@ class apb_i2c_valid_addr_unused_seq extends apb_i2c_ral_base_seq;
 
   endtask
 
-endclass   
+endclass
 
 
 class apb_i2c_reg_write_push_seq extends apb_i2c_ral_base_seq;
@@ -2543,7 +2543,7 @@ class apb_i2c_reg_write_push_seq extends apb_i2c_ral_base_seq;
         UVM_MEDIUM
       );
 
-   
+
 
     end while (busy);
 
@@ -2624,13 +2624,13 @@ repeat(5) begin
       UVM_MEDIUM
     )
 
-  
+
     model.TXDATA_REG.write(
       status,
       tx_data,
       UVM_FRONTDOOR);
-      
-      
+
+
 
     if (status != UVM_IS_OK) begin
       `uvm_fatal(
@@ -2711,7 +2711,7 @@ repeat(5) begin
       )
     end
 
-    
+
      model.STATUS_REG.read(
         status,
         status_value,
@@ -2725,7 +2725,7 @@ repeat(5) begin
           "STATUS_REG read failed"
         )
       end
-      
+
        model.STATUS_REG.read(
         status,
         status_value,
@@ -2739,7 +2739,7 @@ repeat(5) begin
           "STATUS_REG read failed"
         )
       end
-      
+
 
   endtask
 
@@ -2938,7 +2938,7 @@ class apb_i2c_irq_error_reg_write_seq extends apb_i2c_ral_base_seq;
 
        bit  irq_en;
 
-     
+
 
  //============================================================
   // Constraints
@@ -3096,7 +3096,7 @@ end
 
     end while (busy);
 
-      
+
     //==========================================================
     // 2. WRITE CTRL_REG
     //==========================================================
@@ -3316,8 +3316,8 @@ class apb_i2c_default_coverage_seq extends apb_i2c_ral_base_seq;
     // Prepare the write handshake for the next clock
     @(negedge vif.pclk);
 
-    force test_top.dut.apbs.psel_in   = 1'b1;
-    force test_top.dut.apbs.in_pready = 1'b1;
+    force test_top.dut.apbs.i_psel  = 1'b1;
+    force test_top.dut.apbs.o_pready = 1'b1;
 
     vif.penable = 1'b1;
 
@@ -3332,8 +3332,8 @@ class apb_i2c_default_coverage_seq extends apb_i2c_ral_base_seq;
     // Release forced internal handshake signals
     @(negedge vif.pclk);
 
-    release test_top.dut.apbs.psel_in;
-    release test_top.dut.apbs.in_pready;
+    release test_top.dut.apbs.i_psel;
+    release test_top.dut.apbs.o_pready;
 
     // Return APB bus to IDLE
     vif.psel    = 1'b0;

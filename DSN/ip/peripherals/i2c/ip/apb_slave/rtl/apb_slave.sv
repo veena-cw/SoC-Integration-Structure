@@ -293,7 +293,8 @@ module apb_slave #(
     //==========================================================
 
     assign status_reg = {
-        29'b0,
+        28'b0,
+        range_err_sticky,
         nack_sticky,
         done_sticky,
         i2c_busy

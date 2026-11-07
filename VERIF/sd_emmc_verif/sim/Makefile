@@ -25,8 +25,9 @@ TOP            = tb_top
 # ==============================================================================
 # Local RTL Paths & Filelist Setup (Current Local Copy in SD_eMMC_2710)
 # ==============================================================================
-RTL_DIR_1 := $(abspath $(ROOT)/../../sd_emmc_dsn/sd_emmc/rtl)
-RTL_DIR_2 := $(abspath $(ROOT)/../../sd_emmc_dsn/async_fifo/rtl)
+RTL_DIR_1 := $(abspath $(ROOT)/../../../DSN/ip/memory_io/sd_emmc/ip/sd_emmc/rtl)
+
+RTL_DIR_2 := $(abspath $(ROOT)/../../../DSN/ip/memory_io/sd_emmc/ip/async_fifo/rtl)
 
 RTL_FILELIST   := $(BUILD_DIR)/rtl.f
 TB_FILELIST    := $(ROOT)/filelist.f
@@ -52,7 +53,7 @@ lint compile: gen_local_rtl_f
 ###############################################################################
 
 #UVM_HOME ?= /home/cw001_sujatha/Desktop/Test1/SD_eMMC/SD_eMMC_2809/SoC-Integration-Structure/VERIF/uvm-1.1d/src
-override UVM_HOME = /home/cw001_sujatha/Desktop/Test1/SD_eMMC/SD_eMMC_2809/SoC-Integration-Structure/VERIF/uvm-1.1d/src
+override UVM_HOME = /home/cw036_titiksha/SoC-Integration-Structure/VERIF/uvm-1.1d/src
 UVM_PKG   = $(UVM_HOME)/uvm_pkg.sv
 
 ###############################################################################
@@ -242,11 +243,15 @@ compile-verilator: $(VERILATOR_EXE)
 ###############################################################################
 
 ifeq ($(SIM),vivado)
+
 elab: elab-vivado
 run: run-vivado
+
 else ifeq ($(SIM),verilator)
-elab: elab-verilator
-run: run-verilator
+
+elab: compile-verilator
+run: compile-verilator run-verilator
+
 endif
 
 elab-vivado: compile-vivado

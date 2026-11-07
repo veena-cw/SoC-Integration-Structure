@@ -242,6 +242,53 @@ typedef enum logic [1:0] {
 wr_state_t wr_state;
  
 logic [7:0] awlen_q;
+
+//========================================================================
+// [ADDR] Address map: LPDDR controller window (Non-Secure)
+//   Base 0x1080_0000, size 0x0100_0000 (16 MB), limit 0x117F_FFFF
+// Out-of-range accesses never reach the scheduler: writes get BRESP=DECERR,
+// reads get RRESP=DECERR (arlen+1 beats, rlast on the last).
+//========================================================================
+localparam logic [ADDR_WIDTH-1:0] LPDDR_BASE_ADDR  = 32'h1080_0000;
+localparam logic [ADDR_WIDTH-1:0] LPDDR_ADDR_SIZE  = 32'h0100_0000;
+localparam logic [ADDR_WIDTH-1:0] LPDDR_LIMIT_ADDR = LPDDR_BASE_ADDR + LPDDR_ADDR_SIZE - 1;  // 0x117F_FFFF
+
+// Valid after the AW / AR address has been captured (awaddr_q / araddr_q)
+wire aw_addr_in_range = (awaddr_q >= LPDDR_BASE_ADDR) && (awaddr_q <= LPDDR_LIMIT_ADDR);
+wire ar_addr_in_range = (araddr_q >= LPDDR_BASE_ADDR) && (araddr_q <= LPDDR_LIMIT_ADDR);
+
+logic [7:0] arlen_q;
+logic       wr_addr_err_q, rd_addr_err_q;                 // sticky until reset (TODO: W1C bit in reg_cfg)
+wire        addr_err = wr_addr_err_q | rd_addr_err_q;
+
+// ---- Write data steering: W beats are accepted only after AW is captured.
+//      In range  -> forwarded to data_path.
+//      Out of range -> swallowed here so they never enter the write FIFO.
+wire wr_data_phase = (wr_state == WR_WAIT_WDATA);
+wire wready_dp;
+wire wvalid_dp = s_axi_wvalid && wr_data_phase && aw_addr_in_range;
+assign s_axi_wready = wr_data_phase && (aw_addr_in_range ? wready_dp : 1'b1);
+
+// ---- Read channel: data_path or the DECERR generator below
+logic       rd_err_active;
+logic [7:0] rd_err_beats_left;
+logic [7:0] rd_outstanding;            // in-range reads issued, not yet finished (rlast seen)
+wire        rvalid_dp, rlast_dp;
+wire [DATA_WIDTH-1:0] rdata_dp;
+wire [1:0]  rresp_dp;
+wire        rready_dp = s_axi_rready && !rd_err_active;
+
+// start the DECERR response only when no earlier read data can be in flight
+wire rd_err_start = ar_pending && !ar_addr_in_range && !rd_err_active && (rd_outstanding == 8'd0);
+wire rd_err_done  = rd_err_active && s_axi_rready && (rd_err_beats_left == 8'd0);
+
+assign s_axi_rvalid = rd_err_active ? 1'b1                     : rvalid_dp;
+assign s_axi_rdata  = rd_err_active ? '0                       : rdata_dp;
+assign s_axi_rresp  = rd_err_active ? 2'b11                    : rresp_dp;   // DECERR
+assign s_axi_rlast  = rd_err_active ? (rd_err_beats_left == 8'd0) : rlast_dp;
+// NOTE: rid was previously undriven. Best effort: last captured ARID
+// (exact only with one read outstanding).
+assign s_axi_rid    = arid_q;
  
     
     // Bank state tracking
@@ -370,7 +417,7 @@ assign s_axi_arcache = 4'b0000;
 assign s_axi_arprot  = 3'b000;
 assign s_axi_arqos   = 4'b0000;
 */
-wire rd_cmd_accept = ar_pending && (wr_state != WR_WRITE_CMD) && cmd_ready;
+wire rd_cmd_accept = ar_pending && ar_addr_in_range && (wr_state != WR_WRITE_CMD) && cmd_ready;
 
 //========================================================================
 // AXI4 -> Command Scheduler Interface
@@ -408,6 +455,8 @@ always_ff @(posedge clk or negedge rst_n) begin
         araddr_q   <= '0;
         arid_q     <= '0;
  
+        arlen_q       <= '0;
+        wr_addr_err_q <= 1'b0;
         bid_q      <= '0;
         bresp_q    <= 2'b00;
         bvalid_q   <= 1'b0;
@@ -436,6 +485,7 @@ always_ff @(posedge clk or negedge rst_n) begin
                     ar_pending <= 1'b1;
                     araddr_q   <= s_axi_araddr;
                     arid_q     <= s_axi_arid;
+                    arlen_q    <= s_axi_arlen;
                 end
             end
  
@@ -450,7 +500,18 @@ always_ff @(posedge clk or negedge rst_n) begin
                     $display("[%0t] TOP: WDATA COMPLETE",
                              $time);
  
-                    wr_state <= WR_WRITE_CMD;
+                    if (aw_addr_in_range) begin
+                        wr_state <= WR_WRITE_CMD;
+                    end else begin
+                        // [ADDR] out of range: no command, respond DECERR
+                        aw_pending    <= 1'b0;
+                        bid_q         <= awid_q;
+                        bresp_q       <= 2'b11;
+                        bvalid_q      <= 1'b1;
+                        wr_addr_err_q <= 1'b1;
+                        wr_state      <= WR_BRESP;
+                        $display("[%0t] TOP: WRITE ADDR OUT OF RANGE addr=%h", $time, awaddr_q);
+                    end
                 end
             end
  
@@ -497,11 +558,40 @@ always_ff @(posedge clk or negedge rst_n) begin
             end
  
         endcase
-if(rd_cmd_accept) ar_pending <= 1'b0;
+if (rd_cmd_accept || rd_err_done) ar_pending <= 1'b0;
     end
 end
  
  
+//========================================================================
+// [ADDR] Out-of-range read: DECERR response generator
+//========================================================================
+always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        rd_err_active     <= 1'b0;
+        rd_err_beats_left <= '0;
+        rd_outstanding    <= '0;
+        rd_addr_err_q     <= 1'b0;
+    end else begin
+        if (rd_err_start) begin
+            rd_err_active     <= 1'b1;
+            rd_err_beats_left <= arlen_q;          // arlen + 1 beats in total
+            rd_addr_err_q     <= 1'b1;
+            $display("[%0t] TOP: READ ADDR OUT OF RANGE addr=%h", $time, araddr_q);
+        end else if (rd_err_active && s_axi_rready) begin
+            if (rd_err_beats_left == 8'd0) rd_err_active     <= 1'b0;
+            else                           rd_err_beats_left <= rd_err_beats_left - 8'd1;
+        end
+
+        // Assumes data_path returns exactly one rlast per accepted read command
+        case ({rd_cmd_accept, (rvalid_dp && rready_dp && rlast_dp)})
+            2'b10:   rd_outstanding <= rd_outstanding + 8'd1;
+            2'b01:   if (rd_outstanding != 8'd0) rd_outstanding <= rd_outstanding - 8'd1;
+            default: ;
+        endcase
+    end
+end
+
 // AXI Write Response outputs
 assign s_axi_bid    = bid_q;
 assign s_axi_bresp  = bresp_q;
@@ -537,7 +627,7 @@ always_comb begin
     //============================================================
     // READ command
     //============================================================
-    else if (ar_pending) begin
+    else if (ar_pending && ar_addr_in_range) begin
  
         cmd_addr  = araddr_q;
         cmd_type  = 4'b0001;
@@ -793,17 +883,17 @@ end
     // Existing internal port names remain axi_*
     // Top-level interface is s_axi_*
     //====================================================================
-    .axi_rvalid       (s_axi_rvalid),
-    .axi_rready       (s_axi_rready),
-    .axi_rdata        (s_axi_rdata),
-    .axi_rresp        (s_axi_rresp),
-    .axi_rlast        (s_axi_rlast),
+    .axi_rvalid       (rvalid_dp),
+    .axi_rready       (rready_dp),
+    .axi_rdata        (rdata_dp),
+    .axi_rresp        (rresp_dp),
+    .axi_rlast        (rlast_dp),
  
     //====================================================================
     // AXI Write interface
     //====================================================================
-    .axi_wvalid       (s_axi_wvalid),
-    .axi_wready       (s_axi_wready),
+    .axi_wvalid       (wvalid_dp),
+    .axi_wready       (wready_dp),
     .axi_wdata        (s_axi_wdata),
     .axi_wstrb        (s_axi_wstrb),
     .axi_wlast        (s_axi_wlast),
@@ -942,7 +1032,7 @@ end
     assign intr_status[2] = ref_err_ovd_sys | ref_err_tmo_sys;   // [REF] was refresh_urgent (not an error)
     assign intr_status[3] = ecc_err_detected;
     assign intr_status[4] = |pslverr;  // APB error
-    assign intr_status[5] = 1'b0;  // Reserved
+    assign intr_status[5] = addr_err;  // [ADDR] out-of-range access seen (sticky)
     assign intr_status[6] = 1'b0;  // Reserved
     assign intr_status[7] = 1'b0;  // Reserved
     assign intr_init_done   = training_done;
@@ -960,11 +1050,20 @@ end
         ref_req_sys,                                     // [REF] was refresh_pending
         ecc_err_detected,
         lp_state[0],
-        3'b0,
+        {2'b0, addr_err},   // [ADDR]
         ref_err_tmo_sys, ref_err_ovd_sys, 2'b0, ref_debt_sys   // [REF] was refresh_counter[7:0]
     };
  
 endmodule // lpddr5c_top
+
+
+
+
+
+
+
+
+
 
 
 

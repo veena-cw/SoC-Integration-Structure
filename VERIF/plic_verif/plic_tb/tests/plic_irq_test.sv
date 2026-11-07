@@ -766,6 +766,8 @@ class plic_irq_prio_sweep_test extends plic_irq_base_test;
         rg.get_field_by_name($sformatf("P%0d", 8*r + k)).set(p);
       end
       rg.update(status);
+
+  
     end
   endtask
 

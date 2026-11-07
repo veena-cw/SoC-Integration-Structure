@@ -64,6 +64,9 @@ CODE_COV_TYPES := line branch expr toggle
 FCOV_REPORT   := $(PROJECT_ROOT)/scripts/plic_fcov_report.py
 CODE_REPORT   := $(PROJECT_ROOT)/scripts/plic_code_cov_report.py
 CODE_WAIVERS  := $(SIM_DIR)/code_cov_waivers.txt
+COV_HTML      := $(COV_DIR)/html
+COVER_REPORT  ?= $(HOME)/coverage_tool/cover_report
+COV_PLUGIN    := $(PROJECT_ROOT)/scripts/plic_cover_report_waivers.py
 
 ifeq ($(COVERAGE),1)
   COV_FLAGS := --coverage-line --coverage-toggle --coverage-expr --coverage-user $(COV_VLT)
@@ -230,6 +233,29 @@ cov-report: cov-merge
 	python3 $(FCOV_REPORT) $(COV_MERGED) -o $(COV_DIR)/fcov_report.txt
 	@echo "Reports in sim/coverage/: code_coverage_summary.txt code_coverage_report.txt fcov_report.txt fcov_per_test.txt test_rank.txt code_coverage.info"
 
+# --------------------------------------------------
+# HTML views of the last cov-report
+#   make cov-html : static genhtml pages of the RTL code coverage, opened from
+#                   coverage/html/index.html. Waivers are NOT applied here and
+#                   there is no functional coverage in it
+#   make cov-gui  : coverage explorer in the browser, code + functional coverage
+#                   with the waivers applied. Starting it stops any explorer
+#                   already running under your user
+# --------------------------------------------------
+
+cov-html:
+	@if [ ! -f $(COV_DIR)/code_coverage.info ]; then \
+		echo "ERROR: no coverage/code_coverage.info, run make cov-report first"; exit 1; fi
+	@$(SETUP_ENV) rm -rf $(COV_HTML) && \
+	genhtml $(COV_DIR)/code_coverage.info --output-directory $(COV_HTML) \
+		--branch-coverage --ignore-errors source --quiet
+	@echo "HTML report: $(COV_HTML)/index.html"
+
+cov-gui:
+	@if [ ! -f $(COV_MERGED) ]; then \
+		echo "ERROR: no coverage/merged.dat, run make cov-report first"; exit 1; fi
+	@$(SETUP_ENV) python3 $(COVER_REPORT) $(COV_MERGED) -gui --waivers $(COV_PLUGIN)
+
 # ============================================================
 # Waveform
 # ============================================================
@@ -332,4 +358,5 @@ clean:
 	
 
 
-.PHONY: vivado vivado-compile vivado-elab verilator-sim verilator-build verilator verilator-regression clean
+.PHONY: vivado vivado-compile vivado-elab verilator-sim verilator-build verilator verilator-regression cov-merge cov-report cov-html cov-gui clean
+

@@ -6,6 +6,8 @@
 //   - Configuration registers for timing, mode, training
 //   - Status registers for monitoring
 //   - Interrupt generation
+//
+// [REF] marks every line changed for the new refresh controller.
 //============================================================================
 
 `timescale 1ns/1ps
@@ -45,6 +47,7 @@ module lpddr5c_reg_cfg #(
     output reg  [31:0]              reg_lp_cfg,
     output reg  [31:0]              reg_train_cfg,
     output reg  [31:0]              reg_test_cfg,
+    output reg  [31:0]              reg_ref_cfg,        // [REF] refresh control
     
     //========================================================================
     // Status Inputs (from controller logic)
@@ -53,9 +56,11 @@ module lpddr5c_reg_cfg #(
     input  wire                      training_done,
     input  wire                      training_error,
     input  wire                      lp_state,
-    input  wire                      refresh_pending,
+    input  wire                      refresh_pending,    // [REF] DFI domain, synchronized below
     input  wire [7:0]                ecc_err_count,
-    input  wire [15:0]               refresh_counter,
+    input  wire                      ref_err_overdue,    // [REF] DFI domain, synchronized below
+    input  wire                      ref_err_timeout,    // [REF] DFI domain, synchronized below
+    input  wire [3:0]                ref_debt,           // [REF] DFI domain, status only
     
     //========================================================================
     // Interrupt Outputs
@@ -79,8 +84,10 @@ module lpddr5c_reg_cfg #(
     localparam REG_TIMING1     = 16'h0014;  // tRRD, tCCD, tWTR
     localparam REG_TIMING2     = 16'h0018;  // tRTP, tWR, tFAW
     localparam REG_TIMING3     = 16'h001C;  // tXSR, tXP, tCKE
-    localparam REG_TIMING4     = 16'h0020;  // tREFI, tRFC
+    localparam REG_TIMING4     = 16'h0020;  // [15:0] tREFI, [31:16] tRFC (DFI clock cycles)
     localparam REG_TIMING5     = 16'h0024;  // tMOD, tZQ
+    
+    localparam REG_REF_CFG     = 16'h0030;  // [REF] Refresh control
     
     localparam REG_STATUS0     = 16'h0040;  // Main Status
     localparam REG_STATUS1     = 16'h0044;  // Error Status
@@ -116,7 +123,14 @@ module lpddr5c_reg_cfg #(
     // Edge detection for interrupts
     reg                            training_done_d1, training_done_rise;
     reg                            training_error_d1, training_error_rise;
-    reg                            refresh_pending_d1, refresh_urgent_rise;
+
+    // [REF] 2-FF synchronizers: DFI domain -> pclk
+    reg                            ref_req_m, ref_req_s;
+    reg                            ref_ovd_m, ref_ovd_s;
+    reg                            ref_tmo_m, ref_tmo_s;
+    reg  [3:0]                     ref_debt_m, ref_debt_s;   // status only, not atomic
+    reg                            ref_err_d1;
+    wire                           ref_err = ref_ovd_s | ref_tmo_s;
     
     //========================================================================
     // APB State Machine
@@ -147,8 +161,14 @@ module lpddr5c_reg_cfg #(
             reg_timing1     <= 32'h04_02_04_02; // tWTR_L=4, tWTR_S=2, tCCD_L=4, tCCD_S=2
             reg_timing2     <= 32'h10_08_04_08; // tWR=16, tRTP=8, tRRD_L=4, tRRD_S=4
             reg_timing3     <= 32'h64_08_04_02; // tXSR=100, tXP=8, tCKE=4, tMOD=2
-            reg_timing4     <= 32'h04B0_015E;    // tREFI=1200 (3900ns), tRFC=350
+            // [REF] DFI clock cycles @ 800 MHz: tREFI = 3.9 us = 3120 (0x0C30).
+            //       tRFC = 168 is a PLACEHOLDER (210 ns): SET FROM DEVICE DATASHEET.
+            //       Old value 32'h04B0_015E had tREFI = 350 (about 9x too frequent).
+            reg_timing4     <= {16'd168, 16'h0C30};
             reg_timing5     <= 32'h0080_0010;    // tZQ=128, tMOD=16
+            
+            // [REF] rate=0 (1x), urgent threshold=4, debt_max=8, err_clear=0
+            reg_ref_cfg     <= 32'h0000_0840;
             
             // ECC, LP, Training, Test
             reg_ecc_cfg     <= 32'h0000_0001;  // ECC enabled, single-bit correction
@@ -191,9 +211,16 @@ module lpddr5c_reg_cfg #(
             
             // Edge detectors
             training_done_d1 <= 1'b0;
+            training_done_rise <= 1'b0;
             training_error_d1 <= 1'b0;
-            refresh_pending_d1 <= 1'b0;
-            refresh_urgent_rise <= 1'b0;
+            training_error_rise <= 1'b0;
+
+            // [REF] synchronizers and edge detector
+            ref_req_m  <= 1'b0;  ref_req_s  <= 1'b0;
+            ref_ovd_m  <= 1'b0;  ref_ovd_s  <= 1'b0;
+            ref_tmo_m  <= 1'b0;  ref_tmo_s  <= 1'b0;
+            ref_debt_m <= '0;    ref_debt_s <= '0;
+            ref_err_d1 <= 1'b0;
             
         end else begin
             // Defaults
@@ -203,12 +230,16 @@ module lpddr5c_reg_cfg #(
             // Edge detection for interrupts
             training_done_d1 <= training_done;
             training_error_d1 <= training_error;
-            refresh_pending_d1 <= refresh_pending;
             
             training_done_rise <= training_done && !training_done_d1;
             training_error_rise <= training_error && !training_error_d1;
-            refresh_urgent_rise <= refresh_pending && !refresh_pending_d1 && 
-                                    (refresh_counter < 8'h10);  // Urgent when < 16
+
+            // [REF] DFI -> pclk synchronizers (replaces refresh_urgent_rise logic)
+            ref_req_m  <= refresh_pending;   ref_req_s  <= ref_req_m;
+            ref_ovd_m  <= ref_err_overdue;   ref_ovd_s  <= ref_ovd_m;
+            ref_tmo_m  <= ref_err_timeout;   ref_tmo_s  <= ref_tmo_m;
+            ref_debt_m <= ref_debt;          ref_debt_s <= ref_debt_m;
+            ref_err_d1 <= ref_err;
             
             //================================================================
             // Update Status Registers
@@ -217,7 +248,7 @@ module lpddr5c_reg_cfg #(
             // Status0: Main Status
             reg_status0[0]    <= training_done;        // Init done
             reg_status0[1]    <= training_error;       // Training error
-            reg_status0[2]    <= refresh_pending;      // Refresh pending
+            reg_status0[2]    <= ref_req_s;            // [REF] Refresh pending (synchronized)
             reg_status0[3]    <= lp_state;             // Low power state
             reg_status0[7:4]  <= 4'b0;                 // Reserved
             reg_status0[15:8] <= ecc_err_count;        // ECC error count
@@ -226,12 +257,13 @@ module lpddr5c_reg_cfg #(
             // Status1: Error Status
             reg_status1[0]    <= training_error;
             reg_status1[1]    <= (ecc_err_count > 0);
-            reg_status1[2]    <= refresh_urgent_rise;
-            reg_status1[31:3] <= '0;
+            reg_status1[2]    <= ref_ovd_s;            // [REF] refresh overdue (sticky)
+            reg_status1[3]    <= ref_tmo_s;            // [REF] refresh timeout (sticky)
+            reg_status1[31:4] <= '0;
             
             // Status2: Counter Status
-            reg_status2[15:0] <= refresh_counter;
-            reg_status2[31:16]<= '0;
+            reg_status2[3:0]  <= ref_debt_s;           // [REF] owed refreshes (was refresh_counter)
+            reg_status2[31:4] <= '0;
             
             // Status3: Training Status
             reg_status3[0]    <= training_done;
@@ -247,7 +279,7 @@ module lpddr5c_reg_cfg #(
                 reg_intr_stat[0] <= 1'b1;
             if (training_error_rise)
                 reg_intr_stat[1] <= 1'b1;
-            if (refresh_urgent_rise)
+            if (ref_err && !ref_err_d1)               // [REF] bit 2 = refresh ERROR (overdue/timeout)
                 reg_intr_stat[2] <= 1'b1;
             if (|ecc_err_count)
                 reg_intr_stat[3] <= 1'b1;
@@ -295,12 +327,13 @@ module lpddr5c_reg_cfg #(
                                 REG_TIMING3:     reg_timing3     <= pwdata;
                                 REG_TIMING4:     reg_timing4     <= pwdata;
                                 REG_TIMING5:     reg_timing5     <= pwdata;
+                                REG_REF_CFG:     reg_ref_cfg     <= pwdata;   // [REF]
                                 REG_ECC_CFG:     reg_ecc_cfg     <= pwdata;
                                 REG_LP_CFG:      reg_lp_cfg      <= pwdata;
                                 REG_TRAIN_CFG:   reg_train_cfg   <= pwdata;
                                 REG_INTR_EN:     reg_intr_en     <= pwdata;
                                 REG_TEST_CFG:    reg_test_cfg    <= pwdata;
-                                // REG_INTR_CLR handled above
+                                REG_INTR_CLR:    ;   // [REF] handled above; no longer raises pslverr
                                 default:         pslverr         <= 1'b1;
                             endcase
                         end
@@ -317,6 +350,7 @@ module lpddr5c_reg_cfg #(
                                 REG_TIMING3:     prdata <= reg_timing3;
                                 REG_TIMING4:     prdata <= reg_timing4;
                                 REG_TIMING5:     prdata <= reg_timing5;
+                                REG_REF_CFG:     prdata <= reg_ref_cfg;       // [REF]
                                 REG_STATUS0:     prdata <= reg_status0;
                                 REG_STATUS1:     prdata <= reg_status1;
                                 REG_STATUS2:     prdata <= reg_status2;

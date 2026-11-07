@@ -381,12 +381,13 @@ module apb_slave #(
                         // CTRL[16] interrupt enable.
                         if (i_pstrb[2])
                             irq_en_q <= i_pwdata[IRQ_EN_BIT];
+                            
 
                         // CTRL command field [15:8].
                         if (i_pstrb[1]) begin
 
                             ctrl_reg <= {
-                                24'b0,
+                                23'b0,i_pwdata[IRQ_EN_BIT],
                                 i_pwdata[15:8]
                             };
 
@@ -402,13 +403,7 @@ module apb_slave #(
                             txdata_reg[7:0] <= i_pwdata[7:0];
 
                         if (i_pstrb[1])
-                            txdata_reg[15:8] <= i_pwdata[15:8];
-
-                        if (i_pstrb[2])
-                            txdata_reg[23:16] <= i_pwdata[23:16];
-
-                        if (i_pstrb[3])
-                            txdata_reg[31:24] <= i_pwdata[31:24];
+                            txdata_reg[15:8] <= {16'h0 , i_pwdata[15:8] };
 
                         if (i_pstrb != '0)
                             tx_valid <= 1'b1;

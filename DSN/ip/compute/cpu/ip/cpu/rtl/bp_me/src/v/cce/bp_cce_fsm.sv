@@ -814,7 +814,8 @@ module bp_cce_fsm
       end // speculative response
 
       // non-speculative memory access, forward directly to LCE
-      else if (fsm_rev_header_li.msg_type == e_bedrock_mem_rd) begin
+      //else if (fsm_rev_header_li.msg_type == e_bedrock_mem_rd) begin
+      else if (fsm_rev_header_li.msg_type inside {e_bedrock_mem_rd, e_bedrock_mem_amo}) begin
         // forward the header this cycle
         // forward data next cycle(s)
 
@@ -1081,14 +1082,20 @@ module bp_cce_fsm
                       : e_read_pending;
 
           // uncached request
-          end else if (fsm_req_header_li.msg_type.req == e_bedrock_req_uc_rd
-                       | fsm_req_header_li.msg_type.req == e_bedrock_req_uc_wr) begin
+          //end else if (fsm_req_header_li.msg_type.req == e_bedrock_req_uc_rd
+          //             | fsm_req_header_li.msg_type.req == e_bedrock_req_uc_wr) begin
+          end else if ((fsm_req_header_li.msg_type.req == e_bedrock_req_uc_rd)
+             || (fsm_req_header_li.msg_type.req == e_bedrock_req_uc_wr)
+             || (fsm_req_header_li.msg_type.req == e_bedrock_req_uc_amo)) begin
 
             mshr_n.paddr = fsm_req_header_li.addr;
             mshr_n.msg_size = fsm_req_header_li.size;
             mshr_n.msg_subop = fsm_req_header_li.subop;
+            //mshr_n.flags.uncached = 1'b1;
+            //mshr_n.flags.write_not_read = (fsm_req_header_li.msg_type.req == e_bedrock_req_uc_wr);
             mshr_n.flags.uncached = 1'b1;
-            mshr_n.flags.write_not_read = (fsm_req_header_li.msg_type.req == e_bedrock_req_uc_wr);
+		mshr_n.flags.atomic = (fsm_req_header_li.msg_type.req == e_bedrock_req_uc_amo);
+		mshr_n.flags.write_not_read = (fsm_req_header_li.msg_type.req == e_bedrock_req_uc_wr) || (fsm_req_header_li.msg_type.req == e_bedrock_req_uc_amo);
 
             // query PMA for coherence property
             // uncached requests can be made to coherent or incoherent memory regions
@@ -1122,7 +1129,8 @@ module bp_cce_fsm
           // form message
           fsm_fwd_header_lo.addr = mshr_r.paddr;
           fsm_fwd_header_lo.size = mshr_r.msg_size;
-          fsm_fwd_header_lo.msg_type.fwd = e_bedrock_mem_wr;
+          //fsm_fwd_header_lo.msg_type.fwd = e_bedrock_mem_wr;
+          fsm_fwd_header_lo.msg_type.fwd = mshr_r.flags.atomic ? e_bedrock_mem_amo : e_bedrock_mem_wr;
           fsm_fwd_header_lo.subop = mshr_r.msg_subop;
           fsm_fwd_header_lo.payload.lce_id = mshr_r.lce_id;
           fsm_fwd_header_lo.payload.src_did = fsm_req_header_li.payload.src_did;

@@ -118,17 +118,31 @@ module bp_me_cache_slice
          ,.block_size_in_words_p(l2_block_size_in_words_p)
          ,.sets_p(l2_sets_p)
          ,.ways_p(l2_assoc_p)
-         ,.amo_support_p(((l2_features_p[e_cfg_amo_swap]) << e_cache_amo_swap)
-                         | ((l2_features_p[e_cfg_amo_fetch_logic]) << e_cache_amo_xor)
-                         | ((l2_features_p[e_cfg_amo_fetch_logic]) << e_cache_amo_and)
-                         | ((l2_features_p[e_cfg_amo_fetch_logic]) << e_cache_amo_or)
-                         | ((l2_features_p[e_cfg_amo_fetch_arithmetic]) << e_cache_amo_add)
-                         | ((l2_features_p[e_cfg_amo_fetch_arithmetic]) << e_cache_amo_min)
-                         | ((l2_features_p[e_cfg_amo_fetch_arithmetic]) << e_cache_amo_max)
-                         | ((l2_features_p[e_cfg_amo_fetch_arithmetic]) << e_cache_amo_minu)
-                         | ((l2_features_p[e_cfg_amo_fetch_arithmetic]) << e_cache_amo_maxu)
-                         )
-        ,.word_tracking_p(l2_features_p[e_cfg_word_tracking])
+
+         ,.amo_support_p(
+              ({32{l2_features_p[e_cfg_amo_swap]}}
+                  & (32'h1 << e_cache_amo_swap))
+
+            | ({32{l2_features_p[e_cfg_amo_fetch_logic]}}
+                  & (32'h1 << e_cache_amo_xor))
+            | ({32{l2_features_p[e_cfg_amo_fetch_logic]}}
+                  & (32'h1 << e_cache_amo_and))
+            | ({32{l2_features_p[e_cfg_amo_fetch_logic]}}
+                  & (32'h1 << e_cache_amo_or))
+
+            | ({32{l2_features_p[e_cfg_amo_fetch_arithmetic]}}
+                  & (32'h1 << e_cache_amo_add))
+            | ({32{l2_features_p[e_cfg_amo_fetch_arithmetic]}}
+                  & (32'h1 << e_cache_amo_min))
+            | ({32{l2_features_p[e_cfg_amo_fetch_arithmetic]}}
+                  & (32'h1 << e_cache_amo_max))
+            | ({32{l2_features_p[e_cfg_amo_fetch_arithmetic]}}
+                  & (32'h1 << e_cache_amo_minu))
+            | ({32{l2_features_p[e_cfg_amo_fetch_arithmetic]}}
+                  & (32'h1 << e_cache_amo_maxu))
+          )
+
+         ,.word_tracking_p(l2_features_p[e_cfg_word_tracking])
         )
        cache
         (.clk_i(clk_i)

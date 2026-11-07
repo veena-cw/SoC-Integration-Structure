@@ -1198,7 +1198,12 @@ end
 
         // Check that client hasn't required unsupported AMO
         assert(~decode_v_r.atomic_op | amo_support_p[decode_v_r.amo_subop])
-          else $error("[BSG_ERROR][BSG_CACHE] Unsupported AMO OP %d received. %m, T=%t", decode.amo_subop, $time);
+          //else $error("[BSG_ERROR][BSG_CACHE] Unsupported AMO OP %d received. %m, T=%t", decode.amo_subop, $time);
+	  else $error("[BSG_ERROR][BSG_CACHE] Unsupported AMO OP %0d received. Mask=0x%08h, Support_bit=%b. %m, T=%t",
+		      decode_v_r.amo_subop,
+		      amo_support_p,
+		      amo_support_p[decode_v_r.amo_subop],
+		      $time);
 
         assert(~decode_v_r.atomic_op || (data_width_p >= 64) || ~decode_v_r.data_size_op[0])
           else $error("[BSG_ERROR][BSG_CACHE] AMO_D performed on data_width < 64. %m T=%t", $time);
@@ -1235,7 +1240,6 @@ end
   end
 
 `endif
-
 
 endmodule
 

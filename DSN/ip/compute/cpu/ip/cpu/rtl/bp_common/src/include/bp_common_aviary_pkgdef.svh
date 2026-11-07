@@ -142,7 +142,7 @@
                               | (1 << e_cfg_amo_swap)
                               | (1 << e_cfg_amo_fetch_logic)
                               | (1 << e_cfg_amo_fetch_arithmetic)
-      ,l2_features          : (1 << e_cfg_enabled) | (1 << e_cfg_writeback)
+      ,l2_features          : (1 << e_cfg_enabled) | (1 << e_cfg_writeback) | (1 << e_cfg_amo_swap) | (1 << e_cfg_amo_fetch_logic) | (1 << e_cfg_amo_fetch_arithmetic)
       ,default : "inv"
       };
   `bp_aviary_derive_cfg(bp_multicore_1_cfg_p

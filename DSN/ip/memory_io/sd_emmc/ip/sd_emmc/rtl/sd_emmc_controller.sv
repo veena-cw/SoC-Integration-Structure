@@ -203,7 +203,7 @@
     
         sd_emmc_controller_dma sd_emmc_controller_dma_inst(
             .clock(M_AXI_ACLK),
-            .reset(!M_AXI_ARESETN),
+            .reset(M_AXI_ARESETN),
             .is_we_en(we_fifo),
             .dma_ena_trans_mode(dma_and_blkcnt_en [0]),
             .dir_dat_trans_mode(dat_trans_dir_axi_clk),

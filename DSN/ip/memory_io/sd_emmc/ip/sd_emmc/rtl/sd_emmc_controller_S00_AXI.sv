@@ -136,7 +136,7 @@
 //	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg8;
 	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg9;
 	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg10;
-    reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg11;
+    	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg11;
 	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg12;
 	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg12_1;
 	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg13;
@@ -507,12 +507,11 @@
 //	                      slv_reg19 <= slv_reg19;
 	                      slv_reg22 <= slv_reg22;
 	                    end
-	        endcase
-	        
+	        endcase	        
 	      end
 	   begin   
           // Error and Normal Interrupt registers 0x30
-          slv_reg12 <= ((~slv_reg12_1[28:0]) & {dat_int_st[4], 2'b00, dma_int[1], autocmderror, 1'b0, dat_int_st[1], dat_int_st[3:2], cmd_int_st[4], cmd_int_st[1], cmd_int_st[3:2], 12'b000000000000, 2'b00, (dma_int[0] | cmd_int_st[`INT_CMD_DC]), cmd_compl_int});
+       /*   slv_reg12 <= ((~slv_reg12_1[28:0]) & {dat_int_st[4], 2'b00, dma_int[1], autocmderror, 1'b0, dat_int_st[1], dat_int_st[3:2], cmd_int_st[4], cmd_int_st[1], cmd_int_st[3:2], 12'b000000000000, 2'b00, (dma_int[0] | cmd_int_st[`INT_CMD_DC]), cmd_compl_int});*/
           // Internal sd clock stable signal
           slv_reg11[1] <= Internal_clk_stable;
           slv_reg9 [24] <= 1'b1;
@@ -524,10 +523,55 @@
           slv_reg9 [9] <= read_trans_active;
           slv_reg9 [2] <= dat_line_act;
           slv_reg9 [1] <= (command_inh_dat | read_trans_active);
-          slv_reg9 [0] <= slv_reg9 [0] | com_inh_cmd;//It is a state-retaining operation.
+          slv_reg9 [0] <= /*slv_reg9 [0] |*/ com_inh_cmd;//It is a state-retaining operation.
 	  end
 	  
 	end    
+
+	logic [28:0] int_event_vec;
+	logic [28:0] int_clear_mask;
+
+	assign int_event_vec = {
+	    dat_int_st[4],
+	    2'b00,
+	    dma_int[1],
+	    autocmderror,
+	    1'b0,
+	    dat_int_st[1],
+	    dat_int_st[3:2],
+	    cmd_int_st[4],
+	    cmd_int_st[1],
+	    cmd_int_st[3:2],
+	    12'b000000000000,
+	    2'b00,
+	    (dma_int[0] | cmd_int_st[`INT_CMD_DC]),
+	    cmd_compl_int
+	};
+
+	always_comb begin
+	    int_clear_mask = '0;
+
+	    if (slv_reg_wren &&
+		(axi_awaddr[ADDR_LSB+OPT_MEM_ADDR_BITS:ADDR_LSB] == 5'h0C)) begin
+
+		for (int i = 0; i < C_S_AXI_DATA_WIDTH/8; i++) begin
+		    if (S_AXI_WSTRB[i]) begin
+		        int_clear_mask[i*8 +: 8] = S_AXI_WDATA[i*8 +: 8];
+		    end
+		end
+	    end
+	end
+
+
+	always_ff @(posedge S_AXI_ACLK) begin
+	    if (!S_AXI_ARESETN) begin
+		slv_reg12 <= 29'b0;
+	    end
+	    else begin
+		slv_reg12 <= (slv_reg12 & ~int_clear_mask)
+		           | int_event_vec;
+	    end
+	end
 
 	// Implement write response logic generation
 	// The write response and response valid signals are asserted by the slave 

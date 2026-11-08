@@ -182,7 +182,8 @@ module apb_slave #(
     logic [DW-1:0] status_reg;
     logic [DW-1:0] rxdata_reg;
 
-    logic irq_en_q;
+    logic nack_d;
+    logic nack_event;
 
     logic ctrl_valid;
     logic tx_valid;
@@ -203,7 +204,11 @@ module apb_slave #(
     logic status_read_fire;
     logic decode_err_fire;
 
-    assign o_irq_en = irq_en_q;
+    assign o_irq_en = ctrl_reg[IRQ_EN_BIT];
+
+    // Detect a new NACK assertion; avoid repeatedly setting the sticky flag
+    // while i2c_nack remains high.
+    assign nack_event = i2c_nack && !nack_d;
 
     assign both_valid = ctrl_valid && tx_valid;
 
@@ -313,6 +318,17 @@ module apb_slave #(
         o_pready;
 
     //==========================================================
+    // NACK EVENT EDGE DETECTION
+    //==========================================================
+
+    always_ff @(posedge pclk or negedge presetn) begin
+        if (!presetn)
+            nack_d <= 1'b0;
+        else
+            nack_d <= i2c_nack;
+    end
+
+    //==========================================================
     // STATUS STICKY FLAG UPDATE
     //==========================================================
 
@@ -341,7 +357,7 @@ module apb_slave #(
             if (i2c_done)
                 done_sticky <= 1'b1;
 
-            if (i2c_nack)
+            if (nack_event)
                 nack_sticky <= 1'b1;
 
             if (decode_err_fire)
@@ -362,7 +378,6 @@ module apb_slave #(
             ctrl_reg   <= '0;
             txdata_reg <= '0;
 
-            irq_en_q   <= 1'b0;
 
             ctrl_valid <= 1'b0;
             tx_valid   <= 1'b0;
@@ -378,24 +393,24 @@ module apb_slave #(
 
                     CTRL_ADDR: begin
 
-                        // CTRL[16] interrupt enable.
-                        if (i_pstrb[2])
-                            irq_en_q <= i_pwdata[IRQ_EN_BIT];
-                            
+			    // CTRL command field [15:8]
+			    if (i_pstrb[1]) begin
+				ctrl_reg <= {
+				    16'b0,
+				    ctrl_reg[IRQ_EN_BIT],
+				    i_pwdata[15:8],
+				    8'b0
+				};
 
-                        // CTRL command field [15:8].
-                        if (i_pstrb[1]) begin
+				ctrl_valid <= 1'b1;
+			    end
 
-                            ctrl_reg <= {
-                                23'b0,i_pwdata[IRQ_EN_BIT],
-                                i_pwdata[15:8]
-                            };
+			    // IRQ enable field [16]
+			    if (i_pstrb[2]) begin
+				ctrl_reg[IRQ_EN_BIT] <= i_pwdata[IRQ_EN_BIT];
+			    end
 
-                            ctrl_valid <= 1'b1;
-
-                        end
-
-                    end
+			end
 
                     TXDATA_ADDR: begin
 
@@ -459,7 +474,6 @@ module apb_slave #(
                 CTRL_ADDR: begin
 
                     o_prdata = ctrl_reg;
-                    o_prdata[IRQ_EN_BIT] = irq_en_q;
 
                 end
 
@@ -494,4 +508,3 @@ module apb_slave #(
     end
 
 endmodule
-

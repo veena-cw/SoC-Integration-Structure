@@ -226,9 +226,18 @@ assign rx_overflow_o = rx_fifo_overflow;
   end
 
   // mosi and sck.
-  assign mosi_o = (state_q == S_SHIFT)
+ /* assign mosi_o = (state_q == S_SHIFT)
                     ? (lsb_q ? tx_shift_q[0] : tx_shift_q[DATA_WIDTH-1])
-                    : 1'b0;
+                    : 1'b0; */
+	logic mosi_q;
+
+always_ff @(posedge clk_i) begin
+    if (state_q == S_SHIFT)
+        mosi_q <= lsb_q ? tx_shift_q[0]
+                        : tx_shift_q[DATA_WIDTH-1];
+end
+
+assign mosi_o = mosi_q;
   assign sck_o  = sck_q;
 
   // -----------------------------------------------------------------

@@ -45,7 +45,7 @@ interface csi2_axi_write_if #(
   endclocking
 
   clocking drv_cb @(posedge aclk);
-    default input #1step output #0;
+    default input #1step output #1step ;
     input  areset_n;
     input  awvalid, awid, awaddr, awlen, awsize, awburst;
     input  awcache, awprot, awqos, awregion;
@@ -54,7 +54,7 @@ interface csi2_axi_write_if #(
     output awready, wready, bvalid, bresp;
   endclocking
 
-  modport MONITOR(clocking mon_cb);
-  modport DRIVER(clocking drv_cb);
+ // modport MONITOR(clocking mon_cb);
+ // modport DRIVER(clocking drv_cb);
 
 endinterface : csi2_axi_write_if

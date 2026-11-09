@@ -5,7 +5,6 @@ SIM_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 TB_DIR  := $(abspath $(SIM_DIR)/..)
 
 BUILD_ROOT ?= $(SIM_DIR)/.csi2_uvm_build
-OBJ_DIR    := $(BUILD_ROOT)/obj
 LOG_ROOT   := $(SIM_DIR)/log
 
 TEST_LIST := $(TB_DIR)/../test_names/testcase
@@ -15,11 +14,22 @@ SEED     ?= 1
 JOBS     ?= 2
 TIMEOUT  ?= 120s
 WAVES    ?= 0
+# DEBUG=1 : Verilator runtime debug (VL_DEBUG). On DIDNOTCONVERGE it prints the
+#           triggers that kept firing. Built in a separate object directory.
+DEBUG    ?= 0
 
 VERILATOR ?= /opt/verilator-5.052/bin/verilator
 UVM_HOME  ?= $(abspath $(SIM_DIR)/../../../uvm-1.1d)
 
-SIM_BINARY := $(OBJ_DIR)/Vcsi2_tb_top
+ifeq ($(DEBUG),1)
+OBJ_DIR         := $(BUILD_ROOT)/obj_dbg
+VERILATOR_FLAGS += -CFLAGS -DVL_DEBUG --converge-limit 100
+else
+OBJ_DIR         := $(BUILD_ROOT)/obj
+VERILATOR_FLAGS +=
+endif
+
+SIM_BINARY   := $(OBJ_DIR)/Vcsi2_tb_top
 TEST_LOG_DIR := $(LOG_ROOT)/$(TESTNAME)/seed_$(SEED)
 LOG_FILE     := $(TEST_LOG_DIR)/run.log
 BUILD_LOG    := $(TEST_LOG_DIR)/build.log
@@ -63,6 +73,7 @@ all: run
 help:
 	@echo "make build TESTNAME=csi2_rx_raw7_test"
 	@echo "make run   TESTNAME=csi2_rx_raw7_test"
+	@echo "make run   TESTNAME=csi2_rx_raw7_test DEBUG=1   (VL_DEBUG build, trigger dump on DIDNOTCONVERGE)"
 	@echo "make wave  TESTNAME=csi2_rx_raw7_test"
 	@echo "make regression"
 	@echo "make clean"
@@ -112,6 +123,7 @@ check:
 	@echo "Using UVM:       $(UVM_HOME)"
 	@echo "Using test:      $(TESTNAME)"
 	@echo "Waveform mode:   WAVES=$(WAVES)"
+	@echo "Debug mode:      DEBUG=$(DEBUG) (objects in $(OBJ_DIR))"
 
 build: check
 	@mkdir -p "$(OBJ_DIR)" "$(TEST_LOG_DIR)"
@@ -122,6 +134,7 @@ build: check
 		--binary \
 		-j "$(JOBS)" \
 		$(COMMON) \
+		$(VERILATOR_FLAGS) \
 		$(INCLUDES) \
 		$(TRACE_FLAGS) \
 		-Wno-fatal \
@@ -132,6 +145,9 @@ build: check
 		"$(UVM_HOME)/src/dpi/uvm_dpi.cc" \
 		-CFLAGS "-I$(UVM_HOME)/src/dpi" \
 		2>&1 | tee "$(BUILD_LOG)"
+
+	@echo "Build warnings that point at loops / multiple drivers (if any):"
+	@grep -n -E "%Warning-(UNOPTFLAT|MULTIDRIVEN|COMBDLY)" "$(BUILD_LOG)" || echo "  none"
 
 run: build
 	@mkdir -p "$(TEST_LOG_DIR)"
@@ -149,6 +165,7 @@ wave:
 	@rm -f "$(WAVE_FILE)"
 	@$(MAKE) \
 		WAVES=1 \
+		DEBUG="$(DEBUG)" \
 		TESTNAME="$(TESTNAME)" \
 		SEED="$(SEED)" \
 		JOBS="$(JOBS)" \
@@ -166,7 +183,7 @@ wave:
 regression:
 	@while IFS= read -r test_name; do \
 		[ -z "$$test_name" ] && continue; \
-		$(MAKE) run TESTNAME="$$test_name" SEED="$(SEED)" || exit $$?; \
+		$(MAKE) run TESTNAME="$$test_name" SEED="$(SEED)" DEBUG="$(DEBUG)" || exit $$?; \
 	done < "$(TEST_LIST)"
 
 clean:

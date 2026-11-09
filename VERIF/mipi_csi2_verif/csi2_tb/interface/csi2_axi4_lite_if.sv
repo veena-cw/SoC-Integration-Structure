@@ -23,7 +23,7 @@ interface csi2_axi4_lite_if(input logic aclk);
   logic        rready;
 
   clocking drv_cb @(posedge aclk);
-    default input #1step output #0;
+    default input #1step output #1step ;
     input  areset_n;
     output awaddr, awvalid, wdata, wstrb, wvalid, bready;
     input  awready, wready, bresp, bvalid;
@@ -41,6 +41,6 @@ interface csi2_axi4_lite_if(input logic aclk);
     input rdata, rresp, rvalid, rready;
   endclocking
 
-  modport DRIVER(clocking drv_cb);
-  modport MONITOR(clocking mon_cb);
+//  modport DRIVER(clocking drv_cb);
+ // modport MONITOR(clocking mon_cb);
 endinterface : csi2_axi4_lite_if

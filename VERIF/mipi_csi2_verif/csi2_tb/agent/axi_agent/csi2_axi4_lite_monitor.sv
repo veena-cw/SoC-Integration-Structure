@@ -19,17 +19,19 @@ class csi2_axi4_lite_monitor extends uvm_monitor;
     axi_lite_vif = cfg.axi_lite_vif;
   endfunction
 
-  task run_phase(uvm_phase phase);
+ task run_phase(uvm_phase phase);
     forever begin
       @(axi_lite_vif.mon_cb);
       if (axi_lite_vif.mon_cb.areset_n !== 1'b1)
         continue;
-      if (axi_lite_vif.mon_cb.bvalid && axi_lite_vif.mon_cb.bready) begin
+      if (axi_lite_vif.mon_cb.bvalid && axi_lite_vif.mon_cb.bready)
+      begin
         write_count++;
         if (axi_lite_vif.mon_cb.bresp != 2'b00)
           error_response_count++;
       end
-      if (axi_lite_vif.mon_cb.rvalid && axi_lite_vif.mon_cb.rready) begin
+      if (axi_lite_vif.mon_cb.rvalid && axi_lite_vif.mon_cb.rready)
+      begin
         read_count++;
         if (axi_lite_vif.mon_cb.rresp != 2'b00)
           error_response_count++;

@@ -20,17 +20,7 @@ c_phy_bfm_if.sv
 
 // Current RX RTL hierarchy.  RTL files are referenced only; they are not
 // modified by the verification environment.
-../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/async_fifo2_1.sv
-../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv
-../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/sync_fifo.sv
-../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/crc.sv
-../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/llp.sv
-../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/rx_buffer_register_3.sv
-../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/rx_byte_counter_2.sv
-../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/bpuf_2.sv
-../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/axim.sv
-../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/axi_slave.sv
-../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_reg.sv
+
 ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv
 
 // UVM environment and RX integration top.

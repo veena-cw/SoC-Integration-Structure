@@ -398,8 +398,8 @@ module apb_slave #(
 				ctrl_reg <= {
 				    16'b0,
 				    ctrl_reg[IRQ_EN_BIT],
-				    i_pwdata[15:8],
-				    8'b0
+					 8'b0,
+				    i_pwdata[15:8]				   
 				};
 
 				ctrl_valid <= 1'b1;

@@ -849,13 +849,13 @@ logic [7:0]  fifo_tx_data_w;
 logic        fifo_tx_pop_w;
 logic        fifo_tx_full_w;
 logic        fifo_tx_empty_w;
-logic [6:0]  fifo_tx_count_w;
-logic        tx_data_available_w;
+
+//logic [6:0]  fifo_tx_count_w;
+//logic        tx_data_available_w;
 
 // OUT transfer may start only when the complete payload is buffered.
 // TX FIFO depth is 64 bytes, so count range is 0 to 64.
-assign tx_data_available_w =
-       ({9'b0, fifo_tx_count_w} >= usb_xfer_data_tx_len_out_w);
+//assign tx_data_available_w = ({9'b0, fifo_tx_count_w} >= usb_xfer_data_tx_len_out_w);
 
 logic [7:0]  fifo_rx_data_w;
 logic        fifo_rx_push_w;
@@ -1006,7 +1006,7 @@ u_fifo_tx
 
     .full_o(fifo_tx_full_w),
     .empty_o(fifo_tx_empty_w),
-    .count_o(fifo_tx_count_w),
+    .count_o(),
 
     .data_o(fifo_tx_data_w),
     .pop_i(fifo_tx_pop_w)
@@ -1094,8 +1094,8 @@ begin
         begin
             // IN transfers do not use the TX FIFO.
             // OUT transfers wait until the complete payload is buffered.
-            if (usb_xfer_token_in_out_w || tx_data_available_w)
-            begin
+            //if (usb_xfer_token_in_out_w || tx_data_available_w)
+            //begin
                 // Flush unused previous RX data
                 fifo_flush_q       <= 1'b1;
 
@@ -1108,7 +1108,6 @@ begin
             end
         end
     end
-end
 
 //-----------------------------------------------------------------
 // SOF Frame Number

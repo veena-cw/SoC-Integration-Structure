@@ -395,3 +395,325 @@
 */bp_io_tile.sv toggle=mem_rev_link_o[36:38],mem_rev_link_o[40:41],mem_rev_link_o[43:52],mem_rev_link_o[55:58],mem_rev_link_o[61:63],mem_rev_link_o[68:70]
 */bp_io_tile.sv toggle=mem_rev_link_o[72:73],mem_rev_link_o[75:84],mem_rev_link_o[87:90],mem_rev_link_o[93:95],mem_rev_link_o[100:102],mem_rev_link_o[104:105]
 */bp_io_tile.sv toggle=mem_rev_link_o[107:116],mem_rev_link_o[119:122],mem_rev_link_o[125:127]
+
+# Line/branch/expr: unreachable in BP_CFG_ID=9 (hole review, 10 Nov 2026).
+# Generated from the merged coverage: only points never hit are listed.
+# bsg_concentrate_static.sv: generate-time compare on pattern_els_p (constant per instance)
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((32'h1 < 32'sh41)==0) => 0"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((32'h2 < 32'sh41)==0) => 0"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((32'h3 < 32'sh41)==0) => 0"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((32'h4 < 32'sh41)==0) => 0"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh0)==0) => 0"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh1)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh10)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh11)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh12)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh13)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh14)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh15)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh16)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh17)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh18)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh19)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh1a)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh1b)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh1c)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh1d)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh1e)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh1f)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh2)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh20)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh21)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh22)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh23)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh24)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh25)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh26)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh27)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh28)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh29)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh2a)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh2b)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh2c)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh2d)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh2e)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh2f)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh3)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh30)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh31)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh32)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh33)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh34)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh35)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh36)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh37)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh38)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh39)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh3a)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh3b)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh3c)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh3d)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh3e)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh3f)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh4)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh5)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh6)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh7)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh8)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sh9)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'sha)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'shb)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'shc)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'shd)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'she)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="((pattern_els_p[0] >> 32'shf)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_concentrate_static.sv 21-21 kind=expr text="(1'h1==0) => 0"
+# bsg_array_concentrate_static.sv: generate-time compare on pattern_els_p (constant per instance)
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((32'h1 < 32'sh41)==0) => 0"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((32'h2 < 32'sh41)==0) => 0"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((32'h3 < 32'sh41)==0) => 0"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((32'h4 < 32'sh41)==0) => 0"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh0)==0) => 0"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh1)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh10)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh11)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh12)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh13)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh14)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh15)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh16)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh17)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh18)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh19)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh1a)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh1b)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh1c)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh1d)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh1e)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh1f)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh2)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh20)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh21)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh22)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh23)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh24)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh25)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh26)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh27)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh28)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh29)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh2a)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh2b)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh2c)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh2d)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh2e)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh2f)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh3)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh30)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh31)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh32)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh33)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh34)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh35)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh36)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh37)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh38)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh39)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh3a)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh3b)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh3c)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh3d)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh3e)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh3f)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh4)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh5)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh6)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh7)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh8)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sh9)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'sha)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'shb)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'shc)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'shd)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'she)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="((pattern_els_p[0] >> 32'shf)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_array_concentrate_static.sv 19-19 kind=expr text="(1'h1==0) => 0"
+# bsg_unconcentrate_static.sv: generate-time compare on pattern_els_p (constant per instance)
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((32'h1 < 32'sh41)==0) => 0"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((32'h2 < 32'sh41)==0) => 0"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((32'h3 < 32'sh41)==0) => 0"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((32'h4 < 32'sh41)==0) => 0"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh0)==0) => 0"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh1)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh10)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh11)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh12)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh13)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh14)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh15)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh16)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh17)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh18)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh19)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh1a)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh1b)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh1c)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh1d)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh1e)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh1f)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh2)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh20)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh21)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh22)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh23)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh24)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh25)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh26)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh27)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh28)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh29)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh2a)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh2b)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh2c)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh2d)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh2e)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh2f)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh3)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh30)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh31)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh32)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh33)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh34)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh35)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh36)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh37)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh38)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh39)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh3a)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh3b)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh3c)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh3d)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh3e)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh3f)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh4)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh5)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh6)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh7)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh8)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sh9)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'sha)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'shb)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'shc)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'shd)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'she)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="((pattern_els_p[0] >> 32'shf)==1 && 1'h1==1) => 1"
+*/bsg_misc/bsg_unconcentrate_static.sv 22-22 kind=expr text="(1'h1==0) => 0"
+# bsg_encode_one_hot.sv: width_p == 1 parameter arm
+*/bsg_misc/bsg_encode_one_hot.sv 33-33 kind=branch text="cond_then"
+*/bsg_misc/bsg_encode_one_hot.sv 33-33 kind=expr text="((width_p == 32'sh1)==1) => 1"
+# bsg_encode_one_hot.sv: sim-only X check of a one-hot input (always one-hot)
+*/bsg_misc/bsg_encode_one_hot.sv 69-69 kind=expr text="((((i - 32'sh1) & i) == 32'h0)==0) => 0"
+*/bsg_misc/bsg_encode_one_hot.sv 69-69 kind=expr text="((((i - 33'h1) & i) == 33'h0)==0) => 0"
+*/bsg_misc/bsg_encode_one_hot.sv 69-69 kind=expr text="((((i - 53'h1) & i) == 53'h0)==0) => 0"
+*/bsg_misc/bsg_encode_one_hot.sv 69-69 kind=expr text="((((i - 56'h1) & i) == 56'h0)==0) => 0"
+*/bsg_misc/bsg_encode_one_hot.sv 69-69 kind=expr text="((((i - 65'h1) & i) == 65'h0)==0) => 0"
+*/bsg_misc/bsg_encode_one_hot.sv 70-70 kind=branch text="cond_else"
+# bsg_wormhole_router.sv: debug_lp assertion (debug_lp = 0)
+*/bsg_noc/bsg_wormhole_router.sv 184-184 kind=expr
+# bsg_wormhole_router.sv: debug_lp $display block (debug_lp = 0)
+*/bsg_noc/bsg_wormhole_router.sv 232-232 kind=branch text="if"
+*/bsg_noc/bsg_wormhole_router.sv 234-234 kind=branch
+*/bsg_noc/bsg_wormhole_router.sv 234-234 kind=expr
+*/bsg_noc/bsg_wormhole_router.sv 236-236 kind=branch
+# bsg_cache_dma.sv: word_tracking_p = 0 (L2 built without word tracking)
+*/bsg_cache/bsg_cache_dma.sv 214-214 kind=branch text="cond_then"
+*/bsg_cache/bsg_cache_dma.sv 214-214 kind=expr text="(word_tracking_p==1 && track_miss_i==1) => 1"
+# bsg_cache_dma.sv: word_tracking_p = 0
+*/bsg_cache/bsg_cache_dma.sv 291-291 kind=branch text="cond_then"
+*/bsg_cache/bsg_cache_dma.sv 291-291 kind=expr text="(word_tracking_p==1) => 1"
+# bsg_cache_dma.sv: word_tracking_p = 0
+*/bsg_cache/bsg_cache_dma.sv 308-308 kind=expr text="(word_tracking_p==1) => 1"
+*/bsg_cache/bsg_cache_dma.sv 309-309 kind=branch text="cond_then"
+# bsg_cache_dma.sv: default of a fully decoded dma_cmd case (comment: should never happen)
+*/bsg_cache/bsg_cache_dma.sv 318-318 kind=line
+# bsg_cache_dma.sv: default of a fully decoded state case (comment: should never happen)
+*/bsg_cache/bsg_cache_dma.sv 365-365 kind=line
+# bsg_cache_dma.sv: track_data_we_i only with word tracking (word_tracking_p = 0)
+*/bsg_cache/bsg_cache_dma.sv 417-417 kind=branch text="if"
+# bsg_cache_dma.sv: debug_p $display block (debug_p = 0)
+*/bsg_cache/bsg_cache_dma.sv 426-426 kind=branch text="if"
+*/bsg_cache/bsg_cache_dma.sv 427-427 kind=branch
+*/bsg_cache/bsg_cache_dma.sv 427-427 kind=expr
+# bp_be_dcache.sv: whole-cache inval/clean/flush: CMO_*_ALL is illegal and fence.i skips the D$ when coherent (cfg 9)
+*/bp_be_dcache/bp_be_dcache.sv 742-742 kind=expr text="(v_tv_r==1 && uncached_tv_r==0 && decode_tv_r[12]==1 && decode_tv_r[13]==0 && snoop_tv_r==0) => 1"
+*/bp_be_dcache/bp_be_dcache.sv 743-743 kind=expr text="(v_tv_r==1 && uncached_tv_r==0 && decode_tv_r[13]==1 && decode_tv_r[12]==0 && snoop_tv_r==0) => 1"
+*/bp_be_dcache/bp_be_dcache.sv 744-744 kind=expr text="(v_tv_r==1 && uncached_tv_r==0 && decode_tv_r[12]==1 && decode_tv_r[13]==1 && snoop_tv_r==0) => 1"
+# bp_be_dcache.sv: whole-cache inval/clean/flush requests (unreachable when coherent)
+*/bp_be_dcache/bp_be_dcache.sv 809-809 kind=line
+*/bp_be_dcache/bp_be_dcache.sv 811-811 kind=line
+*/bp_be_dcache/bp_be_dcache.sv 813-813 kind=line
+# bp_be_dcache.sv: tag set_inval: only bp_uce (single-core engine) issues it
+*/bp_be_dcache/bp_be_dcache.sv 927-927 kind=line
+# bp_fe_icache.sv: tag set_inval: only bp_uce (single-core engine) issues it
+*/bp_fe/src/v/bp_fe_icache.sv 578-578 kind=line
+
+# Toggle: CSR bits fixed by design (hole review, 10 Nov 2026). Generated
+# from the holes report: only bits that never toggled are listed.
+# bp_be_csr.sv: sstatus view of mstatus: bits outside the S-mode read mask read 0
+*/bp_be_csr.sv toggle=sstatus_lo[0],sstatus_lo[2:4],sstatus_lo[6:7],sstatus_lo[9:12],sstatus_lo[15:17],sstatus_lo[20:32]
+*/bp_be_csr.sv toggle=sstatus_lo[34:62]
+# bp_be_csr.sv: sie: only SSIE / STIE / SEIE exist
+*/bp_be_csr.sv toggle=sie_lo[0],sie_lo[2:4],sie_lo[6:8],sie_lo[10:63]
+# bp_be_csr.sv: sip: only SSIP / STIP / SEIP exist (5 / 9 tested by BP-DV-073)
+*/bp_be_csr.sv toggle=sip_lo[0],sip_lo[2:4],sip_lo[6:8],sip_lo[10:63]
+# bp_be_csr.sv: fflags is 5 bits, frm 3 bits (zero-extended reads)
+*/bp_be_csr.sv toggle=fflags_lo[5:63]
+# bp_be_csr.sv: fflags is 5 bits, frm 3 bits (zero-extended reads)
+*/bp_be_csr.sv toggle=frm_lo[3:63]
+# bp_be_csr.sv: exception code field: only the implemented low bits are kept (BP-DV-071 writes every pattern)
+*/bp_be_csr.sv toggle=mcause_lo\.ecode[4:62],scause_lo\.ecode[4:62]
+# bp_be_csr.sv: medeleg: bits of unimplemented / non-delegable exceptions hardwired 0
+*/bp_be_csr.sv toggle=medeleg_lo[10:11],medeleg_lo[14],medeleg_lo[16:63]
+# bp_be_csr.sv: no hpmcounters: hpm enable / inhibit bits hardwired 0
+*/bp_be_csr.sv toggle=mcounteren_lo\.hpm[0:28],mcountinhibit_lo\.hpm[0:28],scounteren_lo\.hpm[0:28]
+# bp_be_csr.sv: time enable hardwired (BP-DV-071 writes every pattern)
+*/bp_be_csr.sv toggle=mcounteren_lo\.tm,scounteren_lo\.tm
+# bp_be_csr.sv: WARL field hardwired 0
+*/bp_be_csr.sv toggle=mcountinhibit_lo\.warl,fcsr_lo\.warl[0:23]
+# bp_be_csr.sv: N extension (user interrupts) not implemented
+*/bp_be_csr.sv toggle=mie_lo\.ueie,mie_lo\.usie,mie_lo\.utie,mip_lo\.ueip,mip_lo\.usip,mip_lo\.utip
+# bp_be_csr.sv: M-level and user interrupts are not delegable
+*/bp_be_csr.sv toggle=mideleg_lo\.mei,mideleg_lo\.msi,mideleg_lo\.mti,mideleg_lo\.uei,mideleg_lo\.usi,mideleg_lo\.uti
+# bp_be_csr.sv: constant CSR access masks
+*/bp_be_csr.sv toggle=sstatus_rmask_li\.mpp[0:1],sstatus_rmask_li\.sxl[0:1],sstatus_rmask_li\.xs[0:1],sstatus_wmask_li\.mpp[0:1],sstatus_wmask_li\.sxl[0:1],sstatus_wmask_li\.uxl[0:1]
+*/bp_be_csr.sv toggle=sstatus_wmask_li\.xs[0:1],sie_rwmask_li\.meie,sie_rwmask_li\.msie,sie_rwmask_li\.mtie,sie_rwmask_li\.ueie,sie_rwmask_li\.usie
+*/bp_be_csr.sv toggle=sie_rwmask_li\.utie,mip_wmask_li\.meip,mip_wmask_li\.msip,mip_wmask_li\.mtip,mip_wmask_li\.seip,mip_wmask_li\.ssip
+*/bp_be_csr.sv toggle=mip_wmask_li\.stip,mip_wmask_li\.ueip,mip_wmask_li\.usip,mip_wmask_li\.utip,sip_rmask_li\.meip,sip_rmask_li\.msip
+*/bp_be_csr.sv toggle=sip_rmask_li\.mtip,sip_rmask_li\.ueip,sip_rmask_li\.usip,sip_rmask_li\.utip
+# bp_be_csr.sv: mstatus fields hardwired (no XS, fixed UXL/SXL, no N extension)
+*/bp_be_csr.sv toggle=mstatus_li\.sxl[0],mstatus_li\.uie,mstatus_li\.upie,mstatus_li\.uxl[0],mstatus_li\.xs[0:1],mstatus_lo\.sxl[0]
+*/bp_be_csr.sv toggle=mstatus_lo\.uie,mstatus_lo\.upie,mstatus_lo\.uxl[0],mstatus_lo\.xs[0:1]
+# bp_be_csr.sv: dcsr read-only / reserved fields
+*/bp_be_csr.sv toggle=dcsr_li\.nmip,dcsr_li\.reserved1[0:11],dcsr_li\.reserved2,dcsr_li\.reserved3,dcsr_li\.xdebugver[0:1],dcsr_li\.xdebugver[3]
+*/bp_be_csr.sv toggle=dcsr_lo\.nmip,dcsr_lo\.reserved1[0:11],dcsr_lo\.reserved2,dcsr_lo\.reserved3,dcsr_lo\.xdebugver[0:1],dcsr_lo\.xdebugver[3]
+# bp_be_csr.sv: xepc bit 0 is always 0
+*/bp_be_csr.sv toggle=mepc_lo\.zero,sepc_lo\.zero
+# bp_be_csr.sv: PMP entries 8-15 not implemented (pmpcfg2 is an illegal CSR)
+*/bp_be_csr.sv toggle=pmpcfg_li\[10\]\.a[0:1],pmpcfg_li\[10\]\.l,pmpcfg_li\[10\]\.r,pmpcfg_li\[10\]\.w,pmpcfg_li\[10\]\.x,pmpcfg_li\[11\]\.a[0:1]
+*/bp_be_csr.sv toggle=pmpcfg_li\[11\]\.l,pmpcfg_li\[11\]\.r,pmpcfg_li\[11\]\.w,pmpcfg_li\[11\]\.x,pmpcfg_li\[12\]\.a[0:1],pmpcfg_li\[12\]\.l
+*/bp_be_csr.sv toggle=pmpcfg_li\[12\]\.r,pmpcfg_li\[12\]\.w,pmpcfg_li\[12\]\.x,pmpcfg_li\[13\]\.a[0:1],pmpcfg_li\[13\]\.l,pmpcfg_li\[13\]\.r
+*/bp_be_csr.sv toggle=pmpcfg_li\[13\]\.w,pmpcfg_li\[13\]\.x,pmpcfg_li\[14\]\.a[0:1],pmpcfg_li\[14\]\.l,pmpcfg_li\[14\]\.r,pmpcfg_li\[14\]\.w
+*/bp_be_csr.sv toggle=pmpcfg_li\[14\]\.x,pmpcfg_li\[15\]\.a[0:1],pmpcfg_li\[15\]\.l,pmpcfg_li\[15\]\.r,pmpcfg_li\[15\]\.w,pmpcfg_li\[15\]\.x
+*/bp_be_csr.sv toggle=pmpcfg_li\[8\]\.a[0:1],pmpcfg_li\[8\]\.l,pmpcfg_li\[8\]\.r,pmpcfg_li\[8\]\.w,pmpcfg_li\[8\]\.x,pmpcfg_li\[9\]\.a[0:1]
+*/bp_be_csr.sv toggle=pmpcfg_li\[9\]\.l,pmpcfg_li\[9\]\.r,pmpcfg_li\[9\]\.w,pmpcfg_li\[9\]\.x,pmpcfg_lo\[10\]\.a[0:1],pmpcfg_lo\[10\]\.l
+*/bp_be_csr.sv toggle=pmpcfg_lo\[10\]\.r,pmpcfg_lo\[10\]\.w,pmpcfg_lo\[10\]\.x,pmpcfg_lo\[11\]\.a[0:1],pmpcfg_lo\[11\]\.l,pmpcfg_lo\[11\]\.r
+*/bp_be_csr.sv toggle=pmpcfg_lo\[11\]\.w,pmpcfg_lo\[11\]\.x,pmpcfg_lo\[12\]\.a[0:1],pmpcfg_lo\[12\]\.l,pmpcfg_lo\[12\]\.r,pmpcfg_lo\[12\]\.w
+*/bp_be_csr.sv toggle=pmpcfg_lo\[12\]\.x,pmpcfg_lo\[13\]\.a[0:1],pmpcfg_lo\[13\]\.l,pmpcfg_lo\[13\]\.r,pmpcfg_lo\[13\]\.w,pmpcfg_lo\[13\]\.x
+*/bp_be_csr.sv toggle=pmpcfg_lo\[14\]\.a[0:1],pmpcfg_lo\[14\]\.l,pmpcfg_lo\[14\]\.r,pmpcfg_lo\[14\]\.w,pmpcfg_lo\[14\]\.x,pmpcfg_lo\[15\]\.a[0:1]
+*/bp_be_csr.sv toggle=pmpcfg_lo\[15\]\.l,pmpcfg_lo\[15\]\.r,pmpcfg_lo\[15\]\.w,pmpcfg_lo\[15\]\.x,pmpcfg_lo\[8\]\.a[0:1],pmpcfg_lo\[8\]\.l
+*/bp_be_csr.sv toggle=pmpcfg_lo\[8\]\.r,pmpcfg_lo\[8\]\.w,pmpcfg_lo\[8\]\.x,pmpcfg_lo\[9\]\.a[0:1],pmpcfg_lo\[9\]\.l,pmpcfg_lo\[9\]\.r
+*/bp_be_csr.sv toggle=pmpcfg_lo\[9\]\.w,pmpcfg_lo\[9\]\.x
+# bp_be_csr.sv: PMP lock bit: setting it locks the entry until reset (not testable)
+*/bp_be_csr.sv toggle=pmpcfg_li\[0\]\.l,pmpcfg_li\[1\]\.l,pmpcfg_li\[2\]\.l,pmpcfg_li\[3\]\.l,pmpcfg_li\[4\]\.l,pmpcfg_li\[5\]\.l
+*/bp_be_csr.sv toggle=pmpcfg_li\[6\]\.l,pmpcfg_li\[7\]\.l,pmpcfg_lo\[0\]\.l,pmpcfg_lo\[1\]\.l,pmpcfg_lo\[2\]\.l,pmpcfg_lo\[3\]\.l
+*/bp_be_csr.sv toggle=pmpcfg_lo\[4\]\.l,pmpcfg_lo\[5\]\.l,pmpcfg_lo\[6\]\.l,pmpcfg_lo\[7\]\.l

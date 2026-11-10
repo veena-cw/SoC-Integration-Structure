@@ -320,3 +320,36 @@ bp_dv_049_smp_coherence_test 68 clint_timer.nbf
 # (c/loopback.c). By hand:
 #   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=loopback TEST_ID=69
 bp_dv_049_smp_coherence_test 69 loopback.nbf
+# BP-DV-070 - data and address patterns (0x5555.., 0xAAAA.., ~0, 0, walking
+# ones / zeros) through cached DRAM (cbo.flush + refill), high DRAM address
+# bits (aliases), both L1-uncached windows and AXI I/O incl. byte strobes.
+# Runs on the BP-DV-049 class; tohost per hart (fails << 16) | 0x7000 |
+# (phase << 8) | index (c/data_patterns.c). By hand:
+#   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=data_patterns TEST_ID=70
+bp_dv_049_smp_coherence_test 70 data_patterns.nbf
+# BP-DV-071 - walking ones / patterns through 22 R/W CSRs (exact, epc, WARL
+# stability, counter checks). Currently FAILS on mcycle / minstret: the RTL
+# keeps 48 bits (bp_mcounter_s), the RV64 spec requires 64 (proposed Jira).
+# Failing-CSR mask at 0x0010_8700 (c/csr_walk.c). By hand:
+#   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=csr_walk TEST_ID=71
+bp_dv_049_smp_coherence_test 71 csr_walk.nbf
+
+# BP-DV-072: per-tile cfg registers read/written by software (both tiles
+# read, own npc / hio_mask patterns, read-only regs ignore writes, D$
+# nonspec mode) and cmo.*.all trapping as illegal on the coherent build.
+# Failing-check mask at 0x0010_8700 (c/cfg_regs.c). By hand:
+#   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=cfg_regs TEST_ID=72
+bp_dv_049_smp_coherence_test 72 cfg_regs.nbf
+
+# BP-DV-073: CSR fields BP-DV-071 does not reach: mstatus TW/TVM/TSR/MPRV,
+# satp Sv39 patterns (M-mode, no translation), mtvec/stvec, pmpcfg0, sip
+# via mideleg, access-fault cause/mtval at high addresses, dcsr bits and
+# dscratch0/1 / dpc patterns in Debug Mode (c/csr_extra.c). Logs two
+# observations (dpc keeps bit 0; load-fault mtval keeps 40 bits).
+#   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=csr_extra TEST_ID=73
+bp_dv_049_smp_coherence_test 73 csr_extra.nbf
+
+# BP-DV-074: the same code fetched from DRAM, six DRAM aliases (bits
+# 25..30), both L1-uncached DRAM windows and AXI I/O memory (c/pc_alias.c).
+#   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=pc_alias TEST_ID=74
+bp_dv_049_smp_coherence_test 74 pc_alias.nbf

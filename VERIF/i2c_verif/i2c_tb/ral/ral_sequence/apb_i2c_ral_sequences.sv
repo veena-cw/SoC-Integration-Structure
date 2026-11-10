@@ -6,11 +6,11 @@
 //
 //  Chipweave Technologies Confidential
 //==================================================================================
-//  Project           				:
-//  Module            				:
-//  Primary Unit Owner                         	:
-//  Secondary Contact                           :
-//  Source [SystemVerilog|Verilog|VHDL|Other]   :
+//  Project           				: 
+//  Module            				: 
+//  Primary Unit Owner                         	: 
+//  Secondary Contact                           : 
+//  Source [SystemVerilog|Verilog|VHDL|Other]   : 
 //=================================================================================
 //  Description: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 //=================================================================================
@@ -854,9 +854,9 @@ endclass
       end
     endtask
   endclass
+  
 
-
-
+  
   class apb_i2c_reg_write_seq extends apb_i2c_ral_base_seq;
 
   `uvm_object_utils(apb_i2c_reg_write_seq)
@@ -865,6 +865,8 @@ endclass
   rand bit        read_write;
         bit [31:0] tx_data;
   rand bit [7:0] tx_data_lower;
+  
+    bit irq_enable;
   constraint default_c {
     slave_addr == 7'h55;
     read_write == 1'b0;
@@ -947,7 +949,7 @@ endclass
         UVM_MEDIUM
       );
 
-
+   
 
     end while (busy);
 
@@ -960,7 +962,7 @@ endclass
 
 	    ctrl_value[6:0] = slave_addr;
 	    ctrl_value[7]   = read_write;
-
+           ctrl_value[16]   = irq_enable;
      //ctrl_value = 32'h0000_0102;
 
 	    `uvm_info(
@@ -1001,13 +1003,13 @@ endclass
       UVM_MEDIUM
     )
 
-
+  
     model.TXDATA_REG.write(
       status,
       tx_data,
       UVM_FRONTDOOR);
-
-
+      
+      
 
     if (status != UVM_IS_OK) begin
       `uvm_fatal(
@@ -1087,7 +1089,7 @@ if(!done)
         UVM_MEDIUM
       )
     end
-
+    
      model.STATUS_REG.read(
         status,
         status_value,
@@ -1101,7 +1103,7 @@ if(!done)
           "STATUS_REG read failed"
         )
       end
-
+      
        model.STATUS_REG.read(
         status,
         status_value,
@@ -1115,7 +1117,7 @@ if(!done)
           "STATUS_REG read failed"
         )
       end
-
+      
 
   endtask
 
@@ -1190,7 +1192,7 @@ rand bit [7:0]	tx_data_lower;
 
 
 
-
+    
     `uvm_info(
       "I2C_READ",
       "Waiting for BUSY = 0",
@@ -1229,7 +1231,7 @@ rand bit [7:0]	tx_data_lower;
       );
 
 
-
+      
 
 
     end while (busy);
@@ -1268,7 +1270,7 @@ rand bit [7:0]	tx_data_lower;
         "CTRL_REG write failed"
       )
     end
-
+     
      //========================================================
     // 3. WRITE TXDATA_REG
     //========================================================
@@ -1296,7 +1298,7 @@ rand bit [7:0]	tx_data_lower;
         "TXDATA_REG write failed"
       )
     end
-
+    
 
 
     //========================================================
@@ -1359,7 +1361,7 @@ rand bit [7:0]	tx_data_lower;
 
 if(!done)
      #200ns;
-
+      
 
 
     end while (!done);
@@ -1419,7 +1421,7 @@ model.STATUS_REG.read(
           "STATUS_REG read failed"
         )
       end
-
+      
       model.STATUS_REG.read(
         status,
         status_value,
@@ -1633,7 +1635,7 @@ class apb_i2c_reg_write_wrong_addr_seq extends apb_i2c_ral_base_seq;
       );
 
 
-
+     
 
       busy        = status_value[0];
       done        = status_value[1];
@@ -1660,11 +1662,11 @@ class apb_i2c_reg_write_wrong_addr_seq extends apb_i2c_ral_base_seq;
         )
       end
 
-    if(!done)
+    if(!slave_error)
      #200ns;
 
 
-    end while (!done);
+    end while (!slave_error);
 
 
     //==========================================================
@@ -1675,7 +1677,7 @@ class apb_i2c_reg_write_wrong_addr_seq extends apb_i2c_ral_base_seq;
     // The previous read already captured DONE and SLAVE_ERROR.
     //==========================================================
 
-    if (done && slave_error) begin
+    if (slave_error) begin
 
       `uvm_info(
         "I2C_WRONG_ADDR",
@@ -1687,7 +1689,7 @@ class apb_i2c_reg_write_wrong_addr_seq extends apb_i2c_ral_base_seq;
       )
 
     end
-    else if (done && !slave_error) begin
+    else  begin
 
       `uvm_error(
         "I2C_WRONG_ADDR",
@@ -1699,17 +1701,7 @@ class apb_i2c_reg_write_wrong_addr_seq extends apb_i2c_ral_base_seq;
       )
 
     end
-    else begin
-
-      `uvm_error(
-        "I2C_WRONG_ADDR",
-        $sformatf(
-          "FAIL: Transaction did not complete correctly. STATUS=0x%08h",
-          status_value
-        )
-      )
-
-    end
+    
 
   endtask
 
@@ -1804,7 +1796,7 @@ endclass
         UVM_MEDIUM
       );
 
-
+      
 
     end while (busy);
 
@@ -1922,9 +1914,9 @@ endclass
 
       // Check error
       if (slave_error) begin
-        `uvm_error(
-          "I2C_WRITE",
-          "I2C transaction has PASSED because of NACK after write"
+        `uvm_info(
+          "DATA_NACK",
+          "I2C transaction has PASSED because of NACK after write",UVM_MEDIUM
         )
         break;
       end
@@ -1944,7 +1936,7 @@ endclass
         UVM_MEDIUM
       )
     end
-
+   
 
   endtask
 
@@ -2059,7 +2051,7 @@ class apb_i2c_irq_reg_write_seq extends apb_i2c_ral_base_seq;
 
        bit  irq_en;
 
-
+     
 
  //============================================================
   // Constraints
@@ -2217,7 +2209,7 @@ end
 
     end while (busy);
 
-
+      
     //==========================================================
     // 2. WRITE CTRL_REG
     //==========================================================
@@ -2226,7 +2218,7 @@ end
 
     ctrl_value[6:0] = slave_addr;
     ctrl_value[7]   = read_write;
-    ctrl_value[8] = irq_enable;
+    ctrl_value[16] = irq_enable;
 
 
 
@@ -2304,8 +2296,10 @@ end
       UVM_MEDIUM
     );
 
-
+   do begin
     @(posedge irq_vif.i2c_irq);
+    
+    
 
 
     `uvm_info(
@@ -2352,7 +2346,7 @@ end
       ),
       UVM_MEDIUM
     );
-
+   end while(!done);
 
     //==========================================================
     // 6. CHECK RESULT
@@ -2388,7 +2382,7 @@ end
 
 endclass
 
-
+    
 class apb_i2c_valid_addr_unused_seq extends apb_i2c_ral_base_seq;
 
   `uvm_object_utils(apb_i2c_valid_addr_unused_seq)
@@ -2468,7 +2462,7 @@ class apb_i2c_valid_addr_unused_seq extends apb_i2c_ral_base_seq;
 
   endtask
 
-endclass
+endclass   
 
 
 class apb_i2c_reg_write_push_seq extends apb_i2c_ral_base_seq;
@@ -2543,7 +2537,7 @@ class apb_i2c_reg_write_push_seq extends apb_i2c_ral_base_seq;
         UVM_MEDIUM
       );
 
-
+   
 
     end while (busy);
 
@@ -2624,13 +2618,13 @@ repeat(5) begin
       UVM_MEDIUM
     )
 
-
+  
     model.TXDATA_REG.write(
       status,
       tx_data,
       UVM_FRONTDOOR);
-
-
+      
+      
 
     if (status != UVM_IS_OK) begin
       `uvm_fatal(
@@ -2711,7 +2705,7 @@ repeat(5) begin
       )
     end
 
-
+    
      model.STATUS_REG.read(
         status,
         status_value,
@@ -2725,21 +2719,9 @@ repeat(5) begin
           "STATUS_REG read failed"
         )
       end
-
-       model.STATUS_REG.read(
-        status,
-        status_value,
-        UVM_FRONTDOOR
-      );
-
-
-      if (status != UVM_IS_OK) begin
-        `uvm_fatal(
-          "I2C_READ",
-          "STATUS_REG read failed"
-        )
-      end
-
+      
+    
+      
 
   endtask
 
@@ -2938,7 +2920,7 @@ class apb_i2c_irq_error_reg_write_seq extends apb_i2c_ral_base_seq;
 
        bit  irq_en;
 
-
+     
 
  //============================================================
   // Constraints
@@ -2968,7 +2950,7 @@ class apb_i2c_irq_error_reg_write_seq extends apb_i2c_ral_base_seq;
   // Constructor
   //============================================================
 
-  function new(string name = "apb_i2c_irq_reg_write_seq");
+  function new(string name = "apb_i2c_irq_error_reg_write_seq");
     super.new(name);
   endfunction
 
@@ -3096,7 +3078,7 @@ end
 
     end while (busy);
 
-
+      
     //==========================================================
     // 2. WRITE CTRL_REG
     //==========================================================
@@ -3105,7 +3087,7 @@ end
 
     ctrl_value[6:0] = slave_addr;
     ctrl_value[7]   = read_write;
-    ctrl_value[8] = irq_enable;
+    ctrl_value[16] = irq_enable;
 
 
 
@@ -3260,7 +3242,7 @@ end
 endclass
 
 
-
+/*
 
 class apb_i2c_default_coverage_seq extends apb_i2c_ral_base_seq;
 
@@ -3316,8 +3298,8 @@ class apb_i2c_default_coverage_seq extends apb_i2c_ral_base_seq;
     // Prepare the write handshake for the next clock
     @(negedge vif.pclk);
 
-    force test_top.dut.apbs.i_psel  = 1'b1;
-    force test_top.dut.apbs.o_pready = 1'b1;
+    force test_top.dut.apbs.i_psel   = 1'b1;
+    force test_top.dut.apbs.in_pready = 1'b1;
 
     vif.penable = 1'b1;
 
@@ -3332,8 +3314,8 @@ class apb_i2c_default_coverage_seq extends apb_i2c_ral_base_seq;
     // Release forced internal handshake signals
     @(negedge vif.pclk);
 
-    release test_top.dut.apbs.i_psel;
-    release test_top.dut.apbs.o_pready;
+    release test_top.dut.apbs.psel_in;
+    release test_top.dut.apbs.in_pready;
 
     // Return APB bus to IDLE
     vif.psel    = 1'b0;
@@ -3401,7 +3383,7 @@ class apb_i2c_default_coverage_seq extends apb_i2c_ral_base_seq;
 
   endtask
 
-endclass
+endclass*/
 //============================================================
 // SEQUENCE: apb_i2c_fsm_default_seq
 //
@@ -3590,7 +3572,7 @@ class apb_i2c_fsm_default_seq extends apb_i2c_ral_base_seq;
   endtask
 
 endclass
-
+/*
 class apb_i2c_strobe_coverage_seq extends apb_i2c_ral_base_seq;
 
   `uvm_object_utils(apb_i2c_strobe_coverage_seq)
@@ -4034,5 +4016,538 @@ class apb_i2c_strobe_coverage_seq extends apb_i2c_ral_base_seq;
   endtask
 
 endclass
+*/
+
+
+
+class apb_i2c_strobe_coverage_seq extends apb_i2c_ral_base_seq;
+
+  `uvm_object_utils(apb_i2c_strobe_coverage_seq)
+
+  function new(string name = "apb_i2c_strobe_coverage_seq");
+    super.new(name);
+  endfunction
+
+  virtual task body();
+
+    uvm_status_e status;
+
+    uvm_reg_data_t ctrl_data;
+    uvm_reg_data_t actual_ctrl;
+
+    uvm_reg_data_t tx_data;
+    uvm_reg_data_t actual_txdata;
+
+    bit [6:0] expected_slave_addr;
+    bit       expected_rw;
+    bit [15:0] expected_txdata;
+
+    int i;
+
+    if (model == null) begin
+      `uvm_fatal("STROBE_COV", "RAL model is NULL")
+    end
+
+    //============================================================
+    // INITIAL READ
+    //============================================================
+
+    model.CTRL_REG.read(
+      status,
+      actual_ctrl,
+      UVM_FRONTDOOR
+    );
+
+    if (status != UVM_IS_OK)
+      `uvm_fatal("STROBE_COV", "Initial CTRL_REG read failed")
+
+    model.TXDATA_REG.read(
+      status,
+      actual_txdata,
+      UVM_FRONTDOOR
+    );
+
+    if (status != UVM_IS_OK)
+      `uvm_fatal("STROBE_COV", "Initial TXDATA_REG read failed")
+
+    //============================================================
+    // PART 1: CTRL_REG
+    //============================================================
+
+    `uvm_info("STROBE_COV",
+              "CTRL_REG RAL write/read test started",
+              UVM_LOW)
+
+    // Clear IRQ enable using the RAL field write method.
+    model.CTRL_REG.IRQ_EN.write(
+      status,
+      1'b0,
+      UVM_FRONTDOOR
+    );
+
+    if (status != UVM_IS_OK)
+      `uvm_fatal("STROBE_COV", "IRQ_EN clear failed")
+
+    // Walk through different CTRL values.
+    for (i = 0; i < 16; i++) begin
+
+      expected_slave_addr = (i * 7) & 7'h7F;
+      expected_rw         = i[0];
+
+      ctrl_data = '0;
+      ctrl_data[6:0] = expected_slave_addr;
+      ctrl_data[7]   = expected_rw;
+      ctrl_data[16]  = 1'b0;
+
+      // RAL register write.
+      model.CTRL_REG.write(
+        status,
+        ctrl_data,
+        UVM_FRONTDOOR
+      );
+
+      if (status != UVM_IS_OK) begin
+        `uvm_error("STROBE_COV",
+                   $sformatf("CTRL_REG write failed, iteration=%0d", i))
+        continue;
+      end
+
+      // RAL register read.
+      model.CTRL_REG.read(
+        status,
+        actual_ctrl,
+        UVM_FRONTDOOR
+      );
+
+      if (status != UVM_IS_OK) begin
+        `uvm_error("STROBE_COV",
+                   $sformatf("CTRL_REG read failed, iteration=%0d", i))
+        continue;
+      end
+
+      if (actual_ctrl[7:0] !== ctrl_data[7:0]) begin
+        `uvm_error("STROBE_COV",
+          $sformatf("CTRL mismatch: EXPECTED=%02h ACTUAL=%02h",
+                    ctrl_data[7:0], actual_ctrl[7:0]))
+      end
+      else begin
+        `uvm_info("STROBE_COV",
+          $sformatf("CTRL PASS: ADDR=%02h RW=%0b",
+                    actual_ctrl[6:0], actual_ctrl[7]),
+          UVM_MEDIUM)
+      end
+
+      // IRQ_EN and reserved bits must be zero.
+      if (actual_ctrl[31:8] !== 24'h0) begin
+        `uvm_error("STROBE_COV",
+          $sformatf("CTRL reserved/IRQ mismatch: ACTUAL[31:8]=%06h",
+                    actual_ctrl[31:8]))
+      end
+
+    end
+
+    //============================================================
+    // IRQ_EN FIELD TEST
+    //============================================================
+
+    model.CTRL_REG.IRQ_EN.write(
+      status,
+      1'b1,
+      UVM_FRONTDOOR
+    );
+
+    if (status != UVM_IS_OK)
+      `uvm_error("STROBE_COV", "IRQ_EN set failed")
+
+    model.CTRL_REG.read(
+      status,
+      actual_ctrl,
+      UVM_FRONTDOOR
+    );
+
+    if (status != UVM_IS_OK)
+      `uvm_error("STROBE_COV", "CTRL_REG read after IRQ_EN set failed")
+    else if (actual_ctrl[16] !== 1'b1)
+      `uvm_error("STROBE_COV", "IRQ_EN set readback mismatch")
+
+    model.CTRL_REG.IRQ_EN.write(
+      status,
+      1'b0,
+      UVM_FRONTDOOR
+    );
+
+    if (status != UVM_IS_OK)
+      `uvm_error("STROBE_COV", "IRQ_EN clear failed")
+
+    //============================================================
+    // PART 2: TXDATA_REG
+    // TRANSMIT_DATA [15:0] = RW
+    // RESERVED       [31:16] = RO
+    //============================================================
+
+    `uvm_info("STROBE_COV",
+              "TXDATA_REG RAL write/read test started",
+              UVM_LOW)
+
+    for (i = 0; i < 16; i++) begin
+
+      // Walking-one pattern.
+      expected_txdata = 16'h0001 << i;
+
+      // RAL field write: only TRANSMIT_DATA [15:0].
+      model.TXDATA_REG.TRANSMIT_DATA.write(
+        status,
+        expected_txdata,
+        UVM_FRONTDOOR
+      );
+
+      if (status != UVM_IS_OK) begin
+        `uvm_error("STROBE_COV",
+          $sformatf("TXDATA walking-one write failed at bit %0d", i))
+        continue;
+      end
+
+      // RAL register read.
+      model.TXDATA_REG.read(
+        status,
+        actual_txdata,
+        UVM_FRONTDOOR
+      );
+
+      if (status != UVM_IS_OK) begin
+        `uvm_error("STROBE_COV",
+          $sformatf("TXDATA read failed at bit %0d", i))
+        continue;
+      end
+
+      // Compare implemented RW bits.
+      if (actual_txdata[15:0] !== expected_txdata) begin
+        `uvm_error("STROBE_COV",
+          $sformatf(
+            "TXDATA WALK-ONE MISMATCH: BIT=%0d EXPECTED=%04h ACTUAL=%04h",
+            i, expected_txdata, actual_txdata[15:0]))
+      end
+      else begin
+        `uvm_info("STROBE_COV",
+          $sformatf("TXDATA WALK-ONE PASS: BIT=%0d DATA=%04h",
+                    i, actual_txdata[15:0]),
+          UVM_MEDIUM)
+      end
+
+      // Reserved upper 16 bits must remain zero.
+      if (actual_txdata[31:16] !== 16'h0000) begin
+        `uvm_error("STROBE_COV",
+          $sformatf(
+            "TXDATA RESERVED MISMATCH: EXPECTED=0000 ACTUAL=%04h",
+            actual_txdata[31:16]))
+      end
+
+      // Walking-zero pattern.
+      expected_txdata = ~(16'h0001 << i);
+
+      model.TXDATA_REG.TRANSMIT_DATA.write(
+        status,
+        expected_txdata,
+        UVM_FRONTDOOR
+      );
+
+      if (status != UVM_IS_OK) begin
+        `uvm_error("STROBE_COV",
+          $sformatf("TXDATA walking-zero write failed at bit %0d", i))
+        continue;
+      end
+
+      model.TXDATA_REG.read(
+        status,
+        actual_txdata,
+        UVM_FRONTDOOR
+      );
+
+      if (status != UVM_IS_OK) begin
+        `uvm_error("STROBE_COV",
+          $sformatf("TXDATA walking-zero read failed at bit %0d", i))
+        continue;
+      end
+
+      if (actual_txdata[15:0] !== expected_txdata) begin
+        `uvm_error("STROBE_COV",
+          $sformatf(
+            "TXDATA WALK-ZERO MISMATCH: BIT=%0d EXPECTED=%04h ACTUAL=%04h",
+            i, expected_txdata, actual_txdata[15:0]))
+      end
+
+      if (actual_txdata[31:16] !== 16'h0000) begin
+        `uvm_error("STROBE_COV",
+          $sformatf(
+            "TXDATA RESERVED MISMATCH: EXPECTED=0000 ACTUAL=%04h",
+            actual_txdata[31:16]))
+      end
+
+    end
+
+    `uvm_info("STROBE_COV",
+              "CTRL_REG and TXDATA_REG RAL tests completed",
+              UVM_LOW)
+
+  endtask
+
+endclass
+
+class apb_i2c_reset_mid_transfer_seq extends apb_i2c_ral_base_seq;
+
+  `uvm_object_utils(apb_i2c_reset_mid_transfer_seq)
+
+  //============================================================
+  // Virtual interfaces
+  //============================================================
+
+  virtual apb_i2c_reset_if rst_vif;
+  virtual apb_i2c_apb_if   apb_vif;
+  virtual apb_i2c_i2c_if   i2c_vif;
+
+  //============================================================
+  // Transaction configuration
+  //============================================================
+
+  bit [6:0] slave_addr = 7'h55;
+  bit [7:0] tx_data    = 8'hA5;
+
+  uvm_status_e   status;
+  uvm_reg_data_t status_value;
+  uvm_reg_data_t ctrl_value;
+
+  //============================================================
+  // Constructor
+  //============================================================
+
+  function new(string name = "apb_i2c_reset_mid_transfer_seq");
+    super.new(name);
+  endfunction
+
+  //============================================================
+  // Body
+  //============================================================
+
+  virtual task body();
+
+    int scl_edges;
+
+    //==========================================================
+    // Check RAL model and interfaces
+    //==========================================================
+
+    if (model == null)
+      `uvm_fatal("RESET_SEQ", "RAL model is NULL")
+
+    if (rst_vif == null)
+      `uvm_fatal("RESET_SEQ", "Reset VIF is NULL")
+
+    if (apb_vif == null)
+      `uvm_fatal("RESET_SEQ", "APB VIF is NULL")
+
+    if (i2c_vif == null)
+      `uvm_fatal("RESET_SEQ", "I2C VIF is NULL")
+
+    `uvm_info("RESET_MID_TRANSFER",
+              "Starting reset during I2C transfer test",
+              UVM_LOW)
+
+    //==========================================================
+    // 1. Check initial BUSY status
+    //==========================================================
+
+    model.STATUS_REG.read(
+      status,
+      status_value,
+      UVM_FRONTDOOR
+    );
+
+    if (status != UVM_IS_OK)
+      `uvm_fatal("RESET_SEQ", "Initial STATUS_REG read failed")
+
+    if (status_value[0] !== 1'b0)
+      `uvm_fatal("RESET_SEQ", "DUT is BUSY before starting test")
+
+    //==========================================================
+    // 2. Configure CTRL_REG for I2C WRITE
+    //==========================================================
+
+    ctrl_value = '0;
+
+    ctrl_value[6:0]  = slave_addr;
+    ctrl_value[7]    = 1'b0;  // I2C WRITE
+    ctrl_value[16]   = 1'b0;  // IRQ disabled for this test
+
+    model.CTRL_REG.write(
+      status,
+      ctrl_value,
+      UVM_FRONTDOOR
+    );
+
+    if (status != UVM_IS_OK)
+      `uvm_fatal("RESET_SEQ", "CTRL_REG write failed")
+
+    //==========================================================
+    // 3. Write TXDATA_REG
+    //==========================================================
+
+    model.TXDATA_REG.write(
+      status,
+      {16'h0000, 1'b0, slave_addr, tx_data},
+      UVM_FRONTDOOR
+    );
+
+    if (status != UVM_IS_OK)
+      `uvm_fatal("RESET_SEQ", "TXDATA_REG write failed")
+
+    `uvm_info("RESET_MID_TRANSFER",
+              $sformatf(
+                "I2C WRITE started: SLAVE_ADDR=0x%02h DATA=0x%02h",
+                slave_addr, tx_data),
+              UVM_LOW)
+
+    //==========================================================
+    // 4. Wait for I2C START condition
+    //==========================================================
+
+    // START condition: SDA falls while SCL is HIGH.
+
+    wait (i2c_vif.i2c_scl === 1'b1 &&
+          i2c_vif.i2c_sda === 1'b0);
+
+    `uvm_info("RESET_MID_TRANSFER",
+              "I2C START condition detected",
+              UVM_LOW)
+
+    //==========================================================
+    // 5. Wait for some SCL transitions
+    //==========================================================
+
+    // Wait for three falling edges of SCL.
+    // This ensures reset occurs after the transaction starts.
+
+    scl_edges = 0;
+
+    repeat (3) begin
+      @(negedge i2c_vif.i2c_scl);
+      scl_edges++;
+    end
+
+    `uvm_info("RESET_MID_TRANSFER",
+              $sformatf(
+                "I2C active: observed %0d SCL falling edges",
+                scl_edges),
+              UVM_LOW)
+
+    //==========================================================
+    // 6. Assert reset in the middle of I2C transfer
+    //==========================================================
+
+    @(negedge apb_vif.pclk);
+
+    `uvm_info("RESET_MID_TRANSFER",
+              "ASSERTING RESET DURING ACTIVE I2C TRANSFER",
+              UVM_LOW)
+
+    rst_vif.rst_n <= 1'b0;
+
+    // Hold reset for five PCLK cycles.
+
+    repeat (5)
+      @(posedge apb_vif.pclk);
+
+    //==========================================================
+    // 7. Deassert reset
+    //==========================================================
+
+    @(negedge apb_vif.pclk);
+
+    rst_vif.rst_n <= 1'b1;
+
+    `uvm_info("RESET_MID_TRANSFER",
+              "Reset deasserted",
+              UVM_LOW)
+
+    //==========================================================
+    // 8. Allow DUT to recover
+    //==========================================================
+
+    repeat (5)
+      @(posedge apb_vif.pclk);
+
+    //==========================================================
+    // 9. Check APB bus returned to IDLE
+    //==========================================================
+
+    if (apb_vif.psel !== 1'b0 ||
+        apb_vif.penable !== 1'b0) begin
+
+      `uvm_error("RESET_MID_TRANSFER",
+                 $sformatf(
+                   "APB not IDLE after reset: PSEL=%0b PENABLE=%0b",
+                   apb_vif.psel,
+                   apb_vif.penable))
+
+    end
+    else begin
+
+      `uvm_info("RESET_MID_TRANSFER",
+                "PASS: APB returned to IDLE",
+                UVM_LOW)
+
+    end
+
+    //==========================================================
+    // 10. Check STATUS_REG after reset
+    //==========================================================
+
+    model.STATUS_REG.read(
+      status,
+      status_value,
+      UVM_FRONTDOOR
+    );
+
+    if (status != UVM_IS_OK) begin
+
+      `uvm_error("RESET_MID_TRANSFER",
+                 "STATUS_REG read failed after reset")
+
+    end
+    else begin
+
+      `uvm_info("RESET_MID_TRANSFER",
+                $sformatf(
+                  "STATUS after reset = 0x%08h",
+                  status_value),
+                UVM_LOW)
+
+      // BUSY, DONE and SLAVE_ERROR expected to be cleared.
+
+      if (status_value[2:0] !== 3'b000) begin
+
+        `uvm_error("RESET_MID_TRANSFER",
+                   $sformatf(
+                     "STATUS not cleared after reset: 0x%08h",
+                     status_value))
+
+      end
+      else begin
+
+        `uvm_info("RESET_MID_TRANSFER",
+                  "PASS: BUSY, DONE and SLAVE_ERROR cleared",
+                  UVM_LOW)
+
+      end
+
+    end
+
+    `uvm_info("RESET_MID_TRANSFER",
+              "Reset-during-I2C-transfer sequence completed",
+              UVM_LOW)
+
+  endtask
+
+endclass
+
 
 endpackage

@@ -2,9 +2,9 @@
 `default_nettype none
 `include "bp_common_defines.svh"
 
-
-//   CPU domain  --asynchronous_fifo (header + data)-->  AXI4-Lite domain FSM  --AXI4-Lite master-->  slave
-//   CPU domain  <--asynchronous_fifo (header + data + err)--  AXI4-Lite domain FSM
+//   BlackParrot BedRock (mem fwd/rev) to AXI4-Lite master bridge with clock domain crossing.
+//   cpu_clk_i  (BedRock / CPU domain, 1.5 GHz)  : request FIFO write side, response FIFO read side
+//   axil_clk_i (AXI4-Lite domain, 100 MHz)      : bridge FSM and the external AXI4_Lite_Master
 
 module bp_bedrock_axil_bridge
   import bp_common_pkg::*;
@@ -22,7 +22,8 @@ module bp_bedrock_axil_bridge
         `bp_bedrock_header_width(ADDR_WIDTH, `bp_bedrock_fwd_payload_width(LCE_ID_WIDTH, CCE_ID_WIDTH, DID_WIDTH, LCE_ASSOC)),
     parameter int MEM_REV_HEADER_WIDTH = MEM_FWD_HEADER_WIDTH,
 
-    parameter int FIFO_DEPTH     = 8              // power of two, at least 4
+    parameter int FIFO_DEPTH     = 8,             // power of two, at least 4
+    parameter int AXIL_TIMEOUT   = 255            // AXI4_Lite_Master handshake timeout in axil_clk_i cycles, 1..255
 ) (
     // ==================================================================
     // CPU / BedRock domain
@@ -81,6 +82,9 @@ module bp_bedrock_axil_bridge
 
     if (DATA_W != 64 && DATA_W != 128) begin : gen_width_check
         initial $fatal(1, "bp_bedrock_axil_bridge: CPU_DATA_WIDTH (%0d) must be 64 or 128", DATA_W);
+    end
+    if (AXIL_TIMEOUT < 1 || AXIL_TIMEOUT > 255) begin : gen_timeout_check
+        initial $fatal(1, "bp_bedrock_axil_bridge: AXIL_TIMEOUT (%0d) must be 1..255 (AXI4_Lite_Master has 8 bit counters)", AXIL_TIMEOUT);
     end
 
     `declare_bp_bedrock_if(ADDR_WIDTH, LCE_ID_WIDTH, CCE_ID_WIDTH, DID_WIDTH, LCE_ASSOC);
@@ -149,10 +153,10 @@ module bp_bedrock_axil_bridge
     typedef enum logic [2:0] {
         S_IDLE   = 3'd0,   // wait for a request in the request FIFO
         S_DECODE = 3'd1,   // classify the captured request
-        S_WR     = 3'd2,   // present AW and W for the current word
-        S_WR_B   = 3'd3,   // wait for the write response of the current word
-        S_RD_AR  = 3'd4,   // present AR for the current word
-        S_RD_R   = 3'd5,   // wait for the read data of the current word
+        S_WR_REQ = 3'd2,   // one cycle: usr_write_req for the current word
+        S_WR_WAIT= 3'd3,   // wait for usr_wr_done of the current word
+        S_RD_REQ = 3'd4,   // one cycle: usr_read_req for the current word
+        S_RD_WAIT= 3'd5,   // wait for usr_rd_done of the current word
         S_RESP   = 3'd6    // push the BedRock response into the response FIFO
     } state_e;
 
@@ -167,8 +171,6 @@ module bp_bedrock_axil_bridge
     logic                       err_r;
     logic                       supported_r;     // request was accepted for a bus access
     logic [31:0]                rd_words_r [0:NW-1];
-
-    logic awvalid_q, wvalid_q, arvalid_q, bready_q, rready_q;
 
     // ---- request classification (from the captured header) ----
     logic [7:0]          nbytes;
@@ -188,9 +190,9 @@ module bp_bedrock_axil_bridge
         base_idx  = sel_idx & ~(nwords[WIDX_W-1:0] - 1'b1);
     end
 
-    // ---- AXI4-Lite channel payloads for the current word ----
-    logic [WIDX_W-1:0] cur_widx;
-    logic [3:0]        strb_w;
+    // ---- payload of the current 32-bit transfer ----
+    logic [WIDX_W-1:0]     cur_widx;
+    logic [3:0]            strb_w;
     logic [ADDR_WIDTH-1:0] word_addr;
 
     always_comb begin
@@ -203,21 +205,69 @@ module bp_bedrock_axil_bridge
         endcase
     end
 
-    assign m_axil_awaddr  = word_addr;
-    assign m_axil_awprot  = 3'b000;
-    assign m_axil_awvalid = awvalid_q;
-    assign m_axil_wdata   = req_data_r[cur_widx*32 +: 32];
-    assign m_axil_wstrb   = strb_w;
-    assign m_axil_wvalid  = wvalid_q;
-    assign m_axil_bready  = bready_q;
-    assign m_axil_araddr  = word_addr;
-    assign m_axil_arprot  = 3'b000;
-    assign m_axil_arvalid = arvalid_q;
-    assign m_axil_rready  = rready_q;
-
-    wire aw_done = !awvalid_q || m_axil_awready;
-    wire w_done  = !wvalid_q  || m_axil_wready;
     wire last_word = (wcnt_r == nwords_r[WIDX_W-1:0] - 1'b1);
+
+    // ======================================================================
+    // External AXI4-Lite master
+    // ======================================================================
+    logic        usr_write_req, usr_read_req;
+    logic [31:0] usr_rdata;
+    logic        usr_wr_busy, usr_wr_done, usr_rd_busy, usr_rd_done;
+    logic [1:0]  usr_wr_resp, usr_rd_resp;
+
+    assign usr_write_req = (state == S_WR_REQ);
+    assign usr_read_req  = (state == S_RD_REQ);
+
+    AXI4_Lite_Master #(
+        .C_M_AXI_ADDR_WIDTH(ADDR_WIDTH),
+        .C_M_AXI_DATA_WIDTH(32),
+        .TIMEOUT_VAL       (AXIL_TIMEOUT)
+    ) u_axil_master (
+        .M_AXI_ACLK   (axil_clk_i),
+        .M_AXI_ARESETN(axil_rst_n),
+
+        .usr_write_req(usr_write_req),
+        .usr_read_req (usr_read_req),
+        .usr_araddr   (word_addr),
+        .usr_awaddr   (word_addr),
+        .usr_wdata    (req_data_r[cur_widx*32 +: 32]),
+        .usr_wstrb    (strb_w),
+        .usr_rdata    (usr_rdata),
+
+        .usr_wr_busy  (usr_wr_busy),
+        .usr_wr_done  (usr_wr_done),
+        .usr_wr_resp  (usr_wr_resp),
+        .usr_rd_busy  (usr_rd_busy),
+        .usr_rd_done  (usr_rd_done),
+        .usr_rd_resp  (usr_rd_resp),
+
+        .M_AXI_AWADDR (m_axil_awaddr),
+        .M_AXI_AWPROT (m_axil_awprot),
+        .M_AXI_AWVALID(m_axil_awvalid),
+        .M_AXI_AWREADY(m_axil_awready),
+
+        .M_AXI_WDATA  (m_axil_wdata),
+        .M_AXI_WSTRB  (m_axil_wstrb),
+        .M_AXI_WVALID (m_axil_wvalid),
+        .M_AXI_WREADY (m_axil_wready),
+
+        .M_AXI_BRESP  (m_axil_bresp),
+        .M_AXI_BVALID (m_axil_bvalid),
+        .M_AXI_BREADY (m_axil_bready),
+
+        .M_AXI_ARADDR (m_axil_araddr),
+        .M_AXI_ARPROT (m_axil_arprot),
+        .M_AXI_ARVALID(m_axil_arvalid),
+        .M_AXI_ARREADY(m_axil_arready),
+
+        .M_AXI_RDATA  (m_axil_rdata),
+        .M_AXI_RRESP  (m_axil_rresp),
+        .M_AXI_RVALID (m_axil_rvalid),
+        .M_AXI_RREADY (m_axil_rready)
+    );
+
+    // usr_wr_busy and usr_rd_busy are not needed: the FSM issues one request and waits for its done pulse.
+    wire unused_busy = &{1'b0, usr_wr_busy, usr_rd_busy};
 
     // request FIFO is popped in the cycle the request is captured
     assign req_fifo_r_en = (state == S_IDLE) && !req_fifo_empty;
@@ -227,20 +277,15 @@ module bp_bedrock_axil_bridge
 
     always_ff @(posedge axil_clk_i or negedge axil_rst_n) begin
         if (!axil_rst_n) begin
-            state     <= S_IDLE;
-            req_hdr_r <= '0;
-            req_data_r<= '0;
-            wcnt_r    <= '0;
-            nwords_r  <= '0;
-            base_r    <= '0;
-            is_wr_r   <= 1'b0;
-            err_r     <= 1'b0;
+            state       <= S_IDLE;
+            req_hdr_r   <= '0;
+            req_data_r  <= '0;
+            wcnt_r      <= '0;
+            nwords_r    <= '0;
+            base_r      <= '0;
+            is_wr_r     <= 1'b0;
+            err_r       <= 1'b0;
             supported_r <= 1'b0;
-            awvalid_q <= 1'b0;
-            wvalid_q  <= 1'b0;
-            arvalid_q <= 1'b0;
-            bready_q  <= 1'b0;
-            rready_q  <= 1'b0;
             for (int i = 0; i < NW; i++) rd_words_r[i] <= '0;
         end else begin
             case (state)
@@ -257,66 +302,48 @@ module bp_bedrock_axil_bridge
                 end
 
                 S_DECODE: begin
-                    nwords_r <= nwords;
-                    base_r   <= base_idx;
-                    is_wr_r  <= is_wr;
+                    nwords_r    <= nwords;
+                    base_r      <= base_idx;
+                    is_wr_r     <= is_wr;
                     supported_r <= supported;
                     if (!supported) begin
                         err_r <= 1'b1;
                         state <= S_RESP;
                     end else if (is_wr) begin
-                        awvalid_q <= 1'b1;
-                        wvalid_q  <= 1'b1;
-                        state     <= S_WR;
+                        state <= S_WR_REQ;
                     end else begin
-                        arvalid_q <= 1'b1;
-                        state     <= S_RD_AR;
+                        state <= S_RD_REQ;
                     end
                 end
 
-                S_WR: begin
-                    if (awvalid_q && m_axil_awready) awvalid_q <= 1'b0;
-                    if (wvalid_q  && m_axil_wready)  wvalid_q  <= 1'b0;
-                    if (aw_done && w_done) begin
-                        bready_q <= 1'b1;
-                        state    <= S_WR_B;
-                    end
-                end
+                // the master is idle here (reset, or the previous transfer has reported done)
+                S_WR_REQ: state <= S_WR_WAIT;
 
-                S_WR_B: begin
-                    if (bready_q && m_axil_bvalid) begin
-                        bready_q <= 1'b0;
-                        if (m_axil_bresp[1]) err_r <= 1'b1;
+                S_WR_WAIT: begin
+                    if (usr_wr_done) begin
+                        if (usr_wr_resp[1]) err_r <= 1'b1;       // SLVERR, DECERR or master timeout
                         if (last_word) begin
                             state <= S_RESP;
                         end else begin
-                            wcnt_r    <= wcnt_r + 1'b1;
-                            awvalid_q <= 1'b1;
-                            wvalid_q  <= 1'b1;
-                            state     <= S_WR;
+                            wcnt_r <= wcnt_r + 1'b1;
+                            state  <= S_WR_REQ;
                         end
                     end
                 end
 
-                S_RD_AR: begin
-                    if (arvalid_q && m_axil_arready) begin
-                        arvalid_q <= 1'b0;
-                        rready_q  <= 1'b1;
-                        state     <= S_RD_R;
-                    end
-                end
+                S_RD_REQ: state <= S_RD_WAIT;
 
-                S_RD_R: begin
-                    if (rready_q && m_axil_rvalid) begin
-                        rready_q          <= 1'b0;
-                        rd_words_r[wcnt_r]<= m_axil_rdata;
-                        if (m_axil_rresp[1]) err_r <= 1'b1;
+                S_RD_WAIT: begin
+                    if (usr_rd_done) begin
+                        // AXI4_Lite_Master keeps the previous usr_rdata when a read times out or errors, so an
+                        // errored word is returned as zero instead of stale data
+                        rd_words_r[wcnt_r] <= usr_rd_resp[1] ? 32'h0 : usr_rdata;
+                        if (usr_rd_resp[1]) err_r <= 1'b1;
                         if (last_word) begin
                             state <= S_RESP;
                         end else begin
-                            wcnt_r    <= wcnt_r + 1'b1;
-                            arvalid_q <= 1'b1;
-                            state     <= S_RD_AR;
+                            wcnt_r <= wcnt_r + 1'b1;
+                            state  <= S_RD_REQ;
                         end
                     end
                 end

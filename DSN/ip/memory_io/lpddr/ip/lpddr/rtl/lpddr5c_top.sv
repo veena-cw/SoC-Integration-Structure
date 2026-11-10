@@ -323,6 +323,7 @@ assign s_axi_rid    = arid_q;
    // wire                                  lp_req_pd;
     wire                                  lp_req_sr;
     wire                                  lp_req_ds;
+    wire                                   dfi_lcke;
 //   wire                                  lp_ack;
     wire [3:0]                                lp_state ;
 
@@ -975,8 +976,9 @@ end
         .wakeup_req     (wakeup_req),
         .lp_idle(lp_idle),
         .wakeup_ack(wakeup_ack),
-                 .rd_fifo_empty    (rd_fifo_empty),
-    .wr_fifo_empty    (wr_fifo_empty),
+        .rd_fifo_empty    (rd_fifo_empty),
+        .wr_fifo_empty    (wr_fifo_empty),
+        .dfi_cke         (dfi_lcke),
         // Status
         .idle_count     (),
         .sr_entry_count (),

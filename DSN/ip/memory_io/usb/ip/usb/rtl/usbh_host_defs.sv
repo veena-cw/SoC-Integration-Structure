@@ -199,8 +199,8 @@
     `define USB_XFER_DATA_TX_LEN_T          15
     `define USB_XFER_DATA_TX_LEN_W          16
   //  `define USB_XFER_DATA_TX_LEN_R          15:0
-`define USB_XFER_DATA_TX_LEN_R_LSB      7:0
-`define USB_XFER_DATA_TX_LEN_R_MSB      15:8
+	`define USB_XFER_DATA_TX_LEN_R_LSB      7:0
+	`define USB_XFER_DATA_TX_LEN_R_MSB      15:8
 
 `define USB_XFER_TOKEN    8'h18
 
@@ -248,7 +248,10 @@
     `define USB_XFER_TOKEN_EP_ADDR_B          5
     `define USB_XFER_TOKEN_EP_ADDR_T          8
     `define USB_XFER_TOKEN_EP_ADDR_W          4
-    `define USB_XFER_TOKEN_EP_ADDR_R          8:5
+    //`define USB_XFER_TOKEN_EP_ADDR_R          8:5
+	
+	`define USB_XFER_TOKEN_EP_ADDR_R_LSB      7:5
+	`define USB_XFER_TOKEN_EP_ADDR_R_MSB	   8
 
 `define USB_RX_STAT    8'h1c
 

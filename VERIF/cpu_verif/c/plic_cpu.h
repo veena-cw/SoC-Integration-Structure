@@ -15,7 +15,9 @@
 #include <stdint.h>
 #include "dual_core.h"
 
-#define PLIC_BASE          0x00500000UL
+#ifndef PLIC_BASE
+#define PLIC_BASE          0x00500000UL   /* tile 0 alias; (1 << 24) | this = tile 1 port */
+#endif
 #define PLIC_REG(off)      ((volatile uint32_t *)(PLIC_BASE + (off)))
 #define PLIC_CONFIG0       0x00
 #define PLIC_CONFIG1       0x04

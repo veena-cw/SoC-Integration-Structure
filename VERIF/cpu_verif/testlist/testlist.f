@@ -353,3 +353,17 @@ bp_dv_049_smp_coherence_test 73 csr_extra.nbf
 # 25..30), both L1-uncached DRAM windows and AXI I/O memory (c/pc_alias.c).
 #   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=pc_alias TEST_ID=74
 bp_dv_049_smp_coherence_test 74 pc_alias.nbf
+
+# BP-DV-075: BP-DV-067 (plic_wide) with the PLIC addressed through tile 1
+# (0x0150_0000), i.e. through core tile 1's PLIC port into
+# bp_plic_shared_top (c/plic_t1_wide.c). Currently FAILS: the shared AHB
+# bridge subtracts a fixed AHB_BASE_ADDR 0x0050_0000, so core-1-port
+# accesses reach the PLIC as 0x0100_00xx and hit no register (proposed Jira).
+#   make sim TEST=bp_dv_059_plic_reg_full_test TCNAME=plic_t1_wide TEST_ID=75
+bp_dv_059_plic_reg_full_test 75 plic_t1_wide.nbf
+
+# BP-DV-076: I/O address space through the I/O CCE and AXI4 bridge: host
+# window offsets, host device of tiles 1..31, soc-periph window, external
+# I/O (paddr bits 34..39, write + read back) (c/io_addr.c).
+#   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=io_addr TEST_ID=76
+bp_dv_049_smp_coherence_test 76 io_addr.nbf

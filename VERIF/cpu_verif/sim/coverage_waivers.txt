@@ -717,3 +717,57 @@
 */bp_be_csr.sv toggle=pmpcfg_li\[0\]\.l,pmpcfg_li\[1\]\.l,pmpcfg_li\[2\]\.l,pmpcfg_li\[3\]\.l,pmpcfg_li\[4\]\.l,pmpcfg_li\[5\]\.l
 */bp_be_csr.sv toggle=pmpcfg_li\[6\]\.l,pmpcfg_li\[7\]\.l,pmpcfg_lo\[0\]\.l,pmpcfg_lo\[1\]\.l,pmpcfg_lo\[2\]\.l,pmpcfg_lo\[3\]\.l
 */bp_be_csr.sv toggle=pmpcfg_lo\[4\]\.l,pmpcfg_lo\[5\]\.l,pmpcfg_lo\[6\]\.l,pmpcfg_lo\[7\]\.l
+
+# Simulation-only models under the DSN tree (not silicon): whole files.
+*/bp_top/test/common/bp_nonsynth_dram.sv        # DRAM model (testbench)
+*/bp_top/test/common/bp_nonsynth_cfg_loader.sv  # cfg loader (testbench; silicon boots via cpu_top unfreeze)
+
+# Toggle: inbound host path / absent accelerators (hole review, 10 Nov 2026).
+# Generated from the holes report: only bits that never toggled are listed.
+# bp_io_link_to_lce.sv: host -> core inbound path: in silicon only cpu_top's unfreeze sequencer drives it (fixed cfg writes); bits never driven
+*/bp_io_link_to_lce.sv toggle=lce_id_i[1],mem_fwd_header_i[1:10],mem_fwd_header_i[13:16],mem_fwd_header_i[19:28],mem_fwd_header_i[30:31],mem_fwd_header_i[33:42]
+*/bp_io_link_to_lce.sv toggle=mem_fwd_header_i[45:47],mem_fwd_header_i[51:53],mem_fwd_header_i[57],mem_fwd_header_i[60],mem_fwd_header_i[62:63],mem_fwd_header_i[65]
+*/bp_io_link_to_lce.sv toggle=mem_rev_header_o[1:10],mem_rev_header_o[13:16],mem_rev_header_o[19:28],mem_rev_header_o[30:31],mem_rev_header_o[33:42],mem_rev_header_o[45:48]
+*/bp_io_link_to_lce.sv toggle=mem_rev_header_o[51:53],mem_rev_header_o[57:60],mem_rev_header_o[62:63],mem_rev_header_o[65],lce_req_header_o[2:10],lce_req_header_o[13:16]
+*/bp_io_link_to_lce.sv toggle=lce_req_header_o[19:28],lce_req_header_o[30:31],lce_req_header_o[33:47],lce_req_header_o[50],lce_req_header_o[55:56],lce_req_header_o[58]
+*/bp_io_link_to_lce.sv toggle=lce_req_header_o[60:63],lce_cmd_header_i[0:1],lce_cmd_header_i[4:10],lce_cmd_header_i[13:16],lce_cmd_header_i[19:28],lce_cmd_header_i[30:31]
+*/bp_io_link_to_lce.sv toggle=lce_cmd_header_i[33],lce_cmd_header_i[36:42],lce_cmd_header_i[45:48],lce_cmd_header_i[55],lce_cmd_header_i[58:60],lce_cmd_header_i[62:63]
+*/bp_io_link_to_lce.sv toggle=lce_cmd_header_i[65],lce_cmd_header_i[68:74],mem_fwd_header_cast_i\.addr[0:2],mem_fwd_header_cast_i\.addr[5:8],mem_fwd_header_cast_i\.addr[11:20],mem_fwd_header_cast_i\.addr[22:23]
+*/bp_io_link_to_lce.sv toggle=mem_fwd_header_cast_i\.addr[25:39],mem_fwd_header_cast_i\.msg_type\.req[1:3],mem_fwd_header_cast_i\.payload\.lce_id[0],mem_fwd_header_cast_i\.payload\.prefetch,mem_fwd_header_cast_i\.payload\.speculative,mem_fwd_header_cast_i\.payload\.state[0:2]
+*/bp_io_link_to_lce.sv toggle=mem_fwd_header_cast_i\.payload\.uncached,mem_fwd_header_cast_i\.payload\.way_id[0:2],mem_fwd_header_cast_i\.size[2],mem_fwd_header_cast_i\.subop[0:3],mem_rev_header_cast_o\.addr[0:2],mem_rev_header_cast_o\.addr[5:8]
+*/bp_io_link_to_lce.sv toggle=mem_rev_header_cast_o\.addr[11:20],mem_rev_header_cast_o\.addr[22:23],mem_rev_header_cast_o\.addr[25:39],mem_rev_header_cast_o\.msg_type\.req[1:3],mem_rev_header_cast_o\.payload\.lce_id[0:2],mem_rev_header_cast_o\.payload\.prefetch
+*/bp_io_link_to_lce.sv toggle=mem_rev_header_cast_o\.payload\.speculative,mem_rev_header_cast_o\.payload\.state[0:2],mem_rev_header_cast_o\.payload\.uncached,mem_rev_header_cast_o\.payload\.way_id[0:2],mem_rev_header_cast_o\.size[0:2],mem_rev_header_cast_o\.subop[0:3]
+*/bp_io_link_to_lce.sv toggle=lce_req_header_cast_o\.addr[0:2],lce_req_header_cast_o\.addr[5:8],lce_req_header_cast_o\.addr[11:20],lce_req_header_cast_o\.addr[22:23],lce_req_header_cast_o\.addr[25:39],lce_req_header_cast_o\.msg_type\.req[2:3]
+*/bp_io_link_to_lce.sv toggle=lce_req_header_cast_o\.payload\.dst_id[1:2],lce_req_header_cast_o\.payload\.lru_way_id[0:2],lce_req_header_cast_o\.payload\.non_exclusive,lce_req_header_cast_o\.payload\.src_id[1],lce_req_header_cast_o\.size[2],lce_req_header_cast_o\.subop[0:3]
+*/bp_io_link_to_lce.sv toggle=lce_cmd_header_cast_i\.addr[0:2],lce_cmd_header_cast_i\.addr[5:8],lce_cmd_header_cast_i\.addr[11:20],lce_cmd_header_cast_i\.addr[22:23],lce_cmd_header_cast_i\.addr[25:39],lce_cmd_header_cast_i\.msg_type\.req[0:1]
+*/bp_io_link_to_lce.sv toggle=lce_cmd_header_cast_i\.payload\.dst_id[1],lce_cmd_header_cast_i\.payload\.src_id[1:2],lce_cmd_header_cast_i\.payload\.state[0:2],lce_cmd_header_cast_i\.payload\.target[0:2],lce_cmd_header_cast_i\.payload\.target_state[0:2],lce_cmd_header_cast_i\.payload\.target_way_id[0:2]
+*/bp_io_link_to_lce.sv toggle=lce_cmd_header_cast_i\.payload\.way_id[0:2],lce_cmd_header_cast_i\.size[0:2],lce_cmd_header_cast_i\.subop[0:3],fsm_fwd_header_lo\.addr[0:2],fsm_fwd_header_lo\.addr[5:8],fsm_fwd_header_lo\.addr[11:20]
+*/bp_io_link_to_lce.sv toggle=fsm_fwd_header_lo\.addr[22:23],fsm_fwd_header_lo\.addr[25:39],fsm_fwd_header_lo\.msg_type\.req[1:3],fsm_fwd_header_lo\.payload\.lce_id[0],fsm_fwd_header_lo\.payload\.prefetch,fsm_fwd_header_lo\.payload\.speculative
+*/bp_io_link_to_lce.sv toggle=fsm_fwd_header_lo\.payload\.state[0:2],fsm_fwd_header_lo\.payload\.uncached,fsm_fwd_header_lo\.payload\.way_id[0:2],fsm_fwd_header_lo\.size[2],fsm_fwd_header_lo\.subop[0:3],fsm_fwd_addr_lo[0:2]
+*/bp_io_link_to_lce.sv toggle=fsm_fwd_addr_lo[5:8],fsm_fwd_addr_lo[11:20],fsm_fwd_addr_lo[22:23],fsm_fwd_addr_lo[25:39],fsm_req_header_li\.addr[0:2],fsm_req_header_li\.addr[5:8]
+*/bp_io_link_to_lce.sv toggle=fsm_req_header_li\.addr[11:20],fsm_req_header_li\.addr[22:23],fsm_req_header_li\.addr[25:39],fsm_req_header_li\.msg_type\.req[2:3],fsm_req_header_li\.payload\.dst_id[1:2],fsm_req_header_li\.payload\.lru_way_id[0:2]
+*/bp_io_link_to_lce.sv toggle=fsm_req_header_li\.payload\.non_exclusive,fsm_req_header_li\.payload\.src_id[1],fsm_req_header_li\.size[2],fsm_req_header_li\.subop[0:3],fsm_req_addr_lo[0:2],fsm_req_addr_lo[5:8]
+*/bp_io_link_to_lce.sv toggle=fsm_req_addr_lo[11:20],fsm_req_addr_lo[22:23],fsm_req_addr_lo[25:39],fsm_cmd_header_lo\.addr[0:2],fsm_cmd_header_lo\.addr[5:8],fsm_cmd_header_lo\.addr[11:20]
+*/bp_io_link_to_lce.sv toggle=fsm_cmd_header_lo\.addr[22:23],fsm_cmd_header_lo\.addr[25:39],fsm_cmd_header_lo\.msg_type\.req[0:1],fsm_cmd_header_lo\.payload\.dst_id[1],fsm_cmd_header_lo\.payload\.src_id[1:2],fsm_cmd_header_lo\.payload\.state[0:2]
+*/bp_io_link_to_lce.sv toggle=fsm_cmd_header_lo\.payload\.target[0:2],fsm_cmd_header_lo\.payload\.target_state[0:2],fsm_cmd_header_lo\.payload\.target_way_id[0:2],fsm_cmd_header_lo\.payload\.way_id[0:2],fsm_cmd_header_lo\.size[0:2],fsm_cmd_header_lo\.subop[0:3]
+*/bp_io_link_to_lce.sv toggle=fsm_cmd_addr_lo[0:2],fsm_cmd_addr_lo[5:8],fsm_cmd_addr_lo[11:20],fsm_cmd_addr_lo[22:23],fsm_cmd_addr_lo[25:39],fsm_rev_header_li\.addr[0:2]
+*/bp_io_link_to_lce.sv toggle=fsm_rev_header_li\.addr[5:8],fsm_rev_header_li\.addr[11:20],fsm_rev_header_li\.addr[22:23],fsm_rev_header_li\.addr[25:39],fsm_rev_header_li\.msg_type\.req[1:3],fsm_rev_header_li\.payload\.lce_id[0:2]
+*/bp_io_link_to_lce.sv toggle=fsm_rev_header_li\.payload\.prefetch,fsm_rev_header_li\.payload\.speculative,fsm_rev_header_li\.payload\.state[0:2],fsm_rev_header_li\.payload\.uncached,fsm_rev_header_li\.payload\.way_id[0:2],fsm_rev_header_li\.size[0:2]
+*/bp_io_link_to_lce.sv toggle=fsm_rev_header_li\.subop[0:3],fsm_rev_addr_lo[0:2],fsm_rev_addr_lo[5:8],fsm_rev_addr_lo[11:20],fsm_rev_addr_lo[22:23],fsm_rev_addr_lo[25:39]
+*/bp_io_link_to_lce.sv toggle=cce_id_lo[1:2]
+# bp_processor.sv: host-side ports (inbound path, see bp_io_link_to_lce)
+*/bp_processor.sv toggle=mem_fwd_header_i[1:10],mem_fwd_header_i[13:16],mem_fwd_header_i[19:28],mem_fwd_header_i[30:31],mem_fwd_header_i[33:42],mem_fwd_header_i[45:47]
+*/bp_processor.sv toggle=mem_fwd_header_i[51:53],mem_fwd_header_i[57],mem_fwd_header_i[60],mem_fwd_header_i[62:63],mem_fwd_header_i[65],mem_fwd_data_i[1:30]
+*/bp_processor.sv toggle=mem_fwd_data_i[33:62],mem_fwd_data_i[65:94],mem_fwd_data_i[97:126],mem_rev_header_o[1:10],mem_rev_header_o[13:16],mem_rev_header_o[19:28]
+*/bp_processor.sv toggle=mem_rev_header_o[30:31],mem_rev_header_o[33:42],mem_rev_header_o[45:48],mem_rev_header_o[51:53],mem_rev_header_o[57:60],mem_rev_header_o[62:63]
+*/bp_processor.sv toggle=mem_rev_header_o[65],mem_rev_data_o[3:9],mem_rev_data_o[11:20],mem_rev_data_o[23:26],mem_rev_data_o[29:31],mem_rev_data_o[35:38]
+*/bp_processor.sv toggle=mem_rev_data_o[40:41],mem_rev_data_o[43:52],mem_rev_data_o[55:58],mem_rev_data_o[61:63],mem_rev_data_o[67:70],mem_rev_data_o[72:73]
+*/bp_processor.sv toggle=mem_rev_data_o[75:84],mem_rev_data_o[87:90],mem_rev_data_o[93:95],mem_rev_data_o[99:102],mem_rev_data_o[104:105],mem_rev_data_o[107:116]
+*/bp_processor.sv toggle=mem_rev_data_o[119:122],mem_rev_data_o[125:127],m\.mem_fwd_header_cast_i\.addr[0:2],m\.mem_fwd_header_cast_i\.addr[5:8],m\.mem_fwd_header_cast_i\.addr[11:20],m\.mem_fwd_header_cast_i\.addr[22:23]
+*/bp_processor.sv toggle=m\.mem_fwd_header_cast_i\.addr[25:39],m\.mem_fwd_header_cast_i\.msg_type\.req[1:3],m\.mem_fwd_header_cast_i\.payload\.lce_id[0],m\.mem_fwd_header_cast_i\.payload\.prefetch,m\.mem_fwd_header_cast_i\.payload\.speculative,m\.mem_fwd_header_cast_i\.payload\.state[0:2]
+*/bp_processor.sv toggle=m\.mem_fwd_header_cast_i\.payload\.uncached,m\.mem_fwd_header_cast_i\.payload\.way_id[0:2],m\.mem_fwd_header_cast_i\.size[2],m\.mem_fwd_header_cast_i\.subop[0:3],m\.mem_rev_header_cast_o\.addr[0:2],m\.mem_rev_header_cast_o\.addr[5:8]
+*/bp_processor.sv toggle=m\.mem_rev_header_cast_o\.addr[11:20],m\.mem_rev_header_cast_o\.addr[22:23],m\.mem_rev_header_cast_o\.addr[25:39],m\.mem_rev_header_cast_o\.msg_type\.req[1:3],m\.mem_rev_header_cast_o\.payload\.lce_id[0:2],m\.mem_rev_header_cast_o\.payload\.prefetch
+*/bp_processor.sv toggle=m\.mem_rev_header_cast_o\.payload\.speculative,m\.mem_rev_header_cast_o\.payload\.state[0:2],m\.mem_rev_header_cast_o\.payload\.uncached,m\.mem_rev_header_cast_o\.payload\.way_id[0:2],m\.mem_rev_header_cast_o\.size[0:2],m\.mem_rev_header_cast_o\.subop[0:3]
+# bp_sacc_complex.sv: no streaming accelerators in this config (num_sacc = 0): links tied off
+*/bp_sacc_complex.sv toggle=coh_req_link_i\[0\][0:127],coh_req_link_i\[0\][129],coh_req_link_o\[0\][0:129],coh_cmd_link_i\[0\][0:127],coh_cmd_link_i\[0\][129],coh_cmd_link_o\[0\][0:129]
+*/bp_sacc_complex.sv toggle=y\[0\]\.cord_li[3]

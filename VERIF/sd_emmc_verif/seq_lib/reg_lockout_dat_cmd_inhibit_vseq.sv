@@ -310,10 +310,10 @@ class reg_lockout_dat_cmd_inhibit_vseq extends sd_emmc_base_vseq;
     clear_cmd_status();
     restore_baseline();
 
-   /* //------------------------------------------------------------------
+    //------------------------------------------------------------------
     // Step 2: DAT inhibit only. (set_dat_inhibit handles setting force_inh_dat = 1)
     //------------------------------------------------------------------
-    `uvm_info("TC_LOCKOUT", "Step 2: Command Inhibit (DAT) = 1, CMD = 0", UVM_LOW)
+  /*  `uvm_info("TC_LOCKOUT", "Step 2: Command Inhibit (DAT) = 1, CMD = 0", UVM_LOW)
     set_dat_inhibit(1'b1, ok);
     if (ok) begin
       expect_locked  ("S2_BLK_FULL",  REG_BLK_SIZE_CNT, BLK_BAD,         STRB_ALL, MASK_ALL, BLK_A);

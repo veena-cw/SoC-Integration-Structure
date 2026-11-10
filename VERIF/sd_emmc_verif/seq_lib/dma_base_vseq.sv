@@ -79,7 +79,7 @@ endtask
   //       argument, then the full 0x0C word (transfer mode + command). Command Complete and
   //       Transfer Complete are polled before anything is cleared, because clear_status()
   //       would otherwise wipe a Transfer Complete that arrives later.
-  task dma_cmd(bit [5:0] idx, bit [31:0] arg, bit [32:0] tbl, bit [11:0] bsize, bit [15:0] bcnt,
+  /*task dma_cmd(bit [5:0] idx, bit [31:0] arg, bit [32:0] tbl, bit [11:0] bsize, bit [15:0] bcnt,
                bit rd, bit multi, output bit cmd_ok, output bit tc_ok);
     bit [15:0] xfer;
     write_reg_strobe(DMA_REG_HOST, wide4 ? 32'h0000_0012 : 32'h0000_0010, 4'h1);
@@ -118,7 +118,43 @@ endtask
     poll_max_reads = 2000;
     poll_reg(REG_INT_STAT_WORD, 32'h2, 32'h2, tc_ok);   // 0x30 bit 1 = Transfer Complete
     clear_status();
-  endtask
+  endtask*/
+  // Goal: one ADMA2 data command, with only the writes the transfer needs.
+  // Flow: dma_cmd is called by each DMA vseq after sd_init; the descriptor table and data are already in AXI memory.
+  task dma_cmd(bit [5:0] idx, bit [31:0] arg, bit [32:0] tbl, bit [11:0] bsize, bit [15:0] bcnt,
+             bit rd, bit multi, output bit cmd_ok, output bit tc_ok);
+  bit [15:0] xfer;
+  xfer = 16'h0001 | (rd ? 16'h0010 : 16'h0000) | (multi ? 16'h0022 : 16'h0000);
+
+  // 0x28: select ADMA2 (bits 4:3 = 10). The DMA type is chosen here, so it must be set before the command.
+  write_reg_strobe(DMA_REG_HOST, wide4 ? 32'h0000_0012 : 32'h0000_0010, 4'h1);
+  // 0x58: start of the descriptor table. The ADMA fetches its first descriptor from this address.
+  write_reg_strobe(DMA_REG_ADMA_ADDR, tbl[31:0], STRB_ALL);
+  // 0x04: block size [11:0] and block count [31:16]. They define how much data the transfer moves.
+  write_reg_strobe(DMA_REG_BLK, {bcnt, 4'h0, bsize}, STRB_ALL);
+  // 0x08: command argument (block address for CMD17/CMD24).
+  write_reg_strobe(REG_ARG1, arg, STRB_ALL);
+  // 0x0C[15:0] Transfer Mode: DMA enable (bit 0), direction (bit 4), multi-block. The spec wants it in place
+  // before the command, because the transfer is set up when the command is issued. Lanes 1:0 only, so no launch.
+  write_reg_strobe(REG_CMD_XFER, {16'h0, xfer}, 4'h3);
+  // 0x0C[31:16] Command: index and data-present. This write launches the command (lane 3, as cmd_strb).
+  write_reg_strobe(REG_CMD_XFER, {make_cmd_reg(idx, RESP_48, 1'b0, 1'b1), 16'h0}, cmd_strb);
+   // 0x30 bit 0: Command Complete. Needed to know the command was accepted before the transfer is judged.
+  wait_cmd_done(cmd_ok);
+  // [DESIGN] clear 0x30: this DUT starts the ADMA on the falling edge of Command Complete
+  // (sd_emmc_controller.sv:452, fall output), so the flag has to be cleared before the transfer can start.
+  clear_status();
+  // 0x30 bit 1: Transfer Complete. This is the end of the transfer, and the pass condition for the data movement.
+  poll_max_reads = 2000;
+  poll_reg(REG_INT_STAT_WORD, 32'h2, 32'h2, tc_ok);
+  // Clear Transfer Complete so the next command in the same test starts from a clean status.
+  clear_status();
+endtask
+  
+  
+  
+  
+  
 
   // Goal: count byte differences between two memory regions (a missing byte counts as a difference).
   function int unsigned mem_diff(bit [32:0] a, bit [32:0] b, int unsigned n);

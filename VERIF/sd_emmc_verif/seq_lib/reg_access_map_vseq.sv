@@ -73,7 +73,7 @@ class reg_access_map_vseq extends sd_emmc_base_vseq;
      //if (p_sequencer.axi_lite_sqr == null)
     //`uvm_fatal("REG_MAP", "p_sequencer.axi_lite_sqr is null at vseq start")
     `uvm_info("REG_MAP", "=== reg_access_map_vseq start ===", UVM_LOW)
-     begin
+     /*begin
       sd_emmc_controller_axi_lite_agent_seq_item it =
         sd_emmc_controller_axi_lite_agent_seq_item::type_id::create("it");
       `uvm_info("DBG", $sformatf("vseq sequencer=%s  p_sequencer=%s  axi_lite_sqr=%s",
@@ -89,11 +89,14 @@ class reg_access_map_vseq extends sd_emmc_base_vseq;
       it.addr = 32'h0;
       finish_item(it);
       `uvm_info("DBG", "finish_item returned", UVM_LOW)
-    end
+    end*/
     build_map();
 
     // S1 - reset values. Goal: nothing has been written yet, so every register shows its default.
     // A non-zero expected value comes from the RTL (idle pin levels): DESIGN. Zero is the spec default: SPEC.
+    read_reg(32'h0, got);
+    `uvm_info("DBG", $sformatf("Initial ARG2 read value: 0x%08h", got), UVM_LOW)
+    // S1 - Reset values check
     foreach (m_addr[i]) begin
       if (m_rst_m[i] != 0) begin
         read_reg(m_addr[i], got);

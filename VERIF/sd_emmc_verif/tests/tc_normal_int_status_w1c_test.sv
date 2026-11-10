@@ -10,7 +10,8 @@
 class tc_normal_int_status_w1c_test extends base_test;
   `uvm_component_utils(tc_normal_int_status_w1c_test)
 
-  virtual sd_emmc_if vif;
+  
+  virtual sd_emmc_controller_sd_emmc_if vif;  
 
   function new(string name = "tc_normal_int_status_w1c_test", uvm_component parent = null);
     super.new(name, parent);
@@ -18,7 +19,10 @@ class tc_normal_int_status_w1c_test extends base_test;
 
   function void build_phase(uvm_phase phase);
     super.build_phase(phase);
-    vif = sd_emmc_tb_pkg::sd_emmc_vif;
+    if (!uvm_config_db#(virtual sd_emmc_controller_sd_emmc_if)::get(null, "", "vif", vif)) begin
+    // If registered under a different context or name (e.g. uvm_root::get()), adjust string key accordingly
+    `uvm_fatal("VIF_NULL", "normal_int_status_w1c_vseq: Failed to get virtual interface 'vif' from uvm_config_db")
+  end
     vif.use_bfm = 1;
   endfunction
 

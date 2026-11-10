@@ -91,10 +91,13 @@ class sd_emmc_ref_model extends uvm_component;
     
     virtual function void reset_csr();
     // Reset all 32 CSR array slots to 0
-     for (int i = 0; i < 32; i++) csr_regs[i] = 32'h0000_0000;
-  csr_regs['h24 >> 2] = 32'h01FF_0000;    // your RTL-matching values
-  csr_regs['h2C >> 2] = 32'h0000_0002;
-  csr_regs['h3C >> 2] = 32'h0000_0000;
+    for (int i = 0; i < 32; i++) csr_regs[i] = 32'h0000_0000;
+    csr_regs['h24 >> 2] = 32'h01FF_0000; // Present State reset value
+    csr_regs['h2C >> 2] = 32'h0000_0002; // Clock Control reset value
+    csr_regs['h30 >> 2] = 32'h0000_0000; // Normal/Error Interrupt Status
+    csr_regs['h34 >> 2] = 32'h0000_0000; // Interrupt Status Enable
+    csr_regs['h38 >> 2] = 32'h0000_0000; // Interrupt Signal Enable
+    csr_regs['h3C >> 2] = 32'h0000_0000; // Auto CMD Error Status / UHS
   endfunction
 
   
@@ -103,27 +106,25 @@ class sd_emmc_ref_model extends uvm_component;
   //----------------------------------------------------------------------------
   
   // 1. AXI-Lite Register Interface Handler
-virtual function void write_reg(sd_emmc_controller_axi_lite_agent_seq_item tr);
-  sd_emmc_controller_axi_lite_agent_seq_item exp_reg_tr;
-  bit [31:0] write_mask;
-  bit [4:0]  idx;
-  bit        locked;   // set when the DAT-inhibit lockout blocks (part of) this write
+// 1. AXI-Lite Register Interface Handler
+  virtual function void write_reg(sd_emmc_controller_axi_lite_agent_seq_item tr);
+    sd_emmc_controller_axi_lite_agent_seq_item exp_reg_tr;
+    bit [31:0] write_mask;
+    bit [31:0] w1c_mask;
+    bit [4:0]  idx;
+    bit        locked;   // set when DAT-inhibit lockout blocks this write
 
-  if (tr == null) return;
+    if (tr == null) return;
 
-  // Extract register index (Address / 4)
-  idx = tr.addr[6:2];
+    // Extract register index (Address / 4)
+    idx = tr.addr[6:2];
 
-  // Create expected transaction clone
-  exp_reg_tr = sd_emmc_controller_axi_lite_agent_seq_item::type_id::create("exp_reg_tr");
-  exp_reg_tr.copy(tr);
+    // Create expected transaction clone
+    exp_reg_tr = sd_emmc_controller_axi_lite_agent_seq_item::type_id::create("exp_reg_tr");
+    exp_reg_tr.copy(tr);
 
-  if (tr.cmd == sd_emmc_controller_axi_lite_agent_seq_item::AXI_WRITE) begin
-    // Read-only registers (idx 9, 12, 14 -> 0x24, 0x30, 0x38): write ignored
-    if (idx == 5'd9 || idx == 5'd12 || idx == 5'd14) begin
-      `uvm_info("REF_MODEL", $sformatf("Write ignored for RO addr 0x%08h (idx %0d)", tr.addr, idx), UVM_LOW)
-    end
-    else begin
+    if (tr.cmd == sd_emmc_controller_axi_lite_agent_seq_item::AXI_WRITE) begin
+      // Note: Removed idx 14 (0x38) from RO check because 0x38 is Read/Write
       // Byte-lane write mask from WSTRB
       write_mask = 32'h0;
       if (tr.wstrb[0]) write_mask[7:0]   = 8'hFF;
@@ -131,35 +132,63 @@ virtual function void write_reg(sd_emmc_controller_axi_lite_agent_seq_item tr);
       if (tr.wstrb[2]) write_mask[23:16] = 8'hFF;
       if (tr.wstrb[3]) write_mask[31:24] = 8'hFF;
 
-      // Goal: model "writes ignored while Command Inhibit (DAT) = 1".
-      // 0x04 (Block Size/Count) is fully locked; 0x0C locks only the Transfer
-      // Mode halfword [15:0]. vif is null in tests that do not drive the
-      // DAT-inhibit force, so those tests are unaffected.
+      // DAT-Inhibit lockout logic
       locked = 0;
       if (vif != null && vif.force_inh_dat) begin
-        if (idx == 5'd1) begin write_mask = 32'h0;        locked = 1; end
-        if (idx == 5'd3) begin write_mask[15:0] = 16'h0;  locked = 1; end
+        if (idx == 5'd1) begin write_mask = 32'h0;       locked = 1; end
+        if (idx == 5'd3) begin write_mask[15:0] = 16'h0; locked = 1; end
       end
 
-      // Update shadow register state (unchanged bits keep their old value)
+      // Special handling per CSR register specification
+      case (idx)
+        5'd9: begin // Offset 0x24: Present State (RO / ROC fields)
+          // Bit 31:25-RSVD, 24:16-RO, 15:12-RSVD, 11:8-ROC, 7:4-RSVD, 3:0-ROC
+          write_mask &= 32'h0000_0000; 
+        end
+
+        5'd12: begin // Offset 0x30 / 0x32: Normal & Error Interrupt Status (RW1C / ROC)
+          // 0x30 (15: ROC, 14:13: RSVD, 12:8: ROC, 7:0: RW1C) -> Mask: 0x0000_00FF
+          // 0x32 (15:12: RW1C, 11: RSVD, 10:0: RW1C)       -> Mask: 0xF7FF_0000
+          w1c_mask = 32'hF7FF_00FF;
+
+          // Clear written bits where write_data bit is 1 and bit is RW1C
+          csr_regs[idx] &= ~(tr.write_data & write_mask & w1c_mask);
+          write_mask = 32'h0; // Prevent standard overwrite below
+        end
+
+        5'd13, 5'd14: begin // Offsets 0x34 / 0x38: Status Enable & Signal Enable
+          // Low halfword bit 15 fixed 0, 14:13 RSVD, 12:0 RW
+          // High halfword (0x36 / 0x3A Error halves) follow same writable mask
+          write_mask &= 32'hF7FF_1FFF;
+        end
+
+        5'd15: begin // Offset 0x3C / 0x3E: Auto CMD Error Status (ROC) & UHS Mode Select (RW)
+          // 0x3C (15:8 RSVD, 1 ROC, 6:5 RSVD, 4:0 ROC) is Read-Only
+          // 0x3E[2:0] (slv_reg15[18:16]) = UHS Mode Select is Read/Write
+          write_mask &= 32'h0007_0000;
+        end
+
+        default: ; // Standard RW registers update normally
+      endcase
+
+      // Update shadow register state for standard RW bits
       csr_regs[idx] = (tr.write_data & write_mask) | (csr_regs[idx] & ~write_mask);
 
       `uvm_info("REF_DBG", $sformatf("WR addr=0x%08h idx=%0d, data=0x%08h strb=0x%0h -> csr=0x%08h%s",
                 tr.addr, idx, tr.write_data, tr.wstrb, csr_regs[idx],
                 locked ? " (DAT-inhibit lockout applied)" : ""), UVM_LOW)
     end
-  end
-  else begin // AXI_READ
-    // Predict read data from internal shadow storage
-    exp_reg_tr.read_data = csr_regs[idx];
+    else begin // AXI_READ
+      // Predict read data from internal shadow storage
+      exp_reg_tr.read_data = csr_regs[idx];
 
-    `uvm_info("REF_DBG", $sformatf("RD addr=0x%08h idx=%0d -> expected=0x%08h",
-              tr.addr, idx, exp_reg_tr.read_data), UVM_LOW)
-  end
+      `uvm_info("REF_DBG", $sformatf("RD addr=0x%08h idx=%0d -> expected=0x%08h",
+                tr.addr, idx, exp_reg_tr.read_data), UVM_LOW)
+    end
 
-  // Broadcast predicted item to scoreboard
-  expected_reg_ap.write(exp_reg_tr);
-endfunction
+    // Broadcast predicted item to scoreboard
+    expected_reg_ap.write(exp_reg_tr);
+  endfunction
 
   // 2. SD/eMMC Protocol Interface Handler
   virtual function void write_sd(sd_emmc_controller_sd_emmc_agent_seq_item tr);

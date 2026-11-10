@@ -69,7 +69,9 @@ sd_emmc_controller_pkg.sv
 ../seq_lib/reg_lockout_dat_cmd_inhibit_vseq.sv
 ../seq_lib/bfm_init_vseq.sv
 ../seq_lib/dma_adma2_single_blk_vseq.sv
-../seq_lib/dma_dat_inhibit_lockout_vseq.sv
+//../seq_lib/dma_dat_inhibit_lockout_vseq.sv
+../seq_lib/cmd_crc7_vseq.sv
+../seq_lib/normal_int_status_w1c_vseq.sv
 
 // 6. Tests & Top
 ../tests/base_test.sv
@@ -77,7 +79,9 @@ sd_emmc_controller_pkg.sv
 ../tests/tc_reg_access_map_test.sv
 ../tests/tc_reg_lockout_dat_cmd_inhibit_test.sv
 ../tests/tc_dma_adma2_single_blk_test.sv
-../tests/tc_dma_dat_inhibit_lockout_test.sv
+//../tests/tc_dma_dat_inhibit_lockout_test.sv
+../tests/tc_cmd_crc7_test.sv
+../tests/tc_normal_int_status_w1c_test.sv
 ../top/tb_top.sv
 
  

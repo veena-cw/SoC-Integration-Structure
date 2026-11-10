@@ -19,16 +19,20 @@ class cmd_crc7_vseq extends sd_emmc_base_vseq;
   localparam bit [31:0] ERR_CRC = 32'h0002_0000;   // 0x32[1] Command CRC Error
   localparam bit [31:0] CMD_CC  = 32'h0000_0001;   // 0x30[0] Command Complete
 
+  virtual sd_emmc_controller_sd_emmc_if vif;  
   function new(string name = "cmd_crc7_vseq");
     super.new(name);
   endfunction
 
   task body();
-    virtual sd_emmc_if vif;
+    
     bit [31:0] rd;
     bit        ok;
 
-    vif = sd_emmc_tb_pkg::sd_emmc_vif;
+    if (!uvm_config_db#(virtual sd_emmc_controller_sd_emmc_if)::get(null, "", "vif", vif)) begin
+    // If registered under a different context or name (e.g. uvm_root::get()), adjust string key accordingly
+    `uvm_fatal("VIF_NULL", "cmd_crc7_vseq: Failed to get virtual interface 'vif' from uvm_config_db")
+  end
 
     enable_clocks();
     vif.use_bfm    = 1'b1;

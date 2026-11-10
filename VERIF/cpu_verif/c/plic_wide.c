@@ -1,6 +1,6 @@
 /* plic_wide.c
  *
- * BP-DV-067: 64-bit (ld / sd) accesses to the PLIC, run by core 0 over its
+ * BP-DV-067: 64-bit (ld / sd) accesses to the PLIC, run by each core over its
  * real path (core -> PLIC port -> AHB bridge -> 32-bit AHB PLIC). An 8-byte
  * access is two AHB beats in one BedRock flit (bp_bedrock_ahb3lite_bridge:
  * ST_XFER_WAIT -> ST_XFER for the second beat, read data assembled from
@@ -18,9 +18,11 @@
  *   6  sd THRESHOLD pairs: halves read back masked (3 bits); ld == both
  *   7  ld after sd returns the same 64-bit value (IE, every target)
  *   8  everything restored to reset values (32-bit reads)
- * Core 1 does nothing (reports 0).
+ * Both cores run the checks, core 0 first, then core 1 (the PLIC registers
+ * are shared; dual_turn_wait / dual_turn_pass), so both cores' PLIC ports
+ * (bp_plic_shared_top core0 / core1) carry the 64-bit patterns.
  *
- * tohost: (hart1 << 32) | hart0; hart 0 = 0 pass, else
+ * tohost: (hart1 << 32) | hart0; per hart 0 = pass, else
  *   (fail_count << 16) | 0x6700 | first failing check.
  */
 
@@ -113,7 +115,7 @@ static uint64_t run_wide(void)
     ok &= plic_rd(PLIC_PRIORITY(w)) == plic_exp_priority[w];
   check(&s, ok);
 
-  *PLIC_PROGRESS(0) = 0xFF;
+  *PLIC_PROGRESS(hart_id()) = 0xFF;
   dual_fence();
   return st_result(&s, 0x6700);
 }
@@ -132,5 +134,9 @@ void _start(void)
 
 static void start_main(void)
 {
-  tohost_exit(hart_id() == 0 ? run_wide() : 0);
+  uint64_t r;
+  dual_turn_wait();                /* hart 1 runs after hart 0 is done */
+  r = run_wide();
+  dual_turn_pass();
+  tohost_exit(r);
 }

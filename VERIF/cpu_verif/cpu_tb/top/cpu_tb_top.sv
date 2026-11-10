@@ -138,8 +138,12 @@ module cpu_tb_top
     ,.clk_r_o(rt_clk)
     );
   // two flattened-field TB interfaces (unchanged from before)
-  bedrock_if #(.ADDR_WIDTH(64), .DATA_WIDTH(64)) incoming_vif (.clk(clk), .reset(reset));
-  bedrock_if #(.ADDR_WIDTH(64), .DATA_WIDTH(64)) outgoing_vif (.clk(clk), .reset(reset));
+  // bedrock_if.reset is active HIGH (bedrock_driver waits for reset == 0 to
+  // drive); this testbench's `reset` is active low, so invert it here. With
+  // the plain `reset` the driver blocked forever on its first item once reset
+  // was released (seen with +NBF_PRELOAD_ONLY=0, the only mode that sends items).
+  bedrock_if #(.ADDR_WIDTH(64), .DATA_WIDTH(64)) incoming_vif (.clk(clk), .reset(~reset));
+  bedrock_if #(.ADDR_WIDTH(64), .DATA_WIDTH(64)) outgoing_vif (.clk(clk), .reset(~reset));
 
   // AXI bridge interface driven by cpu_top and serviced by the AXI agent.
   cpu_AXI_if #(

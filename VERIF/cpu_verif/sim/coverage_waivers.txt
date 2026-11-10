@@ -273,3 +273,125 @@
 */bsg_dataflow/bsg_two_fifo.sv 99-99 kind=branch text="if"            # allow_enq_deq_on_full_p = 0
 */bsg_dataflow/bsg_two_fifo.sv 131-131 kind=branch text="if"          # verbose_p = 0 (debug $display)
 */bsg_dataflow/bsg_two_fifo.sv 133-136 kind=branch                    # inside the verbose_p branch (debug $display)
+
+# Toggle: signals fixed by design in BP_CFG_ID=9 (hole review, 10 Nov 2026).
+# Generated from the merged coverage: only bits that never toggled are
+# listed, so a bit that does toggle is never hidden.
+# bp_core_tile.sv: I$ LCE (index 0): reads are non-exclusive (non_excl_reads_p=1), never owner -> never sends data, transfers or fills
+*/bp_core_tile.sv toggle=lce_fill_data_lo\[0\][0:127],lce_fill_header_lo\[0\]\.addr[0:39],lce_fill_header_lo\[0\]\.msg_type\.req[0:3],lce_fill_header_lo\[0\]\.payload\.dst_id[0:2],lce_fill_header_lo\[0\]\.payload\.src_did[0:2],lce_fill_header_lo\[0\]\.payload\.src_id[0:2]
+*/bp_core_tile.sv toggle=lce_fill_header_lo\[0\]\.payload\.state[0:2],lce_fill_header_lo\[0\]\.payload\.target[0:2],lce_fill_header_lo\[0\]\.payload\.target_state[0:2],lce_fill_header_lo\[0\]\.payload\.target_way_id[0:2],lce_fill_header_lo\[0\]\.payload\.way_id[0:2],lce_fill_header_lo\[0\]\.size[0:2]
+*/bp_core_tile.sv toggle=lce_fill_header_lo\[0\]\.subop[0:3],lce_req_data_lo\[0\][0:127],lce_resp_data_lo\[0\][0:127]
+# bp_core.sv: I$ LCE (index 0): never owner -> no data / fill
+*/bp_core.sv toggle=lce_fill_data_o\[0\][0:127],lce_fill_header_o\[0\][0:74],lce_req_data_o\[0\][0:127],lce_resp_data_o\[0\][0:127]
+# bp_core_lite.sv: I$ LCE / I$ requests carry no data
+*/bp_core_lite.sv toggle=icache_req_lo\.data[0:63],lce_fill_data_o\[0\][0:127],lce_fill_header_o\[0\][0:74],lce_req_data_o\[0\][0:127],lce_resp_data_o\[0\][0:127]
+# bp_fe_icache.sv: I$ requests carry no data
+*/bp_fe_icache.sv toggle=cache_req_cast_o\.data[0:63]
+# bp_core_complex.sv: declared but never connected (dead nets; real path is plic_fwd_*_lo[i])
+*/bp_core_complex.sv toggle=plic0_fwd_data_lo[0:127],plic0_fwd_header_lo\.addr[0:39],plic0_fwd_header_lo\.msg_type\.req[0:3],plic0_fwd_header_lo\.payload\.lce_id[0:2],plic0_fwd_header_lo\.payload\.prefetch,plic0_fwd_header_lo\.payload\.speculative
+*/bp_core_complex.sv toggle=plic0_fwd_header_lo\.payload\.src_did[0:2],plic0_fwd_header_lo\.payload\.state[0:2],plic0_fwd_header_lo\.payload\.uncached,plic0_fwd_header_lo\.payload\.way_id[0:2],plic0_fwd_header_lo\.size[0:2],plic0_fwd_header_lo\.subop[0:3]
+*/bp_core_complex.sv toggle=plic0_rev_data_li[0:127],plic0_rev_header_li\.addr[0:39],plic0_rev_header_li\.msg_type\.req[0:3],plic0_rev_header_li\.payload\.lce_id[0:2],plic0_rev_header_li\.payload\.prefetch,plic0_rev_header_li\.payload\.speculative
+*/bp_core_complex.sv toggle=plic0_rev_header_li\.payload\.src_did[0:2],plic0_rev_header_li\.payload\.state[0:2],plic0_rev_header_li\.payload\.uncached,plic0_rev_header_li\.payload\.way_id[0:2],plic0_rev_header_li\.size[0:2],plic0_rev_header_li\.subop[0:3]
+*/bp_core_complex.sv toggle=plic1_fwd_data_lo[0:127],plic1_fwd_header_lo\.addr[0:39],plic1_fwd_header_lo\.msg_type\.req[0:3],plic1_fwd_header_lo\.payload\.lce_id[0:2],plic1_fwd_header_lo\.payload\.prefetch,plic1_fwd_header_lo\.payload\.speculative
+*/bp_core_complex.sv toggle=plic1_fwd_header_lo\.payload\.src_did[0:2],plic1_fwd_header_lo\.payload\.state[0:2],plic1_fwd_header_lo\.payload\.uncached,plic1_fwd_header_lo\.payload\.way_id[0:2],plic1_fwd_header_lo\.size[0:2],plic1_fwd_header_lo\.subop[0:3]
+*/bp_core_complex.sv toggle=plic1_rev_data_li[0:127],plic1_rev_header_li\.addr[0:39],plic1_rev_header_li\.msg_type\.req[0:3],plic1_rev_header_li\.payload\.lce_id[0:2],plic1_rev_header_li\.payload\.prefetch,plic1_rev_header_li\.payload\.speculative
+*/bp_core_complex.sv toggle=plic1_rev_header_li\.payload\.src_did[0:2],plic1_rev_header_li\.payload\.state[0:2],plic1_rev_header_li\.payload\.uncached,plic1_rev_header_li\.payload\.way_id[0:2],plic1_rev_header_li\.size[0:2],plic1_rev_header_li\.subop[0:3]
+# bp_bedrock_axi4_bridge.sv: only ever assigned 0 (write responses carry no data; reads use rdata)
+*/bp_bedrock_axi4_bridge.sv toggle=resp_data_r[0:127]
+# cpu_top.sv: only constant config values (cce/lce mode, NPC) are written
+*/cpu_top.sv toggle=cfg_data[1:30],cfg_data[33:62],cfg_data[65:94],cfg_data[97:126]
+# bp_be_scheduler.sv: tied to 0
+*/bp_be_scheduler.sv toggle=fe_exc_data_li[0:65],fe_exc_imm_li[0:65]
+# bp_be_scheduler.sv: page-table walker only (Sv39 not used)
+*/bp_be_scheduler.sv toggle=be_exc_vaddr_li[0:65],ptw_addr_lo[0:63],ptw_pte_lo[6:25],ptw_pte_lo[36:63]
+# bp_be_csr.sv: constant / read-only zero CSR
+*/bp_be_csr.sv toggle=marchid_lo[0:63],mhartid_lo[0:63],mimpid_lo[0:63],misa_lo[0:63],mvendorid_lo[0:63],sedeleg_lo[0:63]
+*/bp_be_csr.sv toggle=sideleg_lo[0:63]
+# bp_be_csr.sv: WPRI (reserved) CSR fields: always 0
+*/bp_be_csr.sv toggle=mideleg_li\.wpri1[0:51],mideleg_li\.wpri2,mideleg_li\.wpri3,mideleg_li\.wpri4,mideleg_lo\.wpri1[0:51],mideleg_lo\.wpri2
+*/bp_be_csr.sv toggle=mideleg_lo\.wpri3,mideleg_lo\.wpri4,mie_li\.wpri1[0:51],mie_li\.wpri2,mie_li\.wpri3,mie_li\.wpri4
+*/bp_be_csr.sv toggle=mie_lo\.wpri1[0:51],mie_lo\.wpri2,mie_lo\.wpri3,mie_lo\.wpri4,mip_li\.wpri1[0:51],mip_li\.wpri2
+*/bp_be_csr.sv toggle=mip_li\.wpri3,mip_li\.wpri4,mip_lo\.wpri1[0:51],mip_lo\.wpri2,mip_lo\.wpri3,mip_lo\.wpri4
+*/bp_be_csr.sv toggle=mip_wmask_li\.wpri1[0:51],mip_wmask_li\.wpri2,mip_wmask_li\.wpri3,mip_wmask_li\.wpri4,mstatus_li\.wpri1[0:26],mstatus_li\.wpri2[0:8]
+*/bp_be_csr.sv toggle=mstatus_li\.wpri3[0:1],mstatus_li\.wpri4,mstatus_li\.wpri5,mstatus_lo\.wpri1[0:26],mstatus_lo\.wpri2[0:8],mstatus_lo\.wpri3[0:1]
+*/bp_be_csr.sv toggle=mstatus_lo\.wpri4,mstatus_lo\.wpri5,pmpcfg_li\[0\]\.wpri[0:1],pmpcfg_li\[10\]\.wpri[0:1],pmpcfg_li\[11\]\.wpri[0:1],pmpcfg_li\[12\]\.wpri[0:1]
+*/bp_be_csr.sv toggle=pmpcfg_li\[13\]\.wpri[0:1],pmpcfg_li\[14\]\.wpri[0:1],pmpcfg_li\[15\]\.wpri[0:1],pmpcfg_li\[1\]\.wpri[0:1],pmpcfg_li\[2\]\.wpri[0:1],pmpcfg_li\[3\]\.wpri[0:1]
+*/bp_be_csr.sv toggle=pmpcfg_li\[4\]\.wpri[0:1],pmpcfg_li\[5\]\.wpri[0:1],pmpcfg_li\[6\]\.wpri[0:1],pmpcfg_li\[7\]\.wpri[0:1],pmpcfg_li\[8\]\.wpri[0:1],pmpcfg_li\[9\]\.wpri[0:1]
+*/bp_be_csr.sv toggle=pmpcfg_lo\[0\]\.wpri[0:1],pmpcfg_lo\[10\]\.wpri[0:1],pmpcfg_lo\[11\]\.wpri[0:1],pmpcfg_lo\[12\]\.wpri[0:1],pmpcfg_lo\[13\]\.wpri[0:1],pmpcfg_lo\[14\]\.wpri[0:1]
+*/bp_be_csr.sv toggle=pmpcfg_lo\[15\]\.wpri[0:1],pmpcfg_lo\[1\]\.wpri[0:1],pmpcfg_lo\[2\]\.wpri[0:1],pmpcfg_lo\[3\]\.wpri[0:1],pmpcfg_lo\[4\]\.wpri[0:1],pmpcfg_lo\[5\]\.wpri[0:1]
+*/bp_be_csr.sv toggle=pmpcfg_lo\[6\]\.wpri[0:1],pmpcfg_lo\[7\]\.wpri[0:1],pmpcfg_lo\[8\]\.wpri[0:1],pmpcfg_lo\[9\]\.wpri[0:1],sie_rwmask_li\.wpri1[0:51],sie_rwmask_li\.wpri2
+*/bp_be_csr.sv toggle=sie_rwmask_li\.wpri3,sie_rwmask_li\.wpri4,sip_rmask_li\.wpri1[0:51],sip_rmask_li\.wpri2,sip_rmask_li\.wpri3,sip_rmask_li\.wpri4
+*/bp_be_csr.sv toggle=sip_wmask_li\.wpri1[0:51],sstatus_rmask_li\.wpri1[0:26],sstatus_rmask_li\.wpri2[0:8],sstatus_rmask_li\.wpri3[0:1],sstatus_wmask_li\.wpri1[0:26],sstatus_wmask_li\.wpri2[0:8]
+*/bp_be_csr.sv toggle=sstatus_wmask_li\.wpri3[0:1]
+# bp_be_csr.sv: static configuration bus
+*/bp_be_csr.sv toggle=cfg_bus_i[0:13],cfg_bus_i[15:28],cfg_bus_i[32:33],cfg_bus_i[35:40],cfg_bus_i[42:44],cfg_bus_i[47:60]
+# bp_core.sv: static configuration bus
+*/bp_core.sv toggle=cfg_bus_o[0:13],cfg_bus_o[15:28],cfg_bus_o[32:33],cfg_bus_o[35:40],cfg_bus_o[42:44],cfg_bus_o[47:60]
+# bp_core_lite.sv: static configuration bus
+*/bp_core_lite.sv toggle=cfg_bus_i[0:13],cfg_bus_i[15:28],cfg_bus_i[32:33],cfg_bus_i[35:40],cfg_bus_i[42:44],cfg_bus_i[47:60]
+
+# Toggle: inbound host -> core I/O path, BP_CFG_ID=9 in this SoC (10 Nov 2026).
+# Generated from the merged coverage: only bits that never toggled are
+# listed, so a bit that does toggle is never hidden.
+# bp_io_link_to_lce.sv: inbound host -> core I/O path: in this SoC cpu_top drives BlackParrot's host mem_fwd input only from its unfreeze sequencer (constant cfg writes: cfg_hdr / cfg_data, cpu_top.sv:284-292); the response output is unconnected
+*/bp_io_link_to_lce.sv toggle=fsm_cmd_data_lo[1:12],fsm_cmd_data_lo[15:21],fsm_cmd_data_lo[24:27],fsm_cmd_data_lo[30:31],fsm_cmd_data_lo[33:39],fsm_cmd_data_lo[41:42]
+*/bp_io_link_to_lce.sv toggle=fsm_cmd_data_lo[44],fsm_cmd_data_lo[47:53],fsm_cmd_data_lo[56:59],fsm_cmd_data_lo[66],fsm_cmd_data_lo[69:71],fsm_cmd_data_lo[73:74]
+*/bp_io_link_to_lce.sv toggle=fsm_cmd_data_lo[76],fsm_cmd_data_lo[79:85],fsm_cmd_data_lo[88:91],fsm_cmd_data_lo[98],fsm_cmd_data_lo[101:103],fsm_cmd_data_lo[105:106]
+*/bp_io_link_to_lce.sv toggle=fsm_cmd_data_lo[108],fsm_cmd_data_lo[111:117],fsm_cmd_data_lo[120:123],fsm_fwd_data_lo[1:30],fsm_fwd_data_lo[33:62],fsm_fwd_data_lo[65:94]
+*/bp_io_link_to_lce.sv toggle=fsm_fwd_data_lo[97:126],fsm_req_data_li[1:30],fsm_req_data_li[33:62],fsm_req_data_li[65:94],fsm_req_data_li[97:126],fsm_rev_data_li[1:12]
+*/bp_io_link_to_lce.sv toggle=fsm_rev_data_li[15:21],fsm_rev_data_li[24:27],fsm_rev_data_li[30:31],fsm_rev_data_li[33:39],fsm_rev_data_li[41:42],fsm_rev_data_li[44]
+*/bp_io_link_to_lce.sv toggle=fsm_rev_data_li[47:53],fsm_rev_data_li[56:59],fsm_rev_data_li[66],fsm_rev_data_li[69:71],fsm_rev_data_li[73:74],fsm_rev_data_li[76]
+*/bp_io_link_to_lce.sv toggle=fsm_rev_data_li[79:85],fsm_rev_data_li[88:91],fsm_rev_data_li[98],fsm_rev_data_li[101:103],fsm_rev_data_li[105:106],fsm_rev_data_li[108]
+*/bp_io_link_to_lce.sv toggle=fsm_rev_data_li[111:117],fsm_rev_data_li[120:123],lce_cmd_data_i[1:12],lce_cmd_data_i[15:21],lce_cmd_data_i[24:27],lce_cmd_data_i[30:31]
+*/bp_io_link_to_lce.sv toggle=lce_cmd_data_i[33:39],lce_cmd_data_i[41:42],lce_cmd_data_i[44],lce_cmd_data_i[47:53],lce_cmd_data_i[56:59],lce_cmd_data_i[66]
+*/bp_io_link_to_lce.sv toggle=lce_cmd_data_i[69:71],lce_cmd_data_i[73:74],lce_cmd_data_i[76],lce_cmd_data_i[79:85],lce_cmd_data_i[88:91],lce_cmd_data_i[98]
+*/bp_io_link_to_lce.sv toggle=lce_cmd_data_i[101:103],lce_cmd_data_i[105:106],lce_cmd_data_i[108],lce_cmd_data_i[111:117],lce_cmd_data_i[120:123],lce_req_data_o[1:30]
+*/bp_io_link_to_lce.sv toggle=lce_req_data_o[33:62],lce_req_data_o[65:94],lce_req_data_o[97:126],mem_fwd_data_i[1:2],mem_fwd_data_i[4:9],mem_fwd_data_i[11:20]
+*/bp_io_link_to_lce.sv toggle=mem_fwd_data_i[23:26],mem_fwd_data_i[29:30],mem_fwd_data_i[33:34],mem_fwd_data_i[36:38],mem_fwd_data_i[40:41],mem_fwd_data_i[43:52]
+*/bp_io_link_to_lce.sv toggle=mem_fwd_data_i[55:57],mem_fwd_data_i[61:62],mem_fwd_data_i[70],mem_fwd_data_i[72:73],mem_fwd_data_i[75:84],mem_fwd_data_i[87:89]
+*/bp_io_link_to_lce.sv toggle=mem_fwd_data_i[93:94],mem_fwd_data_i[102],mem_fwd_data_i[104:105],mem_fwd_data_i[107:116],mem_fwd_data_i[119:121],mem_fwd_data_i[125:126]
+*/bp_io_link_to_lce.sv toggle=mem_rev_data_o[1:12],mem_rev_data_o[15:21],mem_rev_data_o[24:27],mem_rev_data_o[30:31],mem_rev_data_o[33:39],mem_rev_data_o[41:42]
+*/bp_io_link_to_lce.sv toggle=mem_rev_data_o[44],mem_rev_data_o[47:53],mem_rev_data_o[56:59],mem_rev_data_o[66],mem_rev_data_o[69:71],mem_rev_data_o[73:74]
+*/bp_io_link_to_lce.sv toggle=mem_rev_data_o[76],mem_rev_data_o[79:85],mem_rev_data_o[88:91],mem_rev_data_o[98],mem_rev_data_o[101:103],mem_rev_data_o[105:106]
+*/bp_io_link_to_lce.sv toggle=mem_rev_data_o[108],mem_rev_data_o[111:117],mem_rev_data_o[120:123]
+# bp_io_tile.sv: inbound host -> core I/O path (see bp_io_link_to_lce): carries only cpu_top's constant cfg writes
+*/bp_io_tile.sv toggle=lce_cmd_data_li[1:12],lce_cmd_data_li[15:21],lce_cmd_data_li[24:27],lce_cmd_data_li[30:31],lce_cmd_data_li[33:39],lce_cmd_data_li[41:42]
+*/bp_io_tile.sv toggle=lce_cmd_data_li[44],lce_cmd_data_li[47:53],lce_cmd_data_li[56:59],lce_cmd_data_li[66],lce_cmd_data_li[69:71],lce_cmd_data_li[73:74]
+*/bp_io_tile.sv toggle=lce_cmd_data_li[76],lce_cmd_data_li[79:85],lce_cmd_data_li[88:91],lce_cmd_data_li[98],lce_cmd_data_li[101:103],lce_cmd_data_li[105:106]
+*/bp_io_tile.sv toggle=lce_cmd_data_li[108],lce_cmd_data_li[111:117],lce_cmd_data_li[120:123],lce_cmd_link_cast_i\.data[1:12],lce_cmd_link_cast_i\.data[15:21],lce_cmd_link_cast_i\.data[24:27]
+*/bp_io_tile.sv toggle=lce_cmd_link_cast_i\.data[30:31],lce_cmd_link_cast_i\.data[33:39],lce_cmd_link_cast_i\.data[41:42],lce_cmd_link_cast_i\.data[44],lce_cmd_link_cast_i\.data[47:53],lce_cmd_link_cast_i\.data[56:59]
+*/bp_io_tile.sv toggle=lce_cmd_link_cast_i\.data[66],lce_cmd_link_cast_i\.data[69:71],lce_cmd_link_cast_i\.data[73:74],lce_cmd_link_cast_i\.data[76],lce_cmd_link_cast_i\.data[79:85],lce_cmd_link_cast_i\.data[88:91]
+*/bp_io_tile.sv toggle=lce_cmd_link_cast_i\.data[98],lce_cmd_link_cast_i\.data[101:103],lce_cmd_link_cast_i\.data[105:106],lce_cmd_link_cast_i\.data[108],lce_cmd_link_cast_i\.data[111:117],lce_cmd_link_cast_i\.data[120:123]
+*/bp_io_tile.sv toggle=lce_cmd_link_i[1:12],lce_cmd_link_i[15:21],lce_cmd_link_i[24:27],lce_cmd_link_i[30:31],lce_cmd_link_i[33:39],lce_cmd_link_i[41:42]
+*/bp_io_tile.sv toggle=lce_cmd_link_i[44],lce_cmd_link_i[47:53],lce_cmd_link_i[56:59],lce_cmd_link_i[66],lce_cmd_link_i[69:71],lce_cmd_link_i[73:74]
+*/bp_io_tile.sv toggle=lce_cmd_link_i[76],lce_cmd_link_i[79:85],lce_cmd_link_i[88:91],lce_cmd_link_i[98],lce_cmd_link_i[101:103],lce_cmd_link_i[105:106]
+*/bp_io_tile.sv toggle=lce_cmd_link_i[108],lce_cmd_link_i[111:117],lce_cmd_link_i[120:123],lce_req_data_lo[1:30],lce_req_data_lo[33:62],lce_req_data_lo[65:94]
+*/bp_io_tile.sv toggle=lce_req_data_lo[97:126],lce_req_link_cast_o\.data[1],lce_req_link_cast_o\.data[3],lce_req_link_cast_o\.data[5:10],lce_req_link_cast_o\.data[13:21],lce_req_link_cast_o\.data[24:27]
+*/bp_io_tile.sv toggle=lce_req_link_cast_o\.data[30],lce_req_link_cast_o\.data[33],lce_req_link_cast_o\.data[35],lce_req_link_cast_o\.data[37:39],lce_req_link_cast_o\.data[41:42],lce_req_link_cast_o\.data[45:53]
+*/bp_io_tile.sv toggle=lce_req_link_cast_o\.data[56:58],lce_req_link_cast_o\.data[67],lce_req_link_cast_o\.data[69],lce_req_link_cast_o\.data[71],lce_req_link_cast_o\.data[73:74],lce_req_link_cast_o\.data[77:85]
+*/bp_io_tile.sv toggle=lce_req_link_cast_o\.data[88:90],lce_req_link_cast_o\.data[99],lce_req_link_cast_o\.data[101],lce_req_link_cast_o\.data[103],lce_req_link_cast_o\.data[105:106],lce_req_link_cast_o\.data[109:117]
+*/bp_io_tile.sv toggle=lce_req_link_cast_o\.data[120:122],lce_req_link_o[1],lce_req_link_o[3],lce_req_link_o[5:10],lce_req_link_o[13:21],lce_req_link_o[24:27]
+*/bp_io_tile.sv toggle=lce_req_link_o[30],lce_req_link_o[33],lce_req_link_o[35],lce_req_link_o[37:39],lce_req_link_o[41:42],lce_req_link_o[45:53]
+*/bp_io_tile.sv toggle=lce_req_link_o[56:58],lce_req_link_o[67],lce_req_link_o[69],lce_req_link_o[71],lce_req_link_o[73:74],lce_req_link_o[77:85]
+*/bp_io_tile.sv toggle=lce_req_link_o[88:90],lce_req_link_o[99],lce_req_link_o[101],lce_req_link_o[103],lce_req_link_o[105:106],lce_req_link_o[109:117]
+*/bp_io_tile.sv toggle=lce_req_link_o[120:122],mem_fwd_data_li[1:2],mem_fwd_data_li[4:9],mem_fwd_data_li[11:20],mem_fwd_data_li[23:26],mem_fwd_data_li[29:30]
+*/bp_io_tile.sv toggle=mem_fwd_data_li[33:34],mem_fwd_data_li[36:38],mem_fwd_data_li[40:41],mem_fwd_data_li[43:52],mem_fwd_data_li[55:57],mem_fwd_data_li[61:62]
+*/bp_io_tile.sv toggle=mem_fwd_data_li[70],mem_fwd_data_li[72:73],mem_fwd_data_li[75:84],mem_fwd_data_li[87:89],mem_fwd_data_li[93:94],mem_fwd_data_li[102]
+*/bp_io_tile.sv toggle=mem_fwd_data_li[104:105],mem_fwd_data_li[107:116],mem_fwd_data_li[119:121],mem_fwd_data_li[125:126],mem_fwd_link_cast_i\.data[1:2],mem_fwd_link_cast_i\.data[4:9]
+*/bp_io_tile.sv toggle=mem_fwd_link_cast_i\.data[11:20],mem_fwd_link_cast_i\.data[23:26],mem_fwd_link_cast_i\.data[29:30],mem_fwd_link_cast_i\.data[33:34],mem_fwd_link_cast_i\.data[36:38],mem_fwd_link_cast_i\.data[40:41]
+*/bp_io_tile.sv toggle=mem_fwd_link_cast_i\.data[43:52],mem_fwd_link_cast_i\.data[55:57],mem_fwd_link_cast_i\.data[61:62],mem_fwd_link_cast_i\.data[70],mem_fwd_link_cast_i\.data[72:73],mem_fwd_link_cast_i\.data[75:84]
+*/bp_io_tile.sv toggle=mem_fwd_link_cast_i\.data[87:89],mem_fwd_link_cast_i\.data[93:94],mem_fwd_link_cast_i\.data[102],mem_fwd_link_cast_i\.data[104:105],mem_fwd_link_cast_i\.data[107:116],mem_fwd_link_cast_i\.data[119:121]
+*/bp_io_tile.sv toggle=mem_fwd_link_cast_i\.data[125:126],mem_fwd_link_i[1:2],mem_fwd_link_i[4:9],mem_fwd_link_i[11:20],mem_fwd_link_i[23:26],mem_fwd_link_i[29:30]
+*/bp_io_tile.sv toggle=mem_fwd_link_i[33:34],mem_fwd_link_i[36:38],mem_fwd_link_i[40:41],mem_fwd_link_i[43:52],mem_fwd_link_i[55:57],mem_fwd_link_i[61:62]
+*/bp_io_tile.sv toggle=mem_fwd_link_i[70],mem_fwd_link_i[72:73],mem_fwd_link_i[75:84],mem_fwd_link_i[87:89],mem_fwd_link_i[93:94],mem_fwd_link_i[102]
+*/bp_io_tile.sv toggle=mem_fwd_link_i[104:105],mem_fwd_link_i[107:116],mem_fwd_link_i[119:121],mem_fwd_link_i[125:126],mem_rev_data_lo[1:12],mem_rev_data_lo[15:21]
+*/bp_io_tile.sv toggle=mem_rev_data_lo[24:27],mem_rev_data_lo[30:31],mem_rev_data_lo[33:39],mem_rev_data_lo[41:42],mem_rev_data_lo[44],mem_rev_data_lo[47:53]
+*/bp_io_tile.sv toggle=mem_rev_data_lo[56:59],mem_rev_data_lo[66],mem_rev_data_lo[69:71],mem_rev_data_lo[73:74],mem_rev_data_lo[76],mem_rev_data_lo[79:85]
+*/bp_io_tile.sv toggle=mem_rev_data_lo[88:91],mem_rev_data_lo[98],mem_rev_data_lo[101:103],mem_rev_data_lo[105:106],mem_rev_data_lo[108],mem_rev_data_lo[111:117]
+*/bp_io_tile.sv toggle=mem_rev_data_lo[120:123],mem_rev_link_cast_o\.data[4:9],mem_rev_link_cast_o\.data[11:20],mem_rev_link_cast_o\.data[23:26],mem_rev_link_cast_o\.data[29:31],mem_rev_link_cast_o\.data[36:38]
+*/bp_io_tile.sv toggle=mem_rev_link_cast_o\.data[40:41],mem_rev_link_cast_o\.data[43:52],mem_rev_link_cast_o\.data[55:58],mem_rev_link_cast_o\.data[61:63],mem_rev_link_cast_o\.data[68:70],mem_rev_link_cast_o\.data[72:73]
+*/bp_io_tile.sv toggle=mem_rev_link_cast_o\.data[75:84],mem_rev_link_cast_o\.data[87:90],mem_rev_link_cast_o\.data[93:95],mem_rev_link_cast_o\.data[100:102],mem_rev_link_cast_o\.data[104:105],mem_rev_link_cast_o\.data[107:116]
+*/bp_io_tile.sv toggle=mem_rev_link_cast_o\.data[119:122],mem_rev_link_cast_o\.data[125:127],mem_rev_link_o[4:9],mem_rev_link_o[11:20],mem_rev_link_o[23:26],mem_rev_link_o[29:31]
+*/bp_io_tile.sv toggle=mem_rev_link_o[36:38],mem_rev_link_o[40:41],mem_rev_link_o[43:52],mem_rev_link_o[55:58],mem_rev_link_o[61:63],mem_rev_link_o[68:70]
+*/bp_io_tile.sv toggle=mem_rev_link_o[72:73],mem_rev_link_o[75:84],mem_rev_link_o[87:90],mem_rev_link_o[93:95],mem_rev_link_o[100:102],mem_rev_link_o[104:105]
+*/bp_io_tile.sv toggle=mem_rev_link_o[107:116],mem_rev_link_o[119:122],mem_rev_link_o[125:127]

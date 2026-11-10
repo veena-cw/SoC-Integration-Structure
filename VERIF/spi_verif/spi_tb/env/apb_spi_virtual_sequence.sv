@@ -120,6 +120,237 @@ endclass
 
 
 // ======================================================================================
+// CHIP-SELECT SCENARIOS (apb_spi_cs_test)
+//
+//   CS-01 .. CS-04  Select CS0..CS3 and verify that only the programmed CS asserts.
+//   CS-05 .. CS-07  Check CS setup/hold timing values 0/0, 1/1 and 7/5.
+//   CS-08           Four-byte transfer with CS held active between bytes.
+//   CS-09           Four-byte transfer with CS toggled between bytes.
+//   CS-10           START with an empty TX FIFO must not assert any CS output.
+//
+// Mode 0, MSB-first and CLK_DIV=2 are held constant so this test isolates CS behavior.
+// The master monitor and scoreboard perform the exact setup/hold timing checks.
+// ======================================================================================
+class apb_spi_cs_vseq extends apb_spi_base_vseq;
+
+  `uvm_object_utils(apb_spi_cs_vseq)
+
+  virtual spi_master_if mvif;
+
+  string       cur_step;
+  int unsigned n_chk;
+  int unsigned n_fail;
+
+  function new(string name = "apb_spi_cs_vseq");
+    super.new(name);
+  endfunction
+
+  function void cs_step(string id, string desc);
+    cur_step = id;
+    `uvm_info("CHIP_SELECT", $sformatf("---- %s : %s ----", id, desc), UVM_LOW)
+  endfunction
+
+  function void cs_chk(bit cond, string msg);
+    n_chk++;
+    if (cond)
+      `uvm_info("CHIP_SELECT", $sformatf("[%s] PASS: %s", cur_step, msg), UVM_MEDIUM)
+    else begin
+      n_fail++;
+      `uvm_error("CHIP_SELECT", $sformatf("[%s] FAIL: %s", cur_step, msg))
+    end
+  endfunction
+
+  // Run one transfer while independently counting the selected CS assertion/release
+  // events.  For inter=1, CS remains active for the entire multi-byte burst.  For
+  // inter=0, CS is released and reasserted for every byte.
+  task run_cs_transfer(string       id,
+                       bit [1:0]    cs,
+                       int unsigned setup,
+                       int unsigned hold,
+                       bit          inter,
+                       bit [7:0]    data[$]);
+    bit [31:0]   ctrl;
+    bit [31:0]   rd;
+    bit [31:0]   lvl;
+    bit [31:0]   status;
+    bit [31:0]   irq_stat;
+    bit [3:0]    previous_cs;
+    bit [3:0]    current_cs;
+    bit [3:0]    active_pattern;
+    bit          stop_observer;
+    bit          wrong_pattern_seen;
+    int unsigned fall_count;
+    int unsigned rise_count;
+    int unsigned expected_activations;
+
+    cs_step(id,
+            $sformatf("CS%0d, setup=%0d, hold=%0d, inter_byte=%0b, bytes=%0d",
+                      cs, setup, hold, inter, data.size()));
+
+    do_reset();
+    wait_clks(5);
+    spi_config(2'b00, 1'b0, 2, cs, setup, hold, inter);
+
+    apb_rd(ADDR_CTRL, ctrl);
+    cs_chk(ctrl[6:5]   == cs,       $sformatf("CTRL.CS_SEL = %0d", cs));
+    cs_chk(ctrl[15:8]  == setup[7:0], $sformatf("CTRL.CS_SETUP = %0d", setup));
+    cs_chk(ctrl[23:16] == hold[7:0],  $sformatf("CTRL.CS_HOLD = %0d", hold));
+    cs_chk(ctrl[4]     == inter,    $sformatf("CTRL.CS_INTER_BYTE = %0b", inter));
+
+    active_pattern      = 4'hF ^ (4'b0001 << cs);
+    stop_observer       = 1'b0;
+    wrong_pattern_seen  = 1'b0;
+    fall_count          = 0;
+    rise_count          = 0;
+    expected_activations = inter ? 1 : data.size();
+
+    fork
+      begin : observe_cs
+        @(mvif.master_cb);
+        previous_cs = mvif.master_cb.cs_n;
+        forever begin
+          @(mvif.master_cb);
+          if (stop_observer)
+            break;
+
+          current_cs = mvif.master_cb.cs_n;
+          if (previous_cs[cs] && !current_cs[cs])
+            fall_count++;
+          if (!previous_cs[cs] && current_cs[cs])
+            rise_count++;
+
+          if ((current_cs != 4'hF) && (current_cs != active_pattern))
+            wrong_pattern_seen = 1'b1;
+
+          previous_cs = current_cs;
+        end
+      end
+
+      begin : drive_transfer
+        foreach (data[i])
+          apb_wr(ADDR_TX_DATA, {24'h0, data[i]});
+
+        apb_wr(ADDR_CTRL, ctrl_val | 32'h1);
+        spi_wait_idle();
+        apb_wr(ADDR_CTRL, ctrl_val);
+        wait_clks(8);
+        stop_observer = 1'b1;
+      end
+    join
+
+    cs_chk(!wrong_pattern_seen,
+           $sformatf("only CS%0d asserted; expected active pattern 0x%0h",
+                     cs, active_pattern));
+    cs_chk(fall_count == expected_activations,
+           $sformatf("CS%0d assertion count = %0d (expected %0d)",
+                     cs, fall_count, expected_activations));
+    cs_chk(rise_count == expected_activations,
+           $sformatf("CS%0d release count = %0d (expected %0d)",
+                     cs, rise_count, expected_activations));
+
+    @(mvif.master_cb);
+    cs_chk(mvif.master_cb.cs_n == 4'hF,
+           "all chip-select outputs are inactive after the transfer");
+    cs_chk(mvif.master_cb.sck == 1'b0,
+           "SCK returned to the mode-0 idle level");
+
+    foreach (data[i]) begin
+      apb_rd(ADDR_RX_DATA, rd);
+      cs_chk(rd[31:8] == 24'h0,
+             $sformatf("RX_DATA[%0d] upper bits are zero", i));
+      if (cs == 2'd0)
+        cs_chk(rd[7:0] == data[i],
+               $sformatf("CS0 RX_DATA[%0d] = 0x%02h (expected 0x%02h)",
+                         i, rd[7:0], data[i]));
+    end
+
+    wait_clks(10);
+    apb_rd(ADDR_FIFO_LVL, lvl);
+    cs_chk(lvl[4:0] == 5'd0, "master TX FIFO is empty");
+    cs_chk(lvl[20:16] == 5'd0, "master RX FIFO is empty after RX_DATA reads");
+
+    apb_rd(ADDR_STATUS, status);
+    cs_chk(status[0] == 1'b0, "STATUS.busy is clear");
+    cs_chk(status[1] == 1'b1, "STATUS.tx_empty is set");
+    cs_chk(status[3] == 1'b1, "STATUS.rx_empty is set");
+
+    apb_rd(ADDR_IRQ_STAT, irq_stat);
+    cs_chk(irq_stat[2] == 1'b1, "transfer DONE status is set");
+    apb_wr(ADDR_IRQ_STAT, 32'h0000_0004);
+  endtask
+
+  task check_start_with_empty_tx();
+    bit          cs_seen_active;
+    bit [31:0]   status;
+    bit [31:0]   irq_stat;
+
+    cs_step("CS-10", "START with an empty TX FIFO");
+    do_reset();
+    wait_clks(5);
+    spi_config(2'b00, 1'b0, 2, 2'd2, 3, 2, 1'b0);
+
+    cs_seen_active = 1'b0;
+    apb_wr(ADDR_CTRL, ctrl_val | 32'h1);
+    repeat (60) begin
+      @(mvif.master_cb);
+      if (mvif.master_cb.cs_n != 4'hF)
+        cs_seen_active = 1'b1;
+    end
+    apb_wr(ADDR_CTRL, ctrl_val);
+
+    cs_chk(!cs_seen_active, "no chip-select asserted while the TX FIFO was empty");
+    cs_chk(mvif.master_cb.cs_n == 4'hF, "all chip-select outputs remain inactive");
+
+    apb_rd(ADDR_STATUS, status);
+    cs_chk(status[0] == 1'b0, "STATUS.busy remains clear");
+    cs_chk(status[1] == 1'b1, "STATUS.tx_empty remains set");
+
+    apb_rd(ADDR_IRQ_STAT, irq_stat);
+    cs_chk(irq_stat[2] == 1'b0, "transfer DONE status remains clear");
+  endtask
+
+  task body();
+    bit [7:0] bytes[$];
+
+    if (!uvm_resource_db#(virtual spi_master_if)::read_by_name(get_full_name(),
+                                                                "master_vif", mvif))
+      `uvm_fatal("CHIP_SELECT", "master_vif not found in uvm_resource_db")
+
+    n_chk  = 0;
+    n_fail = 0;
+
+    bytes = '{8'h11};
+    run_cs_transfer("CS-01", 2'd0, 3, 2, 1'b0, bytes);
+    bytes = '{8'h22};
+    run_cs_transfer("CS-02", 2'd1, 3, 2, 1'b0, bytes);
+    bytes = '{8'h44};
+    run_cs_transfer("CS-03", 2'd2, 3, 2, 1'b0, bytes);
+    bytes = '{8'h88};
+    run_cs_transfer("CS-04", 2'd3, 3, 2, 1'b0, bytes);
+
+    bytes = '{8'hA5};
+    run_cs_transfer("CS-05", 2'd0, 0, 0, 1'b0, bytes);
+    bytes = '{8'h5A};
+    run_cs_transfer("CS-06", 2'd0, 1, 1, 1'b0, bytes);
+    bytes = '{8'h3C};
+    run_cs_transfer("CS-07", 2'd0, 7, 5, 1'b0, bytes);
+
+    bytes = '{8'h11, 8'h22, 8'h33, 8'h44};
+    run_cs_transfer("CS-08", 2'd0, 3, 2, 1'b1, bytes);
+    bytes = '{8'h51, 8'h62, 8'h73, 8'h84};
+    run_cs_transfer("CS-09", 2'd0, 3, 2, 1'b0, bytes);
+
+    check_start_with_empty_tx();
+
+    `uvm_info("CHIP_SELECT",
+              $sformatf("CHIP-SELECT SEQUENCE SUMMARY: %0d checks, %0d failed",
+                        n_chk, n_fail), UVM_LOW)
+  endtask
+
+endclass
+
+
+// ======================================================================================
 // SPI MODE SCENARIOS (apb_spi_mode_test)
 //
 //   MD-01 .. MD-04  Modes 0..3, MSB first

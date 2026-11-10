@@ -119,7 +119,7 @@ package apb_spi_tb_pkg;
   //`include "apb_spi_ral_test.sv"
   `include "apb_spi_mode_test.sv"
   `include "apb_spi_clk_div_test.sv"
-  //`include "apb_spi_cs_test.sv"
+  `include "apb_spi_cs_test.sv"
   //`include "apb_spi_burst_test.sv"
   `include "apb_spi_fifo_test.sv"
   `include "apb_spi_irq_test.sv"

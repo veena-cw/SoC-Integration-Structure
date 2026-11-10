@@ -57,7 +57,6 @@ ahb3lite_plic_top.sv:238     *       gen_wval() in the top is defined but never 
 
 # ---- plic_gateway.sv -----------------------------------------------
 plic_gateway.sv:166          expr    "((edge_lvl == EDGE)==0 && (edge_lvl == LEVEL)==0) => 0"  edge_lvl is 1 bit: it is always EDGE or LEVEL
-plic_gateway.sv:180          line    ip_state is only assigned 00/01/10: the default branch is dead code
 
 # ---- register bank: branches whose body is a bare "return" ---------
 # These run (register reads, claims and completes all work) but read 0:

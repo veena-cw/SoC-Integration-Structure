@@ -41,7 +41,9 @@ package plic_ahb_lite_adapter_pkg;
         item.wdata = '0;
         item.rdata = '0;
       end
-      item.hsize  = $clog2(4);
+      // PLIC RAL registers are 32-bit. Field accesses can report the field
+      // width in rw.n_bits, so do not derive AHB HSIZE from rw.n_bits here.
+      item.hsize  = 3'b010; // 32-bit word
       item.hburst = 3'b000; // SINGLE
       item.htrans = 2'b10; // NONSEQ
       return item;

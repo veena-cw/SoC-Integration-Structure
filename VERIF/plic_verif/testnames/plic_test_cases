@@ -18,3 +18,5 @@ plic_irq_edge_test
 plic_irq_reset_test
 plic_irq_level_reset_test
 plic_irq_prio_sweep_test
+plic_gateway_default_test
+plic_ahb_subword_test

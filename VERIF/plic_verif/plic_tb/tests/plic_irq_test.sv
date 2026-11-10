@@ -167,6 +167,29 @@ class plic_irq_base_test extends plic_base_test;
   endtask
 endclass
 
+// TEST NAME: plic_gateway_default_test
+// PURPOSE: force an illegal gateway state so the defensive default branch is
+//          executed once. This is intentional fault injection for coverage.
+class plic_gateway_default_test extends plic_irq_base_test;
+  `uvm_component_utils(plic_gateway_default_test)
+
+  function new(string name = "plic_gateway_default_test", uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+
+  task scenario();
+    // Generated hierarchy: dut.plic_core_inst.gen_gateway[0].gateway_inst
+    force $root.plic_test_top.dut.plic_core_inst.gen_gateway[0].gateway_inst.ip_state = 2'b11;
+    @(posedge env.irq_agent.driver.vif.clk);
+    release $root.plic_test_top.dut.plic_core_inst.gen_gateway[0].gateway_inst.ip_state;
+    // Let the recovery assignment from the default arm take effect.
+    @(posedge env.irq_agent.driver.vif.clk);
+    `uvm_info(get_type_name(),
+              "Forced gateway ip_state=2'b11; default branch executed",
+              UVM_LOW)
+  endtask
+endclass
+
 // TEST NAME: plic_irq_single_test
 // PURPOSE: each of the 64 sources alone, on each of the 4 targets
 class plic_irq_single_test extends plic_irq_base_test;
@@ -442,7 +465,7 @@ endclass
 // TEST NAME: plic_irq_nested_complete_test
 // PURPOSE: completions out of claim order release the written ID (RISC-V PLIC spec)
 //          claim s3 -> claim s10 -> complete s10 -> complete s3
-class plic_irq_nested_complete_test extends plic_irq_base_test;
+/*class plic_irq_nested_complete_test extends plic_irq_base_test;
   `uvm_component_utils(plic_irq_nested_complete_test)
   function new(string name = "plic_irq_nested_complete_test", uvm_component parent = null);
     super.new(name, parent);
@@ -488,7 +511,86 @@ class plic_irq_nested_complete_test extends plic_irq_base_test;
     
    
   endtask
+endclass*/
+
+
+
+class plic_irq_nested_complete_test extends plic_irq_base_test;
+  `uvm_component_utils(plic_irq_nested_complete_test)
+
+  function new(string name = "plic_irq_nested_complete_test",
+               uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+
+  task scenario();
+    int unsigned id;
+    plic_src_t mask;
+
+    set_priority(3, 4);
+    set_priority(10, 6);
+
+    mask = src_bit(3) | src_bit(10);
+
+    for (int t = 0; t < PLIC_TARGETS; t++) begin
+
+      `uvm_info("NESTED_TEST",
+                $sformatf("Testing Target %0d", t),
+                UVM_MEDIUM)
+
+      // Enable sources for current target
+      set_enable(t, mask);
+
+      // Scenario 1: FIFO completion
+      raise(src_bit(3));
+      claim(t, id, "s3 in service");
+
+      raise(src_bit(10));
+      check("s10 arrives");
+      claim(t, id, "s10 in service");
+
+      drop(mask);
+      complete(t, 4);
+      complete(t, 11);
+
+      check("both completed");
+
+      // Scenario 2: LIFO completion
+      raise(src_bit(3));
+      check("s3 arrives");
+      claim(t, id, "s3 in service");
+
+      raise(src_bit(10));
+      check("s10 arrives");
+      claim(t, id, "s10 in service");
+
+      drop(mask);
+      complete(t, 11);
+      complete(t, 4);
+
+      check("both completed");
+
+      // Scenario 3: FIFO completion again
+      raise(src_bit(3));
+      claim(t, id, "s3 in service");
+
+      raise(src_bit(10));
+      check("s10 arrives");
+      claim(t, id, "s10 in service");
+
+      drop(mask);
+      complete(t, 4);
+      complete(t, 11);
+
+      check("both completed");
+
+      // Disable these sources on the current target
+      set_enable(t, '0);
+
+    end
+  endtask
 endclass
+
 
 // TEST NAME: plic_irq_edge_test
 // PURPOSE: edge-triggered gateway (EL=1): every rising edge is one interrupt,

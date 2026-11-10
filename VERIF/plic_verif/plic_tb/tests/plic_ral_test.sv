@@ -20,6 +20,7 @@ import uvm_pkg::*;
 import plic_ral_pkg::*;
 import plic_ral_block_pkg::*;
 import plic_ral_sequences_pkg::*;
+import plic_ahb_lite_item_pkg::*;
 
 // -------------------------------------------------------------------
 // Base test - ALWAYS includes reset to reach stable known state
@@ -64,6 +65,55 @@ class plic_base_test extends uvm_test;
     if (errors == 0) `uvm_info("TEST_RESULT", $sformatf("*** %s : PASSED ***", get_type_name()), UVM_NONE)
     else             `uvm_info("TEST_RESULT", $sformatf("*** %s : FAILED (%0d errors) ***", get_type_name(), errors), UVM_NONE)
   endfunction
+endclass
+
+// TEST NAME: plic_ahb_subword_test
+// PURPOSE: Exercise AHB byte and half-word transfers through the RAL agent.
+//          CONFIG_0 at 0x00 is read-only, so these accesses do not modify DUT state.
+class plic_ahb_subword_seq extends uvm_sequence #(plic_ahb_lite_item);
+  `uvm_object_utils(plic_ahb_subword_seq)
+  bit [31:0] addr;
+  bit [2:0]  hsize;
+
+  function new(string name = "plic_ahb_subword_seq");
+    super.new(name);
+  endfunction
+
+  task body();
+    plic_ahb_lite_item tr;
+    tr = plic_ahb_lite_item::type_id::create("tr");
+    tr.addr = addr; tr.write = 1'b0; tr.wdata = '0;
+    tr.hsize = hsize; tr.hburst = 3'b000; tr.htrans = 2'b10;
+    start_item(tr);
+    finish_item(tr);
+  endtask
+endclass
+
+class plic_ahb_subword_test extends plic_base_test;
+  `uvm_component_utils(plic_ahb_subword_test)
+
+  function new(string name = "plic_ahb_subword_test", uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+
+  task ahb_read(bit [31:0] addr, bit [2:0] hsize, string label);
+    plic_ahb_subword_seq seq;
+    seq = plic_ahb_subword_seq::type_id::create($sformatf("%s_seq", label));
+    seq.addr = addr;
+    seq.hsize = hsize;
+    seq.start(env.agent.sequencer);
+    `uvm_info(get_type_name(),
+              $sformatf("Completed %s AHB read at 0x%08h", label, addr),
+              UVM_LOW)
+  endtask
+
+  task run_phase(uvm_phase phase);
+    phase.raise_objection(this);
+    do_reset();
+    ahb_read(32'h0000_0000, 3'b000, "1-byte"); // HSIZE=byte
+    ahb_read(32'h0000_0000, 3'b001, "2-byte"); // HSIZE=half-word
+    phase.drop_objection(this);
+  endtask
 endclass
 
 // -------------------------------------------------------------------

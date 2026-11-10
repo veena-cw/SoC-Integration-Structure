@@ -226,18 +226,10 @@ assign rx_overflow_o = rx_fifo_overflow;
   end
 
   // mosi and sck.
- /* assign mosi_o = (state_q == S_SHIFT)
+  assign mosi_o = (state_q == S_SHIFT)
                     ? (lsb_q ? tx_shift_q[0] : tx_shift_q[DATA_WIDTH-1])
-                    : 1'b0; */
-	logic mosi_q;
-
-always_ff @(posedge clk_i) begin
-    if (state_q == S_SHIFT)
-        mosi_q <= lsb_q ? tx_shift_q[0]
-                        : tx_shift_q[DATA_WIDTH-1];
-end
-
-assign mosi_o = mosi_q;
+                    : 1'b0; 
+	
   assign sck_o  = sck_q;
 
   // -----------------------------------------------------------------
@@ -339,18 +331,10 @@ assign mosi_o = mosi_q;
             end
           end else begin
             // Mode 1/3: even=shift (skip first), odd=sample (below).
-         /*   if (!edge_cnt_q[0] && (edge_cnt_q != '0)) begin
+           if (!edge_cnt_q[0] && (edge_cnt_q != '0)) begin
               tx_shift_q <= lsb_q ? {1'b0, tx_shift_q[DATA_WIDTH-1:1]}
                                   : {tx_shift_q[DATA_WIDTH-2:0], 1'b0};
-            end */
-			  // Mode 1/3: even = shift (skip first and last)
-if (!edge_cnt_q[0] &&
-    (edge_cnt_q != '0) &&
-    (edge_cnt_q != ((DATA_WIDTH * 2) - 2))) begin
-
-    tx_shift_q <= lsb_q ? {1'b0, tx_shift_q[DATA_WIDTH-1:1]}
-                        : {tx_shift_q[DATA_WIDTH-2:0], 1'b0};
-end
+            end 
           end
           if (do_sample_w) begin
             rx_shift_q   <= rx_next_w;

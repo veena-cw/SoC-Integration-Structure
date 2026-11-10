@@ -198,7 +198,9 @@
     `define USB_XFER_DATA_TX_LEN_B          0
     `define USB_XFER_DATA_TX_LEN_T          15
     `define USB_XFER_DATA_TX_LEN_W          16
-    `define USB_XFER_DATA_TX_LEN_R          15:0
+  //  `define USB_XFER_DATA_TX_LEN_R          15:0
+`define USB_XFER_DATA_TX_LEN_R_LSB      7:0
+`define USB_XFER_DATA_TX_LEN_R_MSB      15:8
 
 `define USB_XFER_TOKEN    8'h18
 

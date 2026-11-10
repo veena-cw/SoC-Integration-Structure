@@ -536,8 +536,8 @@ if (!rst_i)
 else if (write_en_w && (wr_addr_w[7:0] == `USB_XFER_DATA))
     //usb_xfer_data_tx_len_q <= cfg_wdata_i_buf[`USB_XFER_DATA_TX_LEN_R];
 	begin
-	usb_xfer_data_tx_len_q <=  cfg_wstrb_i[0] ? cfg_wdata_i_buf[`USB_XFER_DATA_TX_LEN_R_LSB]  : usb_xfer_data_tx_len_q;
-	usb_xfer_data_tx_len_q <=  cfg_wstrb_i[1] ? cfg_wdata_i_buf[`USB_XFER_DATA_TX_LEN_R_MSB]  : usb_xfer_data_tx_len_q;
+	usb_xfer_data_tx_len_q[7:0] <=  cfg_wstrb_i[0] ? cfg_wdata_i_buf[`USB_XFER_DATA_TX_LEN_R_LSB]  : usb_xfer_data_tx_len_q[7:0];
+	usb_xfer_data_tx_len_q[15:8] <=  cfg_wstrb_i[1] ? cfg_wdata_i_buf[`USB_XFER_DATA_TX_LEN_R_MSB] : usb_xfer_data_tx_len_q[15:8];
 end
 
 logic [15:0]  usb_xfer_data_tx_len_out_w;
@@ -657,8 +657,8 @@ if (!rst_i)
 else if (write_en_w && (wr_addr_w[7:0] == `USB_XFER_TOKEN))
     //usb_xfer_token_ep_addr_q <= cfg_wdata_i_buf[`USB_XFER_TOKEN_EP_ADDR_R];
     begin
-	usb_xfer_token_ep_addr_q <=  cfg_wstrb_i[0] ? cfg_wdata_i_buf[`USB_XFER_TOKEN_EP_ADDR_R_LSB]  : usb_xfer_token_ep_addr_q;
-	usb_xfer_token_ep_addr_q <=  cfg_wstrb_i[1] ? cfg_wdata_i_buf[`USB_XFER_TOKEN_EP_ADDR_R_MSB]  : usb_xfer_token_ep_addr_q;
+	usb_xfer_token_ep_addr_q[7:5] <=  cfg_wstrb_i[0] ? cfg_wdata_i_buf[`USB_XFER_TOKEN_EP_ADDR_R_LSB]  : usb_xfer_token_ep_addr_q[7:5];
+	usb_xfer_token_ep_addr_q[8] <=  cfg_wstrb_i[1] ? cfg_wdata_i_buf[`USB_XFER_TOKEN_EP_ADDR_R_MSB]  : usb_xfer_token_ep_addr_q[8];
 end
 
 logic [3:0]  usb_xfer_token_ep_addr_out_w;

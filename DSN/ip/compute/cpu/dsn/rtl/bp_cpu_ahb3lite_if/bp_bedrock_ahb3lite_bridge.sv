@@ -39,7 +39,8 @@ module bp_bedrock_ahb3lite_bridge
     parameter int MEM_FWD_HEADER_WIDTH = 64,
     parameter int MEM_REV_HEADER_WIDTH = 64,
 
-    parameter int FIFO_DEPTH = 8
+    parameter int FIFO_DEPTH = 8,
+    parameter int AHB_WINDOW_BITS = ADDR_WIDTH //Number of valid address bits in the AHB slave window, Added for tile masking
 ) (
     // ==================================================================
     // CPU / BedRock domain
@@ -268,13 +269,12 @@ module bp_bedrock_ahb3lite_bridge
   wire fwd_is_rd = (bridge_fwd_header_cast_i.msg_type.fwd == e_bedrock_mem_rd);
 
   // ----------------------------------------------------------------------
-  // Base-address subtraction
-  //
-  // Only the AHB-facing address is rebased. req_hdr_r.addr stays absolute
-  // so the echoed rev header matches what BlackParrot sent.
-  // ----------------------------------------------------------------------
+  // Mask Calculation for Tiles
+  // ----------------------------------------------------------------------  
+  localparam logic [ADDR_WIDTH-1:0] AHB_ADDR_MASK =
+    (AHB_WINDOW_BITS >= ADDR_WIDTH) ? '1 : ((ADDR_WIDTH'(1) << AHB_WINDOW_BITS) - 1'b1);//0x0010_0000 - 0x0000_0001 = 0x000F_FFFF
   logic [ADDR_WIDTH-1:0] req_offset;
-  assign req_offset = req_hdr_r.addr - AHB_BASE_ADDR;
+  assign req_offset = (req_hdr_r.addr - AHB_BASE_ADDR) & AHB_ADDR_MASK;
 
   // ----------------------------------------------------------------------
   // Functions

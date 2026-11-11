@@ -527,7 +527,8 @@ module bp_plic_shared_top
   bp_bedrock_ahb3lite_bridge
   #(
     .ADDR_WIDTH             (paddr_width_p),
-    .AHB_BASE_ADDR          (32'h0050_0000),//Added for (BASE_ADDR + OFFSET) - BASE_ADDR = OFFSET 
+    .AHB_BASE_ADDR          (plic_dev_base_addr_gp),
+    .AHB_WINDOW_BITS        (dev_addr_width_gp), //Added for core-o and core-1 address masking
     .CPU_DATA_WIDTH         (bedrock_fill_width_p),
     .AHB_DATA_WIDTH         (32),
 

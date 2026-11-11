@@ -679,30 +679,19 @@ else
     usb_rx_stat_wr_q <= 1'b0;
 
 
-
-
-
-
-
 //-----------------------------------------------------------------
 // Register usb_wr_data
 //-----------------------------------------------------------------
 logic usb_wr_data_wr_q;
 
 always_ff @(posedge clk_i or negedge rst_i)
-if (!rst_i)
-    usb_wr_data_wr_q <= 1'b0;
-else if (write_en_w && (wr_addr_w[7:0] == `USB_WR_DATA))
-    usb_wr_data_wr_q <= 1'b1;
-else
-    usb_wr_data_wr_q <= 1'b0;
+if (!rst_i) usb_wr_data_wr_q <= 1'b0;
+else if (write_en_w && (wr_addr_w[7:0] == `USB_WR_DATA) && cfg_wstrb_i[0]) usb_wr_data_wr_q <= 1'b1;
+else usb_wr_data_wr_q <= 1'b0;
 
-// usb_wr_data_data [external]
 logic [7:0]  usb_wr_data_data_out_w;
-//assign usb_wr_data_data_out_w = wr_data_q[`USB_WR_DATA_DATA_R];
-assign usb_wr_data_data_out_w =  cfg_wstrb_i[0] ? cfg_wdata_i_buf[`USB_WR_DATA_DATA_R]  : usb_wr_data_data_out_w;
 
-
+assign usb_wr_data_data_out_w = cfg_wdata_i_buf[`USB_WR_DATA_DATA_R];
 
 //-----------------------------------------------------------------
 // Register usb_rd_data

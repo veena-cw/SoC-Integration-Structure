@@ -25,12 +25,16 @@ TOP            = tb_top
 # ==============================================================================
 # Local RTL Paths & Filelist Setup (Current Local Copy in SD_eMMC_2710)
 # ==============================================================================
-RTL_DIR_1 := $(abspath $(ROOT)/../../sd_emmc_dsn/sd_emmc/rtl)
-RTL_DIR_2 := $(abspath $(ROOT)/../../sd_emmc_dsn/async_fifo/rtl)
+# ==============================================================================
+# Local RTL Paths & Filelist Setup
+# ==============================================================================
 
-RTL_FILELIST   := $(BUILD_DIR)/rtl.f
-TB_FILELIST    := $(ROOT)/filelist.f
-UVM_FILELIST   := $(ROOT)/filelist.f
+RTL_DIR_1 := $(abspath $(ROOT)/../../../DSN/ip/memory_io/sd_emmc/ip/sd_emmc/rtl)
+RTL_DIR_2 := $(abspath $(ROOT)/../../../DSN/ip/memory_io/sd_emmc/ip/async_fifo/rtl)
+
+RTL_FILELIST := $(BUILD_DIR)/rtl.f
+TB_FILELIST  := $(ROOT)/filelist.f
+UVM_FILELIST := $(ROOT)/filelist.f
 
 XVLOG_RTL_FILELIST = $(BUILD_DIR)/rtl.xvlog.f
 XVLOG_UVM_FILELIST = $(BUILD_DIR)/uvm.xvlog.f
@@ -52,7 +56,7 @@ lint compile: gen_local_rtl_f
 ###############################################################################
 
 #UVM_HOME ?= /home/cw001_sujatha/Desktop/Test1/SD_eMMC/SD_eMMC_2809/SoC-Integration-Structure/VERIF/uvm-1.1d/src
-override UVM_HOME = /home/cw001_sujatha/Desktop/Test1/SD_eMMC/SD_eMMC_2809/SoC-Integration-Structure/VERIF/uvm-1.1d/src
+override UVM_HOME = /home/cw036_titiksha/SoC-Integration-Structure/VERIF/uvm-1.1d/src
 UVM_PKG   = $(UVM_HOME)/uvm_pkg.sv
 
 ###############################################################################
@@ -60,6 +64,9 @@ UVM_PKG   = $(UVM_HOME)/uvm_pkg.sv
 ###############################################################################
 
 TESTNAME      ?= base_test
+ifeq ($(strip $(TESTNAME)),)
+$(error TESTNAME is empty. Use TESTNAME=<test_name>)
+endif
 UVM_VERBOSITY ?= UVM_MEDIUM
 SEED          ?= 1
 
@@ -263,10 +270,9 @@ ensure-vivado-snapshot:
 	@if [ -x "$(XSIM_SNAPSHOT)" ]; then echo "== reusing XSim snapshot: $(XSIM_SNAPSHOT)"; else $(MAKE) --no-print-directory elab-vivado; fi
 
 # Fixed: Removed "cd $(REPO_PARENT)" so simulation runs in local sim folder
-run-verilator:
+run-verilator: compile-verilator
 	@mkdir -p $(LOG_DIR)
-	$(VERILATOR_EXE) $(VERILATOR_TEST_ARG) +UVM_OBJECTION_TRACE 2>&1 | tee $(LOG_DIR)/$(TESTNAME).log
-
+	$(VERILATOR_EXE) $(VERILATOR_TEST_ARG) +UVM_OBJECTION_TRACE 2>&1 | tee $(ROOT)/logs/$(TESTNAME).log
 clean:
 	rm -rf xsim.dir .simvision .webtalk .Xil *.jou *.log *.pb *.wdb *.vcd *.fst build logs waves regr_logs $(COV_DIR) $(ROOT)/cov_report $(VERILATOR_BUILD_DIR)
 

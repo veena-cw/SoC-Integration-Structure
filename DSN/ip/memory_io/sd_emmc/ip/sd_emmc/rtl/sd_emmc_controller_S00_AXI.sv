@@ -8,104 +8,103 @@
 		parameter integer C_S_AXI_ADDR_WIDTH	= 32
 	)
 	(
-        output logic [7:0] clock_divisor, // SD clock divider value programmed by software.
-        input logic Internal_clk_stable,//feedback/status signal from the clock-generation logic.
-        output logic [`CMD_REG_SIZE-1:0] command_o, //command information programmed by software.
-        output logic [31:0] argument_o,  // argument assigned as per the command_o
-        input logic  [31:0] response_0_i, // given by the serializer
-        input logic  [31:0] response_1_i,
-        input logic  [31:0] response_2_i,
-        input logic  [31:0] response_3_i,
-        output logic [1:0] software_reset_o,//generated from the software reset register ( 2 bits command related reset and data related reset).
-        input logic  [`INT_CMD_SIZE-1:0] cmd_int_st, // status of the cmd interrupt
-        input logic  [`INT_DATA_SIZE-1 :0] dat_int_st, // status of the data interrupt.
-        output logic cmd_start, //command-start trigger to the command master
-        output logic cmd_int_rst,//Command interrupt reset/clear control.
-        output logic dat_int_rst, //the data-transfer interrupt/status path.
-        output logic [`BLKSIZE_W-1:0] block_size_o,//Number of bytes in one block.
-        output logic [`BLKCNT_W-1:0] block_count_o, //Number of blocks to transfer.
+        output wire [7:0] clock_divisor,
+        input wire Internal_clk_stable,
+        output wire [`CMD_REG_SIZE-1:0] command_o,
+        output wire [31:0] argument_o,
+        input wire  [31:0] response_0_i,
+        input wire  [31:0] response_1_i,
+        input wire  [31:0] response_2_i,
+        input wire  [31:0] response_3_i,
+        output wire [1:0] software_reset_o,
+        input wire  [`INT_CMD_SIZE-1:0] cmd_int_st,
+        input wire  [`INT_DATA_SIZE-1 :0] dat_int_st,
+        output wire cmd_start,
+        output wire cmd_int_rst,
+        output reg dat_int_rst,
+        output wire [`BLKSIZE_W-1:0] block_size_o,
+        output wire [`BLKCNT_W-1:0] block_count_o,
 
 		// Global Clock Signal
-		input logic  S_AXI_ACLK,
+		input wire  S_AXI_ACLK,
 		// Global Reset Signal. This Signal is Active LOW
-		input logic  S_AXI_ARESETN,
+		input wire  S_AXI_ARESETN,
 		// Write address (issued by master, acceped by Slave)
-		input logic [C_S_AXI_ADDR_WIDTH-1 : 0] S_AXI_AWADDR,
+		input wire [C_S_AXI_ADDR_WIDTH-1 : 0] S_AXI_AWADDR,
 		// Write channel Protection type. This signal indicates the
     		// privilege and security level of the transaction, and whether
     		// the transaction is a data access or an instruction access.
-		input logic [2 : 0] S_AXI_AWPROT,
+		input wire [2 : 0] S_AXI_AWPROT,
 		// Write address valid. This signal indicates that the master signaling
     		// valid write address and control information.
-		input logic  S_AXI_AWVALID,
+		input wire  S_AXI_AWVALID,
 		// Write address ready. This signal indicates that the slave is ready
     		// to accept an address and associated control signals.
-		output logic  S_AXI_AWREADY,
+		output wire  S_AXI_AWREADY,
 		// Write data (issued by master, acceped by Slave) 
-		input logic [C_S_AXI_DATA_WIDTH-1 : 0] S_AXI_WDATA,
+		input wire [C_S_AXI_DATA_WIDTH-1 : 0] S_AXI_WDATA,
 		// Write strobes. This signal indicates which byte lanes hold
     		// valid data. There is one write strobe bit for each eight
     		// bits of the write data bus.    
-		input logic [(C_S_AXI_DATA_WIDTH/8)-1 : 0] S_AXI_WSTRB,
+		input wire [(C_S_AXI_DATA_WIDTH/8)-1 : 0] S_AXI_WSTRB,
 		// Write valid. This signal indicates that valid write
     		// data and strobes are available.
-		input logic  S_AXI_WVALID,
+		input wire  S_AXI_WVALID,
 		// Write ready. This signal indicates that the slave
     		// can accept the write data.
-		output logic  S_AXI_WREADY,
+		output wire  S_AXI_WREADY,
 		// Write response. This signal indicates the status
     		// of the write transaction.
-		output logic [1 : 0] S_AXI_BRESP,
+		output wire [1 : 0] S_AXI_BRESP,
 		// Write response valid. This signal indicates that the channel
     		// is signaling a valid write response.
-		output logic  S_AXI_BVALID,
+		output wire  S_AXI_BVALID,
 		// Response ready. This signal indicates that the master
     		// can accept a write response.
-		input logic  S_AXI_BREADY,
+		input wire  S_AXI_BREADY,
 		// Read address (issued by master, acceped by Slave)
-		input logic [C_S_AXI_ADDR_WIDTH-1 : 0] S_AXI_ARADDR,
+		input wire [C_S_AXI_ADDR_WIDTH-1 : 0] S_AXI_ARADDR,
 		// Protection type. This signal indicates the privilege
     		// and security level of the transaction, and whether the
     		// transaction is a data access or an instruction access.
-		input logic [2 : 0] S_AXI_ARPROT,
+		input wire [2 : 0] S_AXI_ARPROT,
 		// Read address valid. This signal indicates that the channel
     		// is signaling valid read address and control information.
-		input logic  S_AXI_ARVALID,
+		input wire  S_AXI_ARVALID,
 		// Read address ready. This signal indicates that the slave is
     		// ready to accept an address and associated control signals.
-		output logic  S_AXI_ARREADY,
+		output wire  S_AXI_ARREADY,
 		// Read data (issued by slave)
-		output logic [C_S_AXI_DATA_WIDTH-1 : 0] S_AXI_RDATA,
+		output wire [C_S_AXI_DATA_WIDTH-1 : 0] S_AXI_RDATA,
 		// Read response. This signal indicates the status of the
     		// read transfer.
-		output logic [1 : 0] S_AXI_RRESP,
+		output wire [1 : 0] S_AXI_RRESP,
 		// Read valid. This signal indicates that the channel is
     		// signaling the required read data.
-		output logic  S_AXI_RVALID,
+		output wire  S_AXI_RVALID,
 		// Read ready. This signal indicates that the master can
     		// accept the read data and response information.
-		input logic  S_AXI_RREADY,
-		//three different software-visible interrupt concepts.
-		output logic [28:0] int_stat_o, //interrupt/event conditions are currently indicated.
-		output logic [28:0] int_stat_en_o, //controls which interrupt status bits are enabled/used.
-		output logic [28:0] int_sig_en_o, // 
-		output logic [`DATA_TIMEOUT_W-1:0] timeout_contr_wire,
-		output logic sd_dat_bus_width,
-		output logic sd_dat_bus_width_8bit,
-		input logic write_trans_active,
-		input logic read_trans_active,
-		input logic dat_line_act,
-		input logic command_inh_dat,
-		input logic com_inh_cmd,
-		output logic data_transfer_direction,
-		output logic [1:0] dma_en_and_blk_c_en,
-		input logic [1:0] dma_int,
-		output logic [31:0] adma_sys_addr,
-		output logic blk_gap_req,
-		input logic cc_int_puls,
-		output logic [2:0] UHSModSel // 000 - sd , 111-uhs
+		input wire  S_AXI_RREADY,
+		output wire [28:0] int_stat_o,
+		output wire [28:0] int_stat_en_o,
+		output wire [28:0] int_sig_en_o,
+		output wire [`DATA_TIMEOUT_W-1:0] timeout_contr_wire,
+		output wire sd_dat_bus_width,
+		output wire sd_dat_bus_width_8bit,
+		input wire write_trans_active,
+		input wire read_trans_active,
+		input wire dat_line_act,
+		input wire command_inh_dat,
+		input wire com_inh_cmd,
+		output wire data_transfer_direction,
+		output wire [1:0] dma_en_and_blk_c_en,
+		input wire [1:0] dma_int,
+		output wire [31:0] adma_sys_addr,
+		output wire blk_gap_req,
+		input wire cc_int_puls,
+		output wire [2:0] UHSModSel
 	);
-     
+    
 	// AXI4LITE signals
 	reg [C_S_AXI_ADDR_WIDTH-1 : 0] 	axi_awaddr;
 	reg  	axi_awready;
@@ -136,7 +135,7 @@
 //	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg8;
 	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg9;
 	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg10;
-    	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg11;
+    reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg11;
 	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg12;
 	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg12_1;
 	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg13;
@@ -153,15 +152,15 @@
 	reg [C_S_AXI_DATA_WIDTH-1:0]	 reg_data_out;
     integer     byte_index;
 	//interrupt register
-    	reg [31:0] cmd_int_reg;
-    	reg [11:0] blk_size_cnt = 0;
-    	reg [15:0] blk_count_cnt = 0;
+    reg [31:0] cmd_int_reg;
+    reg [11:0] blk_size_cnt = 0;
+    reg [15:0] blk_count_cnt = 0;
 	wire cmd_compl_int;
 	reg  cmd_int_rst_reg;
 	reg  cmd_start_reg;
 	reg  [7:0]ACMDErrorStatus;
 	reg arg_sel;
-    	reg cmd_sel;
+    reg cmd_sel;
 	reg acmd23_int_rst;
 	reg cc_int_sel;
 	reg start_cmd_reg1;
@@ -309,32 +308,29 @@
           blk_count_cnt <= 0;
 	    end
 	  else begin
- 	cmd_start_reg <= 1'b0;
+	    cmd_start_reg <= 1'b0;
 	    cmd_int_rst_reg <= 1'b0;
 	    dat_int_rst <= 1'b0;
 	    slv_reg11[26:24] <= 3'b000;
 	    if (dat_int_st || cmd_int_st) begin
 	       slv_reg12_1 <= slv_reg12_1;
 	    end
-//	    else begin
-//	       slv_reg12_1 <= 0;
+	    else begin
+	       slv_reg12_1 <= 0;
 	    end
 	    if (slv_reg_wren)
 	      begin
 	        case ( axi_awaddr[ADDR_LSB+OPT_MEM_ADDR_BITS:ADDR_LSB] )
 	          5'h00:
 	            for ( byte_index = 0; byte_index <= (C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1 )
-	           
 	              if ( S_AXI_WSTRB[byte_index] == 1 ) begin
 	                // Respective byte enables are asserted as per write strobes 
 	                // Slave register 0
 	                slv_reg0[(byte_index*8) +: 8] <= S_AXI_WDATA[(byte_index*8) +: 8];
 	              end
-	              
-	              
 	          5'h01: begin
 	            for ( byte_index = 0; byte_index <= (C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1 )
-	              if ( S_AXI_WSTRB[byte_index] == 1 && !command_inh_dat ) begin
+	              if ( S_AXI_WSTRB[byte_index] == 1 ) begin
 	                // Respective byte enables are asserted as per write strobes 
 	                // Slave register 1
 	                slv_reg1[(byte_index*8) +: 8] <= S_AXI_WDATA[(byte_index*8) +: 8];
@@ -356,7 +352,7 @@
 	                slv_reg3[(byte_index*8) +: 8] <= S_AXI_WDATA[(byte_index*8) +: 8];
 	              end  
 	              end
-	              if (S_AXI_WSTRB == 4'h0C)
+	              if (S_AXI_WSTRB == 4'hC || S_AXI_WSTRB == 4'hF)
 	                cmd_start_reg <= 1'b1;
 	                slv_reg9 [0] <= 1'b1;  // Present state register command inhibit busy
 	              end
@@ -507,11 +503,12 @@
 //	                      slv_reg19 <= slv_reg19;
 	                      slv_reg22 <= slv_reg22;
 	                    end
-	        endcase	        
+	        endcase
+	        
 	      end
-	   begin   
+	      
           // Error and Normal Interrupt registers 0x30
-       /*   slv_reg12 <= ((~slv_reg12_1[28:0]) & {dat_int_st[4], 2'b00, dma_int[1], autocmderror, 1'b0, dat_int_st[1], dat_int_st[3:2], cmd_int_st[4], cmd_int_st[1], cmd_int_st[3:2], 12'b000000000000, 2'b00, (dma_int[0] | cmd_int_st[`INT_CMD_DC]), cmd_compl_int});*/
+          slv_reg12 <= ((~slv_reg12_1[28:0]) & {dat_int_st[4], 2'b00, dma_int[1], autocmderror, 1'b0, dat_int_st[1], dat_int_st[3:2], cmd_int_st[4], cmd_int_st[1], cmd_int_st[3:2], 12'b000000000000, 2'b00, (dma_int[0] | cmd_int_st[`INT_CMD_DC]), cmd_compl_int});
           // Internal sd clock stable signal
           slv_reg11[1] <= Internal_clk_stable;
           slv_reg9 [24] <= 1'b1;
@@ -523,55 +520,10 @@
           slv_reg9 [9] <= read_trans_active;
           slv_reg9 [2] <= dat_line_act;
           slv_reg9 [1] <= (command_inh_dat | read_trans_active);
-          slv_reg9 [0] <= /*slv_reg9 [0] |*/ com_inh_cmd;//It is a state-retaining operation.
+          slv_reg9 [0] <= /*slv_reg9 [0] |*/ com_inh_cmd;
 	  end
 	  
 	end    
-
-	logic [28:0] int_event_vec;
-	logic [28:0] int_clear_mask;
-
-	assign int_event_vec = {
-	    dat_int_st[4],
-	    2'b00,
-	    dma_int[1],
-	    autocmderror,
-	    1'b0,
-	    dat_int_st[1],
-	    dat_int_st[3:2],
-	    cmd_int_st[4],
-	    cmd_int_st[1],
-	    cmd_int_st[3:2],
-	    12'b000000000000,
-	    2'b00,
-	    (dma_int[0] | cmd_int_st[`INT_CMD_DC]),
-	    cmd_compl_int
-	};
-
-	always_comb begin
-	    int_clear_mask = '0;
-
-	    if (slv_reg_wren &&
-		(axi_awaddr[ADDR_LSB+OPT_MEM_ADDR_BITS:ADDR_LSB] == 5'h0C)) begin
-
-		for (int i = 0; i < C_S_AXI_DATA_WIDTH/8; i++) begin
-		    if (S_AXI_WSTRB[i]) begin
-		        int_clear_mask[i*8 +: 8] = S_AXI_WDATA[i*8 +: 8];
-		    end
-		end
-	    end
-	end
-
-
-	always_ff @(posedge S_AXI_ACLK) begin
-	    if (!S_AXI_ARESETN) begin
-		slv_reg12 <= 29'b0;
-	    end
-	    else begin
-		slv_reg12 <= (slv_reg12 & ~int_clear_mask)
-		           | int_event_vec;
-	    end
-	end
 
 	// Implement write response logic generation
 	// The write response and response valid signals are asserted by the slave 
@@ -675,31 +627,31 @@
 	begin
 	      // Address decoding for reading registers
 	      case ( axi_araddr[ADDR_LSB+OPT_MEM_ADDR_BITS:ADDR_LSB] )
-	        5'h00   : reg_data_out = slv_reg0;
-	        5'h01   : reg_data_out = slv_reg1;
-	        5'h02   : reg_data_out = slv_reg2;
-	        5'h03   : reg_data_out = slv_reg3;
-	        5'h04   : reg_data_out = response_0_i;    //slv_reg4;
-	        5'h05   : reg_data_out = response_1_i;    //slv_reg5;
-	        5'h06   : reg_data_out = response_2_i;    //slv_reg6;
-	        5'h07   : reg_data_out = response_3_i;    //slv_reg7;
-	        5'h08   : reg_data_out = 0;               //slv_reg8;
-	        5'h09   : reg_data_out = slv_reg9;
-	        5'h0A   : reg_data_out = slv_reg10;
-	        5'h0B   : reg_data_out = slv_reg11;
-	        5'h0C   : reg_data_out = (slv_reg12 & slv_reg13);
-	        5'h0D   : reg_data_out = slv_reg13;
-	        5'h0E   : reg_data_out = slv_reg14;
-	        5'h0F   : reg_data_out = {slv_reg15[31:16],8'h00,ACMDErrorStatus};
-	        5'h10   : reg_data_out = 32'h012C32B2;    //slv_reg16; Capabilities register
-	        5'h11   : reg_data_out = 32'h00000005;    //slv_reg17; Capabilities register
-	        5'h12   : reg_data_out = 0;               //slv_reg18;
-	        5'h13   : reg_data_out = 0;               //slv_reg19;
-	        5'h16   : reg_data_out = slv_reg22;
-	        5'h3F   : reg_data_out = 32'h00020000;    //Host Controller Version
+	        5'h00   : reg_data_out <= slv_reg0;
+	        5'h01   : reg_data_out <= slv_reg1;
+	        5'h02   : reg_data_out <= slv_reg2;
+	        5'h03   : reg_data_out <= slv_reg3;
+	        5'h04   : reg_data_out <= response_0_i;    //slv_reg4;
+	        5'h05   : reg_data_out <= response_1_i;    //slv_reg5;
+	        5'h06   : reg_data_out <= response_2_i;    //slv_reg6;
+	        5'h07   : reg_data_out <= response_3_i;    //slv_reg7;
+	        5'h08   : reg_data_out <= 0;               //slv_reg8;
+	        5'h09   : reg_data_out <= slv_reg9;
+	        5'h0A   : reg_data_out <= slv_reg10;
+	        5'h0B   : reg_data_out <= slv_reg11;
+	        5'h0C   : reg_data_out <= (slv_reg12 & slv_reg13);
+	        5'h0D   : reg_data_out <= slv_reg13;
+	        5'h0E   : reg_data_out <= slv_reg14;
+	        5'h0F   : reg_data_out <= {slv_reg15[31:16],8'h00,ACMDErrorStatus};
+	        5'h10   : reg_data_out <= 32'h012C32B2;    //slv_reg16; Capabilities register
+	        5'h11   : reg_data_out <= 32'h00000005;    //slv_reg17; Capabilities register
+	        5'h12   : reg_data_out <= 0;               //slv_reg18;
+	        5'h13   : reg_data_out <= 0;               //slv_reg19;
+	        5'h16   : reg_data_out <= slv_reg22;
+	        5'h3F   : reg_data_out <= 32'h00020000;    //Host Controller Version
 
 	        
-	        default : reg_data_out = 0;
+	        default : reg_data_out <= 0;
 	      endcase
 	end
 	
@@ -783,10 +735,6 @@
                    if (cc_int_puls)
                      acmd23state <= ACMDE;
 	             end
-	             
-	      default: begin
-	                 acmd23state <= ACMDE;
-	               end       
 	    endcase
 	  end
 	  if (cmd_int_rst_reg)

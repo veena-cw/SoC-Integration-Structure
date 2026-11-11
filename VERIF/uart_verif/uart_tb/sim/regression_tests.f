@@ -13,3 +13,4 @@ uart_irq_gen_test
 uart_reset_test
 uart_baud_gen_test
 uart_fsm_fault_test
+uart_stop_duration_test

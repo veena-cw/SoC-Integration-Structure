@@ -1049,7 +1049,20 @@ always_ff @(posedge cphy_rxwordclkhs or negedge rst_n)
  // else if(bp_valid)  dtype_sts_reg <= 6'h0;
   else if(data_end_valid) begin
    case(1'b1)
-     (dtype_ctr565_555_444_16 == 11'h4ff): dtype_sts_reg <= 6'h22 | 6'h21 | 6'h20 | 6'h2e;
+     (dtype_ctr565_555_444_16 == 11'h4ff): begin/*6'h22 | 6'h21 | 6'h20 | 6'h2e*/
+							if (raw16_vld)
+        						dtype_sts_reg <= 6'h2E;
+    							
+    							else if (rgb565_vld) 
+        						dtype_sts_reg <= 6'h22;
+    							
+    							else if (rgb555_vld) 
+        						dtype_sts_reg <= 6'h21;
+    							
+    							else if (rgb444_vld) 
+        						dtype_sts_reg <= 6'h20;
+    							
+							end
      (dtype_ctr666 == 11'h59f): dtype_sts_reg <= 6'h23;
      (dtype_ctr888_24 == 11'h77f): dtype_sts_reg <= 6'h24 | 6'h27;  
      ((dtype_ctr_raw6 == 9'h1df)): dtype_sts_reg <= 6'h28;  

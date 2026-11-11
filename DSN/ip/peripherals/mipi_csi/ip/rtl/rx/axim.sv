@@ -997,13 +997,9 @@ always @(posedge aclk or negedge areset_n)
     else   awid <= 32'h10;               //a;    
   
 `elsif RAW12
-//output logic [2:0]  wstrb;          //write data strobes from AXI master via the write data channel
+//output logic [7:0]  wstrb;          //write data strobes from AXI master via the write data channel
 //output logic [63:0] wdata;          //write data (pixel data) from AXI master via the write data channel
-logic               wdata1_raw12_vld;
-logic               wdata2_raw12_vld;
-logic [23:0]        wdata1_raw12;
-logic [47:0]        wdata2_raw12;
-logic [31:0]        data_width;     //data width determining the data strobe in AXI master for transmitting the data
+logic [63:0]        data_width;     //data width determining the data strobe in AXI master for transmitting the data
 logic [23:0]        axi_data_in;    //input data to AXI FIFO from byte to pixel converter in CSI2 Rx Controller
 logic [23:0]        axi_rd_data;    //data read from AXI FIFO and is forwarded to the Application Layer via AXI master
 
@@ -1016,100 +1012,40 @@ always_ff @(posedge cphy_rxwordclkhs or negedge areset_n)
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               awaddr <= 32'h0;
   else if(data_length_vld) awaddr <= 32'h0;
-  else  if (axi_wr_en) 	awaddr <= BASE_ADDR_RAW12;   //burst start address 
+  else  if (axi_wr_en)     awaddr <= BASE_ADDR_RAW12;   //burst start address
 
-//transaction size from AXI master in write address channel						
+//transaction size from AXI master in write address channel
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n) awsize <= 3'h0;
   else if(data_length_vld) awsize <= 3'h0;
   else  if (axi_wr_en) awsize <= AWSIZE3;
-  //AWSIZE_RAW12_lyuv4208_yuv4208e_4228_42010o;							
 
-//write data strobes from AXI master via the write data channel
+//write data strobes: 3 valid bytes per beat
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               wstrb <= {(`wstrb){1'b0}};
   else if(data_length_vld) wstrb <= {(`wstrb){1'b0}};
-  else if(axi_wr_en)       wstrb <= WSTRB_RAW6;  
+  else if(axi_wr_en)       wstrb <= WSTRB_RAW6;         //8'h07
 
-//data width determining the data strobe in AXI master for transmitting the data  
+//data width determining the data strobe in AXI master for transmitting the data
 always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n)  data_width <= 32'h0;						   
-  else if(data_length_vld) data_width <= 32'h0;
-  else if(axi_wr_en) data_width <= DWIDTH_64; //DWIDTH_RAW6;    
+  if(~areset_n)  data_width <= 64'h0;
+  else if(data_length_vld) data_width <= 64'h0;
+  else if(axi_wr_en) data_width <= DWIDTH_64;
 
-//transaction length from AXI master in write address channel  
+//transaction length from AXI master in write address channel
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n) awlen <= 8'h0;
-   else if(data_length_vld) awlen <= 8'h0;
-   else if(axi_wr_en)       awlen <= TOTAL_TRANSFERS_COMMON - 1;   
-
-//first incoming pixel data read from AXI FIFO for RAW12 is stored in the regsietr  
-/*always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n) {wdata1_raw12_vld, wdata1_raw12} <= 25'h0;
-  else  {wdata1_raw12_vld, wdata1_raw12} <= (wvalid & wready & (!(axi_empty))) ? axi_rd_data[23:0] : 25'h0;   */
-  
-  
-always_ff @(posedge aclk or negedge areset_n)
-begin
-    if (~areset_n)
-    begin
-        wdata1_raw12_vld <= 1'b0;
-        wdata1_raw12     <= 24'h0;
-    end
-    else
-    begin
-        wdata1_raw12_vld <=
-            (wvalid & wready & (!(axi_empty)));
-
-        wdata1_raw12 <=
-            (wvalid & wready & (!(axi_empty))) ?
-            axi_rd_data[23:0] : 24'h0;
-    end
-end
-
-
-//second incoming pixel data read from AXI FIFO for RAW12 is stored in the regsietr along with the data from  wdata1_raw12 register   
-/*always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n) {wdata2_raw12_vld, wdata2_raw12} <= 49'h0;
-  else  {wdata2_raw12_vld, wdata2_raw12} <= (wdata1_raw12_vld & wvalid & wready & (!(axi_empty))) ? {axi_rd_data[23:0], wdata1_raw12[23:0]} : 49'h0;   */  
-
-
-always_ff @(posedge aclk or negedge areset_n)
-begin
-    if (~areset_n)
-    begin
-        wdata2_raw12_vld <= 1'b0;
-        wdata2_raw12     <= 48'h0;
-    end
-    else
-    begin
-        wdata2_raw12_vld <=
-            (wdata1_raw12_vld & wvalid & wready & (!(axi_empty)));
-
-        wdata2_raw12 <=
-            (wdata1_raw12_vld & wvalid & wready & (!(axi_empty))) ?
-            {axi_rd_data[23:0], wdata1_raw12[23:0]} : 48'h0;
-    end
-end
+  else if(data_length_vld) awlen <= 8'h0;
+  else if(axi_wr_en)       awlen <= TOTAL_TRANSFERS_COMMON - 1;
 
 //write data (pixel data) from AXI master via the write data channel
-/*always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n) wdata <= 64'h0;
-  else wdata <= (wdata2_raw12_vld & wvalid & wready & (!(axi_empty))) ? {16'h0, wdata2_raw12[47:0]} : 64'h0; */
-  
 always_ff @(posedge aclk or negedge areset_n)
-begin
-    if (~areset_n)
-        wdata <= 64'h0;
-    else if (wdata2_raw12_vld)
-        wdata <= {16'h0, wdata2_raw12[47:0]};
-    else
-        wdata <= 64'h0;
-end
+  if(~areset_n) wdata <= 64'h0;
+  else if(rd_dvld) wdata <= {40'h0, axi_rd_data[23:0]};
 
-always @(posedge aclk or negedge areset_n) 
-    if (!areset_n) awid <= 32'h0;
-    else   awid <= 32'h12;                    //c;    
+always @(posedge aclk or negedge areset_n)
+  if (!areset_n) awid <= 32'h0;
+  else   awid <= 32'h12;                    //c;
  
 `elsif RAW14
 //output logic [7:0]  wstrb;              //write data strobes from AXI master via the write data channel
@@ -1163,17 +1099,9 @@ always @(posedge aclk or negedge areset_n)
     if (!areset_n) awid <= 32'h0;
     else   awid <= 32'h14;         //e;    
    
-`elsif RAW16 
+ `elsif RAW16
 //output logic [7:0]  wstrb;           //write data strobes from AXI master via the write data channel
 //output logic [63:0] wdata;           //write data (pixel data) from AXI master via the write data channel
-logic               wdata1_vld_raw16;
-logic               wdata2_vld_raw16;
-logic               wdata3_vld_raw16;
-logic               wdata4_vld_raw16;
-logic [15:0]        wdata1_raw16;
-logic [31:0]        wdata2_raw16;
-logic [47:0]        wdata3_raw16;
-logic [63:0]        wdata4_raw16;
 logic [63:0]        data_width;      //data width determining the data strobe in AXI master for transmitting the data
 logic [15:0]        axi_data_in;     //input data to AXI FIFO from byte to pixel converter in CSI2 Rx Controller
 logic [15:0]        axi_rd_data;     //data read from AXI FIFO and is forwarded to the Application Layer via AXI master
@@ -1181,67 +1109,46 @@ logic [15:0]        axi_rd_data;     //data read from AXI FIFO and is forwarded 
 //input data to AXI FIFO from byte to pixel converter in CSI2 Rx Controller along with the corresponding valid
 always_ff @(posedge cphy_rxwordclkhs or negedge areset_n)
   if(~areset_n) {axi_wr_en, axi_data_in} <= 17'h0;
-  else {axi_wr_en, axi_data_in} <= (rx_pixel_dvalid & (!(axi_full))) ? {1'b1, rx_pixel_data [15:0]} : 17'h0; 
+  else {axi_wr_en, axi_data_in} <= (rx_pixel_dvalid & (!(axi_full))) ? {1'b1, rx_pixel_data [15:0]} : 17'h0;
 
 //transaction address from AXI master in write address channel
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               awaddr <= 32'h0;
   else if(data_length_vld) awaddr <= 32'h0;
-  else  if (axi_wr_en)	awaddr <= BASE_ADDR_RAW16;   //burst start address  
+  else  if (axi_wr_en)     awaddr <= BASE_ADDR_RAW16;   //burst start address
 
-//transaction size from AXI master in write address channel						
+//transaction size from AXI master in write address channel
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n) awsize <= 3'h0;
   else if(data_length_vld) awsize <= 3'h0;
   else  if (axi_wr_en) awsize <= AWSIZE3;
-  //AWSIZE_RGB888_565_555_444_RAW7_10_14_16;	
 
-//write data strobes from AXI master via the write data channel
+//write data strobes: 2 valid bytes per beat
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n)               wstrb <= {(`wstrb){1'b0}};
   else if(data_length_vld) wstrb <= {(`wstrb){1'b0}};
   else if(axi_wr_en)       wstrb <= WSTRB_RGB565_55_444_RAW16_yuv4208_4228;
- 
-//data width determining the data strobe in AXI master for transmitting the data 
-always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n)  data_width <= 64'h0; 						   
-  else if(data_length_vld) data_width <= 64'h0; 
-  else if(axi_wr_en) data_width <= DWIDTH_64; //DWIDTH_RGB565_555_444_RAW14_16;  
 
-//transaction length from AXI master in write address channel  
+//data width determining the data strobe in AXI master for transmitting the data
+always_ff @(posedge aclk or negedge areset_n)
+  if(~areset_n)  data_width <= 64'h0;
+  else if(data_length_vld) data_width <= 64'h0;
+  else if(axi_wr_en) data_width <= DWIDTH_64;
+
+//transaction length from AXI master in write address channel
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n) awlen <= 8'h0;
   else if(data_length_vld) awlen <= 8'h0;
-  else if(axi_wr_en)       awlen <= TOTAL_TRANSFERS_COMMON - 1;   
- 
-//first incoming pixel data read from AXI FIFO for RAW16 is stored in the regsietr   
-always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n) {wdata1_vld_raw16, wdata1_raw16} <= 17'h0;
-  else {wdata1_vld_raw16, wdata1_raw16}  <= (wvalid & wready & (!(axi_empty))) ? {1'b1,axi_rd_data[15:0]} : 17'h0;
- 
-//second incoming pixel data read from AXI FIFO for RAW16 is stored in the regsietr along with the data from wdata1_raw16 register  
-always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n) {wdata2_vld_raw16, wdata2_raw16} <= 33'h0;
-  else {wdata2_vld_raw16, wdata2_raw16} <= (wdata1_vld_raw16 & wvalid & wready & (!(axi_empty))) ? {1'b1,{axi_rd_data[15:0],wdata1_raw16[15:0]}} : 33'h0;  
+  else if(axi_wr_en)       awlen <= TOTAL_TRANSFERS_COMMON - 1;
 
-//third incoming pixel data read from AXI FIFO for RAW16 is stored in the regsietr along with the data from wdata2_raw16 register    
-always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n) {wdata3_vld_raw16, wdata3_raw16} <= 49'h0;
-  else {wdata3_vld_raw16, wdata3_raw16} <= (wdata2_vld_raw16 & wvalid & wready & (!(axi_empty))) ? {1'b1,{axi_rd_data[15:0],wdata2_raw16[31:0]}} : 49'h0; 
-
-//fourth incoming pixel data read from AXI FIFO for RAW16 is stored in the regsietr along with the data from wdata3_raw16 register  
-always_ff @(posedge aclk or negedge areset_n)
-  if(~areset_n) {wdata4_vld_raw16, wdata4_raw16} <= 65'h0;
-  else {wdata4_vld_raw16, wdata4_raw16} <= (wdata3_vld_raw16 & wvalid & wready & (!(axi_empty))) ? {1'b1,{axi_rd_data[15:0],wdata3_raw16[47:0]}} : 65'h0;   
-
-//write data (pixel data) from AXI master via the write data channel   
+//write data (pixel data) from AXI master via the write data channel
 always_ff @(posedge aclk or negedge areset_n)
   if(~areset_n) wdata <= 64'h0;
-  else wdata <= wdata4_vld_raw16 ? wdata4_raw16[63:0] : 64'h0;      
- 
- always_ff @(posedge aclk or negedge areset_n)
-    if (!areset_n) awid <= 32'h0;
-    else   awid <= 32'h16;          //10;    
+  else if(rd_dvld) wdata <= {48'h0, axi_rd_data[15:0]};
+
+always_ff @(posedge aclk or negedge areset_n)
+  if (!areset_n) awid <= 32'h0;
+  else   awid <= 32'h16;          //10;
   
 `elsif RAW20 
 //output logic [15:0]  wstrb;           //write data strobes from AXI master via the write data channel

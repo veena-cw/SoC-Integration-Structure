@@ -4,11 +4,11 @@
 //`define RGB565           6'h22
 //`define RGB555           6'h21
 //`define RGB444           6'h20
-`define RAW6             6'h28
+//`define RAW6             6'h28
 //`define RAW7             6'h29
 //`define RAW8             6'h2a
 //`define RAW10            6'h2b
-//`define RAW12            6'h2c
+`define RAW12            6'h2c
 //`define RAW14            6'h2d
 //`define RAW16            6'h2e
 //`define RAW20            6'h2f

@@ -1,0 +1,1068 @@
+%Warning-PINMISSING: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:272:17: Instance has missing pin: 'rxerrcalhs_reg'
+  272 | lane_merging_rx lane_merging_rx_inst (
+      |                 ^~~~~~~~~~~~~~~~~~~~
+                     ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:105:20: ... Location of port declaration
+  105 | output logic       rxerrcalhs_reg,
+      |                    ^~~~~~~~~~~~~~
+                     ... For warning description see https://verilator.org/warn/PINMISSING?v=5.052
+                     ... Use "/* verilator lint_off PINMISSING */" and lint_on around source to disable this message.
+%Warning-PINMISSING: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:272:17: Instance has missing pin: 'rxcalibrationformat_reg'
+  272 | lane_merging_rx lane_merging_rx_inst (
+      |                 ^~~~~~~~~~~~~~~~~~~~
+                     ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:106:20: ... Location of port declaration
+  106 | output logic [1:0] rxcalibrationformat_reg,
+      |                    ^~~~~~~~~~~~~~~~~~~~~~~
+%Warning-PINMISSING: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:272:17: Instance has missing pin: 'rxalpnibble_reg'
+  272 | lane_merging_rx lane_merging_rx_inst (
+      |                 ^~~~~~~~~~~~~~~~~~~~
+                     ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:107:20: ... Location of port declaration
+  107 | output logic [3:0] rxalpnibble_reg,
+      |                    ^~~~~~~~~~~~~~~
+%Warning-PINMISSING: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:272:17: Instance has missing pin: 'rxalpcode_reg'
+  272 | lane_merging_rx lane_merging_rx_inst (
+      |                 ^~~~~~~~~~~~~~~~~~~~
+                     ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:108:20: ... Location of port declaration
+  108 | output logic [3:0] rxalpcode_reg,
+      |                    ^~~~~~~~~~~~~
+%Warning-PINMISSING: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:272:17: Instance has missing pin: 'rxdataesc_reg_vld'
+  272 | lane_merging_rx lane_merging_rx_inst (
+      |                 ^~~~~~~~~~~~~~~~~~~~
+                     ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:112:14: ... Location of port declaration
+  112 | output logic rxdataesc_reg_vld,
+      |              ^~~~~~~~~~~~~~~~~
+%Warning-PINMISSING: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:272:17: Instance has missing pin: 'rxtriggeresc_reg_vld'
+  272 | lane_merging_rx lane_merging_rx_inst (
+      |                 ^~~~~~~~~~~~~~~~~~~~
+                     ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:113:14: ... Location of port declaration
+  113 | output logic rxtriggeresc_reg_vld,
+      |              ^~~~~~~~~~~~~~~~~~~~
+%Warning-PINMISSING: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:272:17: Instance has missing pin: 'rxalpcode_reg_vld'
+  272 | lane_merging_rx lane_merging_rx_inst (
+      |                 ^~~~~~~~~~~~~~~~~~~~
+                     ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:114:14: ... Location of port declaration
+  114 | output logic rxalpcode_reg_vld,
+      |              ^~~~~~~~~~~~~~~~~
+%Warning-PINMISSING: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:272:17: Instance has missing pin: 'rxalpnibble_reg_vld'
+  272 | lane_merging_rx lane_merging_rx_inst (
+      |                 ^~~~~~~~~~~~~~~~~~~~
+                     ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:115:14: ... Location of port declaration
+  115 | output logic rxalpnibble_reg_vld,
+      |              ^~~~~~~~~~~~~~~~~~~
+%Warning-PINMISSING: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:272:17: Instance has missing pin: 'rxtriggeresc_reg'
+  272 | lane_merging_rx lane_merging_rx_inst (
+      |                 ^~~~~~~~~~~~~~~~~~~~
+                     ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:116:20: ... Location of port declaration
+  116 | output logic [3:0] rxtriggeresc_reg,
+      |                    ^~~~~~~~~~~~~~~~
+%Warning-PINMISSING: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:272:17: Instance has missing pin: 'rxdataesc_reg'
+  272 | lane_merging_rx lane_merging_rx_inst (
+      |                 ^~~~~~~~~~~~~~~~~~~~
+                     ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:117:20: ... Location of port declaration
+  117 | output logic [7:0] rxdataesc_reg 
+      |                    ^~~~~~~~~~~~~
+%Warning-PINMISSING: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:410:17: Instance has missing pin: 'enable_r'
+  410 | rx_byte_counter rx_byte_counter_inst (
+      |                 ^~~~~~~~~~~~~~~~~~~~
+                     ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/rx_byte_counter_2.sv:8:22: ... Location of port declaration
+    8 |   output logic [9:0] enable_r,            
+      |                      ^~~~~~~~
+%Warning-PINMISSING: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:410:17: Instance has missing pin: 'rx_byte_ctr32'
+  410 | rx_byte_counter rx_byte_counter_inst (
+      |                 ^~~~~~~~~~~~~~~~~~~~
+                     ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/rx_byte_counter_2.sv:14:22: ... Location of port declaration
+   14 |   output logic [3:0] rx_byte_ctr32,       
+      |                      ^~~~~~~~~~~~~
+%Warning-PINMISSING: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:410:17: Instance has missing pin: 'rx_byte_ctr80'
+  410 | rx_byte_counter rx_byte_counter_inst (
+      |                 ^~~~~~~~~~~~~~~~~~~~
+                     ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/rx_byte_counter_2.sv:15:22: ... Location of port declaration
+   15 |   output logic [3:0] rx_byte_ctr80,       
+      |                      ^~~~~~~~~~~~~
+%Warning-PINMISSING: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:410:17: Instance has missing pin: 'rx_byte_ctr64'
+  410 | rx_byte_counter rx_byte_counter_inst (
+      |                 ^~~~~~~~~~~~~~~~~~~~
+                     ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/rx_byte_counter_2.sv:16:22: ... Location of port declaration
+   16 |   output logic [2:0] rx_byte_ctr64,       
+      |                      ^~~~~~~~~~~~~
+%Warning-PINMISSING: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:410:17: Instance has missing pin: 'rx_byte_ctr48'
+  410 | rx_byte_counter rx_byte_counter_inst (
+      |                 ^~~~~~~~~~~~~~~~~~~~
+                     ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/rx_byte_counter_2.sv:17:22: ... Location of port declaration
+   17 |   output logic [5:0] rx_byte_ctr48        
+      |                      ^~~~~~~~~~~~~
+%Warning-PINMISSING: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:431:7: Instance has missing pin: 'rx_byte_ctr48'
+  431 | bp_rx bp_rx_inst (
+      |       ^~~~~~~~~~
+                     ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/bpuf_2.sv:36:14: ... Location of port declaration
+   36 | input  [5:0] rx_byte_ctr48,                                    
+      |              ^~~~~~~~~~~~~
+%Warning-PINMISSING: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:431:7: Instance has missing pin: 'rx_byte_ctr32'
+  431 | bp_rx bp_rx_inst (
+      |       ^~~~~~~~~~
+                     ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/bpuf_2.sv:38:14: ... Location of port declaration
+   38 | input  [3:0] rx_byte_ctr32,                                    
+      |              ^~~~~~~~~~~~~
+%Warning-PINMISSING: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:431:7: Instance has missing pin: 'rx_byte_ctr64'
+  431 | bp_rx bp_rx_inst (
+      |       ^~~~~~~~~~
+                     ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/bpuf_2.sv:39:14: ... Location of port declaration
+   39 | input  [2:0] rx_byte_ctr64,                                    
+      |              ^~~~~~~~~~~~~
+%Warning-PINMISSING: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:431:7: Instance has missing pin: 'rx_byte_ctr80'
+  431 | bp_rx bp_rx_inst (
+      |       ^~~~~~~~~~
+                     ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/bpuf_2.sv:40:14: ... Location of port declaration
+   40 | input  [3:0] rx_byte_ctr80,                                    
+      |              ^~~~~~~~~~~~~
+%Warning-PINMISSING: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:479:12: Instance has missing pin: 'rxwordclkhs'
+  479 | axi_master axim_inst (
+      |            ^~~~~~~~~
+                     ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/axim.sv:40:19: ... Location of port declaration
+   40 | module axi_master(rxwordclkhs, cphy_rxwordclkhs, aclk, areset_n, rd_rst_n, rx_pixel_dvalid, awready, wready, bvalid, data_type_rx_reg, rx_pixel_data, awlock, awvalid, wvalid,
+      |                   ^~~~~~~~~~~
+%Warning-PINMISSING: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:479:12: Instance has missing pin: 'rxdataesc_reg_vld'
+  479 | axi_master axim_inst (
+      |            ^~~~~~~~~
+                     ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/axim.sv:41:144: ... Location of port declaration
+   41 | wlast, awuser, wuser, bready, bresp, axim_err, awburst, axim_sts, awprot, awqos, awregion, awcache, awid, awaddr, awsize, wstrb, awlen, wdata, rxdataesc_reg_vld,
+      |                                                                                                                                                ^~~~~~~~~~~~~~~~~
+%Warning-PINMISSING: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:479:12: Instance has missing pin: 'rxalpnibble_reg_vld'
+  479 | axi_master axim_inst (
+      |            ^~~~~~~~~
+                     ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/axim.sv:42:1: ... Location of port declaration
+   42 | rxalpnibble_reg_vld);
+      | ^~~~~~~~~~~~~~~~~~~
+%Warning-IMPLICIT: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/axim.sv:172:75: Signal definition not found, creating implicitly: 'axi_data_in_alp'
+                                                                                   : ... Suggested alternative: 'axi_data_in'
+  172 |                     .rd_rst_n(rd_rst_n),  .wr_en(axi_wr_en_alp), .wr_data(axi_data_in_alp), .full(axi_full_alp), .rd_clk(aclk), .rd_en(axi_rd_vld_alp),
+      |                                                                           ^~~~~~~~~~~~~~~
+                   /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:12:1: ... note: In file included from 'csi2_rx_top.sv'
+                   ... For warning description see https://verilator.org/warn/IMPLICIT?v=5.052
+                   ... Use "/* verilator lint_off IMPLICIT */" and lint_on around source to disable this message.
+%Warning-IMPLICIT: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/axim.sv:173:15: Signal definition not found, creating implicitly: 'axi_rd_data_alp'
+                                                                                   : ... Suggested alternative: 'axi_rd_data'
+  173 |      .rd_data(axi_rd_data_alp), .empty(axi_empty_alp));   
+      |               ^~~~~~~~~~~~~~~
+                   /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:12:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-IMPLICIT: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/axim.sv:177:75: Signal definition not found, creating implicitly: 'axi_data_in_esc'
+                                                                                   : ... Suggested alternative: 'axi_data_in_alp'
+  177 |                     .rd_rst_n(rd_rst_n),  .wr_en(axi_wr_en_esc), .wr_data(axi_data_in_esc), .full(axi_full_esc), .rd_clk(aclk), .rd_en(axi_rd_vld_esc),
+      |                                                                           ^~~~~~~~~~~~~~~
+                   /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:12:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-IMPLICIT: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/axim.sv:178:15: Signal definition not found, creating implicitly: 'axi_rd_data_esc'
+                                                                                   : ... Suggested alternative: 'axi_rd_data_alp'
+  178 |      .rd_data(axi_rd_data_esc), .empty(axi_empty_esc));        
+      |               ^~~~~~~~~~~~~~~
+                   /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:12:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/sync_fifo.sv:24:30: Operator GTE expects 32 or 13 bits on the LHS, but LHS's VARREF 'FIFO_Status' generates 12 bits.
+                                                                                          : ... note: In instance 'csi2_tb_top.dut.llp_rx_inst.llp_sync_fifo_inst'
+   24 |   assign stop = (FIFO_Status >= FIFO_DEPTH-1);
+      |                              ^~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:6:1: ... note: In file included from 'csi2_rx_top.sv'
+                      ... For warning description see https://verilator.org/warn/WIDTHEXPAND?v=5.052
+                      ... Use "/* verilator lint_off WIDTHEXPAND */" and lint_on around source to disable this message.
+%Warning-WIDTHTRUNC: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/sync_fifo.sv:32:20: Operator ASSIGNDLY expects 8 bits on the Assign RHS, but Assign RHS's CONST '512'h0' generates 512 bits.
+                                                                                         : ... note: In instance 'csi2_tb_top.dut.llp_rx_inst.llp_sync_fifo_inst'
+   32 |           data_out <= 512'h0;
+      |                    ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:6:1: ... note: In file included from 'csi2_rx_top.sv'
+                     ... For warning description see https://verilator.org/warn/WIDTHTRUNC?v=5.052
+                     ... Use "/* verilator lint_off WIDTHTRUNC */" and lint_on around source to disable this message.
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/sync_fifo.sv:77:21: Operator EQ expects 32 or 13 bits on the LHS, but LHS's VARREF 'Rd_ptr' generates 12 bits.
+                                                                                          : ... note: In instance 'csi2_tb_top.dut.llp_rx_inst.llp_sync_fifo_inst'
+   77 |           if(Rd_ptr == FIFO_DEPTH-1)
+      |                     ^~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:6:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/sync_fifo.sv:82:21: Operator EQ expects 32 or 13 bits on the LHS, but LHS's VARREF 'Wr_ptr' generates 12 bits.
+                                                                                          : ... note: In instance 'csi2_tb_top.dut.llp_rx_inst.llp_sync_fifo_inst'
+   82 |           if(Wr_ptr == FIFO_DEPTH-1)
+      |                     ^~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:6:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHTRUNC: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/sync_fifo.sv:94:21: Operator ASSIGNDLY expects 12 bits on the Assign RHS, but Assign RHS's SUB generates 32 or 13 bits.
+                                                                                         : ... note: In instance 'csi2_tb_top.dut.llp_rx_inst.llp_sync_fifo_inst'
+   94 |         FIFO_Status <= FIFO_DEPTH-1;
+      |                     ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:6:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/sync_fifo.sv:93:28: Operator EQ expects 32 or 13 bits on the LHS, but LHS's VARREF 'FIFO_Status' generates 12 bits.
+                                                                                          : ... note: In instance 'csi2_tb_top.dut.llp_rx_inst.llp_sync_fifo_inst'
+   93 |       else if((FIFO_Status == FIFO_DEPTH-1)&& wr)
+      |                            ^~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:6:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/sync_fifo.sv:108:26: Operator EQ expects 32 or 13 bits on the LHS, but LHS's VARREF 'FIFO_Status' generates 12 bits.
+                                                                                           : ... note: In instance 'csi2_tb_top.dut.llp_rx_inst.llp_sync_fifo_inst'
+  108 |           if(FIFO_Status == FIFO_DEPTH-1)
+      |                          ^~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:6:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/axim.sv:172:67: Input port connection 'wr_data' expects 16 bits on the pin connection, but pin connection's VARREF 'axi_data_in_alp' generates 1 bits.
+                                                                                      : ... note: In instance 'csi2_tb_top.dut.axim_inst'
+  172 |                     .rd_rst_n(rd_rst_n),  .wr_en(axi_wr_en_alp), .wr_data(axi_data_in_alp), .full(axi_full_alp), .rd_clk(aclk), .rd_en(axi_rd_vld_alp),
+      |                                                                   ^~~~~~~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:12:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/axim.sv:173:7: Output port connection 'rd_data' expects 16 bits on the pin connection, but pin connection's VARREF 'axi_rd_data_alp' generates 1 bits.
+                                                                                     : ... note: In instance 'csi2_tb_top.dut.axim_inst'
+  173 |      .rd_data(axi_rd_data_alp), .empty(axi_empty_alp));   
+      |       ^~~~~~~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:12:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/axim.sv:177:67: Input port connection 'wr_data' expects 16 bits on the pin connection, but pin connection's VARREF 'axi_data_in_esc' generates 1 bits.
+                                                                                      : ... note: In instance 'csi2_tb_top.dut.axim_inst'
+  177 |                     .rd_rst_n(rd_rst_n),  .wr_en(axi_wr_en_esc), .wr_data(axi_data_in_esc), .full(axi_full_esc), .rd_clk(aclk), .rd_en(axi_rd_vld_esc),
+      |                                                                   ^~~~~~~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:12:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/axim.sv:178:7: Output port connection 'rd_data' expects 16 bits on the pin connection, but pin connection's VARREF 'axi_rd_data_esc' generates 1 bits.
+                                                                                     : ... note: In instance 'csi2_tb_top.dut.axim_inst'
+  178 |      .rd_data(axi_rd_data_esc), .empty(axi_empty_esc));        
+      |       ^~~~~~~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:12:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/llp.sv:269:27: Output port connection 'FIFO_Status_out' expects 12 bits on the pin connection, but pin connection's VARREF 'FIFO_Status_out' generates 4 bits.
+                                                                                     : ... note: In instance 'csi2_tb_top.dut.llp_rx_inst'
+  269 |             .stop(stop), .FIFO_Status_out(FIFO_Status_out));
+      |                           ^~~~~~~~~~~~~~~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:8:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/llp.sv:1034:57: Operator GTE expects 11 bits on the RHS, but RHS's CONST '10'h1' generates 10 bits.
+                                                                                      : ... note: In instance 'csi2_tb_top.dut.llp_rx_inst'
+ 1034 |   else       crc_data_vld <= (((dtype_ctr565_555_444_16 >= 10'h1) | 
+      |                                                         ^~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:8:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/llp.sv:1035:47: Operator GTE expects 11 bits on the RHS, but RHS's CONST '10'h1' generates 10 bits.
+                                                                                      : ... note: In instance 'csi2_tb_top.dut.llp_rx_inst'
+ 1035 |                              (dtype_ctr888_24 >= 10'h1) | (dtype_ctr666 >= 10'h1) | (dtype_ctr_raw6 >= 8'h1) | 
+      |                                               ^~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:8:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/llp.sv:1035:73: Operator GTE expects 11 bits on the RHS, but RHS's CONST '10'h1' generates 10 bits.
+                                                                                      : ... note: In instance 'csi2_tb_top.dut.llp_rx_inst'
+ 1035 |                              (dtype_ctr888_24 >= 10'h1) | (dtype_ctr666 >= 10'h1) | (dtype_ctr_raw6 >= 8'h1) | 
+      |                                                                         ^~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:8:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/llp.sv:1035:101: Operator GTE expects 9 bits on the RHS, but RHS's CONST '8'h1' generates 8 bits.
+                                                                                       : ... note: In instance 'csi2_tb_top.dut.llp_rx_inst'
+ 1035 |                              (dtype_ctr888_24 >= 10'h1) | (dtype_ctr666 >= 10'h1) | (dtype_ctr_raw6 >= 8'h1) | 
+      |                                                                                                     ^~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:8:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/llp.sv:1036:46: Operator GTE expects 10 bits on the RHS, but RHS's CONST '9'h1' generates 9 bits.
+                                                                                      : ... note: In instance 'csi2_tb_top.dut.llp_rx_inst'
+ 1036 |                              (dtype_ctr_raw7 >= 9'h1) | (dtype_ctr_raw8 >= 9'h1) | (dtype_ctr_raw10 >= 9'h1) | 
+      |                                              ^~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:8:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/llp.sv:1036:73: Operator GTE expects 9 bits on the LHS, but LHS's VARREF 'dtype_ctr_raw8' generates 6 bits.
+                                                                                      : ... note: In instance 'csi2_tb_top.dut.llp_rx_inst'
+ 1036 |                              (dtype_ctr_raw7 >= 9'h1) | (dtype_ctr_raw8 >= 9'h1) | (dtype_ctr_raw10 >= 9'h1) | 
+      |                                                                         ^~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:8:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/llp.sv:1036:101: Operator GTE expects 10 bits on the RHS, but RHS's CONST '9'h1' generates 9 bits.
+                                                                                       : ... note: In instance 'csi2_tb_top.dut.llp_rx_inst'
+ 1036 |                              (dtype_ctr_raw7 >= 9'h1) | (dtype_ctr_raw8 >= 9'h1) | (dtype_ctr_raw10 >= 9'h1) | 
+      |                                                                                                     ^~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:8:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/llp.sv:1037:47: Operator GTE expects 10 bits on the RHS, but RHS's CONST '9'h1' generates 9 bits.
+                                                                                      : ... note: In instance 'csi2_tb_top.dut.llp_rx_inst'
+ 1037 |                              (dtype_ctr_raw12 >= 9'h1) | (dtype_ctr_raw14 >= 10'h1) | (dtype_ctr_raw20 >= 10'h1) | 
+      |                                               ^~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:8:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/llp.sv:1037:75: Operator GTE expects 11 bits on the RHS, but RHS's CONST '10'h1' generates 10 bits.
+                                                                                      : ... note: In instance 'csi2_tb_top.dut.llp_rx_inst'
+ 1037 |                              (dtype_ctr_raw12 >= 9'h1) | (dtype_ctr_raw14 >= 10'h1) | (dtype_ctr_raw20 >= 10'h1) | 
+      |                                                                           ^~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:8:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/llp.sv:1037:104: Operator GTE expects 11 bits on the RHS, but RHS's CONST '10'h1' generates 10 bits.
+                                                                                       : ... note: In instance 'csi2_tb_top.dut.llp_rx_inst'
+ 1037 |                              (dtype_ctr_raw12 >= 9'h1) | (dtype_ctr_raw14 >= 10'h1) | (dtype_ctr_raw20 >= 10'h1) | 
+      |                                                                                                        ^~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:8:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/llp.sv:1040:47: Operator GTE expects 12 bits on the RHS, but RHS's CONST '11'h1' generates 11 bits.
+                                                                                      : ... note: In instance 'csi2_tb_top.dut.llp_rx_inst'
+ 1040 |                              (dtype_ctr_raw28 >= 11'h1)) & (!data_end_valid_r) & rx_lm_byte_vld_r) ? 1'b1 : 1'b0;
+      |                                               ^~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:8:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:434:19: Operator EQ expects 7 bits on the LHS, but LHS's VARREF 'byte_ctr_rx' generates 3 bits.
+                                                                                              : ... note: In instance 'csi2_tb_top.dut.lane_merging_rx_inst'
+  434 |     ((byte_ctr_rx == 7'h2) & rx_lm_out_vld & (csi2rx_cur_state == CSI2RX_HS_MODE)  ) ? {1'b1,lm_rd_data[7:0]} : 
+      |                   ^~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:5:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:435:18: Operator EQ expects 7 bits on the LHS, but LHS's VARREF 'byte_ctr_rx' generates 3 bits.
+                                                                                              : ... note: In instance 'csi2_tb_top.dut.lane_merging_rx_inst'
+  435 |     (byte_ctr_rx == 7'h3) & rx_lm_out_vld & (csi2rx_cur_state == CSI2RX_HS_MODE)  ? {1'b1,{lm_rd_data[15:8]}} : 
+      |                  ^~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:5:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:436:18: Operator EQ expects 7 bits on the LHS, but LHS's VARREF 'byte_ctr_rx' generates 3 bits.
+                                                                                              : ... note: In instance 'csi2_tb_top.dut.lane_merging_rx_inst'
+  436 |     (byte_ctr_rx == 7'h4) & rx_lm_out_vld & (csi2rx_cur_state == CSI2RX_HS_MODE)   ? {1'b1,{lm_rd_data[23:16]}} : 
+      |                  ^~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:5:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:437:18: Operator EQ expects 7 bits on the LHS, but LHS's VARREF 'byte_ctr_rx' generates 3 bits.
+                                                                                              : ... note: In instance 'csi2_tb_top.dut.lane_merging_rx_inst'
+  437 |     (byte_ctr_rx == 7'h5) & rx_lm_out_vld & (csi2rx_cur_state == CSI2RX_HS_MODE)   ? {1'b1,{lm_rd_data[31:24]}} : 
+      |                  ^~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:5:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:438:18: Operator EQ expects 7 bits on the LHS, but LHS's VARREF 'byte_ctr_rx' generates 3 bits.
+                                                                                              : ... note: In instance 'csi2_tb_top.dut.lane_merging_rx_inst'
+  438 |     (byte_ctr_rx == 7'h6) & rx_lm_out_vld & (csi2rx_cur_state == CSI2RX_HS_MODE)   ? {1'b1,{lm_rd_data[39:32]}} : 
+      |                  ^~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:5:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:439:18: Operator EQ expects 7 bits on the LHS, but LHS's VARREF 'byte_ctr_rx' generates 3 bits.
+                                                                                              : ... note: In instance 'csi2_tb_top.dut.lane_merging_rx_inst'
+  439 |     (byte_ctr_rx == 7'h7) &  rx_lm_out_vld & (csi2rx_cur_state == CSI2RX_HS_MODE)   ? {1'b1,{lm_rd_data[47:40]}} : 
+      |                  ^~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:5:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:440:18: Operator EQ expects 7 bits on the LHS, but LHS's VARREF 'byte_ctr_rx' generates 3 bits.
+                                                                                              : ... note: In instance 'csi2_tb_top.dut.lane_merging_rx_inst'
+  440 |     (byte_ctr_rx == 7'h0) & rx_lm_out_vld & (csi2rx_cur_state == CSI2RX_HS_MODE)   ? {1'b1,{ lm_rd_data[55:48]}} : 
+      |                  ^~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:5:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:441:18: Operator EQ expects 7 bits on the LHS, but LHS's VARREF 'byte_ctr_rx' generates 3 bits.
+                                                                                              : ... note: In instance 'csi2_tb_top.dut.lane_merging_rx_inst'
+  441 |     (byte_ctr_rx == 7'h1) & rx_lm_out_vld & (csi2rx_cur_state == CSI2RX_HS_MODE)   ? {1'b1,{lm_rd_data[63:56]}} : 9'h0;
+      |                  ^~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:5:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHTRUNC: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:475:49: Operator ASSIGNDLY expects 5 bits on the Assign RHS, but Assign RHS's CONST '17'h0' generates 17 bits.
+                                                                                             : ... note: In instance 'csi2_tb_top.dut.lane_merging_rx_inst'
+  475 |   if(~rst_n) {rxalpcode_reg_vld, rxalpcode_reg} <= 17'h0;
+      |                                                 ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:5:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHTRUNC: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:476:65: Operator ASSIGNDLY expects 5 bits on the Assign RHS, but Assign RHS's CONST '17'h0' generates 17 bits.
+                                                                                             : ... note: In instance 'csi2_tb_top.dut.lane_merging_rx_inst'
+  476 |   else if(rx_lane_sts_reg4)  {rxalpcode_reg_vld, rxalpcode_reg} <= 17'h0;  
+      |                                                                 ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:5:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHTRUNC: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:477:95: Logical operator LOGNOT expects 1 bit on the LHS, but LHS's VARREF 'rxvalidhs' generates 4 bits.
+                                                                                             : ... note: In instance 'csi2_tb_top.dut.lane_merging_rx_inst'
+  477 |   else                       {rxalpcode_reg_vld, rxalpcode_reg} <= ((&(rxalpvalidhs[3:0])) & (!(rxvalidhs)) & (csi2rx_cur_state == CSI2RX_ALP_MODE)) ? 
+      |                                                                                               ^
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:5:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:477:150: Operator COND expects 17 bits on the Conditional False, but Conditional False's REPLICATE generates 5 bits.
+                                                                                               : ... note: In instance 'csi2_tb_top.dut.lane_merging_rx_inst'
+  477 |   else                       {rxalpcode_reg_vld, rxalpcode_reg} <= ((&(rxalpvalidhs[3:0])) & (!(rxvalidhs)) & (csi2rx_cur_state == CSI2RX_ALP_MODE)) ? 
+      |                                                                                                                                                      ^
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:5:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHTRUNC: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:477:65: Operator ASSIGNDLY expects 5 bits on the Assign RHS, but Assign RHS's COND generates 17 bits.
+                                                                                             : ... note: In instance 'csi2_tb_top.dut.lane_merging_rx_inst'
+  477 |   else                       {rxalpcode_reg_vld, rxalpcode_reg} <= ((&(rxalpvalidhs[3:0])) & (!(rxvalidhs)) & (csi2rx_cur_state == CSI2RX_ALP_MODE)) ? 
+      |                                                                 ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:5:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHTRUNC: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:481:68: Operator ASSIGNDLY expects 5 bits on the Assign RHS, but Assign RHS's CONST '17'h0' generates 17 bits.
+                                                                                             : ... note: In instance 'csi2_tb_top.dut.lane_merging_rx_inst'
+  481 |   if(~rst_n)                {rxalpnibble_reg_vld, rxalpnibble_reg} <= 17'h0; 
+      |                                                                    ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:5:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHTRUNC: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:482:68: Operator ASSIGNDLY expects 5 bits on the Assign RHS, but Assign RHS's CONST '17'h0' generates 17 bits.
+                                                                                             : ... note: In instance 'csi2_tb_top.dut.lane_merging_rx_inst'
+  482 |   else if(rx_lane_sts_reg4) {rxalpnibble_reg_vld, rxalpnibble_reg} <= 17'h0;
+      |                                                                    ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:5:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:485:59: Operator COND expects 17 bits on the Conditional False, but Conditional False's REPLICATE generates 5 bits.
+                                                                                              : ... note: In instance 'csi2_tb_top.dut.lane_merging_rx_inst'
+  485 |                    (csi2rx_cur_state == CSI2RX_ALP_MODE)) ? {1'b1, {rxalpnibble3[3:0], 
+      |                                                           ^
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:5:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHTRUNC: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:483:68: Operator ASSIGNDLY expects 5 bits on the Assign RHS, but Assign RHS's COND generates 17 bits.
+                                                                                             : ... note: In instance 'csi2_tb_top.dut.lane_merging_rx_inst'
+  483 |   else                      {rxalpnibble_reg_vld, rxalpnibble_reg} <= ((&rxalpvalidhs[3:0]) & (rxalpcode0[3:0] == 4'ha) & (rxalpcode1[3:0] == 4'ha) 
+      |                                                                    ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:5:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHTRUNC: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:506:88: Logical operator LOGNOT expects 1 bit on the LHS, but LHS's VARREF 'rxvalidhs' generates 4 bits.
+                                                                                             : ... note: In instance 'csi2_tb_top.dut.lane_merging_rx_inst'
+  506 |   else {rxdataesc_reg_vld, rxdataesc_reg} <= (rxvalidesc & rxlpdtesc & (!rxulpsesc) & (!(rxvalidhs)) & (csi2rx_cur_state == CSI2RX_ELPDT_MODE))  ?
+      |                                                                                        ^
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:5:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHTRUNC: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:513:99: Logical operator LOGNOT expects 1 bit on the LHS, but LHS's VARREF 'rxvalidhs' generates 4 bits.
+                                                                                             : ... note: In instance 'csi2_tb_top.dut.lane_merging_rx_inst'
+  513 |   else {rxtriggeresc_reg_vld, rxtriggeresc_reg} <= ((!rxvalidesc) & (rxlpdtesc) & (!rxulpsesc) & (!(rxvalidhs)) & 
+      |                                                                                                   ^
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:5:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-WIDTHEXPAND: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:469:6: Input port connection 'enable_r' expects 10 bits on the pin connection, but pin connection's VARREF 'enable' generates 1 bits.
+                                                                                                                                                                             : ... note: In instance 'csi2_tb_top.dut'
+  469 |     .enable_r             (enable)
+      |      ^~~~~~~~
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/reset_agent/csi2_reset_driver.sv:9:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                            : ... note: In instance 'csi2_tb_top'
+    9 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"RESET_DRV")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:30:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/reset_agent/csi2_reset_driver.sv:11:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                             : ... note: In instance 'csi2_tb_top'
+   11 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"RESET_DRV")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:30:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/reset_agent/csi2_reset_driver.sv:17:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                             : ... note: In instance 'csi2_tb_top'
+   17 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"RESET_DRV")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:30:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/reset_agent/csi2_reset_monitor.sv:10:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                              : ... note: In instance 'csi2_tb_top'
+   10 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"RESET_MON")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:31:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/reset_agent/csi2_reset_monitor.sv:13:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                              : ... note: In instance 'csi2_tb_top'
+   13 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"RESET_MON")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:31:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/reset_agent/csi2_reset_monitor.sv:21:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                              : ... note: In instance 'csi2_tb_top'
+   21 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"RESET_MON")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:31:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHEXPAND: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_sequence.sv:42:20: Operator ASSIGN expects 32 bits on the Assign RHS, but Assign RHS's CONST '24'h3f' generates 24 bits.
+                                                                                                                                            : ... note: In instance 'csi2_tb_top'
+   42 |         pixel_mask = 24'h00003F;
+      |                    ^
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:35:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHEXPAND: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_sequence.sv:45:20: Operator ASSIGN expects 32 bits on the Assign RHS, but Assign RHS's CONST '24'h7f' generates 24 bits.
+                                                                                                                                            : ... note: In instance 'csi2_tb_top'
+   45 |         pixel_mask = 24'h00007F;
+      |                    ^
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:35:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHEXPAND: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_sequence.sv:48:20: Operator ASSIGN expects 32 bits on the Assign RHS, but Assign RHS's CONST '24'hff' generates 24 bits.
+                                                                                                                                            : ... note: In instance 'csi2_tb_top'
+   48 |         pixel_mask = 24'h0000FF;
+      |                    ^
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:35:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHEXPAND: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_sequence.sv:51:20: Operator ASSIGN expects 32 bits on the Assign RHS, but Assign RHS's CONST '24'h3ff' generates 24 bits.
+                                                                                                                                            : ... note: In instance 'csi2_tb_top'
+   51 |         pixel_mask = 24'h0003FF;
+      |                    ^
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:35:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHEXPAND: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_sequence.sv:54:20: Operator ASSIGN expects 32 bits on the Assign RHS, but Assign RHS's CONST '24'hfff' generates 24 bits.
+                                                                                                                                            : ... note: In instance 'csi2_tb_top'
+   54 |         pixel_mask = 24'h000FFF;
+      |                    ^
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:35:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHEXPAND: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_sequence.sv:57:20: Operator ASSIGN expects 32 bits on the Assign RHS, but Assign RHS's CONST '24'h3fff' generates 24 bits.
+                                                                                                                                            : ... note: In instance 'csi2_tb_top'
+   57 |         pixel_mask = 24'h003FFF;
+      |                    ^
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:35:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_sequence.sv:66:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                          : ... note: In instance 'csi2_tb_top'
+   66 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"RAW_PAYLOAD")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:35:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHEXPAND: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_sequence.sv:70:31: Operator ADD expects 32 bits on the LHS, but LHS's CONST '24'h10' generates 24 bits.
+                                                                                                                                            : ... note: In instance 'csi2_tb_top'
+   70 |       pixels[index] = (24'h10 + index) & pixel_mask;
+      |                               ^
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:35:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_sequence.sv:70:21: Operator ASSIGN expects 24 bits on the Assign RHS, but Assign RHS's AND generates 32 bits.
+                                                                                                                                           : ... note: In instance 'csi2_tb_top'
+   70 |       pixels[index] = (24'h10 + index) & pixel_mask;
+      |                     ^
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:35:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_sequence.sv:92:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                          : ... note: In instance 'csi2_tb_top'
+   92 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"RAW_PAYLOAD")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:35:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHEXPAND: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_sequence.sv:113:35: Operator ADD expects 32 bits on the LHS, but LHS's CONST '24'h10203' generates 24 bits.
+                                                                                                                                             : ... note: In instance 'csi2_tb_top'
+  113 |       pixels[index] = (24'h010203 + index) & 24'hffffff;
+      |                                   ^
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:35:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHEXPAND: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_sequence.sv:113:44: Operator AND expects 32 bits on the RHS, but RHS's CONST '24'hffffff' generates 24 bits.
+                                                                                                                                             : ... note: In instance 'csi2_tb_top'
+  113 |       pixels[index] = (24'h010203 + index) & 24'hffffff;
+      |                                            ^
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:35:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_sequence.sv:113:21: Operator ASSIGN expects 24 bits on the Assign RHS, but Assign RHS's AND generates 32 bits.
+                                                                                                                                            : ... note: In instance 'csi2_tb_top'
+  113 |       pixels[index] = (24'h010203 + index) & 24'hffffff;
+      |                     ^
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:35:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_sequence.sv:118:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                           : ... note: In instance 'csi2_tb_top'
+  118 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"RGB_PAYLOAD")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:35:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_sequence.sv:215:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                           : ... note: In instance 'csi2_tb_top'
+  215 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"RAW7_SEQ")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:35:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_sequence.sv:270:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                           : ... note: In instance 'csi2_tb_top'
+  270 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"RAW8_SEQ")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:35:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_sequence.sv:325:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                           : ... note: In instance 'csi2_tb_top'
+  325 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"RAW6_SEQ")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:35:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_sequence.sv:381:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                           : ... note: In instance 'csi2_tb_top'
+  381 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"RAW10_SEQ")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:35:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_sequence.sv:595:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                           : ... note: In instance 'csi2_tb_top'
+  595 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"RAW14_SEQ")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:35:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_sequence.sv:638:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                           : ... note: In instance 'csi2_tb_top'
+  638 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"RAW12_SEQ")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:35:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHEXPAND: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_sequence.sv:688:30: Operator ADD expects 32 bits on the LHS, but LHS's CONST '16'h10' generates 16 bits.
+                                                                                                                                             : ... note: In instance 'csi2_tb_top'
+  688 |       pixel_value = 16'h0010 + index;
+      |                              ^
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:35:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_sequence.sv:688:19: Operator ASSIGN expects 16 bits on the Assign RHS, but Assign RHS's ADD generates 32 bits.
+                                                                                                                                            : ... note: In instance 'csi2_tb_top'
+  688 |       pixel_value = 16'h0010 + index;
+      |                   ^
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:35:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_sequence.sv:710:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                           : ... note: In instance 'csi2_tb_top'
+  710 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"RAW16_SEQ")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:35:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_sequence.sv:877:17: Operator ASSIGN expects 2 bits on the Assign RHS, but Assign RHS's URANDOMRANGE generates 32 bits.
+                                                                                                                                            : ... note: In instance 'csi2_tb_top'
+  877 |       random_vc = $urandom_range(0, 3);
+      |                 ^
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:35:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_driver.sv:23:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                        : ... note: In instance 'csi2_tb_top'
+   23 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"PPI_DRV")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:36:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_driver.sv:30:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                        : ... note: In instance 'csi2_tb_top'
+   30 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"PPI_DRV")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:36:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_driver.sv:75:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                        : ... note: In instance 'csi2_tb_top'
+   75 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"STIMULUS_CHECK")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:36:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_driver.sv:91:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                        : ... note: In instance 'csi2_tb_top'
+   91 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"PPI_DRV")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:36:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_driver.sv:113:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                         : ... note: In instance 'csi2_tb_top'
+  113 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"PPI_DRV")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:36:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_driver.sv:135:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                         : ... note: In instance 'csi2_tb_top'
+  135 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"PPI_DRV")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:36:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_driver.sv:178:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                         : ... note: In instance 'csi2_tb_top'
+  178 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"PPI_DRV")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:36:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_driver.sv:205:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                         : ... note: In instance 'csi2_tb_top'
+  205 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"PPI_DRV")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:36:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_driver.sv:229:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                         : ... note: In instance 'csi2_tb_top'
+  229 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"PPI_DRV_SHORT")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:36:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_driver.sv:251:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                         : ... note: In instance 'csi2_tb_top'
+  251 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"PPI_DRV_LONG")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:36:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_driver.sv:261:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                         : ... note: In instance 'csi2_tb_top'
+  261 |      if (uvm_report_enabled(UVM_NONE,UVM_WARNING,"PPI_DRV_LONG")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:36:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_driver.sv:299:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                         : ... note: In instance 'csi2_tb_top'
+  299 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"PPI_DRV_EARLY_EOT")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:36:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_driver.sv:312:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                         : ... note: In instance 'csi2_tb_top'
+  312 |      if (uvm_report_enabled(UVM_HIGH,UVM_INFO,"PPI_DRV_DATA")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:36:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_driver.sv:333:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                         : ... note: In instance 'csi2_tb_top'
+  333 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"PPI_DRV")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:36:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_ppi_monitor.sv:18:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                         : ... note: In instance 'csi2_tb_top'
+   18 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"PPI_MON")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:37:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/axi_agent/csi2_axi_write_monitor.sv:55:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                                : ... note: In instance 'csi2_tb_top'
+   55 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"AXI_MON")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:41:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/axi_agent/csi2_axi_write_monitor.sv:64:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                                : ... note: In instance 'csi2_tb_top'
+   64 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"AXI_MON")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:41:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/axi_agent/csi2_axi_write_monitor.sv:128:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                                 : ... note: In instance 'csi2_tb_top'
+  128 |      if (uvm_report_enabled(UVM_HIGH,UVM_INFO,"AXI_MON_AW")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:41:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/axi_agent/csi2_axi_write_monitor.sv:161:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                                 : ... note: In instance 'csi2_tb_top'
+  161 |      if (uvm_report_enabled(UVM_NONE,UVM_WARNING,"AXI_MON_ORPHAN_W")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:41:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/axi_agent/csi2_axi_write_monitor.sv:181:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                                 : ... note: In instance 'csi2_tb_top'
+  181 |      if (uvm_report_enabled(UVM_NONE,UVM_WARNING,"AXI_MON_ZERO_STROBE")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:41:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/axi_agent/csi2_axi_write_monitor.sv:248:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                                 : ... note: In instance 'csi2_tb_top'
+  248 |      if (uvm_report_enabled(UVM_NONE,UVM_WARNING,"AXI_MON_BURST_LENGTH")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:41:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/axi_agent/csi2_axi_slave_driver.sv:18:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                               : ... note: In instance 'csi2_tb_top'
+   18 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"AXI_SLV_DRV")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:45:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/axi_agent/csi2_axi_slave_driver.sv:24:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                               : ... note: In instance 'csi2_tb_top'
+   24 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"AXI_SLV_DRV")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:45:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/axi_agent/csi2_axi4_lite_driver.sv:18:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                               : ... note: In instance 'csi2_tb_top'
+   18 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"AXI4L_DRV")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:50:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/axi_agent/csi2_axi4_lite_driver.sv:24:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                               : ... note: In instance 'csi2_tb_top'
+   24 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"AXI4L_DRV")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:50:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/axi_agent/csi2_axi4_lite_driver.sv:159:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                                : ... note: In instance 'csi2_tb_top'
+  159 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"AXI4L_DRV")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:50:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/axi_agent/csi2_axi4_lite_driver.sv:238:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                                : ... note: In instance 'csi2_tb_top'
+  238 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"AXI4L_DRV")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:50:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/axi_agent/csi2_axi4_lite_monitor.sv:18:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                                : ... note: In instance 'csi2_tb_top'
+   18 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"AXI4L_MON")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:51:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/axi_agent/csi2_rx_internal_monitor.sv:32:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                                  : ... note: In instance 'csi2_tb_top'
+   32 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"INTERNAL_MON")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:53:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/axi_agent/csi2_rx_internal_monitor.sv:35:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                                  : ... note: In instance 'csi2_tb_top'
+   35 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"INTERNAL_MON")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:53:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:92:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                             : ... note: In instance 'csi2_tb_top'
+   92 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"SB")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:169:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  169 |      if (uvm_report_enabled(UVM_MEDIUM,UVM_INFO,"SB_EXPECTED_SHORT")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:188:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  188 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"SB_FORMAT")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:208:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  208 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"SB_FORMAT")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:253:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  253 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"SB_CSI_UNPACK")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:278:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  278 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"SB_CSI_UNPACK")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:298:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  298 |      if (uvm_report_enabled(UVM_MEDIUM,UVM_INFO,"SB_EXPECTED")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:357:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  357 |      if (uvm_report_enabled(UVM_MEDIUM,UVM_INFO,"SB_ACTUAL_SHORT")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:386:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  386 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"SB_LLP_CAPTURE")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:400:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  400 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"SB_LANE_CAPTURE")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:435:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  435 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"SB_CHECK")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:448:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  448 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"SB_CHECK")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:462:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  462 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"SB_CONTROL_ONLY")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:466:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  466 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"SB_RESET_INTERRUPT")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:477:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  477 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"SB_EXPECTED_ERROR")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:491:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  491 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"SB_EXPECTED_ERROR")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:505:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  505 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"SB_DUT_ERROR")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:517:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  517 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"SB_DUT_ERROR")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:534:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  534 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"SB_SHORT_COUNT")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:559:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  559 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"SB_SHORT_DTYPE")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:575:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  575 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"SB_SHORT_DATA")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:591:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  591 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"SB_SHORT_VC")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:614:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  614 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"SB_SHORT_AXI")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:639:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  639 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"SB_FORMAT")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:656:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  656 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"SB_DTYPE")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:665:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  665 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"SB_AXI")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:694:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  694 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"SB_AXI_UNPACK")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:711:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  711 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"SB_PIXEL_COUNT")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:737:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  737 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"SB_PIXEL_DATA")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:757:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  757 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"SB_PIXEL_CHECK")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:778:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  778 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"SB_SUMMARY")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_scoreboard.sv:794:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+  794 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"SB_SUMMARY")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:55:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_env.sv:20:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                      : ... note: In instance 'csi2_tb_top'
+   20 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"ENV")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:56:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/csi2_env.sv:22:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                      : ... note: In instance 'csi2_tb_top'
+   22 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"ENV_MODE")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:56:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/tests/csi2_base_test.sv:19:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+   19 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"BASE_TEST")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:58:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/tests/csi2_base_test.sv:22:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+   22 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"BASE_TEST")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:58:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/tests/csi2_base_test.sv:25:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+   25 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"BASE_TEST")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:58:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/tests/csi2_base_test.sv:28:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+   28 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"BASE_TEST")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:58:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/tests/csi2_base_test.sv:31:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+   31 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"BASE_TEST")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:58:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/tests/csi2_base_test.sv:87:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+   87 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"AXI4L_CFG")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:58:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/tests/csi2_base_test.sv:90:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+   90 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"AXI4L_CFG")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:58:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/tests/csi2_base_test.sv:112:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                               : ... note: In instance 'csi2_tb_top'
+  112 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,report_id)) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:58:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/tests/csi2_base_test.sv:116:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                               : ... note: In instance 'csi2_tb_top'
+  116 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"BASE_TEST")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:58:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/tests/csi2_base_test.sv:133:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                               : ... note: In instance 'csi2_tb_top'
+  133 |      if (uvm_report_enabled(UVM_NONE,UVM_FATAL,"TIMEOUT")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:58:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/tests/csi2_reset_rx_test.sv:17:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                  : ... note: In instance 'csi2_tb_top'
+   17 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"RESET_TEST")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:60:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/tests/csi2_b2b_short_packet_test.sv:59:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                          : ... note: In instance 'csi2_tb_top'
+   59 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"RX_BACK_TO_BACK_SHORT_STATUS")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:67:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/tests/csi2_axi4_lite_test.sv:14:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                   : ... note: In instance 'csi2_tb_top'
+   14 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"AXI4L_TEST")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:90:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/tests/csi2_axi4_lite_test.sv:18:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                   : ... note: In instance 'csi2_tb_top'
+   18 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"AXI4L_TEST")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:90:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/tests/csi2_axi4_lite_test.sv:24:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                   : ... note: In instance 'csi2_tb_top'
+   24 |      if (uvm_report_enabled(UVM_NONE,UVM_ERROR,"AXI4L_TEST")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:90:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/tests/csi2_raw6_test.sv:35:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+   35 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"RX_raw6_STATUS")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:94:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/tests/csi2_raw10_test.sv:35:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                               : ... note: In instance 'csi2_tb_top'
+   35 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"RX_raw10_STATUS")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:95:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/tests/csi2_raw14_test.sv:35:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                               : ... note: In instance 'csi2_tb_top'
+   35 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"RX_raw14_STATUS")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:96:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/tests/csi2_raw12_test.sv:35:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                               : ... note: In instance 'csi2_tb_top'
+   35 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"RX_raw12_STATUS")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:97:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/tests/csi2_raw16_test.sv:35:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                               : ... note: In instance 'csi2_tb_top'
+   35 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"RX_raw16_STATUS")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:98:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/tests/csi2_errorsync_test.sv:34:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                   : ... note: In instance 'csi2_tb_top'
+   34 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"RX_errorsync_STATUS")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:99:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/tests/csi2_end_early_eot_test.sv:34:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                       : ... note: In instance 'csi2_tb_top'
+   34 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"RX_end_early_eot_STATUS")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:100:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/tests/csi2_raw8_test.sv:35:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                              : ... note: In instance 'csi2_tb_top'
+   35 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"RX_raw8_STATUS")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:101:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-WIDTHTRUNC: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/tests/csi2_rx_raw7_test.sv:35:6: Logical operator IF expects 1 bit on the If, but If's FUNCREF 'uvm_report_enabled' generates 32 bits.
+                                                                                                                                 : ... note: In instance 'csi2_tb_top'
+   35 |      if (uvm_report_enabled(UVM_NONE,UVM_INFO,"RX_RAW7_STATUS")) 
+      |      ^~
+                     /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:102:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-MULTIDRIVEN: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:232:9: Variable written to in always_ff also written by other process (IEEE 1800-2023 9.2.2.4): 'lm_wr_en'
+                                                                                             : ... note: In instance 'csi2_tb_top.dut.lane_merging_rx_inst'
+                      ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:232:9: 
+  232 |         lm_wr_en  <= 1'b0;
+      |         ^~~~~~~~
+                      /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:5:1: ... note: In file included from 'csi2_rx_top.sv'
+                      ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/lane_merging.sv:206:10: ... Location of other write
+  206 |     else lm_wr_en <=  
+      |          ^~~~~~~~
+                      ... For warning description see https://verilator.org/warn/MULTIDRIVEN?v=5.052
+                      ... Use "/* verilator lint_off MULTIDRIVEN */" and lint_on around source to disable this message.
+%Warning-UNSIGNED: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/llp.sv:791:101: Comparison is constant due to unsigned arithmetic
+                                                                                   : ... note: In instance 'csi2_tb_top.dut.llp_rx_inst'
+  791 |   else  {llp_rx_data_out_vld, llp_rx_data_out}  <= (llp_rx_data_valid & (data_strt_r & (llp_dec_ctr >= 5'h0) & rx_lm_byte_vld_r)) ? 
+      |                                                                                                     ^~
+                   /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:8:1: ... note: In file included from 'csi2_rx_top.sv'
+                   ... For warning description see https://verilator.org/warn/UNSIGNED?v=5.052
+                   ... Use "/* verilator lint_off UNSIGNED */" and lint_on around source to disable this message.
+%Warning-UNSIGNED: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/llp.sv:827:93: Comparison is constant due to unsigned arithmetic
+                                                                                  : ... note: In instance 'csi2_tb_top.dut.llp_rx_inst'
+  827 | assign hdr_vld_rx_shrt = ((shrt_pkt_vld | shrt_pkt_vld_r) & rx_lm_byte_vld_r & (llp_dec_ctr >= 5'h0) & (llp_dec_ctr <= 5'h14) & (!data_strt)) ? 1'b1 : 1'b0;
+      |                                                                                             ^~
+                   /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:8:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-UNSIGNED: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/llp.sv:874:58: Comparison is constant due to unsigned arithmetic
+                                                                                  : ... note: In instance 'csi2_tb_top.dut.llp_rx_inst'
+  874 | assign crc_data_reg =   (rx_lm_byte_vld_r & (llp_dec_ctr >= 5'h0) & data_end_valid_r & (foot_ctr == 2'h2)) ? {data_chksum_msb_rx, data_chksum_lsb_rx} : 16'h0;  
+      |                                                          ^~
+                   /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:8:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-UNSIGNED: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/llp.sv:1045:34: Comparison is constant due to unsigned arithmetic
+                                                                                   : ... note: In instance 'csi2_tb_top.dut.llp_rx_inst'
+ 1045 |   else crc_data <= ((llp_dec_ctr >= 5'h0) & data_strt & rx_lm_byte_vld_r) ? rx_lm_byte_data [7:0] : 8'h0;
+      |                                  ^~
+                   /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:8:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-UNSIGNED: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/uvm-1.1d/src/seq/uvm_sequence_base.svh:1071:18: Comparison is constant due to unsigned arithmetic
+                                                                                                                      : ... note: In instance 'csi2_tb_top.dut'
+ 1071 |     if (req_kind < 0 || req_kind >= m_sequencer.sequences.size()) begin
+      |                  ^
+                   /home/cw036_titiksha/SoC-Integration-Structure/VERIF/uvm-1.1d/src/seq/uvm_seq.svh:30:1: ... note: In file included from 'uvm_seq.svh'
+                   /home/cw036_titiksha/SoC-Integration-Structure/VERIF/uvm-1.1d/src/uvm_pkg.sv:34:1: ... note: In file included from 'uvm_pkg.sv'
+%Warning-CASEINCOMPLETE: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/tx_agent/csi2_pixel_packer.sv:13:6: Case values incompletely covered (example pattern 0x0)
+                                                                                                                                              : ... note: In instance 'csi2_uvm_pkg.csi2_pixel_packer'
+   13 |      case(dt)
+      |      ^~~~
+                         /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:15:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+                         ... For warning description see https://verilator.org/warn/CASEINCOMPLETE?v=5.052
+                         ... Use "/* verilator lint_off CASEINCOMPLETE */" and lint_on around source to disable this message.
+%Warning-CASEINCOMPLETE: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/tx_agent/csi2_pixel_packer.sv:446:7: Case values incompletely covered (example pattern 0x0)
+                                                                                                                                               : ... note: In instance 'csi2_uvm_pkg.csi2_pixel_packer'
+  446 |       case(dt)
+      |       ^~~~
+                         /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:15:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-CASEINCOMPLETE: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/rx_agent/csi2_pixel_unpacker.sv:600:5: Case values incompletely covered (example pattern 0x0)
+                                                                                                                                                 : ... note: In instance 'csi2_uvm_pkg.csi2_pixel_unpacker'
+  600 |     case(dt)
+      |     ^~~~
+                         /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:21:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-CASEINCOMPLETE: /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/agent/axi_agent/csi2_rx_internal_monitor.sv:66:7: Case values incompletely covered (example pattern 0x0)
+                                                                                                                                                      : ... note: In instance 'csi2_uvm_pkg.csi2_rx_internal_monitor'
+   66 |       case (status_vif.llp_cb.llp_dec_ctr)
+      |       ^~~~
+                         /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../env/csi2_uvm_pkg.sv:53:1: ... note: In file included from 'csi2_uvm_pkg.sv'
+%Warning-LATCH: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/crc.sv:52:2: Latch inferred for signal 'csi2_tb_top.dut.llp_rx_inst.crc16_inst_long_data.reg_crc' (not all control paths of combinational always assign a value)
+                                                                             : ... Suggest use of always_latch for intentional latches
+   52 |  always_comb begin
+      |  ^~~~~~~~~~~
+                /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:7:1: ... note: In file included from 'csi2_rx_top.sv'
+                ... For warning description see https://verilator.org/warn/LATCH?v=5.052
+                ... Use "/* verilator lint_off LATCH */" and lint_on around source to disable this message.
+%Warning-LATCH: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/crc.sv:52:2: Latch inferred for signal 'csi2_tb_top.dut.llp_rx_inst.crc16_inst_long_hdr.reg_crc' (not all control paths of combinational always assign a value)
+                                                                             : ... Suggest use of always_latch for intentional latches
+   52 |  always_comb begin
+      |  ^~~~~~~~~~~
+                /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:7:1: ... note: In file included from 'csi2_rx_top.sv'
+%Warning-LATCH: ../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/crc.sv:52:2: Latch inferred for signal 'csi2_tb_top.dut.llp_rx_inst.crc16_inst.reg_crc' (not all control paths of combinational always assign a value)
+                                                                             : ... Suggest use of always_latch for intentional latches
+   52 |  always_comb begin
+      |  ^~~~~~~~~~~
+                /home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/env/../../../../DSN/ip/peripherals/mipi_csi/ip/rtl/rx/csi2_rx_top.sv:7:1: ... note: In file included from 'csi2_rx_top.sv'
+make[2]: Entering directory '/home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/sim/.csi2_uvm_build/obj'
+ccache g++ -Os  -I.  -MMD -I/opt/verilator-5.052/share/verilator/include -I/opt/verilator-5.052/share/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -DVM_VPI=1 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVM_SOLVER_DEFAULT='"z3 --in"' -I/home/cw036_titiksha/SoC-Integration-Structure/VERIF/uvm-1.1d/src/dpi -DVL_TIME_CONTEXT   -fcoroutines -c -o verilated.o /opt/verilator-5.052/share/verilator/include/verilated.cpp
+ccache g++ -Os  -I.  -MMD -I/opt/verilator-5.052/share/verilator/include -I/opt/verilator-5.052/share/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -DVM_VPI=1 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVM_SOLVER_DEFAULT='"z3 --in"' -I/home/cw036_titiksha/SoC-Integration-Structure/VERIF/uvm-1.1d/src/dpi -DVL_TIME_CONTEXT   -fcoroutines -c -o verilated_dpi.o /opt/verilator-5.052/share/verilator/include/verilated_dpi.cpp
+ccache g++ -Os  -I.  -MMD -I/opt/verilator-5.052/share/verilator/include -I/opt/verilator-5.052/share/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -DVM_VPI=1 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVM_SOLVER_DEFAULT='"z3 --in"' -I/home/cw036_titiksha/SoC-Integration-Structure/VERIF/uvm-1.1d/src/dpi -DVL_TIME_CONTEXT   -fcoroutines -c -o verilated_vpi.o /opt/verilator-5.052/share/verilator/include/verilated_vpi.cpp
+ccache g++ -Os  -I.  -MMD -I/opt/verilator-5.052/share/verilator/include -I/opt/verilator-5.052/share/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -DVM_VPI=1 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVM_SOLVER_DEFAULT='"z3 --in"' -I/home/cw036_titiksha/SoC-Integration-Structure/VERIF/uvm-1.1d/src/dpi -DVL_TIME_CONTEXT   -fcoroutines -c -o verilated_vcd_c.o /opt/verilator-5.052/share/verilator/include/verilated_vcd_c.cpp
+ccache g++ -Os  -I.  -MMD -I/opt/verilator-5.052/share/verilator/include -I/opt/verilator-5.052/share/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -DVM_VPI=1 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVM_SOLVER_DEFAULT='"z3 --in"' -I/home/cw036_titiksha/SoC-Integration-Structure/VERIF/uvm-1.1d/src/dpi -DVL_TIME_CONTEXT   -fcoroutines -c -o verilated_timing.o /opt/verilator-5.052/share/verilator/include/verilated_timing.cpp
+ccache g++ -Os  -I.  -MMD -I/opt/verilator-5.052/share/verilator/include -I/opt/verilator-5.052/share/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -DVM_VPI=1 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVM_SOLVER_DEFAULT='"z3 --in"' -I/home/cw036_titiksha/SoC-Integration-Structure/VERIF/uvm-1.1d/src/dpi -DVL_TIME_CONTEXT   -fcoroutines -c -o verilated_random.o /opt/verilator-5.052/share/verilator/include/verilated_random.cpp
+ccache g++ -Os  -I.  -MMD -I/opt/verilator-5.052/share/verilator/include -I/opt/verilator-5.052/share/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -DVM_VPI=1 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVM_SOLVER_DEFAULT='"z3 --in"' -I/home/cw036_titiksha/SoC-Integration-Structure/VERIF/uvm-1.1d/src/dpi -DVL_TIME_CONTEXT   -fcoroutines -c -o verilated_threads.o /opt/verilator-5.052/share/verilator/include/verilated_threads.cpp
+ccache g++ -Os  -I.  -MMD -I/opt/verilator-5.052/share/verilator/include -I/opt/verilator-5.052/share/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -DVM_VPI=1 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVM_SOLVER_DEFAULT='"z3 --in"' -I/home/cw036_titiksha/SoC-Integration-Structure/VERIF/uvm-1.1d/src/dpi -DVL_TIME_CONTEXT   -fcoroutines -c -x c++-header Vcsi2_tb_top__pch.h -o Vcsi2_tb_top__pch.h.fast.gch
+ccache g++   -I.  -MMD -I/opt/verilator-5.052/share/verilator/include -I/opt/verilator-5.052/share/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -DVM_VPI=1 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVM_SOLVER_DEFAULT='"z3 --in"' -I/home/cw036_titiksha/SoC-Integration-Structure/VERIF/uvm-1.1d/src/dpi -DVL_TIME_CONTEXT   -fcoroutines -c -x c++-header Vcsi2_tb_top__pch.h -o Vcsi2_tb_top__pch.h.slow.gch
+ccache g++ -Os  -I.  -MMD -I/opt/verilator-5.052/share/verilator/include -I/opt/verilator-5.052/share/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -DVM_VPI=1 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVM_SOLVER_DEFAULT='"z3 --in"' -I/home/cw036_titiksha/SoC-Integration-Structure/VERIF/uvm-1.1d/src/dpi -DVL_TIME_CONTEXT   -fcoroutines -include Vcsi2_tb_top__pch.h.fast -c Vcsi2_tb_top_vm_classes_0.cpp
+ccache g++ -Os  -I.  -MMD -I/opt/verilator-5.052/share/verilator/include -I/opt/verilator-5.052/share/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -DVM_VPI=1 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVM_SOLVER_DEFAULT='"z3 --in"' -I/home/cw036_titiksha/SoC-Integration-Structure/VERIF/uvm-1.1d/src/dpi -DVL_TIME_CONTEXT   -fcoroutines -include Vcsi2_tb_top__pch.h.fast -c Vcsi2_tb_top_vm_classes_1.cpp
+ccache g++ -Os  -I.  -MMD -I/opt/verilator-5.052/share/verilator/include -I/opt/verilator-5.052/share/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -DVM_VPI=1 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVM_SOLVER_DEFAULT='"z3 --in"' -I/home/cw036_titiksha/SoC-Integration-Structure/VERIF/uvm-1.1d/src/dpi -DVL_TIME_CONTEXT   -fcoroutines -include Vcsi2_tb_top__pch.h.fast -c Vcsi2_tb_top__Dpi.cpp
+ccache g++ -Os  -I.  -MMD -I/opt/verilator-5.052/share/verilator/include -I/opt/verilator-5.052/share/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -DVM_VPI=1 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVM_SOLVER_DEFAULT='"z3 --in"' -I/home/cw036_titiksha/SoC-Integration-Structure/VERIF/uvm-1.1d/src/dpi -DVL_TIME_CONTEXT   -fcoroutines -include Vcsi2_tb_top__pch.h.fast -c Vcsi2_tb_top__Trace__0.cpp
+ccache g++   -I.  -MMD -I/opt/verilator-5.052/share/verilator/include -I/opt/verilator-5.052/share/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -DVM_VPI=1 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVM_SOLVER_DEFAULT='"z3 --in"' -I/home/cw036_titiksha/SoC-Integration-Structure/VERIF/uvm-1.1d/src/dpi -DVL_TIME_CONTEXT   -fcoroutines -include Vcsi2_tb_top__pch.h.slow -c Vcsi2_tb_top_vm_classes_Slow_0.cpp
+ccache g++   -I.  -MMD -I/opt/verilator-5.052/share/verilator/include -I/opt/verilator-5.052/share/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -DVM_VPI=1 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVM_SOLVER_DEFAULT='"z3 --in"' -I/home/cw036_titiksha/SoC-Integration-Structure/VERIF/uvm-1.1d/src/dpi -DVL_TIME_CONTEXT   -fcoroutines -include Vcsi2_tb_top__pch.h.slow -c Vcsi2_tb_top___024root__0__Slow.cpp
+ccache g++   -I.  -MMD -I/opt/verilator-5.052/share/verilator/include -I/opt/verilator-5.052/share/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -DVM_VPI=1 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVM_SOLVER_DEFAULT='"z3 --in"' -I/home/cw036_titiksha/SoC-Integration-Structure/VERIF/uvm-1.1d/src/dpi -DVL_TIME_CONTEXT   -fcoroutines -include Vcsi2_tb_top__pch.h.slow -c Vcsi2_tb_top_vm_classes_Slow_1.cpp
+ccache g++   -I.  -MMD -I/opt/verilator-5.052/share/verilator/include -I/opt/verilator-5.052/share/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -DVM_VPI=1 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVM_SOLVER_DEFAULT='"z3 --in"' -I/home/cw036_titiksha/SoC-Integration-Structure/VERIF/uvm-1.1d/src/dpi -DVL_TIME_CONTEXT   -fcoroutines -include Vcsi2_tb_top__pch.h.slow -c Vcsi2_tb_top__Syms__Slow.cpp
+ccache g++   -I.  -MMD -I/opt/verilator-5.052/share/verilator/include -I/opt/verilator-5.052/share/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -DVM_VPI=1 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVM_SOLVER_DEFAULT='"z3 --in"' -I/home/cw036_titiksha/SoC-Integration-Structure/VERIF/uvm-1.1d/src/dpi -DVL_TIME_CONTEXT   -fcoroutines -include Vcsi2_tb_top__pch.h.slow -c Vcsi2_tb_top__Trace__0__Slow.cpp
+ccache g++   -I.  -MMD -I/opt/verilator-5.052/share/verilator/include -I/opt/verilator-5.052/share/verilator/include/vltstd -DVERILATOR=1 -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TIMING=1 -DVM_TRACE=1 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=1 -DVM_TRACE_SAIF=0 -DVM_VPI=1 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-int-in-bool-context -Wno-shadow -Wno-sign-compare -Wno-subobject-linkage -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -DVM_SOLVER_DEFAULT='"z3 --in"' -I/home/cw036_titiksha/SoC-Integration-Structure/VERIF/uvm-1.1d/src/dpi -DVL_TIME_CONTEXT   -fcoroutines -include Vcsi2_tb_top__pch.h.slow -c Vcsi2_tb_top__TraceDecls__0__Slow.cpp
+g++    -rdynamic uvm_dpi.o verilated.o verilated_dpi.o verilated_vpi.o verilated_vcd_c.o verilated_timing.o verilated_random.o verilated_threads.o Vcsi2_tb_top__ALL.a    -pthread -lpthread -latomic -ldl   -o Vcsi2_tb_top
+rm Vcsi2_tb_top__ALL.verilator_deplist.tmp
+make[2]: Leaving directory '/home/cw036_titiksha/SoC-Integration-Structure/VERIF/mipi_csi2_verif/csi2_tb/sim/.csi2_uvm_build/obj'
+- V e r i l a t i o n   R e p o r t: Verilator 5.052 2026-09-05 rev v5.052
+- Verilator: Built from 37.123 MB sources in 425 modules, into 19.025 MB in 1739 C++ files needing 61.217 MB
+- Verilator: Walltime 123.576 s (elab=1.293, cvt=5.495, bld=115.921); cpu 8.145 s on 2 threads; allocated 327.828 MB

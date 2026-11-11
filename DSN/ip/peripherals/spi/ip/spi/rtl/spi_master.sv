@@ -118,14 +118,23 @@ assign rx_overflow_o = rx_fifo_overflow;
   // -----------------------------------------------------------------
   // FSM and bit-clock generator
   // -----------------------------------------------------------------
-  typedef enum logic [2:0] {
+  /*typedef enum logic [2:0] {
     S_IDLE       = 3'd0,
     S_LOAD_WAIT  = 3'd1,
     S_CS_SETUP   = 3'd2,
     S_SHIFT      = 3'd3,
     S_CS_HOLD    = 3'd4,
     S_DONE       = 3'd5
-  } state_e;
+  } state_e; */
+  typedef enum logic [2:0] {
+    S_IDLE          = 3'd0,
+    S_LOAD_WAIT     = 3'd1,
+    S_CS_SETUP      = 3'd2,
+    S_SHIFT         = 3'd3,
+    S_LAST_BIT_HOLD = 3'd4,
+    S_CS_HOLD       = 3'd5,
+    S_DONE          = 3'd6
+} state_e;
 
   state_e state_q, state_d;
 
@@ -169,8 +178,14 @@ assign rx_overflow_o = rx_fifo_overflow;
       end
       S_SHIFT: begin
         if (sck_tick && (edge_cnt_q == edge_cnt_max - 1'b1))
-          state_d = S_CS_HOLD;
+          //state_d = S_CS_HOLD;
+		   state_d = S_LAST_BIT_HOLD;
       end
+	  S_LAST_BIT_HOLD:
+		begin
+			// Hold MOSI and CS for one clk_i cycle
+			state_d = S_CS_HOLD;
+		end
       S_CS_HOLD: begin
         if (dly_cnt_q == '0) begin
           if (inter_byte_q && !tx_fifo_empty) state_d = S_LOAD_WAIT;
@@ -221,14 +236,15 @@ assign rx_overflow_o = rx_fifo_overflow;
   always_comb begin
     cs_n_o = '1;
     if (state_q == S_LOAD_WAIT || state_q == S_CS_SETUP ||
-        state_q == S_SHIFT     || state_q == S_CS_HOLD)
+        state_q == S_SHIFT     || state_q == S_LAST_BIT_HOLD || state_q == S_CS_HOLD)
       cs_n_o[cs_sel_q] = 1'b0;
   end
 
   // mosi and sck.
-  assign mosi_o = (state_q == S_SHIFT)
+ /* assign mosi_o = (state_q == S_SHIFT)
                     ? (lsb_q ? tx_shift_q[0] : tx_shift_q[DATA_WIDTH-1])
-                    : 1'b0; 
+                    : 1'b0; */
+	assign mosi_o =(state_q == S_SHIFT || state_q == S_LAST_BIT_HOLD) ? (lsb_q ? tx_shift_q[0] : tx_shift_q[DATA_WIDTH-1]) : 1'b0;
 	
   assign sck_o  = sck_q;
 
@@ -336,14 +352,26 @@ assign rx_overflow_o = rx_fifo_overflow;
                                   : {tx_shift_q[DATA_WIDTH-2:0], 1'b0};
             end 
           end
-          if (do_sample_w) begin
+        /*  if (do_sample_w) begin
             rx_shift_q   <= rx_next_w;
             sample_cnt_q <= sample_cnt_q + 1'b1;
             if (sample_cnt_q == DATA_WIDTH-1) begin
               rx_fifo_wr_en_q <= 1'b1;
               rx_fifo_wdata_q <= rx_next_w;
             end
-          end
+          end */
+		  if (do_sample_w) begin
+    rx_shift_q <= rx_next_w;
+
+    if (sample_cnt_q == DATA_WIDTH-2) begin
+        sample_cnt_q    <= sample_cnt_q + 1'b1;
+        rx_fifo_wr_en_q <= 1'b1;
+        rx_fifo_wdata_q <= rx_next_w;
+    end
+    else begin
+        sample_cnt_q <= sample_cnt_q + 1'b1;
+    end
+end
         end else begin
           div_cnt_q <= div_cnt_q - 1'b1;
         end

@@ -267,7 +267,8 @@ endfunction
                         if (wdrain_q) begin
                             // Discard extra beats (WLAST mismatch with expected number of beats) after AWLEN + 1.
                             if (s_axi_wlast) begin
-                                bresp_q  <= (aw_err_q || !addr_in_range(aw_addr_q)) ? RESP_DECERR : RESP_SLVERR;
+                                //bresp_q  <= (aw_err_q || !addr_in_range(aw_addr_q)) ? RESP_DECERR : RESP_SLVERR;
+                                bresp_q  <= aw_err_q ? RESP_DECERR : RESP_SLVERR;
                                 sw_state <= SW_RESP;
                             end
                         end 	

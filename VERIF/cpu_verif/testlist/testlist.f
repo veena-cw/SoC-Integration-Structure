@@ -356,9 +356,10 @@ bp_dv_049_smp_coherence_test 74 pc_alias.nbf
 
 # BP-DV-075: BP-DV-067 (plic_wide) with the PLIC addressed through tile 1
 # (0x0150_0000), i.e. through core tile 1's PLIC port into
-# bp_plic_shared_top (c/plic_t1_wide.c). Currently FAILS: the shared AHB
-# bridge subtracts a fixed AHB_BASE_ADDR 0x0050_0000, so core-1-port
-# accesses reach the PLIC as 0x0100_00xx and hit no register (proposed Jira).
+# bp_plic_shared_top (c/plic_t1_wide.c). Failed before 11 Nov: the shared
+# AHB bridge subtracted a fixed AHB_BASE_ADDR 0x0050_0000, so core-1-port
+# accesses reached the PLIC as 0x0100_00xx. Fixed in RTL 11 Nov (bridge
+# AHB_WINDOW_BITS = dev_addr_width_gp masks the offset to 20 bits). PASS 11 Nov.
 #   make sim TEST=bp_dv_059_plic_reg_full_test TCNAME=plic_t1_wide TEST_ID=75
 bp_dv_059_plic_reg_full_test 75 plic_t1_wide.nbf
 
@@ -367,3 +368,55 @@ bp_dv_059_plic_reg_full_test 75 plic_t1_wide.nbf
 # I/O (paddr bits 34..39, write + read back) (c/io_addr.c).
 #   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=io_addr TEST_ID=76
 bp_dv_049_smp_coherence_test 76 io_addr.nbf
+
+# BP-DV-077: walking-one address sweeps: loopback device offsets (tiles 0/1),
+# cacheable DRAM bits 6..23 through the CCE directory (set overflow, LRU
+# evictions), instruction fetch from new tags and a full I$ set, odd-byte
+# AXI I/O loads (c/addr_sweep.c). PASS 11 Nov.
+#   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=addr_sweep TEST_ID=77
+bp_dv_049_smp_coherence_test 77 addr_sweep.nbf
+
+# BP-DV-078: back-to-back FP / FP<->int dependencies on the long, memory
+# and aux pipes (rs3, store data), each compared with a 5-nop-gap run
+# (c/fp_hazard.c, rv64imafd). PASS 11 Nov.
+#   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=fp_hazard TEST_ID=78
+bp_dv_049_smp_coherence_test 78 fp_hazard.nbf
+
+# BP-DV-079: D$ write buffer vs load bank hazards in all 8 banks (store then
+# load other line / same dword / merged sub-dword / miss) (c/dcache_hazard.c).
+# PASS 11 Nov.
+#   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=dcache_hazard TEST_ID=79
+bp_dv_049_smp_coherence_test 79 dcache_hazard.nbf
+
+# BP-DV-080: CBO on uncached addresses (access fault), misaligned loads /
+# stores of every size and offset, misaligned AMO / LR / SC (c/mem_exc.c).
+# PASS 11 Nov.
+#   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=mem_exc TEST_ID=80
+bp_dv_049_smp_coherence_test 80 mem_exc.nbf
+
+# BP-DV-081: compressed calls / returns (c.jalr / c.jr via ra and t0,
+# coroutine swap), 32-bit instructions straddling 64-byte blocks
+# (c/rvc_ctrl.c, rv64imac). PASS 11 Nov.
+#   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=rvc_ctrl TEST_ID=81
+bp_dv_049_smp_coherence_test 81 rvc_ctrl.nbf
+
+# BP-DV-082: L1-uncached / L2-uncached DRAM ops on every CCE / L2 slice
+# (addr[6] = CCE, addr[7] = slice; c/l2_uc_slices.c). Currently FAILS (hangs)
+# with both harts running: on CCE 1 a byte store from core 1 is lost (next
+# store's data lands in its byte) while core 0 issues uncached loads to the
+# same CCE, then the system deadlocks (proposed Jira, 11 Nov). Passes with
+# RISCV_CFLAGS=-DL2UC_SERIAL (harts one after the other).
+#   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=l2_uc_slices TEST_ID=82
+bp_dv_049_smp_coherence_test 82 l2_uc_slices.nbf
+
+# BP-DV-084: rdinstret in M / S with mcounteren.IR 1/0, mret to S clears
+# MPRV, write to read-only instret traps, pmpaddr access observed (traps:
+# num_pmp = 0) (c/csr_priv_more.c). PASS 11 Nov.
+#   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=csr_priv_more TEST_ID=84
+bp_dv_049_smp_coherence_test 84 csr_priv_more.nbf
+
+# BP-DV-085: PLIC edge-triggered pending counter saturation - 12 edges, no
+# claim, exactly 1 + MAX_PENDING_COUNT(8) = 9 claims; then level mode
+# (c/plic_edge_sat.c). PASS 11 Nov.
+#   make sim TEST=bp_dv_060_plic_irq_scenarios_test TCNAME=plic_edge_sat TEST_ID=85
+bp_dv_060_plic_irq_scenarios_test 85 plic_edge_sat.nbf

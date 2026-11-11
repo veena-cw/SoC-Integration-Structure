@@ -285,8 +285,11 @@ UVM_RUN_ARGS += +verilator+error+limit+1000
 
 # Programs that need extra ISA extensions. Selected by program name (TCNAME)
 # so make sim and make regression (which compiles with TCNAME=...) agree.
-ifneq ($(filter $(TCNAME),fpu_ops isa_complete hazard_chains),)
+ifneq ($(filter $(TCNAME),fpu_ops isa_complete hazard_chains fp_hazard),)
 RISCV_MARCH  := rv64imafd
+endif
+ifneq ($(filter $(TCNAME),rvc_ctrl),)
+RISCV_MARCH  := rv64imac
 endif
 ifneq ($(filter $(TCNAME),bitmanip_ops bitmanip_shadd),)
 RISCV_MARCH  := rv64ima_zba_zbb_zbs

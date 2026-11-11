@@ -771,3 +771,119 @@
 # bp_sacc_complex.sv: no streaming accelerators in this config (num_sacc = 0): links tied off
 */bp_sacc_complex.sv toggle=coh_req_link_i\[0\][0:127],coh_req_link_i\[0\][129],coh_req_link_o\[0\][0:129],coh_cmd_link_i\[0\][0:127],coh_cmd_link_i\[0\][129],coh_cmd_link_o\[0\][0:129]
 */bp_sacc_complex.sv toggle=y\[0\]\.cord_li[3]
+
+# Toggle: CCE / directory address bits fixed by design (hole review,
+# 10 Nov 2026). Generated from the holes report: only bits that never
+# toggled are listed.
+# directory entry address output: driven only in READ_ENTRY (ucode RDE); the FSM CCE never issues it
+*/bp_cce_dir.sv toggle=addr_o[0:39],icache_addr_lo[0:39],dcache_addr_lo[0:39],acache_addr_lo[0:39]
+*/bp_cce_dir_segment.sv toggle=addr_o[0:39]
+*/bp_cce_fsm.sv toggle=dir_addr_lo[0:39]
+# LRU address: block offset [5:0] is 0 by construction (dir_segment:533); cacheable lines are below 4 GiB ([39:32])
+*/bp_cce_dir.sv toggle=lru_addr_o[0:5],lru_addr_o[32:39],icache_lru_addr_lo[0:5],icache_lru_addr_lo[32:39],dcache_lru_addr_lo[0:5],dcache_lru_addr_lo[32:39]
+*/bp_cce_dir.sv toggle=acache_lru_addr_lo[0:5],acache_lru_addr_lo[32:39]
+*/bp_cce_dir_segment.sv toggle=lru_addr_o[0:5],lru_addr_o[32:39]
+*/bp_cce_fsm.sv toggle=mshr_n\.lru_paddr[0:5],mshr_n\.lru_paddr[32:39],mshr_r\.lru_paddr[0:5],mshr_r\.lru_paddr[32:39],dir_lru_addr_lo[0:5],dir_lru_addr_lo[32:39]
+# core CCE address bits [39:33]: hio addresses never reach a core CCE (external I/O goes to the I/O CCE)
+*/bp_cce_dir.sv toggle=addr_i[33:39]
+*/bp_cce_dir_segment.sv toggle=addr_i[33:39],addr_n[33:39],addr_r[33:39]
+*/bp_cce_fsm.sv toggle=lce_resp_header_cast_i\.addr[33:39],lce_req_header_cast_i\.addr[33:39],lce_cmd_header_cast_o\.addr[33:39],fsm_req_header_li\.addr[33:39],fsm_req_addr_li[33:39],fsm_cmd_header_lo\.addr[33:39]
+*/bp_cce_fsm.sv toggle=fsm_cmd_addr_lo[33:39],fsm_resp_header_li\.addr[33:39],fsm_resp_addr_li[33:39],fsm_rev_header_li\.addr[33:39],fsm_rev_addr_li[33:39],fsm_fwd_header_lo\.addr[33:39]
+*/bp_cce_fsm.sv toggle=fsm_fwd_addr_lo[33:39],mshr_n\.paddr[33:39],mshr_r\.paddr[33:39],pending_r_addr[33:39],pending_w_addr[33:39],dir_addr_li[33:39]
+
+# Line/branch/expr: parameter- or feature-fixed points (hole review, 10 Nov
+# 2026). Generated from the holes report: exact never-hit points only.
+# bp_be_calculator_top.sv: generate-loop bound compares (i < 4) are constant per stage
+*/bp_be_calculator_top.sv 145-145 kind=expr text="((32'sh0 < 32'sh4)==0 && (dispatch_pkt_cast_i[322:291][31:0][31:0][19:15] == comp_stage_r[(32'h4f * 32'sh0)[8:0]+:79][75:71])==0) => 0"
+*/bp_be_calculator_top.sv 145-145 kind=expr text="((32'sh0 < 32'sh4)==0 && comp_stage_r[(32'h4f * 32'sh0)[8:0]+:79][77]==0) => 0"
+*/bp_be_calculator_top.sv 145-145 kind=expr text="((32'sh0 < 32'sh4)==0 && dispatch_pkt_cast_i[285:232][43]==0) => 0"
+*/bp_be_calculator_top.sv 145-145 kind=expr text="((32'sh1 < 32'sh4)==0 && (dispatch_pkt_cast_i[322:291][31:0][31:0][19:15] == comp_stage_r[(32'h4f * 32'sh1)[8:0]+:79][75:71])==0) => 0"
+*/bp_be_calculator_top.sv 145-145 kind=expr text="((32'sh1 < 32'sh4)==0 && comp_stage_r[(32'h4f * 32'sh1)[8:0]+:79][77]==0) => 0"
+*/bp_be_calculator_top.sv 145-145 kind=expr text="((32'sh1 < 32'sh4)==0 && dispatch_pkt_cast_i[285:232][43]==0) => 0"
+*/bp_be_calculator_top.sv 145-145 kind=expr text="((32'sh2 < 32'sh4)==0 && (dispatch_pkt_cast_i[322:291][31:0][31:0][19:15] == comp_stage_r[(32'h4f * 32'sh2)[8:0]+:79][75:71])==0) => 0"
+*/bp_be_calculator_top.sv 145-145 kind=expr text="((32'sh2 < 32'sh4)==0 && comp_stage_r[(32'h4f * 32'sh2)[8:0]+:79][77]==0) => 0"
+*/bp_be_calculator_top.sv 145-145 kind=expr text="((32'sh2 < 32'sh4)==0 && dispatch_pkt_cast_i[285:232][43]==0) => 0"
+*/bp_be_calculator_top.sv 145-145 kind=expr text="((32'sh3 < 32'sh4)==0 && (dispatch_pkt_cast_i[322:291][31:0][31:0][19:15] == comp_stage_r[(32'h4f * 32'sh3)[8:0]+:79][75:71])==0) => 0"
+*/bp_be_calculator_top.sv 145-145 kind=expr text="((32'sh3 < 32'sh4)==0 && comp_stage_r[(32'h4f * 32'sh3)[8:0]+:79][77]==0) => 0"
+*/bp_be_calculator_top.sv 145-145 kind=expr text="((32'sh3 < 32'sh4)==0 && dispatch_pkt_cast_i[285:232][43]==0) => 0"
+*/bp_be_calculator_top.sv 145-145 kind=expr text="((32'sh4 < 32'sh4)==1 && dispatch_pkt_cast_i[285:232][45]==1 && comp_stage_r[(32'h4f * 32'sh4)[8:0]+:79][78]==1 && (dispatch_pkt_cast_i[322:291][31:0][31:0][19:15] == comp_stage_r[(32'h4f * 32'sh4)[8:0]+:79][75:71])==1) => 1"
+*/bp_be_calculator_top.sv 147-147 kind=expr text="((32'sh0 < 32'sh4)==0 && (dispatch_pkt_cast_i[322:291][31:0][31:0][24:20] == comp_stage_r[(32'h4f * 32'sh0)[8:0]+:79][75:71])==0) => 0"
+*/bp_be_calculator_top.sv 147-147 kind=expr text="((32'sh0 < 32'sh4)==0 && comp_stage_r[(32'h4f * 32'sh0)[8:0]+:79][77]==0) => 0"
+*/bp_be_calculator_top.sv 147-147 kind=expr text="((32'sh0 < 32'sh4)==0 && dispatch_pkt_cast_i[285:232][42]==0) => 0"
+*/bp_be_calculator_top.sv 147-147 kind=expr text="((32'sh1 < 32'sh4)==0 && (dispatch_pkt_cast_i[322:291][31:0][31:0][24:20] == comp_stage_r[(32'h4f * 32'sh1)[8:0]+:79][75:71])==0) => 0"
+*/bp_be_calculator_top.sv 147-147 kind=expr text="((32'sh1 < 32'sh4)==0 && comp_stage_r[(32'h4f * 32'sh1)[8:0]+:79][77]==0) => 0"
+*/bp_be_calculator_top.sv 147-147 kind=expr text="((32'sh1 < 32'sh4)==0 && dispatch_pkt_cast_i[285:232][42]==0) => 0"
+*/bp_be_calculator_top.sv 147-147 kind=expr text="((32'sh2 < 32'sh4)==0 && (dispatch_pkt_cast_i[322:291][31:0][31:0][24:20] == comp_stage_r[(32'h4f * 32'sh2)[8:0]+:79][75:71])==0) => 0"
+*/bp_be_calculator_top.sv 147-147 kind=expr text="((32'sh2 < 32'sh4)==0 && comp_stage_r[(32'h4f * 32'sh2)[8:0]+:79][77]==0) => 0"
+*/bp_be_calculator_top.sv 147-147 kind=expr text="((32'sh2 < 32'sh4)==0 && dispatch_pkt_cast_i[285:232][42]==0) => 0"
+*/bp_be_calculator_top.sv 147-147 kind=expr text="((32'sh3 < 32'sh4)==0 && (dispatch_pkt_cast_i[322:291][31:0][31:0][24:20] == comp_stage_r[(32'h4f * 32'sh3)[8:0]+:79][75:71])==0) => 0"
+*/bp_be_calculator_top.sv 147-147 kind=expr text="((32'sh3 < 32'sh4)==0 && comp_stage_r[(32'h4f * 32'sh3)[8:0]+:79][77]==0) => 0"
+*/bp_be_calculator_top.sv 147-147 kind=expr text="((32'sh3 < 32'sh4)==0 && dispatch_pkt_cast_i[285:232][42]==0) => 0"
+*/bp_be_calculator_top.sv 147-147 kind=expr text="((32'sh4 < 32'sh4)==1 && dispatch_pkt_cast_i[285:232][44]==1 && comp_stage_r[(32'h4f * 32'sh4)[8:0]+:79][78]==1 && (dispatch_pkt_cast_i[322:291][31:0][31:0][24:20] == comp_stage_r[(32'h4f * 32'sh4)[8:0]+:79][75:71])==1) => 1"
+# bp_be_calculator_top.sv: instruction-misaligned from int pipe: with C (IALIGN = 16) jump/branch targets are always even
+*/bp_be_calculator_top.sv 577-577 kind=expr text="(pipe_int_early_instr_misaligned_lo==1) => 1"
+*/bp_be_calculator_top.sv 588-588 kind=expr text="(pipe_int_catchup_instr_misaligned_lo==1) => 1"
+# bp_be_detector.sv: integer_support_p parameter
+*/bp_be_detector.sv 88-88 kind=expr text="(integer_support_p[bp_common_pkg::e_catchup+:1]==0) => 0"
+*/bp_be_detector.sv 93-93 kind=expr text="(integer_support_p[bp_common_pkg::e_catchup+:1]==0) => 0"
+*/bp_be_detector.sv 98-98 kind=expr text="(integer_support_p[bp_common_pkg::e_catchup+:1]==0) => 0"
+# bp_be_dcache.sv: ctag_vbits_lp / num_words_per_bank_lp parameter arms
+*/bp_be_dcache.sv 343-343 kind=branch text="cond_then"
+*/bp_be_dcache.sv 343-343 kind=expr text="((ctag_vbits_lp != 32'sh0)==1) => 1"
+*/bp_be_dcache.sv 982-982 kind=expr text="((num_words_per_bank_lp > 32'sh1)==1) => 1"
+*/bp_be_dcache.sv 983-983 kind=branch text="cond_then"
+# bp_be_dcache.sv: D$ feature parameter (writeback / coherent) terms
+*/bp_be_dcache.sv 492-492 kind=expr text="(features_p[bp_common_pkg::e_cfg_writeback+:1]==0) => 0"
+*/bp_be_dcache.sv 739-739 kind=expr text="(features_p[bp_common_pkg::e_cfg_coherent+:1]==0) => 0"
+*/bp_be_dcache.sv 740-740 kind=expr text="(store_hit_tv==0 && features_p[bp_common_pkg::e_cfg_coherent+:1]==0) => 0"
+*/bp_be_dcache.sv 740-740 kind=expr text="(v_tv_r==1 && uncached_tv_r==0 && decode_tv_r[11]==1 && features_p[bp_common_pkg::e_cfg_coherent+:1]==0 && store_hit_tv==1 && snoop_tv_r==0) => 1"
+*/bp_be_dcache.sv 741-741 kind=expr text="(features_p[bp_common_pkg::e_cfg_coherent+:1]==0) => 0"
+*/bp_be_dcache.sv 745-745 kind=expr text="(v_tv_r==1 && uncached_tv_r==0 && decode_tv_r[28]==1 && sc_fail_tv==0 && features_p[bp_common_pkg::e_cfg_writeback+:1]==0 && snoop_tv_r==0) => 1"
+# bp_be_dcache.sv: write-through request: D$ is write-back
+*/bp_be_dcache.sv 750-750 kind=expr text="(wt_req==1) => 1"
+# bp_be_dcache.sv: whole-cache inval/clean/flush: illegal on the coherent build
+*/bp_be_dcache.sv 752-752 kind=expr text="(clean_req==1) => 1"
+*/bp_be_dcache.sv 752-752 kind=expr text="(flush_req==1) => 1"
+*/bp_be_dcache.sv 752-752 kind=expr text="(inval_req==1) => 1"
+*/bp_be_dcache.sv 770-770 kind=expr text="(clean_req==1) => 1"
+*/bp_be_dcache.sv 770-770 kind=expr text="(inval_req==1) => 1"
+# bp_be_dcache.sv: hit-under-miss feature not built (features_p[e_cfg_hit_under_miss] = 0)
+*/bp_be_dcache.sv 1239-1239 kind=branch text="cond_else"
+*/bp_be_dcache.sv 1239-1239 kind=expr text="(decode_tv_r[23]==1) => 1"
+*/bp_be_dcache.sv 1239-1239 kind=expr text="(features_p[bp_common_pkg::e_cfg_hit_under_miss+:1]==1 && decode_tv_r[23]==0) => 0"
+*/bp_be_dcache.sv 1240-1240 kind=expr text="(is_primary==1 && v_tv_r==1 && any_miss_tv==1) => 1"
+*/bp_be_dcache.sv 1240-1240 kind=line text="if"
+
+# --- 11 Nov 2026: dead code found while targeting the 10 Nov holes ---
+# bp_cce_fsm.sv: e_transfer_cmd / e_transfer_st_cmd / e_transfer_wb_cmd /
+# e_uncached_data are enum members only - state_n is never assigned them
+# (transfers go through e_transfer, which is covered). e_error is only
+# entered on a protocol violation.
+*/bp_cce_fsm.sv 902-902 kind=fsm_state text="state_r::e_transfer_cmd"
+*/bp_cce_fsm.sv 902-902 kind=fsm_state text="state_r::e_transfer_st_cmd"
+*/bp_cce_fsm.sv 902-902 kind=fsm_state text="state_r::e_transfer_wb_cmd"
+*/bp_cce_fsm.sv 902-902 kind=fsm_state text="state_r::e_uncached_data"
+*/bp_cce_fsm.sv 902-902 kind=fsm_state text="state_r::e_error"
+*/bp_cce_fsm.sv 902-902 kind=fsm_arc text="state_r::e_error->e_error"
+# bp_lce_cmd.sv: e_wb_dirty_rd is an enum member only (never assigned).
+# I$ LCE (fe_lce): the I$ is never dirty and never owns a block, so it
+# never gets tr / wb commands and never clears a dirty bit.
+*/bp_lce_cmd.sv 365-365 kind=fsm_state text="state_r::e_wb_dirty_rd"
+*/bp_lce_cmd.sv 365-365 kind=fsm_state text="fe_lce.command.state_r::e_tr"
+*/bp_lce_cmd.sv 365-365 kind=fsm_state text="fe_lce.command.state_r::e_wb"
+*/bp_lce_cmd.sv 365-365 kind=fsm_state text="fe_lce.command.state_r::e_stat_clear"
+# L2 masked DMA writes: only issued with l2_features[e_cfg_word_tracking],
+# which bp_multicore_1_override_p (cfg 9) does not set.
+*/bsg_cache_dma_to_wormhole.sv 183-183 kind=fsm_state text="SEND_MASK"
+*/bsg_cache_dma_to_wormhole.sv 221-230
+*/bsg_wormhole_to_cache_dma_fanout.sv 157-157 kind=fsm_state text="SEND_DMA_PKT_WITH_MASK"
+*/bsg_wormhole_to_cache_dma_fanout.sv 204-208
+*/bsg_wormhole_to_cache_dma_fanout.sv 217-230
+# bp_bedrock_axi4_bridge.sv: ST_WR_AW / ST_RD_AR are entered only after the
+# previous transaction completed, when axi4_master is back in WR_IDLE /
+# RD_IDLE, so wr_req_ack / rd_req_ack (= master idle) is always 1 there.
+*/bp_bedrock_axi4_bridge.sv 468-468 kind=branch
+*/bp_bedrock_axi4_bridge.sv 479-479 kind=branch
+# bp_be_csr.sv: PMP not implemented in cfg 9 (num_pmp = 0): pmpaddr* and
+# pmpcfg2 accesses trap as illegal (BP-DV-084 observation, 11 Nov)
+*/bp_be_csr.sv 569-570 kind=line

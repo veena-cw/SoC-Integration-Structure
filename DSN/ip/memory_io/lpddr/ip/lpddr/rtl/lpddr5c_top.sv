@@ -24,7 +24,7 @@ module lpddr5c_top #(
     parameter NUM_BANKS         = 8,
     parameter NUM_BANK_GROUPS   = 2,
     parameter ROW_WIDTH         = 16,
-    parameter COL_WIDTH         = 10,
+    parameter COL_WIDTH         = 4,
     parameter DQ_WIDTH          = 16,
     parameter DQS_WIDTH         = 2,
     parameter CA_WIDTH          = 6,

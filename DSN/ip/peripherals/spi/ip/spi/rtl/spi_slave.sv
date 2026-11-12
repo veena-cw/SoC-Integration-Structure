@@ -262,9 +262,9 @@ logic rx_fifo_overflow;
         // CPHA=0 only: master will emit one trailing shift edge after
         // this last sample. Mask it so it does not shift the freshly
         // loaded next byte.
-        //if (!cpha_i) shift_mask_q <= 1'b1;
+        if (!cpha_i) shift_mask_q <= 1'b1;
 		// Mask the next shift after every completed byte
-       shift_mask_q <= 1'b1;
+       //shift_mask_q <= 1'b1;
       end
 
       if (cs_rise) begin

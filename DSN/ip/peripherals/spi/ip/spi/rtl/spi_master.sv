@@ -222,7 +222,7 @@ assign rx_overflow_o = rx_fifo_overflow;
   always_comb begin
     cs_n_o = '1;
     if (state_q == S_LOAD_WAIT || state_q == S_CS_SETUP ||
-        state_q == S_SHIFT     || state_q == S_LAST_BIT_HOLD || state_q == S_CS_HOLD)
+        state_q == S_SHIFT      || state_q == S_CS_HOLD)
       cs_n_o[cs_sel_q] = 1'b0;
   end
 

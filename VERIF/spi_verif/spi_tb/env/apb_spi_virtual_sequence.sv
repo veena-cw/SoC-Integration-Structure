@@ -568,7 +568,8 @@ class apb_spi_clk_div_vseq extends apb_spi_base_vseq;
             "SCK returns to the mode-0 idle level");
 
     apb_rd(ADDR_RX_DATA, rd);
-    clk_chk(rd[7:0] == data, $sformatf("RX_DATA is 0x%02h", data));
+   // clk_chk(rd[7:0] == data, $sformatf("RX_DATA is 0x%02h", data));
+   clk_chk(rd[7:0] == data,$sformatf("RX_DATA actual=0x%02h expected=0x%02h",rd[7:0], data));
     clk_chk(rd[31:8] == 24'h0, "RX_DATA upper bits are zero");
 
     wait_clks(10);

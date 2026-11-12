@@ -124,7 +124,9 @@ class apb_spi_scoreboard extends uvm_scoreboard;
   function void apb_write_model(bit [15:0] a, bit [31:0] d);
     case (a)
       ADDR_CTRL:     m_ctrl     = d;
-      ADDR_IRQ_MASK: m_irq_mask = d;
+      //ADDR_IRQ_MASK: m_irq_mask = d;
+      // New
+	ADDR_IRQ_MASK: m_irq_mask = d & 32'h0000_000E;
       ADDR_CLK_DIV:  m_clk_div  = d;
       ADDR_TX_DATA: begin
         m_tx_data = d;

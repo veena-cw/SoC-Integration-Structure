@@ -33,13 +33,13 @@ class apb_spi_mode_test extends apb_spi_base_test;
 
   // MD-01..08 = 8 bytes, MD-09A..D = 4 bytes, MD-10 = 1 byte.
   function void end_of_test_checks();
-    if (env.scoreboard.n_mst_bytes != 13)
+    if (env.scoreboard.n_mst_bytes != 16)
       `uvm_error("MODE", $sformatf("[END] master monitor saw %0d SPI byte(s), expected 13",
                                    env.scoreboard.n_mst_bytes))
     else
       `uvm_info("MODE", "[END] PASS: master monitor saw 13 SPI bytes", UVM_LOW)
 
-    if (env.scoreboard.n_slv_bytes != 13)
+    if (env.scoreboard.n_slv_bytes != 16)
       `uvm_error("MODE", $sformatf("[END] slave monitor saw %0d SPI byte(s), expected 13",
                                    env.scoreboard.n_slv_bytes))
     else

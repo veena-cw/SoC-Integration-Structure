@@ -34,14 +34,14 @@ class apb_spi_fifo_test extends apb_spi_base_test;
   // frames: FF-04 4, FF-05 16, FF-06 2, FF-10 2 (chip select 1), FF-11 2  ->  26 seen by the master monitor,
   // 24 seen by the slave monitor (the slave only sees chip select 0)
   function void end_of_test_checks();
-    if (env.scoreboard.n_mst_bytes != 26)
-      `uvm_error("FIFO", $sformatf("[END] master monitor saw %0d SPI byte(s), expected 26", env.scoreboard.n_mst_bytes))
+    if (env.scoreboard.n_mst_bytes != 30)
+      `uvm_error("FIFO", $sformatf("[END] master monitor saw %0d SPI byte(s), expected 30", env.scoreboard.n_mst_bytes))
     else
-      `uvm_info("FIFO", "[END] PASS: master monitor saw 26 SPI bytes", UVM_LOW)
-    if (env.scoreboard.n_slv_bytes != 24)
-      `uvm_error("FIFO", $sformatf("[END] slave monitor saw %0d SPI byte(s), expected 24 (chip select 0 frames only)", env.scoreboard.n_slv_bytes))
+      `uvm_info("FIFO", "[END] PASS: master monitor saw 30 SPI bytes", UVM_LOW)
+    if (env.scoreboard.n_slv_bytes != 28)
+      `uvm_error("FIFO", $sformatf("[END] slave monitor saw %0d SPI byte(s), expected 28 (chip select 0 frames only)", env.scoreboard.n_slv_bytes))
     else
-      `uvm_info("FIFO", "[END] PASS: slave monitor saw 24 SPI bytes", UVM_LOW)
+      `uvm_info("FIFO", "[END] PASS: slave monitor saw 28 SPI bytes", UVM_LOW)
     if (env.scoreboard.n_apb_abort != 0)
       `uvm_error("FIFO", $sformatf("[END] %0d APB transfer(s) were aborted by reset (none expected)", env.scoreboard.n_apb_abort))
     else

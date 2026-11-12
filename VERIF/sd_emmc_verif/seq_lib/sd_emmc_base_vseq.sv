@@ -255,7 +255,7 @@ end
     vif.cfg_resp_dly = 8'd0;
     bfm_clear_inj();
     vif.use_bfm      = 1'b1;
-    vif.cfg_skip_crc7 = 1'b1;   //temporary to check the CMD pass without crc7 check
+    vif.cfg_skip_crc7 = 1'b0;   //temporary to check the CMD pass without crc7 check
     #200ns;
   endtask
 

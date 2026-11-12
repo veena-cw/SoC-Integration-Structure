@@ -35,8 +35,12 @@ class cmd_crc7_vseq extends sd_emmc_base_vseq;
   end
 
     enable_clocks();
+    
     vif.use_bfm    = 1'b1;
+    bfm_setup();
     poll_max_reads = 200;
+    
+    
 
     // ---- Part 1: host -> card CRC-7 ------------------------------------------------------
     // Expected [SPEC]: the card accepts the command; Command Complete is set and no error bit is.
@@ -57,7 +61,12 @@ class cmd_crc7_vseq extends sd_emmc_base_vseq;
 
     // ---- Part 2: card -> host CRC-7 ------------------------------------------------------
     // Expected [SPEC]: a response with a wrong CRC-7 sets Command CRC Error 0x32[1].
-    vif.inj_resp_crc = 1'b1;
+    enable_clocks();
+
+	vif.use_bfm       = 1'b1;
+	vif.cfg_skip_crc7 = 1'b0;
+	vif.inj_resp_crc  = 1'b1;
+ //   vif.inj_resp_crc = 1'b1;
     send_cmd(6'd8, 32'h0000_01AA, 2'b10);
     poll_reg(REG_INT_STAT_WORD, ERR_CRC, ERR_CRC, ok);
     if (!ok)

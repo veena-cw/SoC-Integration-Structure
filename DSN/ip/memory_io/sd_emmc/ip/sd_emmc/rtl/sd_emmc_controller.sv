@@ -423,7 +423,7 @@
         .rst                   (!s00_axi_aresetn |
                                 soft_rst_dat_sd_clk ),
         .cmd_with_data_start_i (cmd_start_sd_clk & (command_sd_clk[5] == 1'b1)),
-        .r_w_i                 (dat_trans_dir_sd_clk == 1'b1),
+        .r_w_i                 (dat_trans_dir_sd_clk  == 1'b1),
         .cmd_int_status_i      (cmd_int_status_sd_clk),
         .start_tx_o            (data_start_tx),
         .start_rx_o            (data_start_rx)

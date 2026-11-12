@@ -336,6 +336,7 @@ module i2c_master (
                 //==================================================
 
                 STOP: begin
+                  ack_error <= 1'b0;
                     if (i2c_tick) begin
 
                         case (bit_cnt)

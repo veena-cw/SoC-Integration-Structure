@@ -55,6 +55,7 @@ module i2c_top #(
     logic busy;
     logic done;
     logic [7:0] data_out;
+    logic irq_out;
     //---------------------------------------------------
 
 
@@ -386,7 +387,7 @@ i2c_master i2cm (
 
     // Interrupt
     .i2c_irq_en  (irq_en_i2c),
-    .i2c_irq     (i2c_irq),
+    .i2c_irq     (irq_out),
 
     // Receive handshake
     .rx_req      (rx_req_i2c),
@@ -456,6 +457,12 @@ i2c_master i2cm (
         .d_out (irq_en_i2c)
     );
 
+   synchronizer #(.WIDTH(1)) ff9 (
+        .clk   (pclk),
+        .rst_n (presetn),
+        .d_in  (irq_out),
+        .d_out (i2c_irq)
+    );
 
 
 endmodule

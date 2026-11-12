@@ -169,7 +169,8 @@ assign rx_overflow_o = rx_fifo_overflow;
           state_d = S_SHIFT;
       end
       S_SHIFT: begin
-        if (sck_tick && (edge_cnt_q == edge_cnt_max - 1'b1))
+        //if (sck_tick && (edge_cnt_q == edge_cnt_max - 1'b1))
+		 if (sck_tick && (edge_cnt_q == edge_cnt_max))
           state_d = S_CS_HOLD;
       end
       S_CS_HOLD: begin
@@ -227,10 +228,10 @@ assign rx_overflow_o = rx_fifo_overflow;
   end
 
   // mosi and sck.
- /* assign mosi_o = (state_q == S_SHIFT)
+  assign mosi_o = (state_q == S_SHIFT)
                     ? (lsb_q ? tx_shift_q[0] : tx_shift_q[DATA_WIDTH-1])
-                    : 1'b0; */
-assign mosi_o =  ((state_q == S_SHIFT) || (state_q == S_CS_HOLD)) ? (lsb_q ? tx_shift_q[0] : tx_shift_q[DATA_WIDTH-1]) : 1'b0;
+                    : 1'b0; 
+//	assign mosi_o =(state_q == S_SHIFT || state_q == S_LAST_BIT_HOLD) ? (lsb_q ? tx_shift_q[0] : tx_shift_q[DATA_WIDTH-1]) : 1'b0;
 	
   assign sck_o  = sck_q;
 
@@ -333,7 +334,7 @@ assign mosi_o =  ((state_q == S_SHIFT) || (state_q == S_CS_HOLD)) ? (lsb_q ? tx_
             end
           end else begin
             // Mode 1/3: even=shift (skip first), odd=sample (below).
-           if (!edge_cnt_q[0] && (edge_cnt_q != '0)) begin
+           if (!edge_cnt_q[0] && (edge_cnt_q != '0) && (edge_cnt_q != edge_cnt_max)) begin
               tx_shift_q <= lsb_q ? {1'b0, tx_shift_q[DATA_WIDTH-1:1]}
                                   : {tx_shift_q[DATA_WIDTH-2:0], 1'b0};
             end 

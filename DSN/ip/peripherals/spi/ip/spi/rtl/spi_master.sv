@@ -334,7 +334,7 @@ assign rx_overflow_o = rx_fifo_overflow;
             end
           end else begin
             // Mode 1/3: even=shift (skip first), odd=sample (below).
-           if (!edge_cnt_q[0] && (edge_cnt_q != '0) && (edge_cnt_q != edge_cnt_max)) begin
+			  if (!edge_cnt_q[0] && (edge_cnt_q != '0)) begin
               tx_shift_q <= lsb_q ? {1'b0, tx_shift_q[DATA_WIDTH-1:1]}
                                   : {tx_shift_q[DATA_WIDTH-2:0], 1'b0};
             end 

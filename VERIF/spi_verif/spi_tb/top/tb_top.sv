@@ -172,6 +172,21 @@ module tb_top;
   );
 
 assign apb_if_i.spi_irq = spi_irq;
+
+
+// Checks the programmed CLK_DIV against every generated SCK half-period and
+  // reports the measured/expected SCK frequency once per SPI transfer.
+  apb_spi_clk_div_assertions #(
+    .PCLK_FREQ_MHZ (100.0)
+  ) u_clk_div_assertions (
+    .pclk     (pclk),
+    .presetn  (reset_if_i.rst_n),
+    .clk_div  (dut.clk_div_reg[15:0]),
+    .sck_o    (sck_o),
+    .cs_n_o   (cs_n_o)
+  );
+  
+  
   // ---------------- SPI pins -> master / slave observation interfaces ----------------
   assign master_if_i.sck        = sck_o;
   assign master_if_i.mosi       = mosi_o;

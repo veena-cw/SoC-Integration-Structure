@@ -18,6 +18,7 @@
 ../interface/reset_if.sv
 ../interface/spi_master_if.sv
 ../interface/spi_slave_if.sv
+../interface/apb_spi_clk_div_assertions.sv
 
 # ---------- Shared Types ----------
 ../agent/apb_spi_types_pkg.sv

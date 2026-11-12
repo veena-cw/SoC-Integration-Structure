@@ -26,6 +26,7 @@ module apb_spi_clk_div_assertions #(
   longint unsigned   measured_half_cycles;
   bit                previous_edge_valid;
   bit                frequency_reported;
+  int 	  unsigned   edge_in_byte;
   wire               cs_active = (cs_n_o != 4'hF);
 
   // SCK is generated synchronously from PCLK. Sampling on every PCLK edge
@@ -37,9 +38,10 @@ module apb_spi_clk_div_assertions #(
       active_clk_div       <= '0;
       pclk_count           <= 0;
       previous_sck_count   <= 0;
-      measured_half_cycles <= 0;
+      measured_half_cycles = 0;
       previous_edge_valid  <= 1'b0;
       frequency_reported   <= 1'b0;
+      edge_in_byte <= 0;
     end else begin
       pclk_count <= pclk_count + 1;
 
@@ -48,8 +50,10 @@ module apb_spi_clk_div_assertions #(
         active_clk_div      <= clk_div;
         previous_edge_valid <= 1'b0;
         frequency_reported  <= 1'b0;
+        edge_in_byte <= 0;
       end else if (previous_cs_active && !cs_active) begin
         previous_edge_valid <= 1'b0;
+        edge_in_byte <= 0;
       end else if (cs_active && (sck_o != previous_sck)) begin
         if (previous_edge_valid) begin
           measured_half_cycles = pclk_count - previous_sck_count;
@@ -78,10 +82,20 @@ module apb_spi_clk_div_assertions #(
           end
         end
 
-        previous_sck_count  <= pclk_count;
-        previous_edge_valid <= 1'b1;
-      end
+        /*previous_sck_count  <= pclk_count;
+        previous_edge_valid <= 1'b1;*/
+        previous_sck_count <= pclk_count;
 
+	if (edge_in_byte == 15) begin
+	  edge_in_byte        <= 0;
+	  previous_edge_valid <= 1'b0;
+	end
+	else begin
+	  edge_in_byte        <= edge_in_byte + 1;
+	  previous_edge_valid <= 1'b1;
+	end
+	    
+end
       previous_sck       <= sck_o;
       previous_cs_active <= cs_active;
     end

@@ -506,7 +506,8 @@ module bp_be_instr_decoder
               `RV64_WFI:
                 begin
                   // WFI operates as NOP in debug mode
-                  illegal_instr_o = decode_info_cast_i.tw;
+                  //illegal_instr_o = decode_info_cast_i.tw;
+                  illegal_instr_o = decode_info_cast_i.tw & ~decode_info_cast_i.m_mode;
                   wfi_o = ~illegal_instr_o & ~decode_info_cast_i.debug_mode;
                 end
               `RV64_SFENCE_VMA:

@@ -334,17 +334,10 @@ assign rx_overflow_o = rx_fifo_overflow;
             end
           end else begin
             // Mode 1/3: even=shift (skip first), odd=sample (below).
-			 /* if (!edge_cnt_q[0] && (edge_cnt_q != '0)) begin
+			  if (!edge_cnt_q[0] && (edge_cnt_q != '0)) begin
               tx_shift_q <= lsb_q ? {1'b0, tx_shift_q[DATA_WIDTH-1:1]}
                                   : {tx_shift_q[DATA_WIDTH-2:0], 1'b0};
-            end */
-			  if (!edge_cnt_q[0] &&
-    (edge_cnt_q != '0) &&
-    (sample_cnt_q < DATA_WIDTH-1))
-begin
-    tx_shift_q <= lsb_q ? {1'b0, tx_shift_q[DATA_WIDTH-1:1]}
-                        : {tx_shift_q[DATA_WIDTH-2:0], 1'b0};
-end
+            end 
           end
           if (do_sample_w) begin
             rx_shift_q   <= rx_next_w;

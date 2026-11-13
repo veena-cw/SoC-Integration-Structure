@@ -887,3 +887,436 @@
 # bp_be_csr.sv: PMP not implemented in cfg 9 (num_pmp = 0): pmpaddr* and
 # pmpcfg2 accesses trap as illegal (BP-DV-084 observation, 11 Nov)
 */bp_be_csr.sv 569-570 kind=line
+
+# ---- 12 Nov 2026 hole review (BP_CFG_ID = 9) ----
+# L2 cache-CSR ops (TAGFL/TAGLV/TAGLA/TAGST/AINV/AFLINV/ALOCK/AUNLOCK by
+# address): reached only through local device 4 (cache CSR, 0x0040_0000),
+# which bp_core routes to bp_me_loopback in cfg 9 (BP-DV-069 checks the
+# loopback answer). The uncached-window AFLINV uses e_uc_flush, not this case.
+*/bp_me_cache_controller.sv 366-376 kind=line
+*/bp_me_cache_controller.sv 375-375 kind=branch
+*/bsg_cache.sv 953-957 kind=line
+*/bsg_cache_miss.sv 262-262 kind=branch text="cond_then"
+*/bsg_cache_miss.sv 306-306 kind=branch text="cond_then"
+*/bsg_cache_miss.sv 347-347 kind=branch text="cond_then"
+*/bsg_cache_miss.sv 381-390 kind=line
+# L2 word tracking (store-tag-miss allocate, track memory): only with
+# l2_features[e_cfg_word_tracking], not set by bp_multicore_1_override_p.
+*/bsg_cache_miss.sv 161-161 kind=branch text="cond_then"
+*/bsg_cache_miss.sv 301-301 kind=branch text="cond_then"
+*/bsg_cache_miss.sv 308-308 kind=branch text="cond_then"
+*/bsg_cache_miss.sv 477-477 kind=branch text="cond_then"
+*/bsg_cache_miss.sv 494-494 kind=branch text="cond_then"
+*/bsg_cache_miss.sv 510-550
+*/bsg_cache.sv 1081-1095 kind=branch text="cond_then"
+*/bsg_cache_dma.sv 214-214 kind=branch text="cond_then"
+*/bsg_cache_dma.sv 291-291 kind=branch text="cond_then"
+*/bsg_cache_dma.sv 309-309 kind=branch text="cond_then"
+*/bsg_cache_dma.sv 417-417 kind=branch text="if"
+# bsg_cache: block_size_in_words_p > 1 is a parameter (cond_else constant);
+# atomic opcode decode: undefined / default arms (no such opcode is sent).
+*/bsg_cache.sv 337-337 kind=branch text="cond_else"
+*/bsg_cache.sv 728-729 kind=line
+# debug_p / verbose_p printing blocks (parameters 0).
+*/bsg_cache_dma.sv 426-427 kind=branch
+*/bsg_two_fifo.sv 131-136 kind=branch
+*/bsg_wormhole_router.sv 232-236 kind=branch
+# ahb3lite_plic_top.sv: address_offset / address_mask cases are evaluated
+# for the fixed HDATA_SIZE = 32 only; HSIZE wider than the 32-bit bus
+# (DWORD..B1024) is never driven - the AHB bridge splits 64-bit accesses
+# into two word beats (BP-DV-067).
+*/ahb3lite_plic_top.sv 180-192 kind=line
+*/ahb3lite_plic_top.sv 213-217 kind=line
+# bp_be_csr.sv 535: a write to the user-level instret (0xC02) is illegal and
+# traps before retire (BP-DV-084 check), so this arm is never taken.
+*/bp_be_csr.sv 535-535 kind=line
+# bp_be_csr.sv 704: sret sets priv_mode_n = {0, spp}, never M, so the
+# "keep MPRV" arm is unreachable.
+*/bp_be_csr.sv 704-704 kind=branch text="cond_else"
+# bp_be_dcache.sv 809-813: cmo.inval/clean/flush.all requests; these
+# instructions are illegal on the coherent two-core build (BP-DV-052/072).
+*/bp_be_dcache.sv 809-814 kind=line
+# Non-synthesizable testbench models compiled from DSN (plusargs this flow
+# never passes, debug printing).
+*/bp_nonsynth_dram.sv 118-118 kind=branch
+*/bp_nonsynth_dram.sv 130-130 kind=branch
+*/bp_nonsynth_cfg_loader.sv 63-63 kind=branch
+*/bp_nonsynth_cfg_loader.sv 84-86
+# plic_dynamic_registers_priority_bank.sv (plic.f): Verilator 5.052 never
+# counts the taken arm of "if (...) return X;" inside a function (the return
+# leaves before the branch counter). The functions run millions of times and
+# the expression coverage on the same lines shows both outcomes, e.g. line
+# 289 (register_function(r) == ID && re) true 346 times = the claims checked
+# by BP-DV-058..061 / 085. Measurement artifact, not a hole.
+*/plic_dynamic_registers_priority_bank.sv 221-265 kind=branch text="if"
+*/plic_dynamic_registers_priority_bank.sv 289-289 kind=branch
+*/plic_dynamic_registers_priority_bank.sv 306-306 kind=branch
+# Same file, fixed by the parameters of this PLIC (SOURCES = 64, TARGETS = 4,
+# 8 priority fields per register, CONFIG_REGS = 2, HAS_THRESHOLD =
+# HAS_CONFIG_REG = 1): partial priority / target registers, single CONFIG
+# register, the unused encode_th function, the register-map $display task.
+*/plic_dynamic_registers_priority_bank.sv 325-325 kind=branch text="cond_else"
+*/plic_dynamic_registers_priority_bank.sv 327-335 kind=line
+*/plic_dynamic_registers_priority_bank.sv 345-345 kind=branch text="else"
+*/plic_dynamic_registers_priority_bank.sv 349-350 kind=line
+*/plic_dynamic_registers_priority_bank.sv 369-385
+*/plic_dynamic_registers_priority_bank.sv 448-448 kind=line
+*/plic_dynamic_registers_priority_bank.sv 456-462 kind=line
+*/plic_dynamic_registers_priority_bank.sv 468-468 kind=branch text="else"
+*/plic_dynamic_registers_priority_bank.sv 482-482 kind=branch text="else"
+*/plic_dynamic_registers_priority_bank.sv 491-491 kind=branch text="else"
+*/plic_dynamic_registers_priority_bank.sv 495-495 kind=branch text="else"
+*/plic_dynamic_registers_priority_bank.sv 504-510
+*/plic_dynamic_registers_priority_bank.sv 623-623 kind=branch text="else"
+*/plic_dynamic_registers_priority_bank.sv 772-772 kind=branch text="else"
+*/plic_dynamic_registers_priority_bank.sv 777-777 kind=branch text="else"
+# The PLIC ties HREADYOUT = 1 (ahb3lite_plic_top.sv:253) and is the only AHB
+# slave (HREADY = HREADYOUT), so no wait state can occur: the "HREADY low"
+# arms of the PLIC and the AHB master are unreachable. (Not forced in
+# BP-DV-093: the PLIC drops a write whose data phase sees HREADY low.)
+*/ahb3lite_plic_top.sv 266-266 kind=branch text="else"
+*/ahb3lite_plic_top.sv 279-279 kind=branch text="else"
+*/ahb3lite_plic_top.sv 283-283 kind=branch text="else"
+*/ahb3lite_master.sv 128-128 kind=branch text="else"
+*/ahb3lite_master.sv 139-139 kind=branch text="else"
+*/ahb3lite_master.sv 147-147 kind=line
+# bp_bedrock_ahb3lite_bridge.sv:
+#  345 ST_XFER is entered only after the master returned a response, i.e.
+#      it is back in M_IDLE, so m_req_ack (= M_IDLE) is always 1 there.
+#  340 ST_IDLE accepts only when bridge_fwd_ready = (fwd_is_wr | fwd_is_rd),
+#      so the "neither" arm cannot be taken.
+#  299/351/360/364/413/472 multi-flit (> 16 B) messages: PLIC accesses are
+#      uncached I/O of at most 8 B, always one BedRock flit.
+*/bp_bedrock_ahb3lite_bridge.sv 345-345 kind=branch text="cond_else"
+*/bp_bedrock_ahb3lite_bridge.sv 340-340 kind=branch text="cond_else"
+*/bp_bedrock_ahb3lite_bridge.sv 299-299 kind=branch text="cond_else"
+*/bp_bedrock_ahb3lite_bridge.sv 351-351 kind=branch text="cond_else"
+*/bp_bedrock_ahb3lite_bridge.sv 360-360
+*/bp_bedrock_ahb3lite_bridge.sv 364-364 kind=branch text="cond_else"
+*/bp_bedrock_ahb3lite_bridge.sv 413-413 kind=line
+*/bp_bedrock_ahb3lite_bridge.sv 472-472 kind=branch text="if"
+
+# 13 Nov toggle waiver pass: tie-offs and fields fixed by the cfg 9 configuration
+# (from logs/coverage/holes_13nov, constant / partly-constant toggle rows).
+# BedRock coherence-only header fields on the uncached I/O paths (PLIC, I/O tile, loopback, cfg): never set by an uncached request
+*/bp_core_complex.sv toggle=plic(0_fwd_header_cast_o|0_rev_header_cast_i|1_fwd_header_cast_o|1_rev_header_cast_i|_fwd_header_lo\[\d\]|_rev_header_li\[\d\])\.(subop|payload\.(way_id|state|prefetch|speculative))  # uncached PLIC access: no AMO (bridge supports rd/wr only), no coherence fields
+*/bp_multicore.sv toggle=plic_(fwd_header_lo|rev_header_li)\[\d\]\.(subop|payload\.(way_id|state|prefetch|speculative))  # uncached PLIC access: no AMO, no coherence fields
+*/bp_io_tile.sv toggle=mem_(fwd_header_li|rev_header_lo|fwd_header_lo|rev_header_li)\.payload\.(way_id|state|prefetch|speculative)  # I/O tile carries uncached traffic only: coherence fields unused
+*/bp_io_tile.sv toggle=lce_cmd_header_l[io]\.payload\.(state|target|target_state|target_way_id|way_id),lce_req_header_l[io]\.payload\.(lru_way_id|non_exclusive)  # I/O LCE/CCE handle uncached requests only: coherence fields unused
+*/bp_me_loopback.sv toggle=(mem_fwd_header_cast_i|mem_rev_header_cast_o|fsm_fwd_header_lo|fsm_rev_header_li)\.payload\.(way_id|state|prefetch|speculative)  # loopback answers uncached accesses to unmapped space: coherence fields unused
+*/cpu_top.sv toggle=cfg_hdr\.payload\.(way_id|state|prefetch|speculative)  # config-bus access is uncached: coherence fields unused
+# bp_core_complex: per-core PLIC locals declared (lines 169-198) but never assigned; the shared PLIC uses the plic*_o/_i ports
+*/bp_core_complex.sv toggle=plic[01]_(fwd_v_lo|fwd_ready_and_li|rev_v_li|rev_ready_and_lo|m_external_irq_li|s_external_irq_li)  # dead declarations, never driven
+# cpu_top AXI port: same tie-offs as the axi4_master waivers above
+*/cpu_top.sv toggle=m_axi_awid,m_axi_arid,m_axi_bid,m_axi_rid  # transaction ID hard-wired to 0
+*/cpu_top.sv toggle=m_axi_awlen,m_axi_arlen  # single-beat transfers only
+*/cpu_top.sv toggle=m_axi_awburst[1],m_axi_arburst[1]  # burst type always INCR
+*/cpu_top.sv toggle=m_axi_awlock,m_axi_arlock,m_axi_awprot,m_axi_arprot,m_axi_awqos,m_axi_arqos  # tied off
+*/cpu_top.sv toggle=m_axi_awcache[3:2],m_axi_arcache[3:2]  # cache attributes fixed (no allocate hints)
+# AHB to the PLIC: SINGLE bursts, HRESP always OKAY, at most one BedRock flit (accesses <= 8 bytes)
+*/bp_cpu_ahb3lite_if/bp_bedrock_ahb3lite_bridge.sv toggle=HBURST  # only SINGLE transfers
+*/bp_cpu_ahb3lite_if/bp_bedrock_ahb3lite_bridge.sv toggle=HRESP,m_resp_err  # PLIC HRESP is always OKAY
+*/bp_cpu_ahb3lite_if/bp_bedrock_ahb3lite_bridge.sv toggle=HPROT[3:2]  # fixed protection attributes
+*/bp_cpu_ahb3lite_if/bp_bedrock_ahb3lite_bridge.sv toggle=bedrock_flits_total_r[7:1],bedrock_flit_count_r[7:1]  # single-flit PLIC accesses (multi-flit never issued, see branch waivers 351/364)
+*/ahb3lite_master.sv toggle=resp_err_o  # PLIC HRESP is always OKAY
+*/bp_plic_shared_top.sv toggle=ahb_hburst  # only SINGLE transfers
+*/bp_plic_shared_top.sv toggle=ahb_hprot[3:2]  # fixed protection attributes
+*/bp_plic_shared_top.sv toggle=fwd_left_r,rev_left_r[7:1],txn_flits_r[7:1],sel_flits[7:1]  # single-flit PLIC accesses (<= 8 bytes)
+# Address translation is off (no Sv39 on this SoC): TLB miss/fill and page faults cannot occur
+*/bp_be_csr.sv toggle=.*\.(itlb_miss|itlb_fill|itlb_fill_v|dtlb_fill|dtlb_fill_v|dtlb_load_miss|dtlb_store_miss|instr_page_fault|load_page_fault|store_page_fault)  # translation off: no TLB miss / page fault
+*/bp_be_csr.sv toggle=translation_en_n,translation_en_r,.*\.translation_en(_n)?,satp_lo\.asid  # translation off (satp.mode never Sv39)
+# FSM CCE: no microcode RAM
+*/bp_me_cfg_slice.sv toggle=cce_ucode_v_o,cce_ucode_w_o,cce_ucode_data_i  # FSM CCE, microcode interface unused
+
+# ---------------------------------------------------------------------------
+# 13 Nov line / branch / condition review (logs/coverage/holes_13nov).
+# Only holes that cannot be reached on BP_CFG_ID 9 are waived here; the CCE /
+# LCE / DMA stall paths, round-robin arbiter patterns, bsg_async_ptr_gray,
+# AXI bridge 460, int_unbox byte lanes and the remaining CCE FSM protocol
+# arms stay open as real holes.
+# ---------------------------------------------------------------------------
+# Single-flit PLIC accesses (<= 8 bytes): no extra forward / reverse flits
+*/bp_plic_shared_top.sv 467-467 kind=branch text="if"  # fwd_left_r decrement: multi-flit write never issued
+*/bp_plic_shared_top.sv 477-477 kind=branch text="else"  # rev_left_r != 1: multi-flit response never issued
+*/ip/axi4_master/rtl/axi4_master.sv 193-193 kind=branch text="else"  # single-beat writes: WLAST always 1
+# Default arms of fully enumerated cases / FSMs (2-state simulation, no free
+# legal encoding reached; free encodings fault-injected only for the
+# multiplier and CCE 0 in BP-DV-057)
+*/bp_be_int_unbox.sv 51-51 kind=line text="case"  # every {tag, size} pattern is listed
+*/bp_be_pipe_int.sv 83-83 kind=line text="case"  # every src1 select value is listed
+*/bp_cce_dir_segment.sv 458-458 kind=line text="case"  # FSM default
+*/bp_me_cache_controller.sv 412-412 kind=line text="case"  # case default
+*/bp_me_cache_controller.sv 420-420 kind=line text="case"  # case default
+*/bp_me_cache_controller.sv 452-452 kind=line text="case"  # case default
+*/bp_lce_cmd.sv 608-608 kind=line text="case"  # FSM default
+*/bp_lce_cmd.sv 711-711 kind=line text="case"  # FSM default
+*/bp_lce_req.sv 293-293 kind=line text="case"  # case default
+*/bp_me_wormhole_stream_control.sv 135-135 kind=line text="case"  # FSM default
+*/bp_me_wormhole_header_encode.sv 88-88 kind=line text="case"  # msg_size default
+*/bsg_cache_buffer_queue.sv 84-84 kind=line text="case"  # case default
+*/bsg_cache_dma_to_wormhole.sv 246-246 kind=line text="case"  # FSM default
+*/bsg_cache_dma_to_wormhole.sv 310-310 kind=line text="case"  # FSM default
+*/bsg_cache_miss.sv 565-565 kind=line text="case"  # FSM default
+*/bsg_wormhole_to_cache_dma_fanout.sv 210-210 kind=line text="case"  # FSM default
+*/bsg_wormhole_to_cache_dma_fanout.sv 246-246 kind=line text="case"  # FSM default
+# BedRock message sizes 16 / 32 / 128 B are never generated (uncached <= 8 B,
+# cache block 64 B)
+*/bp_me_wormhole_header_encode.sv 84-84 kind=line text="case"  # msg_size 16 / 32 / 128 B
+*/bp_me_wormhole_header_encode.sv 85-85 kind=line text="case"  # msg_size 16 / 32 / 128 B
+*/bp_me_wormhole_header_encode.sv 87-87 kind=line text="case"  # msg_size 16 / 32 / 128 B
+# Core never re-frozen: writing cfg freeze = 1 would stop the running core
+*/bp_be_director.sv 122-122 kind=branch text="cond_then"  # e_run -> e_freeze
+# CCE protocol-error states: entered only on an illegal LCE response / an
+# uncacheable address on the coherent request path
+*/bp_cce_fsm.sv 1046-1046 kind=branch text="cond_then"  # unexpected response -> e_error
+*/bp_cce_fsm.sv 1081-1081 kind=branch text="cond_then"  # uncacheable coherent request -> e_error
+# FSM CCE ties bypass_hash and pending_clear to 0 (bp_cce_fsm.sv 294-299, 568-579, 694)
+*/bp_cce_pending_bits.sv 89-89 kind=branch text="cond_then"  # bypass_hash tied 0
+*/bp_cce_pending_bits.sv 91-91 kind=branch text="cond_then"  # bypass_hash tied 0
+*/bp_cce_spec_bits.sv 85-85 kind=branch text="cond_then"  # bypass_hash tied 0
+*/bp_cce_spec_bits.sv 87-87 kind=branch text="cond_then"  # bypass_hash tied 0
+*/bp_cce_pending_bits.sv 108-108 kind=branch text="if"  # clear_i tied 0 (pending_clear_li = '0)
+# No memory-complex, coherent- or streaming-accelerator tiles on cfg 9
+# (mc_y_dim = cac_x_dim = sac_x_dim = 0), FSM CCE (cce_type != e_cce_uce)
+*/bp_me_cce_id_to_cord.sv 43-43 kind=line text="elsif"  # mc / cac / sac CCE ids
+*/bp_me_cce_id_to_cord.sv 50-50 kind=line text="elsif"  # mc / cac / sac CCE ids
+*/bp_me_cce_id_to_cord.sv 57-57 kind=line text="if"  # mc / cac / sac CCE ids
+*/bp_me_cord_to_id.sv 53-53 kind=line text="elsif"  # cce_type == e_cce_uce
+*/bp_me_cord_to_id.sv 65-65 kind=line text="elsif"  # mc / cac / sac cords
+*/bp_me_cord_to_id.sv 71-71 kind=line text="elsif"  # mc / cac / sac cords
+*/bp_me_cord_to_id.sv 77-77 kind=line text="if"  # mc / cac / sac cords
+*/bp_me_lce_id_to_cord.sv 41-41 kind=line text="elsif"  # cac / sac / mc LCE ids
+*/bp_me_lce_id_to_cord.sv 48-48 kind=line text="elsif"  # cac / sac / mc LCE ids
+*/bp_me_lce_id_to_cord.sv 55-55 kind=line text="if"  # cac / sac / mc LCE ids
+*/bp_me_addr_to_cce_id.sv 88-88 kind=branch text="cond_else"  # num_sacc_p = 0
+*/bp_me_addr_to_cce_id.sv 88-88 kind=branch text="cond_then"  # num_sacc_p = 0
+# Parameter-fixed conditions / ternaries (constant at elaboration)
+*/bp_me_addr_to_cce_id.sv 73-73 kind=branch text="cond_else"  # num_core_p > 1
+*/bp_me_addr_to_cce_id.sv 78-78 kind=branch text="cond_else"  # num_io_p
+*/bp_me_addr_to_cce_id.sv 73-73 kind=expr text="((num_core_p > 32'sh1)==0) => 0"  # num_core_p / num_io_p / num_sacc_p comparisons
+*/bp_me_addr_to_cce_id.sv 77-77 kind=expr text="((num_io_p > 32'sh1)==0) => 0"  # num_core_p / num_io_p / num_sacc_p comparisons
+*/bp_me_addr_to_cce_id.sv 87-87 kind=expr text="((num_sacc_p > 32'sh1)==0) => 0"  # num_core_p / num_io_p / num_sacc_p comparisons
+*/bp_me_addr_to_cce_id.sv 87-87 kind=expr text="((num_sacc_p > 32'sh1)==1) => 1"  # num_core_p / num_io_p / num_sacc_p comparisons
+*/bp_fe_bht.sv 138-138 kind=branch text="cond_else"  # bht_row_els_p > 1
+*/bp_fe_icache.sv 283-283 kind=branch text="cond_then"  # ctag_vbits_lp == 0
+*/bp_fe_icache.sv 283-283 kind=expr text="((ctag_vbits_lp != 32'sh0)==1) => 1"  # ctag_vbits_lp == 0
+*/bp_cce_dir_segment.sv 362-362 kind=branch text="cond_then"  # num_lce_p vs tag_sets_per_row_lp
+*/bp_cce_dir_segment.sv 428-428 kind=branch text="if"  # rows_per_set_lp = 1
+*/bp_cce_dir_segment.sv 434-434 kind=branch text="cond_else"  # rows_per_set_lp = 1
+*/bp_cce_dir_segment.sv 434-434 kind=branch text="cond_then"  # rows_per_set_lp = 1
+*/bp_me_dram_hash_encode.sv 102-102 kind=branch text="cond_then"  # l2_banks_p = 1
+*/bp_me_stream_pump_control.sv 54-54 kind=branch text="cond_then"  # parameter-fixed beat size
+*/bsg_mesh_stitch.sv 41-41 kind=branch text="cond_else"  # mesh edges fixed by the tile layout
+*/bsg_mesh_stitch.sv 44-44 kind=branch text="cond_else"  # mesh edges fixed by the tile layout
+*/bsg_mem_1r1w_sync_synth.sv 72-72 kind=branch text="cond_else"  # els_p > 1
+*/bsg_mem_1r1w_sync_synth.sv 73-73 kind=branch text="cond_else"  # els_p > 1
+*/bsg_mem_1r1w_sync_synth.sv 119-119 kind=branch text="else"  # verbose_p
+*/bsg_mem_1r1w_synth.sv 45-45 kind=branch text="cond_else"  # els_p > 0
+*/bsg_mem_1r1w_synth.sv 46-46 kind=branch text="cond_else"  # els_p > 0
+*/bsg_mem_1rw_sync_mask_write_bit_synth.sv 42-42 kind=branch text="cond_else"  # els_p > 1
+*/bsg_mem_1rw_sync_synth.sv 42-42 kind=branch text="cond_else"  # els_p > 0
+*/bsg_mem_1r1w_sync.sv 78-78 kind=branch text="else"  # elaboration-time size / collision messages
+*/bsg_mem_1r1w_sync.sv 81-81 kind=branch text="if"  # elaboration-time size / collision messages
+*/bsg_mem_1rw_sync.sv 46-46 kind=branch text="else"  # elaboration-time size message
+*/HardFloat_localFuncs.vi 40-40 kind=line text="block"  # clog2: constant function, evaluated at elaboration
+*/HardFloat_localFuncs.vi 45-45 kind=line text="block"  # clog2: constant function, evaluated at elaboration
+*/bp_be_csr.sv 109-109 kind=expr text="(compressed_support_p[bp_common_pkg::e_compressed+:1]==0) => 0"  # compressed support fixed on
+*/bp_be_csr.sv 152-152 kind=expr text="(compressed_support_p[bp_common_pkg::e_compressed+:1]==0) => 0"  # compressed support fixed on
+# Assertion-style error checks in basejump (hit only on a design error)
+*/bsg_fifo_1r1w_small_hardened.sv 144-144 kind=branch text="if"  # FIFO overflow / underflow error
+*/bsg_fifo_1r1w_small_hardened.sv 146-146 kind=branch text="if"  # FIFO overflow / underflow error
+*/bsg_fifo_1r1w_small_unhardened.sv 100-100 kind=branch text="if"  # FIFO overflow / underflow error
+*/bsg_fifo_1r1w_small_unhardened.sv 102-102 kind=branch text="if"  # FIFO overflow / underflow error
+*/bsg_counter_clear_up.sv 49-49 kind=branch text="if"  # counter overflow error
+*/bsg_counter_set_down.sv 57-57 kind=branch text="if"  # counter underflow / set+down error
+*/bsg_counter_set_down.sv 60-60 kind=branch text="if"  # counter underflow / set+down error
+*/bsg_counter_up_down.sv 62-62 kind=branch text="if"  # counter overflow error
+# bsg_cache store-buffer hazard: not reachable with the L2 configuration of cfg 9
+*/bsg_cache.sv 159-159 kind=branch text="if"  # sbuf_hazard
+# PMP: num_pmp_p = 0 (pmpcfg CSRs trap, BP-DV-084)
+*/bp_be_csr.sv 126-126 kind=expr text="(pmpcfg0_r[3]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 126-126 kind=expr text="(pmpcfg0_r[4]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 126-126 kind=expr text="(pmpcfg_li[(32'h8 * 32'sh0)[6:0]+:8][1]==1 && pmpcfg_li[(32'h8 * 32'sh0)[6:0]+:8][0]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 127-127 kind=expr text="(pmpcfg1_r[3]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 127-127 kind=expr text="(pmpcfg1_r[4]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 127-127 kind=expr text="(pmpcfg_li[(32'h8 * 32'sh1)[6:0]+:8][1]==1 && pmpcfg_li[(32'h8 * 32'sh1)[6:0]+:8][0]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 128-128 kind=expr text="(pmpcfg2_r[3]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 128-128 kind=expr text="(pmpcfg2_r[4]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 128-128 kind=expr text="(pmpcfg_li[(32'h8 * 32'sh2)[6:0]+:8][1]==1 && pmpcfg_li[(32'h8 * 32'sh2)[6:0]+:8][0]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 129-129 kind=expr text="(pmpcfg3_r[3]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 129-129 kind=expr text="(pmpcfg3_r[4]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 129-129 kind=expr text="(pmpcfg_li[(32'h8 * 32'sh3)[6:0]+:8][1]==1 && pmpcfg_li[(32'h8 * 32'sh3)[6:0]+:8][0]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 130-130 kind=expr text="(pmpcfg4_r[3]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 130-130 kind=expr text="(pmpcfg4_r[4]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 130-130 kind=expr text="(pmpcfg_li[(32'h8 * 32'sh4)[6:0]+:8][1]==1 && pmpcfg_li[(32'h8 * 32'sh4)[6:0]+:8][0]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 131-131 kind=expr text="(pmpcfg5_r[3]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 131-131 kind=expr text="(pmpcfg5_r[4]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 131-131 kind=expr text="(pmpcfg_li[(32'h8 * 32'sh5)[6:0]+:8][1]==1 && pmpcfg_li[(32'h8 * 32'sh5)[6:0]+:8][0]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 132-132 kind=expr text="(pmpcfg6_r[3]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 132-132 kind=expr text="(pmpcfg6_r[4]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 132-132 kind=expr text="(pmpcfg_li[(32'h8 * 32'sh6)[6:0]+:8][1]==1 && pmpcfg_li[(32'h8 * 32'sh6)[6:0]+:8][0]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 133-133 kind=expr text="(pmpcfg7_r[3]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 133-133 kind=expr text="(pmpcfg7_r[4]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 133-133 kind=expr text="(pmpcfg_li[(32'h8 * 32'sh7)[6:0]+:8][1]==1 && pmpcfg_li[(32'h8 * 32'sh7)[6:0]+:8][0]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 134-134 kind=expr text="(pmpcfg8_r[3]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 134-134 kind=expr text="(pmpcfg8_r[4]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 134-134 kind=expr text="(pmpcfg_li[(32'h8 * 32'sh8)[6:0]+:8][1]==1 && pmpcfg_li[(32'h8 * 32'sh8)[6:0]+:8][0]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 135-135 kind=expr text="(pmpcfg9_r[3]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 135-135 kind=expr text="(pmpcfg9_r[4]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 135-135 kind=expr text="(pmpcfg_li[(32'h8 * 32'sh9)[6:0]+:8][1]==1 && pmpcfg_li[(32'h8 * 32'sh9)[6:0]+:8][0]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 136-136 kind=expr text="(pmpcfg10_r[3]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 136-136 kind=expr text="(pmpcfg10_r[4]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 136-136 kind=expr text="(pmpcfg_li[(32'h8 * 32'sha)[6:0]+:8][1]==1 && pmpcfg_li[(32'h8 * 32'sha)[6:0]+:8][0]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 137-137 kind=expr text="(pmpcfg11_r[3]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 137-137 kind=expr text="(pmpcfg11_r[4]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 137-137 kind=expr text="(pmpcfg_li[(32'h8 * 32'shb)[6:0]+:8][1]==1 && pmpcfg_li[(32'h8 * 32'shb)[6:0]+:8][0]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 138-138 kind=expr text="(pmpcfg12_r[3]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 138-138 kind=expr text="(pmpcfg12_r[4]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 138-138 kind=expr text="(pmpcfg_li[(32'h8 * 32'shc)[6:0]+:8][1]==1 && pmpcfg_li[(32'h8 * 32'shc)[6:0]+:8][0]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 139-139 kind=expr text="(pmpcfg13_r[3]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 139-139 kind=expr text="(pmpcfg13_r[4]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 139-139 kind=expr text="(pmpcfg_li[(32'h8 * 32'shd)[6:0]+:8][1]==1 && pmpcfg_li[(32'h8 * 32'shd)[6:0]+:8][0]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 140-140 kind=expr text="(pmpcfg14_r[3]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 140-140 kind=expr text="(pmpcfg14_r[4]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 140-140 kind=expr text="(pmpcfg_li[(32'h8 * 32'she)[6:0]+:8][1]==1 && pmpcfg_li[(32'h8 * 32'she)[6:0]+:8][0]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 141-141 kind=expr text="(pmpcfg15_r[3]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 141-141 kind=expr text="(pmpcfg15_r[4]==1) => 1"  # declare_csr_pmp conditions, never written
+*/bp_be_csr.sv 141-141 kind=expr text="(pmpcfg_li[(32'h8 * 32'shf)[6:0]+:8][1]==1 && pmpcfg_li[(32'h8 * 32'shf)[6:0]+:8][0]==1) => 1"  # declare_csr_pmp conditions, never written
+# Translation off (no Sv39): PTW / TLB miss / page-fault / translation conditions
+*/bp_be_scheduler.sv 114-114 kind=expr text="(ptw_busy_lo==1) => 0"  # page-table walker never active
+*/bp_be_scheduler.sv 115-115 kind=expr text="(ptw_busy_lo==1) => 0"  # page-table walker never active
+*/bp_be_scheduler.sv 117-117 kind=expr text="(ptw_v_lo==1) => 1"  # page-table walker never active
+*/bp_be_scheduler.sv 123-123 kind=expr text="(ptw_busy_lo==1) => 0"  # page-table walker never active
+*/bp_be_scheduler.sv 209-209 kind=expr text="(ptw_v_lo==1) => 1"  # page-table walker never active
+*/bp_be_scheduler.sv 210-210 kind=expr text="(ptw_v_lo==1) => 1"  # page-table walker never active
+*/bp_be_scheduler.sv 211-211 kind=expr text="(ptw_v_lo==1) => 1"  # page-table walker never active
+*/bp_be_scheduler.sv 212-212 kind=expr text="(ptw_v_lo==1) => 1"  # page-table walker never active
+*/bp_be_scheduler.sv 213-213 kind=expr text="(ptw_v_lo==1) => 1"  # page-table walker never active
+*/bp_be_scheduler.sv 215-215 kind=expr text="(ptw_v_lo==1) => 1"  # page-table walker never active
+*/bp_be_scheduler.sv 228-228 kind=expr text="(ptw_v_lo==1) => 1"  # page-table walker never active
+*/bp_mmu.sv 81-81 kind=expr text="(r_ptw_i==1) => 0"  # trans_en_i never 1
+*/bp_mmu.sv 81-81 kind=expr text="(trans_en_i==1 && r_ptw_i==0) => 1"  # trans_en_i never 1
+*/bp_mmu.sv 164-164 kind=expr text="(trans_r==1) => 0"  # trans_r never 1
+*/bp_mmu.sv 192-192 kind=expr text="(any_page_fault_v==1) => 1"  # no page faults
+*/bp_mmu.sv 195-195 kind=expr text="(r_v_r==1 && tlb_v_lo==0 && any_fault_v==0 && r_instr_r==1) => 1"  # TLB miss only with translation
+*/bp_mmu.sv 196-196 kind=expr text="(r_v_r==1 && tlb_v_lo==0 && any_fault_v==0 && r_load_r==1) => 1"  # TLB miss only with translation
+*/bp_mmu.sv 197-197 kind=expr text="(r_v_r==1 && tlb_v_lo==0 && any_fault_v==0 && r_store_r==1) => 1"  # TLB miss only with translation
+*/bp_fe_controller.sv 109-109 kind=expr text="(fe_cmd_v_i==1 && (fe_cmd_cast_i[74:72] == bp_common_pkg::e_op_itlb_fill_response)==1) => 1"  # no I-TLB fill / miss
+*/bp_fe_controller.sv 131-131 kind=expr text="(fe_cmd_v_i==1 && itlb_fill_response_v==1) => 1"  # no I-TLB fill / miss
+*/bp_fe_controller.sv 164-164 kind=expr text="(itlb_fill_response_v==1) => 1"  # no I-TLB fill / miss
+*/bp_fe_controller.sv 168-168 kind=expr text="(itlb_fill_response_v==1) => 1"  # no I-TLB fill / miss
+*/bp_fe_controller.sv 184-184 kind=expr text="({32'h1{{{{itlb_miss_tv_r, instr_page_fault_tv_r}, instr_access_fault_tv_r}, icache_miss_tv_i}}}[2]==1) => 1"  # no I-TLB fill / miss
+*/bp_fe_controller.sv 184-184 kind=expr text="({32'h1{{{{itlb_miss_tv_r, instr_page_fault_tv_r}, instr_access_fault_tv_r}, icache_miss_tv_i}}}[3]==1) => 1"  # no I-TLB fill / miss
+*/bp_be_csr.sv 373-373 kind=expr text="((priv_mode_n < 2'h3)==1 && (satp_li[63:60] == 4'h8)==1) => 1"  # satp.mode never Sv39
+*/bp_be_csr.sv 785-785 kind=expr text="(translation_en_r==1) => 1"  # translation never enabled
+# Exactly one of is_m_mode / is_s_mode / is_u_mode is always 1
+*/bp_be_csr.sv 165-165 kind=expr text="(is_m_mode==0 && is_s_mode==0 && is_u_mode==0) => 0"  # impossible mode combination
+*/bp_be_csr.sv 802-802 kind=expr text="(is_m_mode==0 && is_s_mode==0 && is_u_mode==0) => 0"  # impossible mode combination
+*/bp_be_csr.sv 805-805 kind=expr text="(is_m_mode==0 && is_s_mode==0 && is_u_mode==0) => 0"  # impossible mode combination
+
+# ---------------------------------------------------------------------------
+# 13 Nov expr / toggle pass 2 (holes_13nov, exact items): basejump parameter
+# and assertion terms, fixed topology, translation-only exception bits, hio
+# addresses at the coherent CCE; constant padding / unused fields, bsg_scan
+# fill and FMA literal constants.
+# ---------------------------------------------------------------------------
+*/bp_be_csr.sv 751-751 kind=expr text="(retire_pkt_cast_i[35:11][11]==1) => 0"  # retire exception: TLB fill/miss, page fault (no Sv39) or instr_misaligned (IALIGN 16, C ext.)
+*/bp_be_csr.sv 751-751 kind=expr text="(retire_pkt_cast_i[35:11][22]==1) => 0"  # retire exception: TLB fill/miss, page fault (no Sv39) or instr_misaligned (IALIGN 16, C ext.)
+*/bp_be_csr.sv 751-751 kind=expr text="(retire_pkt_cast_i[35:11][23]==1) => 0"  # retire exception: TLB fill/miss, page fault (no Sv39) or instr_misaligned (IALIGN 16, C ext.)
+*/bp_be_csr.sv 751-751 kind=expr text="(retire_pkt_cast_i[35:11][24]==1) => 0"  # retire exception: TLB fill/miss, page fault (no Sv39) or instr_misaligned (IALIGN 16, C ext.)
+*/bp_be_csr.sv 751-751 kind=expr text="(retire_pkt_cast_i[35:11][3]==1) => 0"  # retire exception: TLB fill/miss, page fault (no Sv39) or instr_misaligned (IALIGN 16, C ext.)
+*/bp_be_csr.sv 751-751 kind=expr text="(retire_pkt_cast_i[35:11][4]==1) => 0"  # retire exception: TLB fill/miss, page fault (no Sv39) or instr_misaligned (IALIGN 16, C ext.)
+*/bp_be_csr.sv 751-751 kind=expr text="(retire_pkt_cast_i[35:11][5]==1) => 0"  # retire exception: TLB fill/miss, page fault (no Sv39) or instr_misaligned (IALIGN 16, C ext.)
+*/bp_be_csr.sv 751-751 kind=expr text="(retire_pkt_cast_i[35:11][6]==1) => 0"  # retire exception: TLB fill/miss, page fault (no Sv39) or instr_misaligned (IALIGN 16, C ext.)
+*/bp_be_csr.sv 751-751 kind=expr text="(retire_pkt_cast_i[35:11][9]==1) => 0"  # retire exception: TLB fill/miss, page fault (no Sv39) or instr_misaligned (IALIGN 16, C ext.)
+*/bp_be_csr.sv 785-785 kind=expr text="(dcsr_lo[4]==1 && mstatus_lo[17]==1 && (mstatus_lo[12:11] < 2'h3)==1 && (satp_lo[63:60] == 4'h8)==1) => 1"  # translation (MPRV + satp Sv39) never enabled
+*/bp_be_csr.sv 785-785 kind=expr text="(is_debug_mode==0 && mstatus_lo[17]==1 && (mstatus_lo[12:11] < 2'h3)==1 && (satp_lo[63:60] == 4'h8)==1) => 1"  # translation (MPRV + satp Sv39) never enabled
+*/bp_be_pipe_sys.sv 170-170 kind=expr text="(retire_exception_i[11]==1) => 0"  # retire exception: TLB fill/miss, page fault (no Sv39) or instr_misaligned (IALIGN 16, C ext.)
+*/bp_be_pipe_sys.sv 170-170 kind=expr text="(retire_exception_i[22]==1) => 0"  # retire exception: TLB fill/miss, page fault (no Sv39) or instr_misaligned (IALIGN 16, C ext.)
+*/bp_be_pipe_sys.sv 170-170 kind=expr text="(retire_exception_i[23]==1) => 0"  # retire exception: TLB fill/miss, page fault (no Sv39) or instr_misaligned (IALIGN 16, C ext.)
+*/bp_be_pipe_sys.sv 170-170 kind=expr text="(retire_exception_i[24]==1) => 0"  # retire exception: TLB fill/miss, page fault (no Sv39) or instr_misaligned (IALIGN 16, C ext.)
+*/bp_be_pipe_sys.sv 170-170 kind=expr text="(retire_exception_i[3]==1) => 0"  # retire exception: TLB fill/miss, page fault (no Sv39) or instr_misaligned (IALIGN 16, C ext.)
+*/bp_be_pipe_sys.sv 170-170 kind=expr text="(retire_exception_i[4]==1) => 0"  # retire exception: TLB fill/miss, page fault (no Sv39) or instr_misaligned (IALIGN 16, C ext.)
+*/bp_be_pipe_sys.sv 170-170 kind=expr text="(retire_exception_i[5]==1) => 0"  # retire exception: TLB fill/miss, page fault (no Sv39) or instr_misaligned (IALIGN 16, C ext.)
+*/bp_be_pipe_sys.sv 170-170 kind=expr text="(retire_exception_i[6]==1) => 0"  # retire exception: TLB fill/miss, page fault (no Sv39) or instr_misaligned (IALIGN 16, C ext.)
+*/bp_be_pipe_sys.sv 170-170 kind=expr text="(retire_exception_i[9]==1) => 0"  # retire exception: TLB fill/miss, page fault (no Sv39) or instr_misaligned (IALIGN 16, C ext.)
+*/bp_cce_pma.sv 33-33 kind=expr text="(paddr_i[39:32][1]==1) => 0"  # coherent CCE never receives hio != 0 addresses (routed to the I/O CCE by bp_me_addr_to_cce_id)
+*/bp_cce_pma.sv 33-33 kind=expr text="(paddr_i[39:32][2]==1) => 0"  # coherent CCE never receives hio != 0 addresses (routed to the I/O CCE by bp_me_addr_to_cce_id)
+*/bp_cce_pma.sv 33-33 kind=expr text="(paddr_i[39:32][3]==1) => 0"  # coherent CCE never receives hio != 0 addresses (routed to the I/O CCE by bp_me_addr_to_cce_id)
+*/bp_cce_pma.sv 33-33 kind=expr text="(paddr_i[39:32][4]==1) => 0"  # coherent CCE never receives hio != 0 addresses (routed to the I/O CCE by bp_me_addr_to_cce_id)
+*/bp_cce_pma.sv 33-33 kind=expr text="(paddr_i[39:32][5]==1) => 0"  # coherent CCE never receives hio != 0 addresses (routed to the I/O CCE by bp_me_addr_to_cce_id)
+*/bp_cce_pma.sv 33-33 kind=expr text="(paddr_i[39:32][6]==1) => 0"  # coherent CCE never receives hio != 0 addresses (routed to the I/O CCE by bp_me_addr_to_cce_id)
+*/bp_cce_pma.sv 33-33 kind=expr text="(paddr_i[39:32][7]==1) => 0"  # coherent CCE never receives hio != 0 addresses (routed to the I/O CCE by bp_me_addr_to_cce_id)
+*/bp_me_dram_hash_encode.sv 101-101 kind=expr text="((l2_slices_p > 32'sh1)==0) => 0"  # parameter-fixed (l2_slices / l2_banks / tile layout of cfg 9)
+*/bp_me_dram_hash_encode.sv 102-102 kind=expr text="((l2_banks_p > 32'sh1)==1) => 1"  # parameter-fixed (l2_slices / l2_banks / tile layout of cfg 9)
+*/bp_me_cord_to_id.sv 45-45 kind=expr text="((xcord_li < (sac_x_dim_p + cc_x_dim_p))==0) => 0"  # parameter-fixed (l2_slices / l2_banks / tile layout of cfg 9)
+*/bp_me_cord_to_id.sv 45-45 kind=expr text="((xcord_li >= sac_x_dim_p)==0) => 0"  # parameter-fixed (l2_slices / l2_banks / tile layout of cfg 9)
+*/bp_me_cord_to_id.sv 45-45 kind=expr text="((ycord_li < (ic_y_dim_p + cc_y_dim_p))==0) => 0"  # parameter-fixed (l2_slices / l2_banks / tile layout of cfg 9)
+*/bsg_mem_1r1w.sv 49-49 kind=expr text="((els_p <= 32'sh1)==1) => 1"  # basejump memory: elaboration-time parameter checks / X-check assertion terms
+*/bsg_mem_1r1w.sv 49-49 kind=expr text="((w_reset_i === 1'bx)==0 && (w_reset_i === 1'h1)==0 && (w_addr_i < els_p)==0 && (els_p <= 32'sh1)==0) => 0"  # basejump memory: elaboration-time parameter checks / X-check assertion terms
+*/bsg_mem_1r1w.sv 49-49 kind=expr text="((w_reset_i === 1'bx)==1) => 1"  # basejump memory: elaboration-time parameter checks / X-check assertion terms
+*/bsg_mem_1r1w_sync.sv 78-78 kind=expr text="((els_p >= 32'sh10)==0 && (width_p >= 32'sh80)==0 && ((width_p * els_p) > 32'sh100)==0) => 0"  # basejump memory: elaboration-time parameter checks / X-check assertion terms
+*/bsg_mem_1r1w_sync.sv 88-88 kind=expr text="((els_p <= 32'sh1)==1) => 1"  # basejump memory: elaboration-time parameter checks / X-check assertion terms
+*/bsg_mem_1r1w_sync.sv 88-88 kind=expr text="((reset_i === 1'bx)==0 && (reset_i === 1'h1)==0 && (w_addr_i < els_p)==0 && (els_p <= 32'sh1)==0) => 0"  # basejump memory: elaboration-time parameter checks / X-check assertion terms
+*/bsg_mem_1r1w_sync.sv 88-88 kind=expr text="((reset_i === 1'bx)==1) => 1"  # basejump memory: elaboration-time parameter checks / X-check assertion terms
+*/bsg_mem_1r1w_sync_synth.sv 72-72 kind=expr text="((els_p > 32'sh1)==0) => 0"  # basejump memory: elaboration-time parameter checks / X-check assertion terms
+*/bsg_mem_1r1w_sync_synth.sv 73-73 kind=expr text="((els_p > 32'sh1)==0) => 0"  # basejump memory: elaboration-time parameter checks / X-check assertion terms
+*/bsg_mem_1r1w_synth.sv 45-45 kind=expr text="((els_p > 32'sh0)==0) => 0"  # basejump memory: elaboration-time parameter checks / X-check assertion terms
+*/bsg_mem_1r1w_synth.sv 46-46 kind=expr text="((els_p > 32'sh0)==0) => 0"  # basejump memory: elaboration-time parameter checks / X-check assertion terms
+*/bsg_mem_1rw_sync.sv 46-46 kind=expr text="((els_p >= 32'sh10)==0 && (width_p >= 32'sh80)==0 && ((width_p * els_p) > 32'sh100)==0) => 0"  # basejump memory: elaboration-time parameter checks / X-check assertion terms
+*/bsg_mem_1rw_sync.sv 46-46 kind=expr text="((width_p >= 32'sh80)==1) => 1"  # basejump memory: elaboration-time parameter checks / X-check assertion terms
+*/bsg_mem_1rw_sync_mask_write_bit.sv 58-58 kind=expr text="((els_p > 32'sh1)==0) => 0"  # basejump memory: elaboration-time parameter checks / X-check assertion terms
+*/bsg_mem_1rw_sync_mask_write_bit.sv 59-59 kind=expr text="((els_p <= 32'sh1)==1) => 1"  # basejump memory: elaboration-time parameter checks / X-check assertion terms
+*/bsg_mem_1rw_sync_mask_write_bit.sv 59-59 kind=expr text="((reset_i === 1'bx)==0 && (reset_i === 1'h1)==0 && (els_p <= 32'sh1)==0 && (addr_i < els_p)==0) => 0"  # basejump memory: elaboration-time parameter checks / X-check assertion terms
+*/bsg_mem_1rw_sync_mask_write_bit.sv 59-59 kind=expr text="((reset_i === 1'bx)==1) => 1"  # basejump memory: elaboration-time parameter checks / X-check assertion terms
+*/bsg_mem_1rw_sync_mask_write_bit_synth.sv 42-42 kind=expr text="((els_p > 32'sh1)==0) => 0"  # basejump memory: elaboration-time parameter checks / X-check assertion terms
+*/bsg_mem_1rw_sync_synth.sv 42-42 kind=expr text="((els_p > 32'sh0)==0) => 0"  # basejump memory: elaboration-time parameter checks / X-check assertion terms
+*/bsg_mem_1rw_sync_synth.sv 94-94 kind=expr text="((els_p <= 32'sh1)==1) => 1"  # basejump memory: elaboration-time parameter checks / X-check assertion terms
+*/bsg_mem_1rw_sync_synth.sv 94-94 kind=expr text="((reset_i === 1'bx)==1) => 1"  # basejump memory: elaboration-time parameter checks / X-check assertion terms
+*/bsg_mem_1rw_sync_synth.sv 94-94 kind=expr text="((reset_i === 1'h1)==1) => 1"  # basejump memory: elaboration-time parameter checks / X-check assertion terms
+*/bsg_mem_1rw_sync_synth.sv 94-94 kind=expr text="((v_i !== 1'h1)==0 && (reset_i === 1'bx)==0 && (reset_i === 1'h1)==0 && (addr_i < els_p)==0 && (els_p <= 32'sh1)==0) => 0"  # basejump memory: elaboration-time parameter checks / X-check assertion terms
+*/bsg_mem_1rw_sync_synth.sv 94-94 kind=expr text="((v_i !== 1'h1)==1) => 1"  # basejump memory: elaboration-time parameter checks / X-check assertion terms
+*/bsg_circular_ptr.sv 83-83 kind=expr text="(((| ptr_n) === 1'bx)==1) => 1"  # basejump assertion terms: true only on overflow / underflow / X (design error)
+*/bsg_circular_ptr.sv 83-83 kind=expr text="((add_i > slots_p)==1) => 1"  # basejump assertion terms: true only on overflow / underflow / X (design error)
+*/bsg_circular_ptr.sv 83-83 kind=expr text="((ptr_n < slots_p)==0 && ((| ptr_n) === 1'bx)==0 && reset_i==0 && (add_i > slots_p)==0) => 0"  # basejump assertion terms: true only on overflow / underflow / X (design error)
+*/bsg_counter_clear_up.sv 49-49 kind=expr text="((count_o == max_val_p[1:0])==1 && up_i==1 && (reset_i === 32'sh0)==1 && disable_overflow_warning_p==0) => 1"  # basejump assertion terms: true only on overflow / underflow / X (design error)
+*/bsg_counter_clear_up.sv 49-49 kind=expr text="((count_o == max_val_p[2:0])==1 && up_i==1 && (reset_i === 32'sh0)==1 && disable_overflow_warning_p==0) => 1"  # basejump assertion terms: true only on overflow / underflow / X (design error)
+*/bsg_counter_clear_up.sv 49-49 kind=expr text="((count_o == max_val_p[3:0])==1 && up_i==1 && (reset_i === 32'sh0)==1 && disable_overflow_warning_p==0) => 1"  # basejump assertion terms: true only on overflow / underflow / X (design error)
+*/bsg_counter_clear_up.sv 49-49 kind=expr text="((count_o == max_val_p[4:0])==1 && up_i==1 && (reset_i === 32'sh0)==1 && disable_overflow_warning_p==0) => 1"  # basejump assertion terms: true only on overflow / underflow / X (design error)
+*/bsg_counter_clear_up.sv 49-49 kind=expr text="((count_o == max_val_p[5:0])==1 && up_i==1 && (reset_i === 32'sh0)==1 && disable_overflow_warning_p==0) => 1"  # basejump assertion terms: true only on overflow / underflow / X (design error)
+*/bsg_counter_clear_up.sv 49-49 kind=expr text="((count_o == max_val_p[6:0])==1 && up_i==1 && (reset_i === 32'sh0)==1 && disable_overflow_warning_p==0) => 1"  # basejump assertion terms: true only on overflow / underflow / X (design error)
+*/bsg_counter_clear_up.sv 49-49 kind=expr text="((count_o == max_val_p[9:0])==1 && up_i==1 && (reset_i === 32'sh0)==1 && disable_overflow_warning_p==0) => 1"  # basejump assertion terms: true only on overflow / underflow / X (design error)
+*/bsg_counter_set_down.sv 57-57 kind=expr text="(reset_i==0 && down_i==1 && (ctr_n == 4'hf)==1) => 1"  # basejump assertion terms: true only on overflow / underflow / X (design error)
+*/bsg_counter_set_down.sv 60-60 kind=expr text="(reset_i==0 && set_and_down_exclusive_p==1 && set_i==1 && down_i==1) => 1"  # basejump assertion terms: true only on overflow / underflow / X (design error)
+*/bsg_counter_set_down.sv 60-60 kind=expr text="(set_and_down_exclusive_p==0) => 0"  # basejump assertion terms: true only on overflow / underflow / X (design error)
+*/bsg_counter_up_down.sv 62-62 kind=expr text="((count_o == max_val_p)==1 && up_i==1 && down_i==0 && (reset_i === 1'h0)==1) => 1"  # basejump assertion terms: true only on overflow / underflow / X (design error)
+*/bsg_mesh_stitch.sv 40-40 kind=expr text="((32'sh0 == (y_max_p - 32'sh1))==0) => 0"  # constant topology / bsg_noc_pkg direction checks
+*/bsg_mesh_stitch.sv 43-43 kind=expr text="((32'sh0 == 32'sh0)==0) => 0"  # constant topology / bsg_noc_pkg direction checks
+*/bsg_mesh_stitch.sv 46-46 kind=expr text="((32'sh0 == (x_max_p - 32'sh1))==1) => 1"  # constant topology / bsg_noc_pkg direction checks
+*/bsg_mesh_stitch.sv 46-46 kind=expr text="((32'sh1 == (x_max_p - 32'sh1))==0) => 0"  # constant topology / bsg_noc_pkg direction checks
+*/bsg_mesh_stitch.sv 49-49 kind=expr text="((32'sh0 == 32'sh0)==0) => 0"  # constant topology / bsg_noc_pkg direction checks
+*/bsg_mesh_stitch.sv 49-49 kind=expr text="((32'sh1 == 32'sh0)==1) => 1"  # constant topology / bsg_noc_pkg direction checks
+*/bsg_wormhole_router_decoder_dor.sv 79-79 kind=expr text="((bsg_noc_pkg::E == 32'sh2)==0) => 0"  # constant topology / bsg_noc_pkg direction checks
+*/bsg_wormhole_router_decoder_dor.sv 79-79 kind=expr text="((bsg_noc_pkg::N == 32'sh3)==0) => 0"  # constant topology / bsg_noc_pkg direction checks
+*/bsg_wormhole_router_decoder_dor.sv 79-79 kind=expr text="((bsg_noc_pkg::P == 32'sh0)==0) => 0"  # constant topology / bsg_noc_pkg direction checks
+*/bsg_wormhole_router_decoder_dor.sv 79-79 kind=expr text="((bsg_noc_pkg::S == 32'sh4)==0) => 0"  # constant topology / bsg_noc_pkg direction checks
+*/bsg_wormhole_router_decoder_dor.sv 79-79 kind=expr text="((bsg_noc_pkg::W == 32'sh1)==0) => 0"  # constant topology / bsg_noc_pkg direction checks
+*/bp_be_pipe_aux.sv toggle=fclass_result\.padding[0:53]  # padding / unused field, tied to 0
+*/bp_be_pipe_fma.sv toggle=fma_one[0:62]  # literal 1.0 (dp_rec_1_0)
+*/bp_be_pipe_fma.sv toggle=fma_one[64]  # literal 1.0 (dp_rec_1_0)
+*/bp_be_pipe_fma.sv toggle=fma_zero[0:63]  # literal +/-0.0: only the sign bit changes
+*/bp_be_director.sv toggle=fe_cmd_li\.operands\.pc_redirect_operands\.padding[0:14]  # padding / unused field, tied to 0
+*/bp_be_director.sv toggle=fe_cmd_pc_redirect_operands\.padding[0:14]  # padding / unused field, tied to 0
+*/bp_fe_controller.sv toggle=fe_cmd_cast_i\.operands\.pc_redirect_operands\.padding[0:14]  # padding / unused field, tied to 0
+*/bp_me_stream_to_wormhole.sv toggle=pr_wh_hdr_lo\.pad[0:56]  # padding / unused field, tied to 0
+*/bp_me_wormhole_header_encode.sv toggle=wh_header_cast_o\.pad[0:56]  # padding / unused field, tied to 0
+*/bp_core_minimal.sv toggle=fe_cmd_lo\.operands\.pc_redirect_operands\.padding[0:14]  # padding / unused field, tied to 0
+*/bsg_cache_dma_to_wormhole.sv toggle=header_flit\.unused[0:111]  # padding / unused field, tied to 0
+*/bsg_wormhole_to_cache_dma_fanout.sv toggle=header_flit_out\.unused[0:111]  # padding / unused field, tied to 0
+*/bsg_scan.sv toggle=scanN\.row\[0\]\.fill[0:64]  # bsg_scan fill is a constant (all 0 / all 1)
+*/bsg_scan.sv toggle=scanN\.row\[1\]\.fill[0:64]  # bsg_scan fill is a constant (all 0 / all 1)
+*/bsg_scan.sv toggle=scanN\.row\[2\]\.fill[0:64]  # bsg_scan fill is a constant (all 0 / all 1)
+*/bsg_scan.sv toggle=scanN\.row\[3\]\.fill[0:64]  # bsg_scan fill is a constant (all 0 / all 1)
+*/bsg_scan.sv toggle=scanN\.row\[4\]\.fill[0:64]  # bsg_scan fill is a constant (all 0 / all 1)
+*/bsg_scan.sv toggle=scanN\.row\[5\]\.fill[0:64]  # bsg_scan fill is a constant (all 0 / all 1)
+*/bsg_scan.sv toggle=scanN\.row\[6\]\.fill[0:64]  # bsg_scan fill is a constant (all 0 / all 1)

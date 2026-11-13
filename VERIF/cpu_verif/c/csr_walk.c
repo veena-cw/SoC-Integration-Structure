@@ -11,7 +11,10 @@
  *     (WARL: only the implemented address bits are kept)
  *   - WARL CSRs: the value read back is stable - writing it back and
  *     reading again returns the same value (a legal value stays legal)
- *   - mcycle / minstret continue from the written value (< 2000 later)
+ *   - mcycle / minstret: 48-bit counters (design decision 13 Nov 2026, in
+ *     the feature list): a write keeps bits 47:0, bits 63:48 read 0, the
+ *     value continues from the written one modulo 2^48 (< 2000 later), and
+ *     the counter wraps at 2^48 (started 256 below; check 0x42 / 0x43)
  *   - no CSR access traps
  * Not written: mstatus/sstatus (would change the test's own execution),
  * mtvec while traps may happen (restored right away), debug CSRs (Debug
@@ -58,6 +61,11 @@ static uint64_t pat(unsigned i)
 }
 
 enum kind { EXACT, EPC, WARL, COUNTER };
+
+/* mcycle / minstret are 48 bits wide (bp_mcounter_s). Design team decision
+ * 13 Nov 2026: kept at 48 bits, documented in the feature list. */
+#define CNT_BITS 48
+#define CNT_MASK ((1ULL << CNT_BITS) - 1)
 
 /* One function per CSR (the CSR number must be an immediate). */
 #define CSR_FN(name)                                                         \
@@ -122,8 +130,8 @@ static uint64_t run_walk(void)
         y = csrs[c].rd();
         if ((x & 1) || y != x) FAIL(c);
         break;
-      case COUNTER:
-        if (x - v >= 2000) FAIL(c);          /* modulo 2^64 */
+      case COUNTER:                          /* 48-bit counter (design decision) */
+        if ((x >> CNT_BITS) || ((x - v) & CNT_MASK) >= 2000) FAIL(c);
         break;
       case WARL:
         csrs[c].wr(x);
@@ -135,6 +143,21 @@ static uint64_t run_walk(void)
         FAIL(0x41);
     }
     csrs[c].wr(save);
+  }
+
+  /* mcycle / minstret wrap at 2^48: start 256 below, run > 256 instructions */
+  for (unsigned c = 0; c < NCSR; c++) {
+    if (csrs[c].k != COUNTER)
+      continue;
+    uint64_t save = csrs[c].rd();
+    *PROGRESS(me) = (c << 8) | 0xFE;
+    csrs[c].wr(CNT_MASK - 255);
+    for (volatile unsigned i = 0; i < 100; i++)
+      ;
+    x = csrs[c].rd();
+    csrs[c].wr(save);
+    if (x >> CNT_BITS || x >= 4000)          /* wrapped to a small value */
+      FAIL(0x42 + (c & 1));
   }
   __asm__ volatile ("csrw mip, zero" ::: "memory");
   __asm__ volatile ("csrw mie, zero" ::: "memory");

@@ -711,6 +711,43 @@ module cpu_tb_top
              (got == exp) ? "MATCH" : "MISMATCH", $time);
   endtask
 
+  // +PLIC_ARB_DBG[=<from_ns>]: per-cycle state of the bp_plic_shared_top
+  // arbiter / ownership tracker whenever a core port is active or the
+  // state changes, from <from_ns> on (default 0). Debug of BP-DV-061 hang.
+  longint unsigned plic_arb_dbg_from = 0;
+  bit              plic_arb_dbg = 0;
+  logic [29:0]     plic_arb_dbg_prev = '0;
+  initial begin
+    plic_arb_dbg = $test$plusargs("PLIC_ARB_DBG");
+    void'($value$plusargs("PLIC_ARB_DBG=%d", plic_arb_dbg_from));
+  end
+  always @(posedge clk) begin : plic_arb_dbg_log
+    logic [29:0] cur;
+    if (plic_arb_dbg && $time >= plic_arb_dbg_from) begin   // $time is in ns here
+      cur = {dut.u_bp.m.multicore.shared_plic.txn_busy_r,
+             dut.u_bp.m.multicore.shared_plic.granted_core_r,
+             dut.u_bp.m.multicore.shared_plic.fwd_left_r,
+             dut.u_bp.m.multicore.shared_plic.rev_left_r,
+             dut.u_bp.m.multicore.shared_plic.arb_grant,
+             dut.u_bp.m.multicore.shared_plic.core0_fwd_v_i,
+             dut.u_bp.m.multicore.shared_plic.core0_fwd_ready_and_o,
+             dut.u_bp.m.multicore.shared_plic.core1_fwd_v_i,
+             dut.u_bp.m.multicore.shared_plic.core1_fwd_ready_and_o,
+             dut.u_bp.m.multicore.shared_plic.core0_rev_v_o,
+             dut.u_bp.m.multicore.shared_plic.core0_rev_ready_and_i,
+             dut.u_bp.m.multicore.shared_plic.core1_rev_v_o,
+             dut.u_bp.m.multicore.shared_plic.core1_rev_ready_and_i,
+             dut.u_bp.m.multicore.shared_plic.bridge_rev_v_lo,
+             dut.u_bp.m.multicore.shared_plic.bridge_fwd_ready_and_lo};
+      if (cur != plic_arb_dbg_prev || |cur[9:2])
+        $display("PLIC_ARB t=%0t busy=%b own=c%0d fwd_left=%0d rev_left=%0d grant=%b c0f v/r=%b%b c1f v/r=%b%b c0r v/r=%b%b c1r v/r=%b%b br_rev_v=%b br_fwd_rdy=%b",
+                 $time, cur[29], cur[28], cur[27:20], cur[19:12], cur[11:10],
+                 cur[9], cur[8], cur[7], cur[6], cur[5], cur[4], cur[3], cur[2],
+                 cur[1], cur[0]);
+      plic_arb_dbg_prev = cur;
+    end
+  end
+
   always @(posedge clk) begin : cpu_plic_msg_log
     if (dut.u_bp.m.multicore.shared_plic.ahb_rstn) begin
       if (dut.u_bp.m.multicore.shared_plic.core0_fwd_v_i
@@ -840,6 +877,98 @@ module cpu_tb_top
                fifo_full_events[1], fifo_full_cycles[1], $time);
     end
   end
+
+  // --------------------------------------------------------------------
+  // AHB bridge stall injector (BP-DV-093, white-box): random short windows
+  // of back-pressure on the PLIC AHB bridge (bp_bedrock_ahb3lite_bridge in
+  // bp_plic_shared_top), like BP-DV-045 does for the AXI bridge:
+  //   bit 0  bridge_rev_ready = 0    (AHB clock) response FIFO looks full:
+  //          the FSM waits in ST_RD_PUSH / ST_WR_RESP, no FIFO write
+  //   bit 1  mem_rev_v_o = 0         (core clock) the core sees no response
+  //          and the response FIFO is not popped (fills for real)
+  //   bit 2  mem_fwd_ready_and_o = 0 (core clock) the core's PLIC request
+  //          waits, no request FIFO write
+  // Only "busy" values are forced, and only on nets the bridge itself reads
+  // (the FIFO write enables use the forced value). Not forced: the async
+  // FIFOs' full/empty ports - Verilator lets such a force reach the FIFO's
+  // own logic, which corrupted the request FIFO (first BP-DV-093 run).
+  // Forces are applied and released on the falling clock edge: at the
+  // rising edge some readers saw the old and some the forced value (second
+  // run: ST_RD_PUSH stayed while its flit counter advanced).
+  // HREADY is not forced: the PLIC ties HREADYOUT = 1 (no wait states can
+  // occur in this SoC) and drops a write whose data phase sees HREADY low.
+  // Config (uvm_config_db on uvm_test_top, or +AHB_STALL_PCT / _MASK /
+  // _MAX): ahb_stall_pct (chance per cycle a window starts, 0 = off),
+  // ahb_stall_mask, ahb_stall_max (window length 1..max cycles).
+  // ahb_rd_push_waits / ahb_wr_resp_waits (cycles the FSM waited in each
+  // state) are published through uvm_config_db for the test's check.
+  // --------------------------------------------------------------------
+`define AHB_BR_PATH dut.u_bp.m.multicore.shared_plic.plic_bridge
+  int unsigned ahb_stall_pct = 0;
+  int unsigned ahb_stall_mask = 'h7;
+  int unsigned ahb_stall_max = 8;
+  int unsigned ahb_stall_windows [3];
+  int unsigned ahb_rd_push_waits = 0;
+  int unsigned ahb_wr_resp_waits = 0;
+
+  initial begin
+    #1;
+    void'(uvm_config_db#(int unsigned)::get(null, "uvm_test_top", "ahb_stall_pct", ahb_stall_pct));
+    void'(uvm_config_db#(int unsigned)::get(null, "uvm_test_top", "ahb_stall_mask", ahb_stall_mask));
+    void'(uvm_config_db#(int unsigned)::get(null, "uvm_test_top", "ahb_stall_max", ahb_stall_max));
+    void'($value$plusargs("AHB_STALL_PCT=%d", ahb_stall_pct));
+    void'($value$plusargs("AHB_STALL_MASK=%h", ahb_stall_mask));
+    void'($value$plusargs("AHB_STALL_MAX=%d", ahb_stall_max));
+    if (ahb_stall_pct != 0)
+      $display("AHB STALL injector enabled: pct=%0d mask=0x%0h max=%0d cycles",
+               ahb_stall_pct, ahb_stall_mask, ahb_stall_max);
+  end
+
+  // FSM waits caused by a full response FIFO (state one-hot, see bridge)
+  always @(posedge plic_clk) begin
+    if (ahb_stall_pct != 0 && plic_irq_rstn === 1'b1 && !`AHB_BR_PATH.bridge_rev_ready) begin
+      if (`AHB_BR_PATH.cur_state == 6'b010000) begin
+        ahb_rd_push_waits++;
+        uvm_config_db#(int unsigned)::set(null, "uvm_test_top", "ahb_rd_push_waits", ahb_rd_push_waits);
+      end
+      if (`AHB_BR_PATH.cur_state == 6'b100000) begin
+        ahb_wr_resp_waits++;
+        uvm_config_db#(int unsigned)::set(null, "uvm_test_top", "ahb_wr_resp_waits", ahb_wr_resp_waits);
+      end
+    end
+  end
+
+  final begin
+    if (ahb_stall_pct != 0)
+      $display("AHB STALL summary: windows resp_full=%0d rev_v=%0d req_full=%0d, FSM waits rd_push=%0d wr_resp=%0d",
+               ahb_stall_windows[0], ahb_stall_windows[1], ahb_stall_windows[2],
+               ahb_rd_push_waits, ahb_wr_resp_waits);
+  end
+
+`define AHB_STALL(BIT, CLK, SIG, VAL)                                       \
+  initial begin                                                             \
+    #2;                                                                     \
+    if (ahb_stall_pct != 0 && ahb_stall_mask[BIT]) begin                    \
+      wait (plic_irq_rstn === 1'b0);                                        \
+      wait (plic_irq_rstn === 1'b1);                                        \
+      forever begin                                                         \
+        @(negedge CLK);                                                     \
+        if ($urandom_range(99) < ahb_stall_pct) begin                       \
+          force `AHB_BR_PATH.SIG = VAL;                                     \
+          ahb_stall_windows[BIT]++;                                         \
+          repeat ($urandom_range(ahb_stall_max, 1)) @(negedge CLK);         \
+          release `AHB_BR_PATH.SIG;                                         \
+          repeat ($urandom_range(ahb_stall_max, 1)) @(negedge CLK);         \
+        end                                                                 \
+      end                                                                   \
+    end                                                                     \
+  end
+
+  `AHB_STALL(0, plic_clk, bridge_rev_ready,    1'b0)
+  `AHB_STALL(1, clk,      mem_rev_v_o,         1'b0)
+  `AHB_STALL(2, clk,      mem_fwd_ready_and_o, 1'b0)
+`undef AHB_STALL
+`undef AHB_BR_PATH
 
   // --------------------------------------------------------------------
   // CCE stall injector (BP-DV-055, white-box). Random short windows where

@@ -961,6 +961,38 @@ class bp_dv_059_plic_reg_full_test extends bp_dv_058_plic_irq_test;
   endfunction
 endclass
 
+// Test ID: BP-DV-093 | PLIC AHB bridge back-pressure (white-box). The
+// BP-DV-059 environment and passive RAL with the cpu_tb_top AHB stall
+// injector: response FIFO full, core not taking responses, request FIFO
+// full, in random short windows. Every PLIC access must still complete with
+// the right data (program checks + RAL mirror). Fails if the bridge never
+// waited in ST_RD_PUSH and ST_WR_RESP.
+class bp_dv_093_ahb_stall_test extends bp_dv_059_plic_reg_full_test;
+  `uvm_component_utils(bp_dv_093_ahb_stall_test)
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  function void build_phase(uvm_phase phase);
+    uvm_config_db#(int unsigned)::set(this, "", "ahb_stall_pct", 15);
+    uvm_config_db#(int unsigned)::set(this, "", "ahb_stall_mask", 'h7);
+    uvm_config_db#(int unsigned)::set(this, "", "ahb_stall_max", 12);
+    super.build_phase(phase);
+  endfunction
+
+  function void check_phase(uvm_phase phase);
+    int unsigned rd, wr;
+    super.check_phase(phase);
+    rd = 0;
+    wr = 0;
+    void'(uvm_config_db#(int unsigned)::get(this, "", "ahb_rd_push_waits", rd));
+    void'(uvm_config_db#(int unsigned)::get(this, "", "ahb_wr_resp_waits", wr));
+    `uvm_info("BP093_STALL", $sformatf("AHB bridge waited %0d cycles in ST_RD_PUSH, %0d in ST_WR_RESP", rd, wr), UVM_NONE)
+    if (rd == 0 || wr == 0)
+      `uvm_error("BP093_NO_WAIT", "the AHB bridge never waited on a full response FIFO in ST_RD_PUSH and ST_WR_RESP")
+  endfunction
+endclass
+
 // Test ID: BP-DV-060 | the 7 plic_irq_*_test scenarios (c/plic_irq_scenarios.c)
 class bp_dv_060_plic_irq_scenarios_test extends bp_dv_058_plic_irq_test;
   `uvm_component_utils(bp_dv_060_plic_irq_scenarios_test)

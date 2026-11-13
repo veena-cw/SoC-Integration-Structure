@@ -90,8 +90,8 @@ bp_dv_030_axi_block_dual_core_test 30 axi_block_dual_core.nbf
 bp_dv_031_axi_block_dual_core_3002_test 31 axi_block_dual_core_3002.nbf
 
 # BP-DV-032/033/034 - Zicbom cache-block operations on both harts, one test
-# per op: store -> cbo.<op> -> read back (c/cbo_ops.c). cbo.flush currently
-# hangs the core on two cores (Jira); AXI progress markers at 0x0010_8100
+# per op: store -> cbo.<op> -> read back (c/cbo_ops.c). cbo.flush hung the
+# core on two cores before the RTL fix (Jira); PASS 11 Nov. AXI progress markers at 0x0010_8100
 # (+16 per hart) show the step reached. Nonzero tohost per hart:
 # (op << 8) | failing check; hart1 0xFFFFFFFF = no report.
 bp_dv_032_cbo_clean_test 32 cbo_clean.nbf
@@ -100,7 +100,8 @@ bp_dv_034_cbo_inval_test 34 cbo_inval.nbf
 
 # BP-DV-056 - cbo.zero (Zicboz) on both harts with the same program
 # (c/cbo_ops.c, CBO_OP 3): the 64-byte block must read 0 and the next block
-# keep its data. Currently FAILS: cbo.zero is a silent no-op (Jira).
+# keep its data. Failed before the RTL fix (cbo.zero was a silent no-op,
+# Jira); PASS 11 Nov.
 # Moved here from BP-DV-052 check 31.
 bp_dv_056_cbo_zero_test 56 cbo_zero.nbf
 
@@ -155,8 +156,9 @@ bp_dv_039_fpu_test 39 fpu_ops.nbf
 # check, or 0x8000 | trap count.
 bp_dv_040_bitmanip_test 40 bitmanip_ops.nbf
 
-# BP-DV-041 - Zba sh1add/sh2add/sh3add and .uw (12 checks). Currently FAILS:
-# the hardware uses rs2[5:0] as the shift amount instead of 1/2/3 (Jira).
+# BP-DV-041 - Zba sh1add/sh2add/sh3add and .uw (12 checks). Failed before the
+# RTL fix (hardware used rs2[5:0] as the shift amount instead of 1/2/3, Jira);
+# PASS 11 Nov.
 bp_dv_041_bitmanip_shadd_test 41 bitmanip_shadd.nbf
 
 # BP-DV-042 - CPU writes/reads the shared PLIC registers over AHB
@@ -328,8 +330,11 @@ bp_dv_049_smp_coherence_test 69 loopback.nbf
 #   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=data_patterns TEST_ID=70
 bp_dv_049_smp_coherence_test 70 data_patterns.nbf
 # BP-DV-071 - walking ones / patterns through 22 R/W CSRs (exact, epc, WARL
-# stability, counter checks). Currently FAILS on mcycle / minstret: the RTL
-# keeps 48 bits (bp_mcounter_s), the RV64 spec requires 64 (proposed Jira).
+# stability, counter checks). mcycle / minstret are checked as 48-bit
+# counters (bp_mcounter_s): design team decision 13 Nov 2026 to keep 48 bits
+# (documented in the feature list, may be extended to 64 later). The test
+# checks the 48-bit behaviour: writes keep bits 47:0, bits 63:48 read 0,
+# counting continues modulo 2^48 and the counter wraps at 2^48.
 # Failing-CSR mask at 0x0010_8700 (c/csr_walk.c). By hand:
 #   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=csr_walk TEST_ID=71
 bp_dv_049_smp_coherence_test 71 csr_walk.nbf
@@ -420,3 +425,70 @@ bp_dv_049_smp_coherence_test 84 csr_priv_more.nbf
 # (c/plic_edge_sat.c). PASS 11 Nov.
 #   make sim TEST=bp_dv_060_plic_irq_scenarios_test TCNAME=plic_edge_sat TEST_ID=85
 bp_dv_060_plic_irq_scenarios_test 85 plic_edge_sat.nbf
+
+# BP-DV-086: supervisor interrupt matrix - SSI/STI/SEI set in mip by
+# software, taken in M / S / U with mideleg on/off, SIE/MIE masking,
+# priority SEI > SSI > STI and M-level before S-level; U/S counter access
+# for every mcounteren x scounteren combination (c/irq_matrix.c). PASS 11 Nov.
+#   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=irq_matrix TEST_ID=86
+bp_dv_049_smp_coherence_test 86 irq_matrix.nbf
+
+# BP-DV-087..090: CCE stall injector (BP-DV-055) on the atomic, L2-thrash,
+# L2-uncached-AMO and coherence-corner programs, to run the CCE FSM wait
+# paths those request types use. PASS 11 Nov.
+bp_dv_055_cce_stall_test 87 smp_atomics.nbf
+bp_dv_055_cce_stall_test 88 l2_thrash.nbf
+bp_dv_055_cce_stall_test 89 l2_uncached_amo.nbf
+bp_dv_055_cce_stall_test 90 coh_corner.nbf
+
+# BP-DV-091: BP-DV-082 with the harts one after the other (L2UC_SERIAL,
+# c/l2_uc_slices_serial.c): L1-uncached / L2-uncached ops on every CCE and
+# L2 slice in the regression while the two-hart BP-DV-082 bug is open.
+# PASS 12 Nov (530 checks).
+#   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=l2_uc_slices_serial TEST_ID=91
+bp_dv_049_smp_coherence_test 91 l2_uc_slices_serial.nbf
+
+# BP-DV-092: byte / halfword PLIC accesses (sb / sh / lb / lbu / lh / lhu on
+# IE, EL, PRIORITY, THRESHOLD, CONFIG): AHB HSIZE_BYTE / HSIZE_HWORD and the
+# PLIC's partial-write byte merge (c/plic_narrow.c). The passive RAL model
+# (cpu_tb/env/plic_ral_passive.sv) merges narrow writes into the mirror and
+# compares only the accessed lanes. PASS 12 Nov (0 RAL mismatches).
+#   make sim TEST=bp_dv_059_plic_reg_full_test TCNAME=plic_narrow TEST_ID=92
+bp_dv_059_plic_reg_full_test 92 plic_narrow.nbf
+
+# BP-DV-093: PLIC AHB bridge back-pressure (white-box, cpu_tb_top AHB stall
+# injector): random windows of response FIFO full (bridge_rev_ready 0), core
+# not taking responses (mem_rev_v_o 0) and request not accepted
+# (mem_fwd_ready_and_o 0), forced on the falling edge; plic_wide program +
+# passive RAL. Fails if the bridge never waited in ST_RD_PUSH and ST_WR_RESP.
+# HREADY is not forced (PLIC HREADYOUT = 1, see waivers). PASS 13 Nov.
+#   make sim TEST=bp_dv_093_ahb_stall_test TCNAME=plic_wide TEST_ID=93
+bp_dv_093_ahb_stall_test 93 plic_wide.nbf
+
+# BP-DV-094: decoder illegal-instruction checks (c/decode_priv.c, both harts):
+# FP with mstatus.FS = Off, JALR funct3 != 0, mret in S, sret in S with
+# TSR = 1, satp / sfence.vma in S with TVM = 1 (and legal with TVM = 0),
+# wfi in S with TW = 1, sfence.vma in U, and wfi in M with TW = 1.
+# Currently FAILS check 7 on both harts (tohost 0x0001940700019407): wfi in
+# M mode with mstatus.TW = 1 raises an illegal-instruction trap; the spec
+# limits TW to modes below M. bp_be_csr.sv 794 passes mstatus.TW to the
+# decoder without the privilege mode (proposed Jira, 13 Nov).
+#   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=decode_priv TEST_ID=94
+bp_dv_049_smp_coherence_test 94 decode_priv.nbf
+
+# BP-DV-095: hio field (paddr bits 33..39) in bp_mmu (c/hio_fault.c, harts
+# one after the other): instruction fetch from an hio address raises an
+# instruction access fault (mcause 1, mtval = target) with hio_mask = reset
+# value and 0; loads / stores to hio space with hio_mask = 0 are logged
+# (observed: no fault, they reach the AXI bridge - bp_mmu uses hio_fault_v
+# for fetches only). PASS 13 Nov.
+#   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=hio_fault TEST_ID=95
+bp_dv_049_smp_coherence_test 95 hio_fault.nbf
+
+# BP-DV-096: FP leading-zero counters / normalizers (c/fp_clz.c, rv64imafd,
+# both harts): fcvt.d/s.l/lu/w/wu of +/-2^k (every leading-one position),
+# single / double subnormals bit k times 1.0, fmsub.d/.s cancellation
+# (1 + 2^-k) * 1 - 1 = 2^-k, fcvt.d.s of single subnormals; every result
+# exact, checked bit for bit. PASS 13 Nov.
+#   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=fp_clz TEST_ID=96
+bp_dv_049_smp_coherence_test 96 fp_clz.nbf

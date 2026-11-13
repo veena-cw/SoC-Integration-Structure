@@ -22,6 +22,36 @@
 `include "uvm_macros.svh"
 import uvm_pkg::*;
 import plic_irq_item_pkg::*;
+import plic_ahb_lite_item_pkg::*;
+
+// Direct AHB access used by the IRQ negative-address test.  The RAL model has
+// no register at 0x0070, so this transaction must not be sent through RAL.
+class plic_irq_ahb_access_seq extends uvm_sequence #(plic_ahb_lite_item);
+  `uvm_object_utils(plic_irq_ahb_access_seq)
+
+  bit [31:0] addr;
+  bit        write;
+  bit [31:0] wdata;
+  bit        hresp;
+  plic_ahb_lite_item item;
+
+  function new(string name = "plic_irq_ahb_access_seq");
+    super.new(name);
+  endfunction
+
+  task body();
+    item = plic_ahb_lite_item::type_id::create("item");
+    item.addr  = addr;
+    item.write = write;
+    item.wdata = wdata;
+    item.hsize = 3'b010; // 32-bit transfer
+    item.hburst = 3'b000;
+    item.htrans = 2'b10;
+    start_item(item);
+    finish_item(item);
+    hresp = item.hresp;
+  endtask
+endclass
 
 class plic_irq_base_test extends plic_base_test;
   `uvm_component_utils(plic_irq_base_test)
@@ -164,6 +194,37 @@ class plic_irq_base_test extends plic_base_test;
         end
       end
     end while (got);
+  endtask
+endclass
+
+// TEST NAME: plic_irq_out_of_range_test
+// PURPOSE: access the first word beyond the valid PLIC range (0x0000-0x006c).
+//          The test expects an AHB error response for the invalid address;
+//          the accesses must not create or alter an interrupt.
+class plic_irq_out_of_range_test extends plic_irq_base_test;
+  `uvm_component_utils(plic_irq_out_of_range_test)
+
+  function new(string name = "plic_irq_out_of_range_test", uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+
+  task ahb_access(bit [31:0] addr, bit write, bit [31:0] wdata, string label);
+    plic_irq_ahb_access_seq seq;
+    seq = plic_irq_ahb_access_seq::type_id::create($sformatf("%s_seq", label));
+    seq.addr = addr;
+    seq.write = write;
+    seq.wdata = wdata;
+    seq.start(env.agent.sequencer);
+
+    if ((addr > 32'h0000_006c) && (seq.hresp !== 1'b1))
+      `uvm_error("OUT_OF_RANGE_HRESP", $sformatf("%s accessed out-of-range PLIC address 0x%08h but HRESP=%b; expected HRESP=1 (AHB ERROR)", label, addr, seq.hresp))
+  endtask
+
+  task scenario();
+    // 0x0070 is the first word after the valid range ending at 0x006c.
+    ahb_access(32'h0000_0070, 1'b0, 32'h0, "out-of-range read");
+    ahb_access(32'h0000_0070, 1'b1, 32'hffff_ffff, "out-of-range write");
+    check("out-of-range accesses leave IRQ state unchanged");
   endtask
 endclass
 

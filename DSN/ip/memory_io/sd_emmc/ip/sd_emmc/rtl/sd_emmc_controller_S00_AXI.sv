@@ -391,13 +391,13 @@
 //	                // Slave register 8
 //	                slv_reg8[(byte_index*8) +: 8] <= S_AXI_WDATA[(byte_index*8) +: 8];
 //	              end  
-	          5'h09:
+/*	          5'h09:
 	            for ( byte_index = 0; byte_index <= (C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1 )
 	              if ( S_AXI_WSTRB[byte_index] == 1 ) begin
 	                // Respective byte enables are asserted as per write strobes 
 	                // Slave register 9
 	                slv_reg9[(byte_index*8) +: 8] <= S_AXI_WDATA[(byte_index*8) +: 8];
-	              end  
+	              end */ 
 	          5'h0A:
 	            for ( byte_index = 0; byte_index <= (C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1 )
 	              if ( S_AXI_WSTRB[byte_index] == 1 ) begin
@@ -424,20 +424,36 @@
 	              dat_int_rst <= 1'b1;
 	              blk_size_cnt <= 0;
 	            end
-	          5'h0D:
-	            for ( byte_index = 0; byte_index <= (C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1 )
-	              if ( S_AXI_WSTRB[byte_index] == 1 ) begin
-	                // Respective byte enables are asserted as per write strobes 
-	                // Slave register 13
-	                slv_reg13[(byte_index*8) +: 8] <= S_AXI_WDATA[(byte_index*8) +: 8];
-	              end  
-	          5'h0E:
-	            for ( byte_index = 0; byte_index <= (C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1 )
-	              if ( S_AXI_WSTRB[byte_index] == 1 ) begin
-	                // Respective byte enables are asserted as per write strobes 
-	                // Slave register 14
-	                slv_reg14[(byte_index*8) +: 8] <= S_AXI_WDATA[(byte_index*8) +: 8];
-	              end  
+	          5'h0D: begin
+              for (byte_index = 0;
+                   byte_index <= (C_S_AXI_DATA_WIDTH/8)-1;
+                   byte_index = byte_index+1) begin
+
+                  if (S_AXI_WSTRB[byte_index] == 1'b1) begin
+                      slv_reg13[(byte_index*8) +: 8]
+                          <= S_AXI_WDATA[(byte_index*8) +: 8];
+                  end
+              end
+
+              // Force bit 15 to fixed zero for INT_STAT_EN
+              slv_reg13[15] <= 1'b0;
+          end
+
+          5'h0E: begin
+              for (byte_index = 0;
+                   byte_index <= (C_S_AXI_DATA_WIDTH/8)-1;
+                   byte_index = byte_index+1) begin
+
+                  if (S_AXI_WSTRB[byte_index] == 1'b1) begin
+                      slv_reg14[(byte_index*8) +: 8]
+                          <= S_AXI_WDATA[(byte_index*8) +: 8];
+                  end
+              end
+
+              // Force bit 15 to fixed zero for INT_SIG_EN
+              slv_reg14[15] <= 1'b0;
+          end
+
 	          5'h0F:
 	            for ( byte_index = 0; byte_index <= (C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1 )
 	              if ( S_AXI_WSTRB[byte_index] == 1 ) begin

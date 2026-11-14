@@ -74,7 +74,7 @@ module plic_test_top;
         .HWRITE    (AHB_LITE_vif.hwrite),
         .HSIZE     (AHB_LITE_vif.hsize),
         .HBURST    (AHB_LITE_vif.hburst),
-        .HPROT     (4'b0011),
+        .HPROT     (AHB_LITE_vif.hprot),
         .HTRANS    (AHB_LITE_vif.htrans),
         .HREADY    (AHB_LITE_vif.hready),
         .HREADYOUT (AHB_LITE_vif.hreadyout),
@@ -187,3 +187,4 @@ module plic_test_top;
         run_test();
     end
 endmodule
+

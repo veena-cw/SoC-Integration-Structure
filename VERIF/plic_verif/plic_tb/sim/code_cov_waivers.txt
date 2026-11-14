@@ -36,24 +36,24 @@ ahb3lite_plic_top.sv:105     toggle  "HRESP"           assign HRESP = HRESP_OKAY
 
 # ---- ahb3lite_plic_top.sv: HDATA_SIZE=32 ---------------------------
 ahb3lite_plic_top.sv:99      toggle  "HSIZE[2]"  HSIZE >= 3'b100 is a transfer of 128 bits or more, AHB-illegal on a 32-bit bus
-ahb3lite_plic_top.sv:178     line    address_offset() case for a 1024-bit bus, HDATA_SIZE=32
-ahb3lite_plic_top.sv:179     line    address_offset() case for a 512-bit bus, HDATA_SIZE=32
-ahb3lite_plic_top.sv:180     line    address_offset() case for a 256-bit bus, HDATA_SIZE=32
-ahb3lite_plic_top.sv:181     line    address_offset() case for a 128-bit bus, HDATA_SIZE=32
-ahb3lite_plic_top.sv:182     line    address_offset() case for a 64-bit bus, HDATA_SIZE=32
-ahb3lite_plic_top.sv:184     line    address_offset() case for a 16-bit bus, HDATA_SIZE=32
-ahb3lite_plic_top.sv:185     line    address_offset() default, HDATA_SIZE=32 selects the 32 case
-ahb3lite_plic_top.sv:211     line    HSIZE_B1024 is wider than the 32-bit bus (AHB-illegal)
-ahb3lite_plic_top.sv:212     line    HSIZE_B512 is wider than the 32-bit bus (AHB-illegal)
-ahb3lite_plic_top.sv:213     line    HSIZE_B256 is wider than the 32-bit bus (AHB-illegal)
-ahb3lite_plic_top.sv:214     line    HSIZE_B128 is wider than the 32-bit bus (AHB-illegal)
-ahb3lite_plic_top.sv:215     line    HSIZE_DWORD is wider than the 32-bit bus (AHB-illegal)
+ahb3lite_plic_top.sv:180     line    address_offset() case for a 1024-bit bus, HDATA_SIZE=32
+ahb3lite_plic_top.sv:181     line    address_offset() case for a 512-bit bus, HDATA_SIZE=32
+ahb3lite_plic_top.sv:182     line    address_offset() case for a 256-bit bus, HDATA_SIZE=32
+ahb3lite_plic_top.sv:183     line    address_offset() case for a 128-bit bus, HDATA_SIZE=32
+ahb3lite_plic_top.sv:184     line    address_offset() case for a 64-bit bus, HDATA_SIZE=32
+ahb3lite_plic_top.sv:186     line    address_offset() case for a 16-bit bus, HDATA_SIZE=32
+ahb3lite_plic_top.sv:187     line    address_offset() default, HDATA_SIZE=32 selects the 32 case
+ahb3lite_plic_top.sv:213     line    HSIZE_B1024 is wider than the 32-bit bus (AHB-illegal)
+ahb3lite_plic_top.sv:214     line    HSIZE_B512 is wider than the 32-bit bus (AHB-illegal)
+ahb3lite_plic_top.sv:215     line    HSIZE_B256 is wider than the 32-bit bus (AHB-illegal)
+ahb3lite_plic_top.sv:216     line    HSIZE_B128 is wider than the 32-bit bus (AHB-illegal)
+ahb3lite_plic_top.sv:217     line    HSIZE_DWORD is wider than the 32-bit bus (AHB-illegal)
 
 # ---- ahb3lite_plic_top.sv: functions that are never called ---------
-ahb3lite_plic_top.sv:190     *       address_mask() is defined but never called
-ahb3lite_plic_top.sv:229     *       gen_wval() in the top is defined but never called
-ahb3lite_plic_top.sv:237     *       gen_wval() in the top is defined but never called
-ahb3lite_plic_top.sv:238     *       gen_wval() in the top is defined but never called
+ahb3lite_plic_top.sv:192     *       address_mask() is defined but never called
+ahb3lite_plic_top.sv:231     *       gen_wval() in the top is defined but never called
+ahb3lite_plic_top.sv:239     *       gen_wval() in the top is defined but never called
+ahb3lite_plic_top.sv:240     *       gen_wval() in the top is defined but never called
 
 # ---- plic_gateway.sv -----------------------------------------------
 plic_gateway.sv:166          expr    "((edge_lvl == EDGE)==0 && (edge_lvl == LEVEL)==0) => 0"  edge_lvl is 1 bit: it is always EDGE or LEVEL
@@ -99,4 +99,5 @@ plic_dynamic_registers_priority_bank.sv:377  *  encode_th() is never called: its
 plic_dynamic_registers_priority_bank.sv:378  *  encode_th() is never called: its only use, at line 776, is commented out
 plic_dynamic_registers_priority_bank.sv:381  *  encode_th() is never called: its only use, at line 776, is commented out
 plic_dynamic_registers_priority_bank.sv:448  line  register_function() only returns the six listed types: the default is dead code
+
 

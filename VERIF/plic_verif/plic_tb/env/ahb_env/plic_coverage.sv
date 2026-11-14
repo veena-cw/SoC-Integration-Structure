@@ -259,10 +259,37 @@ class plic_coverage extends uvm_component;
   endfunction
 
   // ---------------- AHB side ----------------
-  function void write_ahb(plic_ahb_lite_item tr);
+  // Current register word rebuilt from the shadow (for sub-word writes)
+  function bit [31:0] shadow_word(int unsigned off, reg_kind_e k);
+    shadow_word = '0;
+    case (k)
+      K_EL:        shadow_word = el[((off - OFF_EL) / 4) * 32 +: 32];
+      K_PRIORITY:  for (int i = 0; i < 8; i++) begin
+                     int unsigned s = (off - OFF_PRIORITY) / 4 * 8 + i;
+                     if (s < PLIC_SOURCES) shadow_word[4*i +: 3] = prio[s];
+                   end
+      K_IE:        shadow_word = ie[(off - OFF_IE) / 8][(((off - OFF_IE) / 4) % 2) * 32 +: 32];
+      K_THRESHOLD: shadow_word = th[(off - OFF_THRESHOLD) / 4];
+      default: ;
+    endcase
+  endfunction
+
+  function void write_ahb(plic_ahb_lite_item tr_in);
+    plic_ahb_lite_item tr = tr_in;
     int unsigned off = tr.addr[15:0] & ~32'h3;
     reg_kind_e   k   = kind_of(off);
+    bit [3:0]    be  = tr_in.byte_en();
     if (k == K_UNMAPPED) return;
+    // Sub-word write: merge the enabled byte lanes onto the current value
+    if (tr_in.write && be != 4'b1111) begin
+      bit [31:0] w = shadow_word(off, k);
+      for (int b = 0; b < 4; b++) if (be[b]) w[b*8 +: 8] = tr_in.wdata[b*8 +: 8];
+      tr = plic_ahb_lite_item::type_id::create("tr_merged");
+      tr.addr  = tr_in.addr;
+      tr.write = 1'b1;
+      tr.hsize = 3'b010;
+      tr.wdata = w;
+    end
     cg_reg_access.sample(off / 4, tr.write);
     if (tr.write && k inside {K_EL, K_PRIORITY, K_IE, K_THRESHOLD})
       cg_reg_data.sample(k, density(tr.wdata));

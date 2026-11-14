@@ -15,6 +15,7 @@
 //  Description: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 //=================================================================================
 
+/*
 // Generated AHB-Lite Predictor for RoaLogic_PLIC
 // Generic field-aware predictor.
 // - All-RO WRITE: ignored because DUT state must not change.
@@ -74,6 +75,128 @@ package plic_ahb_lite_predictor_pkg;
       if (rg == null) begin
         super.write(tr);
         return;
+      end
+
+      rg.get_fields(fields);
+
+      if (fields.size() == 0) begin
+        super.write(tr);
+        return;
+      end
+
+      writable_count = 0;
+      foreach (fields[i]) begin
+        if (is_writable_access(fields[i].get_access()))
+          writable_count++;
+      end
+
+      // A physical WRITE to an all-RO register is legal as a negative
+      // verification transaction, but it must not update the RAL mirror.
+      if (writable_count == 0) begin
+        `uvm_info(get_type_name(),
+          $sformatf("WRITE to %s at 0x%08h: no writable fields; prediction suppressed",
+                    rg.get_name(), rw.addr), UVM_MEDIUM)
+        return;
+      end
+
+      // Mixed-field prediction:
+      // predict each writable field independently. RO/read-only and other
+      // non-writable fields are deliberately not predicted, so their mirror
+      // values remain unchanged.
+      foreach (fields[i]) begin
+        f = fields[i];
+        acc = f.get_access();
+
+        if (!is_writable_access(acc))
+          continue;
+
+        lsb = f.get_lsb_pos();
+        nbits = f.get_n_bits();
+
+        if (nbits >= $bits(uvm_reg_data_t))
+          field_value = rw.data;
+        else
+          field_value = (rw.data >> lsb) & ((uvm_reg_data_t'(1) << nbits) - 1);
+
+        // UVM_PREDICT_WRITE lets the field apply its access semantics
+        // (RW/WO/W1C/etc.) instead of blindly mirroring the complete bus word.
+        // Field-level predict expects the byte enables relative to the field LSB
+        f.predict(field_value, rw.byte_en >> (lsb/8), UVM_PREDICT_WRITE,
+                  UVM_FRONTDOOR, map);
+      end
+    endfunction
+  endclass
+endpackage
+*/
+
+package plic_ahb_lite_predictor_pkg;
+  import uvm_pkg::*;
+  `include "uvm_macros.svh"
+  import plic_ahb_lite_item_pkg::*;
+  class plic_ahb_lite_predictor extends uvm_reg_predictor #(plic_ahb_lite_item);
+    `uvm_component_utils(plic_ahb_lite_predictor)
+    function new(string name = "plic_ahb_lite_predictor", uvm_component parent = null);
+      super.new(name, parent);
+    endfunction
+
+    // Return 1 for access types that can accept a physical WRITE.
+    // The list is generic and contains no project/register names.
+    function bit is_writable_access(string acc);
+      case (acc)
+        "RW", "WO", "W1C", "W1S", "W1T",
+        "W0C", "W0S", "W0T", "WC", "WS",
+        "WC1S", "WS1C", "WCRS", "WCRC",
+        "W1CRS", "W0C1S", "W0S1C":
+          return 1;
+        default:
+          return 0;
+      endcase
+    endfunction
+
+    virtual function void write(input plic_ahb_lite_item tr);
+      uvm_reg_bus_op rw;
+      uvm_reg rg;
+      uvm_reg_field fields[$];
+      uvm_reg_field f;
+      int unsigned writable_count;
+      string acc;
+      int lsb;
+      int nbits;
+      uvm_reg_data_t field_value;
+      bit [3:0] be;
+
+      if (adapter == null || map == null) begin
+        super.write(tr);
+        return;
+      end
+
+      // Byte enables are applied below by merging onto the mirror, so the
+      // field predictions themselves are full-word
+      rw.byte_en = '1;
+      adapter.bus2reg(tr, rw);
+      be = tr.byte_en();
+
+      if (rw.kind != UVM_WRITE) begin
+        // Sub-word / unaligned read: the register is not changed by a read,
+        // and the base predictor would not find a register at that offset
+        if (be != 4'b1111) return;
+        super.write(tr);
+        return;
+      end
+
+      rw.addr = rw.addr & ~uvm_reg_addr_t'(3);
+      rg = map.get_reg_by_offset(rw.addr, 0);
+      if (rg == null) begin
+        super.write(tr);
+        return;
+      end
+
+      // Sub-word write: only the enabled byte lanes take the bus data,
+      // the other bytes keep their current (mirrored) value
+      if (be != 4'b1111) begin
+        uvm_reg_data_t cur = rg.get_mirrored_value();
+        for (int b = 0; b < 4; b++)
+          if (!be[b]) rw.data[b*8 +: 8] = cur[b*8 +: 8];
       end
 
       rg.get_fields(fields);

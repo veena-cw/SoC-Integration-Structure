@@ -25,6 +25,7 @@ interface plic_ahb_lite_if (
     logic [1:0]              htrans;
     logic [2:0]              hsize;
     logic [2:0]              hburst;
+    logic [3:0]              hprot;
     logic [31:0]   hwdata;
     logic [31:0]   hrdata;
     logic                    hready;
@@ -32,3 +33,4 @@ interface plic_ahb_lite_if (
     logic               hsel;
     logic               hreadyout;
 endinterface
+

@@ -645,6 +645,24 @@ class plic_irq_nested_complete_test extends plic_irq_base_test;
 
       check("both completed");
 
+      // Scenario 4: nested completion while the level sources are still
+      // high - the completed source must pend again straight away
+      raise(src_bit(3));
+      check("s3 arrives");
+      claim(t, id, "s3 in service");
+      raise(src_bit(10));
+      check("s10 arrives");
+      claim(t, id, "s10 in service");
+      complete(t, 11);
+      check("s10 completed while high: pending again, s3 still in service");
+      complete(t, 4);
+      check("s3 completed while high: pending again");
+      drop(mask);
+      drain(t, id, $sformatf("t%0d re-pended", t));
+      if (id != 2)
+        `uvm_error("NESTED_HIGH", $sformatf("target %0d: %0d IDs re-pended after completing while high, expected 2", t, id))
+      check("all served");
+
       // Disable these sources on the current target
       set_enable(t, '0);
 

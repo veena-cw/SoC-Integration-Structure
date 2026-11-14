@@ -469,10 +469,10 @@ bp_dv_093_ahb_stall_test 93 plic_wide.nbf
 # FP with mstatus.FS = Off, JALR funct3 != 0, mret in S, sret in S with
 # TSR = 1, satp / sfence.vma in S with TVM = 1 (and legal with TVM = 0),
 # wfi in S with TW = 1, sfence.vma in U, and wfi in M with TW = 1.
-# Currently FAILS check 7 on both harts (tohost 0x0001940700019407): wfi in
-# M mode with mstatus.TW = 1 raises an illegal-instruction trap; the spec
-# limits TW to modes below M. bp_be_csr.sv 794 passes mstatus.TW to the
-# decoder without the privilege mode (proposed Jira, 13 Nov).
+# Failed check 7 on 13 Nov (tohost 0x0001940700019407): wfi in M mode with
+# mstatus.TW = 1 raised an illegal-instruction trap; the spec limits TW to
+# modes below M (Jira). Fixed in RTL 14 Nov (bp_be_instr_decoder.sv WFI:
+# illegal_instr_o = tw & ~m_mode). PASS 14 Nov.
 #   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=decode_priv TEST_ID=94
 bp_dv_049_smp_coherence_test 94 decode_priv.nbf
 
@@ -512,3 +512,21 @@ bp_dv_051_debug_mode_test 98 debug_mode_stepie.nbf
 # (hits tag 2012, stat 508, data 2623).
 #   make sim TEST=bp_dv_097_lce_stall_test TCNAME=smp_coherence TEST_ID=97
 bp_dv_097_lce_stall_test 97 smp_coherence.nbf
+
+# BP-DV-099: subnormal rounding positions (c/fp_round.c, rv64imafd, both
+# harts): fcvt.s.d, fmul.s and fmul.d with subnormal results at every round
+# position, three significand patterns, RNE / RTZ / RDN / RUP / RMM, both
+# signs; each result checked bit for bit against an integer rounding model.
+# Long run (about 70 min). PASS 14 Nov.
+#   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=fp_round TEST_ID=99
+bp_dv_049_smp_coherence_test 99 fp_round.nbf
+
+# BP-DV-100..103: memory back-pressure - the random DRAM latency build
+# (obj_dir_cfg9_lat, BP_DV_024_LATENCY, latency 1-24 cycles, selected by the
+# BP-DV-054 class) on the memory-heavy programs: L2 dirty evictions /
+# writebacks, coherence corners, L1-uncached AMOs, SMP atomics. Program
+# checks unchanged. PASS 14 Nov.
+bp_dv_054_smp_coherence_latency_test 100 l2_thrash.nbf
+bp_dv_054_smp_coherence_latency_test 101 coh_corner.nbf
+bp_dv_054_smp_coherence_latency_test 102 l2_uncached_amo.nbf
+bp_dv_054_smp_coherence_latency_test 103 smp_atomics.nbf

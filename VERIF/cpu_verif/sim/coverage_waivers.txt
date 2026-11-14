@@ -1320,3 +1320,82 @@
 */bsg_scan.sv toggle=scanN\.row\[4\]\.fill[0:64]  # bsg_scan fill is a constant (all 0 / all 1)
 */bsg_scan.sv toggle=scanN\.row\[5\]\.fill[0:64]  # bsg_scan fill is a constant (all 0 / all 1)
 */bsg_scan.sv toggle=scanN\.row\[6\]\.fill[0:64]  # bsg_scan fill is a constant (all 0 / all 1)
+
+# 14 Nov: CLINT mtime is a free-running, read-only 64-bit counter from reset
+# (bp_me_clint_slice.sv: writes ignored, "Cannot write the RTC"; BP-DV-068
+# check 3). Software cannot preset it, so bits 20..63 cannot toggle within a
+# simulation (< 2^20 core cycles). Waived on the counter (bsg_async_ptr_gray
+# w_ptr), its CDC (bsg_launch_sync_sync, 64-bit instance only) and gray
+# decode (bsg_gray_to_binary) and the CLINT copies. Bits 0..19 stay counted.
+*/bp_me_clint_slice.sv toggle=mtime_gray_r[20:63],mtime_r[20:63]  # 64-bit mtime: upper bits unreachable in simulation time
+*/bsg_async_ptr_gray.sv toggle=w_ptr_binary_r_o[20:63],w_ptr_gray_r_o[20:63],w_ptr_gray_r_rsync_o[20:63],w_ptr_n[20:63],w_ptr_r[20:63]  # 64-bit mtime counter
+*/bsg_async_ptr_gray.sv toggle=w_ptr_p1_n[20:63],w_ptr_p1_r[20:63],w_ptr_p2[20:63],w_ptr_gray_n[20:63],w_ptr_gray_r[20:63],w_ptr_gray_r_rsync[20:63]  # 64-bit mtime counter
+*/bsg_launch_sync_sync.sv toggle=iclk_data_i[20:63],iclk_data_o[20:63],oclk_data_o[20:63]  # 64-bit mtime CDC
+*/bsg_gray_to_binary.sv toggle=gray_i[20:63],binary_o[20:63]  # 64-bit mtime gray decode
+
+# ---------------------------------------------------------------------------
+# 14 Nov CCE / L2 review (holes_14nov, exact items). Condition terms that
+# cannot occur: masked by an enclosing if / held-valid request, speculation
+# only for cacheable addresses, single-beat messages, boot-only
+# e_uncached_only arms, no accelerator caches, I$ lines only Shared,
+# word_tracking_p = 0, basejump FIFO protocol violations.
+# ---------------------------------------------------------------------------
+*/bp_cce_dir.sv 67-67 kind=expr text="({32'h1{cce_id_i}}[0]==1 && {32'h1{cce_id_i}}[1]==1 && {32'h1{cce_id_i}}[2]==1) => 1"  # unused-signal reduction wire
+*/bp_cce_dir.sv 315-315 kind=expr text="(acache_busy==1) => 1"  # no accelerator caches on cfg 9 (acache_* constant)
+*/bp_cce_dir.sv 316-316 kind=expr text="(acache_sharers_v==0) => 0"  # no accelerator caches on cfg 9 (acache_* constant)
+*/bp_cce_dir.sv 336-336 kind=expr text="(acache_lru_v==1) => 1"  # no accelerator caches on cfg 9 (acache_* constant)
+*/bp_cce_dir.sv 352-352 kind=expr text="(acache_addr_v==1) => 1"  # no accelerator caches on cfg 9 (acache_* constant)
+*/bp_cce_fsm.sv 741-741 kind=expr text="(fsm_rev_yumi_lo==0) => 0"  # masked by the enclosing condition (term only evaluated while that signal is 1; valid->yumi keeps a request valid until consumed) (squash path: yumi = v)
+*/bp_cce_fsm.sv 741-741 kind=expr text="(rev_pma_cacheable_addr_lo==0) => 0"  # speculative memory reads are only issued for cacheable addresses
+*/bp_cce_fsm.sv 755-755 kind=expr text="(fsm_rev_v_li==0) => 0"  # masked by the enclosing condition (term only evaluated while that signal is 1; valid->yumi keeps a request valid until consumed)
+*/bp_cce_fsm.sv 774-774 kind=expr text="(rev_pma_cacheable_addr_lo==0) => 0"  # speculative memory reads are only issued for cacheable addresses
+*/bp_cce_fsm.sv 790-790 kind=expr text="(fsm_rev_v_li==0) => 0"  # masked by the enclosing condition (term only evaluated while that signal is 1; valid->yumi keeps a request valid until consumed)
+*/bp_cce_fsm.sv 808-808 kind=expr text="(rev_pma_cacheable_addr_lo==0) => 0"  # speculative memory reads are only issued for cacheable addresses
+*/bp_cce_fsm.sv 827-827 kind=expr text="(fsm_rev_v_li==0) => 0"  # masked by the enclosing condition (term only evaluated while that signal is 1; valid->yumi keeps a request valid until consumed)
+*/bp_cce_fsm.sv 863-863 kind=expr text="(fsm_rev_v_li==0) => 0"  # masked by the enclosing condition (term only evaluated while that signal is 1; valid->yumi keeps a request valid until consumed)
+*/bp_cce_fsm.sv 895-895 kind=expr text="(fsm_resp_last_li==0) => 0"  # coh_ack carries no data: single beat
+*/bp_cce_fsm.sv 895-895 kind=expr text="(fsm_resp_yumi_lo==0) => 0"  # masked by the enclosing condition (term only evaluated while that signal is 1; valid->yumi keeps a request valid until consumed) (coh_ack path: yumi = v)
+*/bp_cce_fsm.sv 974-974 kind=expr text="(fsm_req_v_li==1 && (fsm_req_header_li[3:0][3:0] == bp_common_pkg::e_bedrock_req_wr_miss)==1) => 1"  # boot-time e_uncached_only mode: only the loader stores reach it while the cores are frozen (no uncached loads / cached requests)
+*/bp_cce_fsm.sv 983-983 kind=expr text="(fsm_req_v_li==0) => 0"  # masked by the enclosing condition (term only evaluated while that signal is 1; valid->yumi keeps a request valid until consumed)
+*/bp_cce_fsm.sv 984-984 kind=expr text="(fsm_fwd_last_lo==0) => 0"  # uncached forward: single beat (no data / <= 8 B)
+*/bp_cce_fsm.sv 998-998 kind=branch text="if"  # boot-time e_uncached_only mode: no uncached loads while the cores are frozen
+*/bp_cce_fsm.sv 998-998 kind=expr text="(fsm_req_v_li==1 && (fsm_req_header_li[3:0][3:0] == bp_common_pkg::e_bedrock_req_uc_rd)==1) => 1"  # boot-time e_uncached_only mode: only the loader stores reach it while the cores are frozen (no uncached loads / cached requests)
+*/bp_cce_fsm.sv 1000-1000 kind=expr text="(fsm_fwd_ready_then_li==0) => 0"  # boot-time e_uncached_only mode: only the loader stores reach it while the cores are frozen (no uncached loads / cached requests)
+*/bp_cce_fsm.sv 1000-1000 kind=expr text="(fsm_fwd_ready_then_li==1 && fsm_req_v_li==1 && mem_credits_empty==0) => 1"  # boot-time e_uncached_only mode: only the loader stores reach it while the cores are frozen (no uncached loads / cached requests)
+*/bp_cce_fsm.sv 1000-1000 kind=expr text="(fsm_req_v_li==0) => 0"  # boot-time e_uncached_only mode: only the loader stores reach it while the cores are frozen (no uncached loads / cached requests)
+*/bp_cce_fsm.sv 1000-1000 kind=expr text="(mem_credits_empty==1) => 0"  # boot-time e_uncached_only mode: only the loader stores reach it while the cores are frozen (no uncached loads / cached requests)
+*/bp_cce_fsm.sv 1001-1001 kind=expr text="(fsm_fwd_last_lo==0) => 0"  # uncached forward: single beat (no data / <= 8 B)
+*/bp_cce_fsm.sv 1001-1001 kind=expr text="(fsm_fwd_v_lo==0) => 0"  # boot-time e_uncached_only mode: only the loader stores reach it while the cores are frozen (no uncached loads / cached requests)
+*/bp_cce_fsm.sv 1001-1001 kind=expr text="(fsm_fwd_v_lo==1 && fsm_fwd_last_lo==1) => 1"  # boot-time e_uncached_only mode: only the loader stores reach it while the cores are frozen (no uncached loads / cached requests)
+*/bp_cce_fsm.sv 1126-1126 kind=expr text="(fsm_req_v_li==0) => 0"  # masked by the enclosing condition (term only evaluated while that signal is 1; valid->yumi keeps a request valid until consumed)
+*/bp_cce_fsm.sv 1142-1142 kind=expr text="(fsm_req_last_li==0) => 0"  # uncached request data <= 8 B: single beat
+*/bp_cce_fsm.sv 1151-1151 kind=expr text="(fsm_req_v_li==0) => 0"  # masked by the enclosing condition (term only evaluated while that signal is 1; valid->yumi keeps a request valid until consumed)
+*/bp_cce_fsm.sv 1152-1152 kind=expr text="(fsm_fwd_last_lo==0) => 0"  # uncached forward: single beat (no data / <= 8 B)
+*/bp_cce_fsm.sv 1182-1182 kind=expr text="(fsm_req_v_li==0) => 0"  # masked by the enclosing condition (term only evaluated while that signal is 1; valid->yumi keeps a request valid until consumed)
+*/bp_cce_fsm.sv 1670-1670 kind=expr text="(fsm_req_last_li==0) => 0"  # uncached request data <= 8 B: single beat
+*/bp_cce_gad.sv 65-65 kind=expr text="({32'h1{{{clk_i, reset_i}, sharers_v_i}}}[0]==1 && {32'h1{{{clk_i, reset_i}, sharers_v_i}}}[1]==1 && {32'h1{{{clk_i, reset_i}, sharers_v_i}}}[2]==1) => 1"  # unused-signal reduction wire
+*/bp_cce_gad.sv 90-90 kind=expr text="(lce_cached[0]==1 && (sharers_coh_states_i[(32'h3 * 32'sh0)[3:0]+:3] == bp_common_pkg::e_COH_E)==1) => 1"  # LCE 0 / 2 are the I$ LCEs: an I$ line is only ever Shared (no E / M / O / F)
+*/bp_cce_gad.sv 90-90 kind=expr text="(lce_cached[2]==1 && (sharers_coh_states_i[(32'h3 * 32'sh2)[3:0]+:3] == bp_common_pkg::e_COH_E)==1) => 1"  # LCE 0 / 2 are the I$ LCEs: an I$ line is only ever Shared (no E / M / O / F)
+*/bp_cce_gad.sv 91-91 kind=expr text="(lce_cached[0]==1 && (sharers_coh_states_i[(32'h3 * 32'sh0)[3:0]+:3] == bp_common_pkg::e_COH_M)==1) => 1"  # LCE 0 / 2 are the I$ LCEs: an I$ line is only ever Shared (no E / M / O / F)
+*/bp_cce_gad.sv 91-91 kind=expr text="(lce_cached[2]==1 && (sharers_coh_states_i[(32'h3 * 32'sh2)[3:0]+:3] == bp_common_pkg::e_COH_M)==1) => 1"  # LCE 0 / 2 are the I$ LCEs: an I$ line is only ever Shared (no E / M / O / F)
+*/bp_cce_gad.sv 92-92 kind=expr text="(lce_cached[0]==1 && (sharers_coh_states_i[(32'h3 * 32'sh0)[3:0]+:3] == bp_common_pkg::e_COH_O)==1) => 1"  # LCE 0 / 2 are the I$ LCEs: an I$ line is only ever Shared (no E / M / O / F)
+*/bp_cce_gad.sv 92-92 kind=expr text="(lce_cached[2]==1 && (sharers_coh_states_i[(32'h3 * 32'sh2)[3:0]+:3] == bp_common_pkg::e_COH_O)==1) => 1"  # LCE 0 / 2 are the I$ LCEs: an I$ line is only ever Shared (no E / M / O / F)
+*/bp_cce_gad.sv 93-93 kind=expr text="(lce_cached[0]==1 && (sharers_coh_states_i[(32'h3 * 32'sh0)[3:0]+:3] == bp_common_pkg::e_COH_F)==1) => 1"  # LCE 0 / 2 are the I$ LCEs: an I$ line is only ever Shared (no E / M / O / F)
+*/bp_cce_gad.sv 93-93 kind=expr text="(lce_cached[2]==1 && (sharers_coh_states_i[(32'h3 * 32'sh2)[3:0]+:3] == bp_common_pkg::e_COH_F)==1) => 1"  # LCE 0 / 2 are the I$ LCEs: an I$ line is only ever Shared (no E / M / O / F)
+*/bp_cce_gad.sv 98-98 kind=expr text="((lce_cached_E & (~ lce_id_one_hot))[0]==1) => 1"  # LCE 0 / 2 are the I$ LCEs: an I$ line is only ever Shared (no E / M / O / F)
+*/bp_cce_gad.sv 98-98 kind=expr text="((lce_cached_E & (~ lce_id_one_hot))[2]==1) => 1"  # LCE 0 / 2 are the I$ LCEs: an I$ line is only ever Shared (no E / M / O / F)
+*/bp_cce_gad.sv 99-99 kind=expr text="((lce_cached_M & (~ lce_id_one_hot))[0]==1) => 1"  # LCE 0 / 2 are the I$ LCEs: an I$ line is only ever Shared (no E / M / O / F)
+*/bp_cce_gad.sv 99-99 kind=expr text="((lce_cached_M & (~ lce_id_one_hot))[2]==1) => 1"  # LCE 0 / 2 are the I$ LCEs: an I$ line is only ever Shared (no E / M / O / F)
+*/bp_cce_gad.sv 100-100 kind=expr text="((lce_cached_O & (~ lce_id_one_hot))[0]==1) => 1"  # LCE 0 / 2 are the I$ LCEs: an I$ line is only ever Shared (no E / M / O / F)
+*/bp_cce_gad.sv 100-100 kind=expr text="((lce_cached_O & (~ lce_id_one_hot))[2]==1) => 1"  # LCE 0 / 2 are the I$ LCEs: an I$ line is only ever Shared (no E / M / O / F)
+*/bp_cce_gad.sv 101-101 kind=expr text="((lce_cached_F & (~ lce_id_one_hot))[0]==1) => 1"  # LCE 0 / 2 are the I$ LCEs: an I$ line is only ever Shared (no E / M / O / F)
+*/bp_cce_gad.sv 101-101 kind=expr text="((lce_cached_F & (~ lce_id_one_hot))[2]==1) => 1"  # LCE 0 / 2 are the I$ LCEs: an I$ line is only ever Shared (no E / M / O / F)
+*/bp_cce_gad.sv 105-105 kind=expr text="((req_lce_id < num_lce_p)==0) => 0"  # req_lce_id is always < num_lce_p
+*/bsg_cache.sv 336-336 kind=expr text="((block_size_in_words_p > 32'sh1)==0) => 0"  # parameter-fixed
+*/bsg_cache.sv 994-994 kind=expr text="(sbuf_hazard==1) => 0"  # sbuf_hazard not reachable with the cfg 9 L2 (see branch waiver 159)
+*/bsg_cache_miss.sv 161-161 kind=expr text="(word_tracking_p==1) => 1"  # word_tracking_p = 0 (l2_features, parameter-fixed)
+*/bsg_cache_miss.sv 301-301 kind=expr text="(word_tracking_p==1) => 1"  # word_tracking_p = 0 (l2_features, parameter-fixed)
+*/bsg_cache_miss.sv 494-494 kind=expr text="(word_tracking_p==1) => 1"  # word_tracking_p = 0 (l2_features, parameter-fixed)
+*/bsg_two_fifo.sv 97-97 kind=expr text="(enq_i==1 && full_r==1) => 0"  # enqueue when full: protocol violation (assertion)
+*/bsg_two_fifo.sv 101-101 kind=expr text="(empty_r==1 && deq_i==1 && enq_i==0) => 0"  # dequeue when empty: protocol violation (assertion)
+*/bsg_two_fifo.sv 104-104 kind=expr text="(empty_r==1 && deq_i==1) => 0"  # dequeue when empty: protocol violation (assertion)

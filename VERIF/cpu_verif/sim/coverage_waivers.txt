@@ -1399,3 +1399,44 @@
 */bsg_two_fifo.sv 97-97 kind=expr text="(enq_i==1 && full_r==1) => 0"  # enqueue when full: protocol violation (assertion)
 */bsg_two_fifo.sv 101-101 kind=expr text="(empty_r==1 && deq_i==1 && enq_i==0) => 0"  # dequeue when empty: protocol violation (assertion)
 */bsg_two_fifo.sv 104-104 kind=expr text="(empty_r==1 && deq_i==1) => 0"  # dequeue when empty: protocol violation (assertion)
+
+# 14 Nov 2026 toggle review (non-CCE/LCE): bits held constant by the RTL
+# expression itself (shift / zero-extend / unused declaration).
+# num_pmp = 0: struct members of pmpcfg_li/lo (the plain-name rule at line 216
+# does not match 'pmpcfg_li[0].a').
+*/bp_be_csr.sv toggle=pmpcfg_l[io]\[\d+\]\.(a|l|r|w|x)
+# retire_imm_li = 5-bit rs1 zero-extended
+*/bp_be_pipe_sys.sv toggle=retire_imm_li[5:63]
+# be_exc_imm_li = 5-bit fflags zero-extended (dpath 66 bits)
+*/bp_be_scheduler.sv toggle=be_exc_imm_li[5:31]
+*/bp_be_scheduler.sv toggle=be_exc_imm_li[33:34]
+*/bp_be_scheduler.sv toggle=be_exc_imm_li[37:63]
+*/bp_be_scheduler.sv toggle=be_exc_imm_li[65]
+# fetch_scan immediates = (count) << 1, count <= 4 (bit 0 and bits >= 4 constant)
+*/bp_fe_scan.sv toggle=fetch_scan_cast_o\.(linear_imm|ntaken_imm|taken_imm)[0]
+*/bp_fe_scan.sv toggle=fetch_scan_cast_o\.(linear_imm|ntaken_imm)[4:38]
+*/bp_fe_pc_gen.sv toggle=fetch_scan\.(linear_imm|ntaken_imm|taken_imm)[0]
+*/bp_fe_pc_gen.sv toggle=fetch_scan\.(linear_imm|ntaken_imm)[4:38]
+*/bp_fe_top.sv toggle=fetch_scan_lo\.(linear_imm|ntaken_imm|taken_imm)[0]
+*/bp_fe_top.sv toggle=fetch_scan_lo\.(linear_imm|ntaken_imm)[4:38]
+# if2_shift = if2_pc_sel << 4
+*/bp_fe_realigner.sv toggle=if2_shift[0:3]
+*/bp_fe_realigner.sv toggle=if2_shift[6:35]
+*/bp_fe_realigner.sv toggle=if2_shift[38:67]
+*/bp_fe_realigner.sv toggle=if2_shift[70:79]
+# amo32_*_in = word << 32, amo32_out = result >> 32
+*/bp_be_dcache.sv toggle=amo32_(reg_in|mem_in)[0:31]
+*/bp_be_dcache.sv toggle=amo32_out[32:63]
+*/bsg_cache.sv toggle=atomic_64\.amo32_(reg_in|mem_in)[0:31]
+*/bsg_cache.sv toggle=fi\.amo32_out[32:63]
+# declared, never assigned / used
+*/bp_be_dcache_wbuf.sv toggle=bypass_data_masked
+*/bp_be_pipe_aux.sv toggle=i2f_raw\..*
+# imvf_mask = {32{opw_v}} << 32
+*/bp_be_pipe_aux.sv toggle=imvf_mask[0:31]
+# single-precision value carried in double layout: low 29 fraction bits are 0
+*/bp_be_fp_box.sv toggle=(reg32\.rec|sp2dp_rec)\.fract[0:28]
+*/bp_be_fp_rebox.sv toggle=sp_reg_lo\.rec\.fract[0:28]
+*/bp_be_fp_rebox.sv toggle=result_sp[0:28]
+*/recFNToRecFN.v toggle=inFract[23:51]
+*/recFNToRecFN.v toggle=(inFractAdjusted|out)[0:28]

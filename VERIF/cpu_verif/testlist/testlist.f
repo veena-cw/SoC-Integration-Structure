@@ -530,3 +530,20 @@ bp_dv_054_smp_coherence_latency_test 100 l2_thrash.nbf
 bp_dv_054_smp_coherence_latency_test 101 coh_corner.nbf
 bp_dv_054_smp_coherence_latency_test 102 l2_uncached_amo.nbf
 bp_dv_054_smp_coherence_latency_test 103 smp_atomics.nbf
+
+# BP-DV-104: FP divide / square root with full-width operands (c/fp_divsqrt.c,
+# rv64imafd, both harts): fdiv.d / fsqrt.d / fdiv.s / fsqrt.s on random
+# 52-bit (23-bit) fractions, RNE / RTZ / RDN / RUP / RMM, each result checked
+# with the exact FMA residual; fdiv overflow / underflow fflags (late
+# writeback UF / OF). Targets divSqrtRecFN_medium fractB_Z / sigX_NMuxIn.
+# PASS 14 Nov.
+#   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=fp_divsqrt TEST_ID=104
+bp_dv_049_smp_coherence_test 104 fp_divsqrt.nbf
+
+# BP-DV-105: PLIC per-target priority cells (c/plic_prio_sweep.c, core 0):
+# all 64 sources pending and enabled on all 4 targets (threshold 7) while
+# every PRIORITY field is swept 7/0/5/2/7/0 (plic_cell priority_o only
+# follows the register while ip & ie); then 64 claims on target 0 in
+# priority order, claim 0 on every target, registers restored. PASS 14 Nov.
+#   make sim TEST=bp_dv_060_plic_irq_scenarios_test TCNAME=plic_prio_sweep TEST_ID=105
+bp_dv_060_plic_irq_scenarios_test 105 plic_prio_sweep.nbf

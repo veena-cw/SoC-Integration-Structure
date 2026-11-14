@@ -214,6 +214,12 @@ static uint64_t run_debug(void)
   CSRW(mscratch, m);
   CSRW(mtvec, m_trap);
 
+#ifdef DCSR_STEPIE_ON
+  /* BP-DV-098: dcsr.stepie = 1 for the whole run (no effect while
+   * dcsr.step = 0; bp_be_csr irq_pending stepie terms) */
+  __asm__ volatile ("csrs dcsr, %0" :: "r"(1ULL << 11) : "memory");
+#endif
+
   /* 1 cfg NPC -> debug vector */
   progress(1);
   old_npc = *CFG_NPC(h);

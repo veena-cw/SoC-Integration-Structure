@@ -184,6 +184,12 @@ static uint64_t run_tests(void)
   CSRW(mscratch, r);
   CSRW(sscratch, r);
   CSRW(mtvec, m_trap);
+
+#ifdef DCSR_STEPIE_ON
+  /* BP-DV-098: dcsr.stepie = 1 for the whole run (no effect while
+   * dcsr.step = 0; bp_be_csr irq_pending stepie terms) */
+  __asm__ volatile ("csrs dcsr, %0" :: "r"(1ULL << 11) : "memory");
+#endif
   CSRW(stvec, s_trap);
   CSRW(medeleg, 0);
   CSRW(mideleg, 0);

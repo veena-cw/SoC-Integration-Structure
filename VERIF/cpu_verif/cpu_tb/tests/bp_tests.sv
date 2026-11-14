@@ -1537,6 +1537,44 @@ class bp_dv_055_cce_stall_test extends bp_dv_049_smp_coherence_test;
   endfunction
 endclass
 
+// Test ID: BP-DV-097 | LCE / cache stall injector (cpu_tb_top, white-box) on
+// the BP-DV-049 coherence program (or any program via TCNAME): random windows
+// where the D$ / I$ of either tile does not accept the tag / stat / data
+// packet from its LCE. The program's own checks must still pass; fails if an
+// enabled stall bit never met a pending packet (lce_stall_hit<bit>).
+class bp_dv_097_lce_stall_test extends bp_dv_049_smp_coherence_test;
+  `uvm_component_utils(bp_dv_097_lce_stall_test)
+
+  int unsigned mask = 'h7;
+
+  function new(string name, uvm_component parent);
+    super.new(name, parent);
+  endfunction
+
+  function void build_phase(uvm_phase phase);
+    void'($value$plusargs("LCE_STALL_MASK=%h", mask));
+    uvm_config_db#(int unsigned)::set(this, "", "lce_stall_pct", 8);
+    uvm_config_db#(int unsigned)::set(this, "", "lce_stall_mask", mask);
+    uvm_config_db#(int unsigned)::set(this, "", "lce_stall_max", 6);
+    super.build_phase(phase);
+  endfunction
+
+  function void check_phase(uvm_phase phase);
+    string missing = "";
+    super.check_phase(phase);
+    for (int b = 0; b < 3; b++) begin
+      int unsigned hit = 0;
+      if (!mask[b]) continue;
+      void'(uvm_config_db#(int unsigned)::get(this, "", $sformatf("lce_stall_hit%0d", b), hit));
+      if (hit == 0) missing = {missing, $sformatf(" %0d", b)};
+    end
+    if (missing != "")
+      `uvm_error("BP097_NO_HIT", {"LCE stall bits never met a pending request:", missing})
+    else
+      `uvm_info("BP097_STALL", "every enabled LCE stall bit met a pending request", UVM_NONE)
+  endfunction
+endclass
+
 // Supplemental I2C model smoke test (BP-DV-027, outside the supplied plan).
 class bp_i2c_write_read_test extends bp_base_test;
   `uvm_component_utils(bp_i2c_write_read_test)

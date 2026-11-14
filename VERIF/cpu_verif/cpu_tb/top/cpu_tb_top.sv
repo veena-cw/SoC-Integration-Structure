@@ -1051,6 +1051,99 @@ module cpu_tb_top
 `undef CCE_PATH
 
   // --------------------------------------------------------------------
+  // LCE / cache stall injector (BP-DV-097, white-box). Random short windows
+  // where an L1 cache does not accept the packet its LCE (bp_lce) sends:
+  //   bit 0  tag_mem_pkt_yumi    bit 1  stat_mem_pkt_yumi
+  //   bit 2  data_mem_pkt_yumi
+  // on the D$ (be_lce / pipe_mem.dcache) and I$ (fe_lce / fe.icache) of both
+  // tiles. The yumi is forced to 0 at every point of its path - the cache's
+  // own output (the cache also uses it to commit the write), the
+  // core_minimal port, the core_lite wire and the LCE input - so both sides
+  // agree the packet was not taken (first version forced only the LCE input:
+  // the cache committed, the LCE resent, CCE pending bits over/underflowed).
+  // The LCE runs on negedge_clk and the caches on posedge, so forces change
+  // 1 ns after the rising edge. Network ready signals are not forced (their
+  // FIFO side cannot be forced consistently).
+  // Config (uvm_config_db on uvm_test_top, or +LCE_STALL_PCT / _MASK /
+  // _MAX): lce_stall_pct (chance per cycle a window starts, 0 = off),
+  // lce_stall_mask, lce_stall_max (window length 1..max cycles). A hit is a
+  // cycle where the LCE had the packet valid during a window; the first hit
+  // of each bit is published as lce_stall_hit<bit> = 1.
+  // --------------------------------------------------------------------
+  int unsigned lce_stall_pct = 0;
+  int unsigned lce_stall_mask = 'h7;
+  int unsigned lce_stall_max = 6;
+  int unsigned lce_stall_windows [3];
+  int unsigned lce_stall_hits [3];
+
+  initial begin
+    #1;
+    void'(uvm_config_db#(int unsigned)::get(null, "uvm_test_top", "lce_stall_pct", lce_stall_pct));
+    void'(uvm_config_db#(int unsigned)::get(null, "uvm_test_top", "lce_stall_mask", lce_stall_mask));
+    void'(uvm_config_db#(int unsigned)::get(null, "uvm_test_top", "lce_stall_max", lce_stall_max));
+    void'($value$plusargs("LCE_STALL_PCT=%d", lce_stall_pct));
+    void'($value$plusargs("LCE_STALL_MASK=%h", lce_stall_mask));
+    void'($value$plusargs("LCE_STALL_MAX=%d", lce_stall_max));
+    if (lce_stall_pct != 0)
+      $display("LCE STALL injector enabled: pct=%0d mask=0x%0h max=%0d cycles",
+               lce_stall_pct, lce_stall_mask, lce_stall_max);
+  end
+
+  final begin
+    if (lce_stall_pct != 0)
+      $display("LCE STALL summary: windows/hits tag=%0d/%0d stat=%0d/%0d data=%0d/%0d",
+               lce_stall_windows[0], lce_stall_hits[0], lce_stall_windows[1], lce_stall_hits[1],
+               lce_stall_windows[2], lce_stall_hits[2]);
+  end
+
+`define CL_PATH(X) dut.u_bp.m.multicore.cc.y[0].x[X].tile_node.tile.core.core_lite
+`define LCE_STALL(X, BIT, LCE, CACHE, PFX, PKT)                             \
+  initial begin                                                             \
+    #2;                                                                     \
+    if (lce_stall_pct != 0 && lce_stall_mask[BIT]) begin                    \
+      wait (`CL_PATH(X).LCE.reset_i === 1'b1);                              \
+      wait (`CL_PATH(X).LCE.reset_i === 1'b0);                              \
+      forever begin                                                         \
+        @(posedge clk); #1;                                                 \
+        if ($urandom_range(99) < lce_stall_pct) begin                       \
+          force `CL_PATH(X).core_minimal.CACHE.PKT``_yumi_o = 1'b0;         \
+          force `CL_PATH(X).core_minimal.PFX``_``PKT``_yumi_o = 1'b0;       \
+          force `CL_PATH(X).PFX``_``PKT``_yumi_lo = 1'b0;                   \
+          force `CL_PATH(X).LCE.PKT``_yumi_i = 1'b0;                        \
+          lce_stall_windows[BIT]++;                                         \
+          repeat ($urandom_range(lce_stall_max, 1)) begin                   \
+            @(posedge clk); #1;                                             \
+            if (`CL_PATH(X).LCE.PKT``_v_o === 1'b1) begin                   \
+              lce_stall_hits[BIT]++;                                        \
+              if (lce_stall_hits[BIT] == 1)                                 \
+                uvm_config_db#(int unsigned)::set(null, "uvm_test_top",     \
+                  $sformatf("lce_stall_hit%0d", BIT), 1);                   \
+            end                                                             \
+          end                                                               \
+          release `CL_PATH(X).core_minimal.CACHE.PKT``_yumi_o;              \
+          release `CL_PATH(X).core_minimal.PFX``_``PKT``_yumi_o;            \
+          release `CL_PATH(X).PFX``_``PKT``_yumi_lo;                        \
+          release `CL_PATH(X).LCE.PKT``_yumi_i;                             \
+          repeat ($urandom_range(lce_stall_max, 1)) @(posedge clk);         \
+        end                                                                 \
+      end                                                                   \
+    end                                                                     \
+  end
+
+`define LCE_STALL_ALL(X, LCE, CACHE, PFX)                                   \
+  `LCE_STALL(X, 0, LCE, CACHE, PFX, tag_mem_pkt)                            \
+  `LCE_STALL(X, 1, LCE, CACHE, PFX, stat_mem_pkt)                           \
+  `LCE_STALL(X, 2, LCE, CACHE, PFX, data_mem_pkt)
+
+  `LCE_STALL_ALL(0, be_lce, be.calculator.pipe_mem.dcache, dcache)
+  `LCE_STALL_ALL(0, fe_lce, fe.icache,                     icache)
+  `LCE_STALL_ALL(1, be_lce, be.calculator.pipe_mem.dcache, dcache)
+  `LCE_STALL_ALL(1, fe_lce, fe.icache,                     icache)
+`undef LCE_STALL_ALL
+`undef LCE_STALL
+`undef CL_PATH
+
+  // --------------------------------------------------------------------
   // Default-arm injector (BP-DV-057, white-box fault injection). Runs once,
   // when the test triggers the global uvm_event "default_inject_go" (after
   // the program has finished and the cores only spin in L1). For each FSM

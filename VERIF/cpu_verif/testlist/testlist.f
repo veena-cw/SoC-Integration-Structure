@@ -492,3 +492,23 @@ bp_dv_049_smp_coherence_test 95 hio_fault.nbf
 # exact, checked bit for bit. PASS 13 Nov.
 #   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=fp_clz TEST_ID=96
 bp_dv_049_smp_coherence_test 96 fp_clz.nbf
+
+# BP-DV-098: dcsr.stepie = 1 for the whole run (no effect while dcsr.step =
+# 0), so the bp_be_csr irq_pending stepie terms see pending interrupts:
+#   a  BP-DV-086 program (c/irq_matrix_stepie.c): SSI / STI / SEI in M / S / U
+#   b  BP-DV-051 program (c/debug_mode_stepie.c): CLINT debug halt request and
+#      single step with stepie set
+# The programs' own checks are unchanged. PASS 13 Nov.
+#   make sim TEST=bp_dv_049_smp_coherence_test TCNAME=irq_matrix_stepie TEST_ID=98
+#   make sim TEST=bp_dv_051_debug_mode_test TCNAME=debug_mode_stepie TEST_ID=98
+bp_dv_049_smp_coherence_test 98 irq_matrix_stepie.nbf
+bp_dv_051_debug_mode_test 98 debug_mode_stepie.nbf
+
+# BP-DV-097: LCE / cache stall injector (white-box, cpu_tb_top) on the
+# BP-DV-049 coherence program: random windows where the D$ / I$ of either
+# tile does not accept the tag / stat / data packet from its LCE (yumi forced
+# 0 on the whole path, 1 ns after the rising edge). The program's checks
+# must pass; fails if a stall bit never met a pending packet. PASS 13 Nov
+# (hits tag 2012, stat 508, data 2623).
+#   make sim TEST=bp_dv_097_lce_stall_test TCNAME=smp_coherence TEST_ID=97
+bp_dv_097_lce_stall_test 97 smp_coherence.nbf
